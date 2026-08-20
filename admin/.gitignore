@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.local
+
+# Nunca versionar variáveis de ambiente reais — só o .env.example
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+*.log

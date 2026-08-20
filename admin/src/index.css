@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   TIPOGRAFIA — Satoshi, a mesma fonte do chat
+   ============================================================
+   O arquivo mora em `../assets` (raiz do repositório). O Vite resolve
+   a URL relativa e copia para o bundle do painel; o chat continua
+   servindo o mesmo arquivo direto, sem build. */
+@font-face {
+  font-family: 'Satoshi';
+  src: url('../../assets/Satoshi-Variable.woff2') format('woff2');
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+/* ============================================================
+   TOKENS — fundo claro, marca Mind
+   ============================================================
+   Papéis semânticos no formato do shadcn/ui (HSL sem função).
+   Primário = verde Mind fechado o suficiente para texto branco;
+   destrutivo = coral da marca. */
+@layer base {
+  :root {
+    --background: 150 20% 98%;
+    --foreground: 222 24% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 24% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 24% 12%;
+
+    /* #0f9549 — verde Mind em versão acessível sobre branco */
+    --primary: 149 82% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 22% 95%;
+    --secondary-foreground: 222 24% 16%;
+
+    --muted: 150 16% 95%;
+    --muted-foreground: 220 10% 42%;
+
+    --accent: 146 60% 93%;
+    --accent-foreground: 149 82% 22%;
+
+    /* #e53616 — coral fechado, para ações irreversíveis */
+    --destructive: 9 82% 49%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 12% 89%;
+    --input: 150 12% 87%;
+    --ring: 149 82% 32%;
+
+    --radius: 0.65rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  /* Tabelas executivas: números alinhados por coluna */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Faixa diagonal usada no aviso de modo demonstração */
+  .listra-demo {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(255, 112, 87, 0.12) 0,
+      rgba(255, 112, 87, 0.12) 8px,
+      transparent 8px,
+      transparent 16px
+    );
+  }
+}
