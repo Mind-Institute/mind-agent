@@ -11,6 +11,7 @@ export * from './document';
 export * from './conversation';
 export * from './unanswered';
 export * from './user';
+export * from './auth';
 export * from './audit';
 export * from './dashboard';
 export * from './resources';

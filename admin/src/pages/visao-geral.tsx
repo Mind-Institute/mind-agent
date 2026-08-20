@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, CheckCircle2, Info } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Info, SatelliteDish } from 'lucide-react';
 import type { AlertaPainel, GrupoPendencia, MetricaPainel } from '@/contracts';
 import { useResumoPainel } from '@/hooks/use-recurso';
+import { useModoDados } from '@/services/provider-context';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { EstadoCarregando, EstadoErro } from '@/components/admin/estados';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,12 +116,22 @@ function BlocoPendencia({ grupo }: { grupo: GrupoPendencia }) {
 
 export function PaginaVisaoGeral() {
   const consulta = useResumoPainel();
+  const modo = useModoDados();
 
   return (
     <div className="space-y-6">
       <CabecalhoPagina
         titulo="Visão geral"
         descricao="Os números do evento e, principalmente, o que ainda falta para o agente conseguir responder."
+        acoes={
+          modo === 'mock' ? (
+            <Badge variant="destructive">números simulados</Badge>
+          ) : (
+            <Badge variant="sucesso" data-testid="selo-dashboard-real">
+              <SatelliteDish className="size-3" /> números da API administrativa
+            </Badge>
+          )
+        }
       />
 
       {consulta.isPending ? (

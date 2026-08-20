@@ -65,10 +65,23 @@ export function PaginaConfiguracoes() {
           <CardContent className="space-y-3 text-sm">
             <p>
               Implementação:{' '}
-              <Badge variant={provedor.modo === 'mock' ? 'destructive' : 'sucesso'}>
-                {provedor.modo === 'mock' ? 'MockAdminDataProvider' : 'HttpAdminDataProvider'}
+              <Badge
+                variant={
+                  provedor.modo === 'mock'
+                    ? 'destructive'
+                    : provedor.modo === 'hybrid'
+                      ? 'atencao'
+                      : 'sucesso'
+                }
+              >
+                {provedor.modo === 'mock'
+                  ? 'MockAdminDataProvider'
+                  : provedor.modo === 'hybrid'
+                    ? 'HybridAdminDataProvider'
+                    : 'HttpAdminDataProvider'}
               </Badge>
             </p>
+
             {provedor.modo === 'mock' ? (
               <p className="text-muted-foreground">
                 Os dados são simulados e vivem na memória do navegador. Evento, temas, sessões e
@@ -76,15 +89,36 @@ export function PaginaConfiguracoes() {
                 rotas, estandes, ofertas, conteúdo, documentos, conversas e auditoria são mocks
                 pequenos. Recarregar a página desfaz qualquer alteração.
               </p>
+            ) : provedor.modo === 'hybrid' ? (
+              <div className="space-y-2 text-muted-foreground">
+                <p>
+                  <strong className="text-foreground">Dashboard real:</strong> a visão geral vem de{' '}
+                  <code className="font-mono">GET /admin/dashboard</code>, com o token da sessão no
+                  header <code className="font-mono">Authorization</code>.
+                </p>
+                <p>
+                  <strong className="text-foreground">Cadastros em demonstração:</strong> todo o
+                  resto continua no banco em memória. Nenhuma escrita chega ao backend nesta etapa —
+                  salvar, publicar, arquivar e reindexar mexem só nesta aba.
+                </p>
+              </div>
             ) : (
               <p className="text-muted-foreground">
                 O painel está falando com a API administrativa. Nenhuma página mudou para isso — a
                 troca acontece só na fábrica do provedor.
               </p>
             )}
+
             <p className="text-muted-foreground">
-              Papel simulado agora: <strong>{ROTULO_PAPEL[sessao.papel]}</strong>. Trocar pelo topo
-              muda só o que a interface mostra.
+              Papel agora: <strong>{ROTULO_PAPEL[sessao.papel]}</strong>
+              {sessao.simulada ? (
+                <> — simulado pelo seletor do topo, muda só o que a interface mostra.</>
+              ) : (
+                <>
+                  {' '}
+                  — veio de <code className="font-mono">/admin/me</code>, validado no backend.
+                </>
+              )}
             </p>
           </CardContent>
         </Card>
@@ -116,9 +150,50 @@ export function PaginaConfiguracoes() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Server className="size-4" /> Integração futura
+              <KeyRound className="size-4" /> Autenticação
             </CardTitle>
-            <CardDescription>O que o HttpAdminDataProvider já espera encontrar.</CardDescription>
+            <CardDescription>Quem valida o acesso, e de onde vem o papel.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            {sessao.simulada ? (
+              <p>
+                <strong className="text-foreground">Modo simulado.</strong> Sem{' '}
+                <code className="font-mono">VITE_SUPABASE_URL</code> o painel não pede login e o
+                papel sai do seletor do topo.
+              </p>
+            ) : (
+              <>
+                <p>
+                  <strong className="text-foreground">Supabase Auth ligado.</strong> A sessão é
+                  restaurada com <code className="font-mono">getSession()</code> e acompanhada por{' '}
+                  <code className="font-mono">onAuthStateChange()</code>. O token vai no header{' '}
+                  <code className="font-mono">Authorization</code> — nunca na URL, nunca no console.
+                </p>
+                <p>
+                  Papel e permissões vêm exclusivamente de{' '}
+                  <code className="font-mono">GET /admin/me</code>.{' '}
+                  <code className="font-mono">user_metadata</code> não é consultado em lugar nenhum
+                  deste código: ele é editável pelo próprio usuário e não autoriza nada.
+                </p>
+                <p>
+                  Sessão de <strong className="text-foreground">{sessao.email ?? '—'}</strong> ·
+                  permissões{' '}
+                  {sessao.permissoes
+                    ? `enviadas pelo backend (${sessao.permissoes.length})`
+                    : 'derivadas do papel informado pelo backend'}
+                  .
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="size-4" /> Endpoints
+            </CardTitle>
+            <CardDescription>O que o HttpAdminDataProvider já sabe chamar.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <ul className="space-y-1 font-mono text-xs">

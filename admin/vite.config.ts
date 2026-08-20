@@ -41,5 +41,16 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     restoreMocks: true,
+    /* O Vite carrega `.env.local` também em modo de teste, o que
+       deixaria a suíte dependente da máquina — e, pior, capaz de bater
+       no backend real. Aqui o ambiente é zerado: sem URL de API e sem
+       Supabase, nenhum cliente de verdade é criado e nenhuma requisição
+       sai. Quem precisa de rede injeta um `fetch` falso. */
+    env: {
+      VITE_ADMIN_API_BASE_URL: '',
+      VITE_ADMIN_DATA_MODE: 'mock',
+      VITE_SUPABASE_URL: '',
+      VITE_SUPABASE_PUBLISHABLE_KEY: '',
+    },
   },
 });

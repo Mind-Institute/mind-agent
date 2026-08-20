@@ -1,26 +1,22 @@
 /* ============================================================
-   HttpAdminDataProvider — preparado, não ligado
+   HttpAdminDataProvider — fala com a Edge Function administrativa
    ============================================================
-   Esta classe existe para provar que a troca de mock por rede não
-   mexe em nenhuma página: mesmos métodos, mesmos tipos, mesmos erros.
-
-   Ela NÃO aponta para nenhuma URL real. `VITE_ADMIN_API_BASE_URL` vem
-   vazia no `.env.example`, e sem ela o construtor recusa a criação em
-   vez de chutar um endereço.
+   Mesmos métodos, mesmos tipos e mesmos erros do mock: trocar um pelo
+   outro não mexe em nenhuma página.
 
    REGRAS QUE NÃO PODEM SER QUEBRADAS AQUI
    ---------------------------------------
    - O navegador NUNCA fala com o Postgres direto. Só com Edge Function.
    - `service_role` e secret key não existem neste código, nem em
      variável, nem em header. Quem tem chave administrativa é o backend.
-   - O token vai no header `Authorization`, nunca na URL.
-   - Nenhum dado pessoal (e-mail, telefone) entra em query string: a
-     busca vai por `POST`/header quando chegar a hora, ou por id.
-   - Nada de `console.log` de token, header ou corpo de resposta. */
+   - O token vai no header `Authorization`, NUNCA na URL: endereço vaza
+     em histórico, log de proxy e print de tela.
+   - Nenhum `console.log` de token, header ou corpo de resposta.
+   - Nenhum dado pessoal (e-mail, telefone) em query string. Filtro é
+     metadado: dia, espaço, status. */
 
 import {
   AdminApiError,
-  type CodigoErroAdmin,
   type ListFilters,
   type ListResult,
   type MapaRecursos,
@@ -30,36 +26,36 @@ import {
   type ResumoPainel,
 } from '@/contracts';
 import type { AdminDataProvider } from './admin-data-provider';
+import { erroDaResposta, erroDeRede } from './http-erros';
 
-/** Como o painel obtém o token da sessão. Hoje devolve `null`. */
+/** Como o painel obtém o token da sessão vigente. */
 export type ProvedorDeToken = () => Promise<string | null>;
 
 export interface OpcoesHttp {
   baseUrl: string;
   /**
-   * Será ligado ao Supabase Auth: `supabase.auth.getSession()` →
-   * `session.access_token`. Enquanto não existe, devolve `null` e a
-   * Edge Function responde 401 — que é o comportamento correto.
+   * Ligado ao Supabase Auth em `use-sessao.tsx`: devolve o
+   * `access_token` da sessão atual, ou `null` quando não há sessão.
+   * Sem token a Edge Function responde 401 — que é o correto.
    */
   obterToken?: ProvedorDeToken;
+  /**
+   * Chave publicável do projeto (anon). É pública por design e o
+   * gateway do Supabase a exige junto do token. NUNCA `service_role`.
+   */
+  chavePublicavel?: string;
+  /** Chamado quando a API recusa por sessão expirada (401). */
+  aoNaoAutorizado?: (erro: AdminApiError) => void;
   fetchImpl?: typeof fetch;
 }
-
-const CODIGO_POR_STATUS: Record<number, CodigoErroAdmin> = {
-  400: 'validacao',
-  401: 'sem_permissao',
-  403: 'sem_permissao',
-  404: 'nao_encontrado',
-  409: 'conflito',
-  422: 'validacao',
-  503: 'indisponivel',
-};
 
 export class HttpAdminDataProvider implements AdminDataProvider {
   readonly modo = 'http' as const;
 
   private readonly baseUrl: string;
   private readonly obterToken: ProvedorDeToken;
+  private readonly chavePublicavel: string | null;
+  private readonly aoNaoAutorizado?: (erro: AdminApiError) => void;
   private readonly fetchImpl: typeof fetch;
 
   constructor(opcoes: OpcoesHttp) {
@@ -72,6 +68,8 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     }
     this.baseUrl = base;
     this.obterToken = opcoes.obterToken ?? (async () => null);
+    this.chavePublicavel = opcoes.chavePublicavel?.trim() || null;
+    this.aoNaoAutorizado = opcoes.aoNaoAutorizado;
     this.fetchImpl = opcoes.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
@@ -82,8 +80,6 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     if (filtros) {
       for (const [chave, valor] of Object.entries(filtros)) {
         if (valor === undefined || valor === null || valor === '') continue;
-        /* Filtro é sempre metadado (dia, status, espaço). Dado pessoal
-           não vira query string — nem para busca. */
         if (Array.isArray(valor)) valor.forEach((v) => url.searchParams.append(chave, String(v)));
         else url.searchParams.set(chave, String(valor));
       }
@@ -91,10 +87,7 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     return url.toString();
   }
 
-  private async pedir<T>(
-    url: string,
-    init: RequestInit & { corpo?: unknown } = {},
-  ): Promise<T> {
+  private async pedir<T>(url: string, init: RequestInit & { corpo?: unknown } = {}): Promise<T> {
     const { corpo, ...resto } = init;
     const token = await this.obterToken();
 
@@ -103,6 +96,7 @@ export class HttpAdminDataProvider implements AdminDataProvider {
       ...(corpo !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...((resto.headers as Record<string, string>) ?? {}),
     };
+    if (this.chavePublicavel) cabecalhos.apikey = this.chavePublicavel;
     /* O token vive só neste objeto, no tempo da requisição. Não é
        guardado, não é logado, não vai para a URL. */
     if (token) cabecalhos.Authorization = `Bearer ${token}`;
@@ -115,25 +109,15 @@ export class HttpAdminDataProvider implements AdminDataProvider {
         body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
       });
     } catch (erro) {
-      throw new AdminApiError('rede', 'Não foi possível falar com a API administrativa.', {
-        detalhes: erro instanceof Error ? erro.message : String(erro),
-      });
+      throw erroDeRede(erro);
     }
 
-    const requestId = resposta.headers.get('x-request-id') ?? undefined;
-
     if (!resposta.ok) {
-      const codigo = CODIGO_POR_STATUS[resposta.status] ?? 'desconhecido';
-      let mensagem = `A API respondeu ${resposta.status}.`;
-      let detalhes: unknown;
-      try {
-        const corpoErro = (await resposta.json()) as { mensagem?: string; detalhes?: unknown };
-        if (corpoErro?.mensagem) mensagem = corpoErro.mensagem;
-        detalhes = corpoErro?.detalhes;
-      } catch {
-        /* Resposta sem JSON: a mensagem por status já basta. */
-      }
-      throw new AdminApiError(codigo, mensagem, { detalhes, requestId });
+      const erro = await erroDaResposta(resposta);
+      /* Sessão caiu no meio do uso: quem sabe o que fazer com isso é a
+         camada de sessão, não a página que pediu a lista. */
+      if (erro.codigo === 'sessao_expirada') this.aoNaoAutorizado?.(erro);
+      throw erro;
     }
 
     if (resposta.status === 204) return undefined as T;
@@ -178,7 +162,8 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     return this.pedir<MapaRecursos[K]>(this.caminho([resource, id]), {
       method: 'PATCH',
       corpo: payload,
-      /* Controle de concorrência otimista: a API compara e devolve 409. */
+      /* Controle de concorrência otimista. A Edge Function já aceita
+         este header — ele está no `access-control-allow-headers`. */
       headers: opcoes?.atualizadoEmEsperado
         ? { 'If-Unmodified-Since-Version': opcoes.atualizadoEmEsperado }
         : {},

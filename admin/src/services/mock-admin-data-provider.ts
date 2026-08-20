@@ -169,6 +169,8 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const mensagens: Record<CodigoErroAdmin, string> = {
       rede: 'Não foi possível falar com a API administrativa.',
       sem_permissao: 'Seu papel não permite acessar estes dados.',
+      sessao_expirada: 'Sua sessão expirou. Entre novamente.',
+      credenciais_invalidas: 'E-mail ou senha incorretos.',
       nao_encontrado: 'Registro não encontrado.',
       conflito: 'O registro mudou desde que esta tela carregou.',
       validacao: 'Os dados enviados foram recusados.',

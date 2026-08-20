@@ -96,6 +96,8 @@ export function EstadoErro({
     nao_encontrado: 'Registro não encontrado',
     conflito: 'Conflito de atualização',
     validacao: 'Dados recusados',
+    sessao_expirada: 'Sessão expirada',
+    credenciais_invalidas: 'Credenciais inválidas',
     desconhecido: 'Algo deu errado',
   };
 

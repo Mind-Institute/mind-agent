@@ -3,8 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import type { Papel } from '@/contracts';
 import type { AdminDataProvider } from '@/services/admin-data-provider';
-import { ProvedorDeDados } from '@/services/provider-context';
+import type { PortaAutenticacao } from '@/services/auth';
+import { criarPortaSupabaseDoAmbiente } from '@/services/auth-supabase';
+import { ProvedorDeDados, type FabricaProvedor } from '@/services/provider-context';
 import { ProvedorDeSessao } from '@/hooks/use-sessao';
+import { GuardaAutenticacao } from '@/components/admin/guarda-autenticacao';
 import { rotasAdmin } from '@/routes';
 
 export function criarClienteDeConsulta() {
@@ -25,46 +28,63 @@ export function criarClienteDeConsulta() {
 /**
  * Provedores da aplicação, sem o roteador — é o que os testes montam
  * em volta de um `MemoryRouter` próprio.
+ *
+ * A ordem importa: a sessão vem ANTES do provedor de dados, porque é
+ * dela que sai o `obterToken` que o `HttpAdminDataProvider` usa no
+ * header `Authorization`.
  */
 export function Provedores({
   children,
   provider,
   queryClient,
   papelInicial,
+  porta,
+  baseUrlApi = import.meta.env.VITE_ADMIN_API_BASE_URL,
+  chavePublicavel = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  fetchImpl,
 }: {
   children: ReactNode;
-  provider?: AdminDataProvider;
+  provider?: AdminDataProvider | FabricaProvedor;
   queryClient?: QueryClient;
   papelInicial?: Papel;
+  /** Ausente = modo simulado (sem login). */
+  porta?: PortaAutenticacao | null;
+  /** Explícito nos testes, para `/admin/me` não depender do ambiente. */
+  baseUrlApi?: string;
+  chavePublicavel?: string | null;
+  fetchImpl?: typeof fetch;
 }) {
   const cliente = queryClient ?? criarClienteDeConsulta();
   return (
     <QueryClientProvider client={cliente}>
-      <ProvedorDeDados provider={provider}>
-        <ProvedorDeSessao papelInicial={papelInicial}>{children}</ProvedorDeSessao>
-      </ProvedorDeDados>
+      <ProvedorDeSessao
+        porta={porta}
+        papelInicial={papelInicial}
+        baseUrlApi={baseUrlApi}
+        chavePublicavel={chavePublicavel}
+        fetchImpl={fetchImpl}
+      >
+        <ProvedorDeDados provider={provider}>
+          <GuardaAutenticacao>{children}</GuardaAutenticacao>
+        </ProvedorDeDados>
+      </ProvedorDeSessao>
     </QueryClientProvider>
   );
 }
 
-/* Sinalizadores do React Router 7 ligados desde já: adotar o
-   comportamento novo agora evita uma migração surpresa depois. */
-export const FUTURO_ROTEADOR = {
-  v7_relativeSplatPath: true,
-  v7_fetcherPersist: true,
-  v7_normalizeFormMethod: true,
-  v7_partialHydration: true,
-  v7_skipActionErrorRevalidation: true,
-} as const;
+/* React Router 7: os sinalizadores `v7_*` da versão 6 viraram o
+   comportamento padrão, e o `future` do RouterProvider deixou de
+   existir. Nada a declarar aqui. */
+const roteador = createBrowserRouter(rotasAdmin);
 
-export const FUTURO_PROVEDOR = { v7_startTransition: true } as const;
-
-const roteador = createBrowserRouter(rotasAdmin, { future: FUTURO_ROTEADOR });
+/* Sem Supabase configurado, `porta` é `null` e o painel roda em modo
+   demonstração — que é como ele nasceu e continua utilizável. */
+const portaSupabase = criarPortaSupabaseDoAmbiente();
 
 export function App() {
   return (
-    <Provedores>
-      <RouterProvider router={roteador} future={FUTURO_PROVEDOR} />
+    <Provedores porta={portaSupabase}>
+      <RouterProvider router={roteador} />
     </Provedores>
   );
 }

@@ -68,6 +68,8 @@ export interface ListResult<T> {
 export type CodigoErroAdmin =
   | 'nao_encontrado'
   | 'sem_permissao'
+  | 'sessao_expirada'
+  | 'credenciais_invalidas'
   | 'conflito'
   | 'validacao'
   | 'rede'

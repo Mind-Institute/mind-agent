@@ -20,7 +20,7 @@ import type {
 
 export interface AdminDataProvider {
   /** Qual implementação está ativa. A interface mostra isso no topo. */
-  readonly modo: 'mock' | 'http';
+  readonly modo: 'mock' | 'http' | 'hybrid';
 
   list<K extends NomeRecurso>(
     resource: K,

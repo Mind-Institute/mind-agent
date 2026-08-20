@@ -8,10 +8,19 @@ site estático sem build — este painel não toca em nenhum arquivo dele. A ún
 coisa que atravessa a fronteira é leitura: `../dados/summit.json` como semente e
 `../assets/` para a fonte Satoshi, o símbolo e o favicon.
 
-Estado atual: **primeira versão, em modo demonstração.** Todos os quinze módulos
-existem, com listagem e estados completos; evento, programação, palestrantes e
-espaços têm formulário inteiro. Nenhum dado é persistido — ver
-[Limites desta versão](#limites-desta-versão).
+Estado atual: **autenticação ligada e dashboard real; cadastros ainda em
+demonstração.**
+
+- O acesso passa por **Supabase Auth**. Papel e permissões vêm exclusivamente de
+  `GET /admin/me`, validado no backend.
+- A **visão geral** lê `GET /admin/dashboard` da Edge Function administrativa.
+- **Todo o resto** — programação, palestrantes, espaços, rotas, estandes,
+  ofertas, conteúdo, documentos, conversas, auditoria — continua no banco em
+  memória. Nenhuma escrita chega ao backend nesta etapa.
+
+Essa mistura é a coisa mais perigosa do painel, então ela é dita em voz alta: a
+faixa do topo mostra **"Dashboard real · Cadastros em demonstração"** em todas as
+páginas. Ver [Limites desta versão](#limites-desta-versão).
 
 ## Como executar
 
@@ -44,8 +53,11 @@ npx serve .
 
 ## Stack
 
-Vite · React · TypeScript · Tailwind CSS · shadcn/ui · React Router · React Hook
-Form · Zod · TanStack Query. Testes com Vitest e Testing Library.
+Vite · React · TypeScript · Tailwind CSS · shadcn/ui · React Router 7 · React
+Hook Form · Zod · TanStack Query · `@supabase/supabase-js` (versão exata,
+`2.112.3`). Testes com Vitest e Testing Library.
+
+`npm audit` reporta **0 vulnerabilidades**.
 
 Desktop-first e responsivo: abaixo de `lg` a barra lateral vira gaveta e as
 tabelas rolam dentro do próprio contêiner — a página nunca rola na horizontal.
@@ -70,11 +82,11 @@ quebrado.
 ```text
 admin/src/
   components/ui/       primitivos shadcn/ui (button, table, sheet, select…)
-  components/admin/    peças do painel: estados, listagem, drawer, selos, máscara
-  layouts/             casca: barra lateral, barra superior, faixa de demonstração
-  pages/               uma página por módulo do menu
+  components/admin/    peças do painel: estados, listagem, drawer, guarda, máscara
+  layouts/             casca: barra lateral, barra superior, faixa de modo
+  pages/               uma página por módulo do menu, mais a tela de login
   features/            o que é específico de um módulo (drawer de edição, prévia)
-  services/            AdminDataProvider e as duas implementações
+  services/            AdminDataProvider (3 implementações) e a porta de autenticação
   contracts/           tipos e schemas Zod de cada recurso
   mocks/               banco em memória e as sementes
   hooks/               acesso a recurso, filtros na URL, alterações não salvas
@@ -95,7 +107,13 @@ painel mentiria em uma das duas.
 
 **3. O painel não inventa dado.** Quando a fonte é ambígua — o local do evento,
 por exemplo — ele mostra a divergência e pede revisão humana, em vez de escolher.
-É o mesmo princípio que sustenta o agente.
+Quando o dashboard real não responde no formato do contrato, aparece erro, não
+número inventado, e não há queda silenciosa para o mock. É o mesmo princípio que
+sustenta o agente.
+
+**4. Autenticação e autorização são coisas separadas.** O Supabase Auth diz
+*quem* entrou. `GET /admin/me` diz *o que essa pessoa pode*. O painel não deduz a
+segunda a partir da primeira, e nunca lê `user_metadata`.
 
 ## Rotas
 
@@ -121,6 +139,12 @@ Os módulos com edição em drawer têm **duas entradas para a mesma página**: 
 listagem continua montada atrás, o endereço é compartilhável, e o link de
 pendência da visão geral abre direto no registro.
 
+**Login não é rota.** `GuardaAutenticacao` fica fora do roteador: sem sessão e
+sem perfil não existe painel — nem barra lateral, nem endereço. É mais honesto
+que renderizar a casca e ir escondendo pedaço, e evita todo o vaivém de
+`redirectTo` na URL. Quem entra volta para o mesmo endereço que estava tentando
+abrir, porque a rota nunca chegou a mudar.
+
 Filtro também mora na URL (`/programacao?dia=2026-09-17&espacoId=null`). Só
 metadado — dia, espaço, status. **Nunca dado pessoal:** URL vaza em histórico,
 log de proxy e print de tela.
@@ -139,7 +163,8 @@ Os que aparecem em quase toda tela:
 | `AcoesEditoriais` · `InfoPublicacao` | Publicar e arquivar conforme o papel; data e responsável do que está publicado. |
 | `DialogoArquivamento` · `DialogoAlteracoesNaoSalvas` · `DialogoConflito` | As três confirmações onde alguém perde trabalho. |
 | `DadoPessoal` · `ContatoMascarado` | Exibição mascarada — componente, para dar para procurar no código quem mostra dado pessoal. |
-| `FaixaDemonstracao` | O aviso de modo demonstração, no topo de toda página. |
+| `FaixaDemonstracao` | O aviso de modo (demonstração ou híbrido) no topo de toda página. |
+| `GuardaAutenticacao` | Decide entre "restaurando sessão", login, "confirmando permissões", recusa e painel. Transparente no modo simulado. |
 
 E `useEdicaoRecurso`, em `features/comum/`: carregar, preencher, salvar com
 controle de concorrência, publicar, arquivar. Escrito uma vez para que "conflito
@@ -192,19 +217,28 @@ interface AdminDataProvider {
 }
 ```
 
-Duas implementações:
+Três implementações:
 
-- **`MockAdminDataProvider`** — o que roda hoje. Lê e escreve no banco em
-  memória de `src/mocks/db.ts`. Tem controle de concorrência de verdade e
-  `configurarFalha(recurso, codigo)`, que injeta erro por recurso: é assim que
-  os testes exercitam a tela de erro sem depender de rede caída.
-- **`HttpAdminDataProvider`** — preparado, **não ligado**. Mesmos métodos,
-  mesmos tipos, mesmos erros. Sem `VITE_ADMIN_API_BASE_URL` o construtor recusa
-  a criação em vez de chutar um endereço.
+- **`MockAdminDataProvider`** — banco em memória de `src/mocks/db.ts`. Tem
+  controle de concorrência de verdade e `configurarFalha(recurso, codigo)`, que
+  injeta erro por recurso: é assim que os testes exercitam a tela de erro sem
+  depender de rede caída.
+- **`HttpAdminDataProvider`** — fala com a Edge Function. Recebe o token por
+  `obterToken`, manda no header `Authorization`, e avisa a camada de sessão por
+  `aoNaoAutorizado` quando leva 401. Sem `VITE_ADMIN_API_BASE_URL` o construtor
+  recusa a criação em vez de chutar um endereço.
+- **`HybridAdminDataProvider`** — o desta etapa. `getDashboard()` vai para o
+  HTTP; todo o resto vai para o mock. Ele **não** cai no mock quando o HTTP
+  falha: cair em silêncio faria o painel dizer "dashboard real" mostrando número
+  inventado.
 
-Quem escolhe é `criarProvedorPadrao()`, em `services/provider-context.tsx`: com a
-variável preenchida, HTTP; vazia, mock. **Nenhuma página sabe qual dos dois está
-ativo — nem precisa.**
+Quem escolhe é `criarProvedorPadrao()`, em `services/provider-context.tsx`, a
+partir de `VITE_ADMIN_API_BASE_URL` e `VITE_ADMIN_DATA_MODE`. **Nenhuma página
+sabe qual dos três está ativo — nem precisa.**
+
+`ProvedorDeDados` também aceita uma *fábrica* no lugar de uma instância. É o que
+permite montar, no teste, o provedor HTTP ligado à sessão real — e assim
+verificar que o token chega ao header e que o 401 volta para o login.
 
 O nome do recurso (`sessions`, `spaces`, `offers`…) é o mesmo na URL da futura
 Edge Function e na chave do TanStack Query. Um nome, escrito num lugar só.
@@ -257,9 +291,10 @@ Modelo em `.env.example`; copie para `.env.local` e preencha localmente.
 
 | Variável | Para quê |
 |---|---|
-| `VITE_ADMIN_API_BASE_URL` | Raiz das Edge Functions administrativas. Vazio = modo demonstração. |
-| `VITE_SUPABASE_URL` | Projeto Supabase, para o Auth. |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publicável (anon). Pública por design, depende de RLS. |
+| `VITE_ADMIN_API_BASE_URL` | Raiz da Edge Function `mindagent-admin`. Vazio = tudo em demonstração. |
+| `VITE_ADMIN_DATA_MODE` | `mock`, `hybrid` (padrão quando há URL) ou `http`. |
+| `VITE_SUPABASE_URL` | Projeto Supabase, para o Auth. Vazio = painel abre sem login. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publicável (`sb_publishable_…`/anon). Pública por design, depende de RLS. |
 
 **Toda variável `VITE_*` é embutida no bundle e é pública por definição.** Por
 isso só cabem aí URL e chave publicável. `service_role`, secret key e chave de
@@ -268,6 +303,11 @@ Quem guarda segredo é o backend.
 
 A tela de Configurações mostra se cada variável está definida — **nunca o
 valor**.
+
+`.env.example` fica sem valores de propósito; os reais vivem em `.env.local`, que
+o `.gitignore` cobre. **Em modo de teste o ambiente é zerado** por
+`vite.config.ts` (`test.env`): o Vite carrega `.env.local` também nos testes, e
+sem isso a suíte dependeria da máquina — e conseguiria bater no backend real.
 
 ## Segurança
 
@@ -285,50 +325,113 @@ O que este painel faz, e continuará fazendo:
   frase.
 - Não oferece botão de "revelar". Ver o dado inteiro é decisão de backend, com
   registro em auditoria.
+- Não lê `user_metadata` nem `app_metadata` em lugar nenhum. A busca é
+  verificável: `grep -r user_metadata src/` só encontra comentários explicando
+  por que não se usa.
+- Não guarda papel nem permissão entre sessões. Eles são pedidos a `/admin/me` a
+  cada abertura; nada no `localStorage` decide o que você pode fazer.
+- O token nunca entra em URL, query string ou console. Isso é testado, não só
+  prometido — ver `autenticacao.test.tsx`.
 
-### Sobre os papéis: isto não é controle de acesso
+### Sobre os papéis: a tela mostra, o backend decide
 
 `src/lib/permissions.ts` decide o que a tela **mostra**. Ele esconde botão, marca
 página como "sem permissão" e evita que alguém tente uma ação que vai ser
 recusada. Isso é usabilidade.
 
-**Não é segurança.** Qualquer pessoa com o console aberto muda o papel em memória
-e vê tudo — porque o dado já está no navegador.
+**Não é segurança.** Qualquer pessoa com o console aberto muda o estado em
+memória e vê a interface inteira — porque o que já chegou ao navegador, chegou.
 
-A autorização de verdade precisa acontecer na Edge Function administrativa: ela
-valida o JWT do Supabase Auth, lê o papel de uma **tabela do banco** e recusa a
-requisição. **Nunca de `user_metadata`,** que o próprio usuário edita.
+O que mudou nesta etapa: o **papel** deixou de ser escolhido no cliente. Ele vem
+de `/admin/me`, que valida o JWT e lê de uma **tabela do banco** —
+nunca de `user_metadata`, que o próprio usuário edita. O seletor "Ver como"
+existe só no modo de demonstração, e some quando há login de verdade.
 
-O seletor "Ver como" no topo é um simulador de interface, e a tela diz isso.
+O que ainda falta, e é do backend: recusar as requisições de escrita por papel.
+Enquanto os cadastros forem mock, esse risco não existe; quando `VITE_ADMIN_DATA_MODE`
+virar `http`, existe — e é lá que precisa estar resolvido.
 
-## Integração futura com Supabase Auth
+## Autenticação com Supabase Auth
 
-Hoje `src/hooks/use-sessao.tsx` mantém um usuário de mentira, trocável pelo
-seletor do topo. Quando o Auth entrar:
+O painel não conhece o Supabase: conhece `PortaAutenticacao`
+(`src/services/auth.ts`), quatro operações. `SupabaseAuthGateway`
+(`auth-supabase.ts`) é a implementação real; os testes injetam uma porta falsa.
 
-1. o contexto passa a ler `supabase.auth.getUser()`;
-2. o papel vem de uma tabela do banco, não de `user_metadata`;
-3. `HttpAdminDataProvider` recebe `obterToken: () => session.access_token`.
+Isso não é cerimônia de arquitetura — resolve dois problemas concretos. O
+primeiro é trocar de provedor de identidade sem reescrever tela. O segundo é
+que, sem a porta, o cliente real do Supabase entraria no processo de teste e
+abriria o timer de renovação de token: a suíte passaria e **não devolveria o
+terminal**.
 
-A assinatura de `useSessao()` não muda, e nenhuma página é reescrita.
+O ciclo:
 
-## Integração futura com Edge Functions
+1. **Abertura** — `getSession()` restaura a sessão guardada. Enquanto isso a
+   tela diz "Restaurando sua sessão…".
+2. **Acompanhamento** — `onAuthStateChange()` cobre login, logout e renovação de
+   token, inclusive em outra aba. A inscrição é cancelada no desmonte.
+3. **Autorização** — com sessão em mãos, `GET /admin/me` com
+   `Authorization: Bearer …`. A resposta é validada com Zod.
+4. **Abertura do painel** — só depois de 1, 2 e 3.
 
-Preencher `VITE_ADMIN_API_BASE_URL` — e é só isso do lado do frontend. Os oito
-endpoints que o `HttpAdminDataProvider` já espera estão na tabela do
-`AdminDataProvider`, acima.
+Papel e permissões vêm **exclusivamente de `/admin/me`**. Quando a resposta traz
+`permissoes`, é ela que manda; quando traz só `papel`, a matriz de
+`src/lib/permissions.ts` faz a leitura padrão daquele papel — que o **servidor**
+informou — e continua valendo só para a interface. `user_metadata` não é lido em
+lugar nenhum deste código.
 
-O que fica para essa etapa, do lado do backend: a forma exata das respostas
-(hoje o contrato é uma proposta razoável, não um acordo), a validação de papel
-contra o banco, o `409` de concorrência (o painel já manda
-`If-Unmodified-Since-Version` e já sabe tratar) e o pipeline real de indexação.
+Papel irreconhecível **não abre o painel**. Escolher um papel padrão ali seria o
+frontend se autorizando sozinho.
+
+O token é renovado sob demanda: `obterToken()` devolve o token atual e, faltando
+menos de 60 segundos para o vencimento, pede um novo ao Supabase — em vez de
+mandar um token morto e derrubar a sessão da pessoa no meio de uma edição.
+
+### Estados tratados
+
+| Situação | O que a pessoa vê |
+|---|---|
+| Restaurando sessão | Tela de espera, sem piscar login |
+| Sem sessão | Tela de login |
+| Login inválido | "E-mail ou senha incorretos", senha limpa, e-mail preservado |
+| Buscando perfil | "Confirmando suas permissões…" |
+| 401 em `/admin/me` ou na API | Volta ao login com "Sua sessão expirou"; a sessão morta é descartada |
+| 403 em `/admin/me` | "Sua conta não tem acesso ao painel" + sair. Sem "tentar novamente": falta de papel não se resolve repetindo |
+| API indisponível | "A API administrativa não respondeu" + tentar novamente |
+| Serviço de auth fora | "Sem conexão com o serviço" na tela de login |
+
+## Integração com Edge Functions
+
+Ligado para leitura do dashboard. A Edge Function `mindagent-admin` já responde
+no formato do contrato — inclusive o corpo de erro
+(`{ "codigo": "sem_permissao", "mensagem": "…" }`) e o header
+`If-Unmodified-Since-Version` para concorrência otimista.
+
+O que falta para sair do modo híbrido: as respostas de listagem e item por
+recurso, as escritas (`POST`/`PATCH`/`publish`/`archive`) e o pipeline real de
+indexação. Do lado do frontend, é trocar `VITE_ADMIN_DATA_MODE` para `http` —
+nenhuma página muda.
 
 ## Limites desta versão
 
-- **Nada é persistido.** Salvar, publicar, arquivar e reindexar mexem só na
-  memória desta aba. Recarregar a página desfaz tudo, e a faixa no topo avisa.
+- **Nenhuma escrita chega ao backend.** Salvar, publicar, arquivar e reindexar
+  mexem só na memória desta aba. Recarregar a página desfaz tudo, e a faixa no
+  topo avisa. O painel só faz duas requisições à API: `GET /admin/me` e
+  `GET /admin/dashboard`.
 - **Nenhuma tabela foi criada, nenhuma migration foi aplicada, nenhum dado real
-  foi alterado.** O painel nunca falou com o Supabase.
+  foi alterado.**
+- **Só o dashboard é real.** Os quatorze outros módulos leem do banco em
+  memória. Um número da visão geral e uma linha da programação, na mesma sessão,
+  vêm de lugares diferentes — é o que a faixa do topo existe para lembrar.
+- **A tela de login não tem "esqueci minha senha" nem cadastro.** Recuperação e
+  convite de usuário ficam para a etapa em que Usuários deixar de ser leitura.
+- **A resposta de `/admin/me` foi validada contra um formato assumido**
+  (`{ papel, permissoes?, nome?, email?, id? }`, aceita também embrulhada em
+  `usuario`/`perfil`/`data`). Não tive credencial para conferir o retorno real —
+  se o formato divergir, o painel recusa a entrada com mensagem explícita em vez
+  de adivinhar um papel.
+- **O contrato de `/admin/dashboard` também é conferido em runtime.** Faltando
+  `metricas`, `pendencias` ou `alertas`, aparece erro — não um dashboard vazio
+  que parece ter funcionado.
 - **A reindexação não indexa.** Ela enfileira (`nao_indexado` → `na_fila`) e diz,
   em texto, que nada foi indexado. O recibo carrega `simulado: true`. Um painel
   que dissesse "pronto!" sem o pipeline ligado faria o time confiar num índice
@@ -340,7 +443,8 @@ contra o banco, o `409` de concorrência (o painel já manda
   contrato (`pagina`, `porPagina`) e será usada quando os volumes exigirem.
 - **Rotas não têm editor de mapa.** O diagrama de conexões é de conferência —
   serve para ver de relance quem ficou sem caminho.
-- **Usuários é leitura.** Convidar pessoa e trocar papel dependem do Auth.
+- **Usuários é leitura, e ainda vem do mock.** Convidar pessoa e trocar papel
+  dependem de endpoints que não existem.
 - **Conversas é somente leitura,** de propósito: o painel não responde por aqui.
 - **O local do evento está em divergência e continua assim.** `summit.json` diz
   "São Paulo Expo", material de divulgação diz "Transamérica Expo Center". O
@@ -354,10 +458,12 @@ contra o banco, o `409` de concorrência (o painel já manda
 npm test --prefix admin
 ```
 
-92 testes, oito arquivos. Cobrem:
+124 testes, dez arquivos. Cobrem:
 
 | Arquivo | O que garante |
 |---|---|
+| `autenticacao.test.tsx` | Restauração da sessão, `onAuthStateChange`, login, validação do formulário, credencial inválida, serviço de auth fora, logout, 401, 403, papel irreconhecível, papel e permissões vindos de `/admin/me`, ausência do seletor "Ver como", token no `Authorization`, token fora da URL e fora do console, e sessão expirada no meio do uso. |
+| `modo-hibrido.test.tsx` | Dashboard com números da API (e não os do mock), o selo e a faixa que dizem isso, formato inesperado virando erro, API fora do ar sem queda silenciosa para o mock, cadastros ainda em memória e nenhuma escrita saindo para o backend. |
 | `provedor-dados.test.ts` | Listagem, filtros, busca sem acento, publicação, arquivamento, conflito de atualização, auditoria, reindexação, injeção de falha, isolamento entre instâncias — e, no `HttpAdminDataProvider`, os caminhos combinados, a tradução de status HTTP e o token fora da URL. |
 | `dominio.test.ts` | Máscaras, formatação em BRL e pt-BR, campos faltantes, conflito de horário (inclusive os casos que **não** são conflito) e a matriz de permissões. |
 | `navegacao.test.tsx` | Os quinze módulos no menu, cada um abrindo sem quebrar, o 404 e a faixa de demonstração. |
@@ -371,3 +477,14 @@ Os testes montam o painel inteiro, com rotas e provedores reais e um banco novo
 em memória por teste. `src/test/setup.ts` traz três remendos de ambiente
 (ponteiro, `ResizeObserver` e `Request`), todos por limitação do jsdom — nenhum
 contorna comportamento do painel.
+
+**A suíte é hermética.** Nenhum teste toca a rede: `vite.config.ts` zera as
+variáveis de ambiente em modo de teste, o Supabase entra por uma porta falsa e o
+HTTP por um `fetch` falso que registra cada chamada — é assim que dá para
+afirmar que o token foi no header e que nenhuma escrita saiu.
+
+**E ela encerra sozinha,** com código 0. Duas coisas garantem isso: os
+`QueryClient` de cada teste são cancelados e desmontados no `afterEach` (os
+timers de coleta de lixo do TanStack Query seguravam o processo), e nenhum
+cliente real do Supabase é criado — o dele renova token em intervalo e manteria
+o Vitest vivo depois do último teste.
