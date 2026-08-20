@@ -1,0 +1,11 @@
+# Local agent / editor config
+/.claude/
+
+# Dependências e caches de ferramentas locais (npx serve, wrangler…)
+/node_modules/
+/.wrangler/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log

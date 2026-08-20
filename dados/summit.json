@@ -1,0 +1,1697 @@
+{
+ "_nota": "Gerado por scripts/gerar-dados-mindagent.mjs. Não editar à mão: a fonte é src/data/programacao.json e src/data/speakers.json. Quando o agente entrar no ar, esta mesma forma vem do Supabase.",
+ "evento": {
+  "nome": "Mind Summit 2026",
+  "dias": [
+   "2026-09-16",
+   "2026-09-17"
+  ],
+  "local": "São Paulo Expo",
+  "regra_reserva": "Todas as reservas caem 5 minutos antes do conteúdo começar, para dar lugar à fila de espera.",
+  "regra_vagas": "Arena Sextante, Arena LinkedIn, Workshops e Masterclasses têm vagas limitadas — nesses casos vale agendar antes."
+ },
+ "temas": [
+  {
+   "codigo": "seguranca_psicologica",
+   "rotulo": "Segurança psicológica"
+  },
+  {
+   "codigo": "dados_bem_estar",
+   "rotulo": "Dados e ROI do bem-estar"
+  },
+  {
+   "codigo": "regulacao",
+   "rotulo": "NR-1 e riscos psicossociais"
+  },
+  {
+   "codigo": "lideranca_humana",
+   "rotulo": "Liderança"
+  },
+  {
+   "codigo": "cultura",
+   "rotulo": "Cultura organizacional"
+  },
+  {
+   "codigo": "saude_mental",
+   "rotulo": "Saúde mental"
+  },
+  {
+   "codigo": "performance",
+   "rotulo": "Performance sustentável"
+  },
+  {
+   "codigo": "diversidade",
+   "rotulo": "Diversidade e inclusão"
+  },
+  {
+   "codigo": "felicidade",
+   "rotulo": "Felicidade e propósito"
+  },
+  {
+   "codigo": "futuro_trabalho",
+   "rotulo": "Futuro do trabalho"
+  }
+ ],
+ "sessoes": [
+  {
+   "id": "d1-09_00-abertura",
+   "dia": "2026-09-16",
+   "inicio": "09:00",
+   "fim": "09:15",
+   "titulo": "Abertura",
+   "descricao": "",
+   "quem": "Convidado Especial",
+   "espaco": "Arena Mind",
+   "formato": "experiencia",
+   "etiqueta": "Experiência",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": []
+  },
+  {
+   "id": "d1-09_15-do_benef_cio_transform",
+   "dia": "2026-09-16",
+   "inicio": "09:15",
+   "fim": "09:40",
+   "titulo": "Do benefício à transformação: o futuro do bem-estar nas empresas",
+   "descricao": "",
+   "quem": "Adriana Drulla",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "id": "d1-09_40-como_bem-estar_afeta_o_b",
+   "dia": "2026-09-16",
+   "inicio": "09:40",
+   "fim": "10:30",
+   "titulo": "Como bem-estar afeta o bottom-line?",
+   "descricao": "Como bem-estar se converte em produtividade, retenção e valor — e o que os dados revelam no Brasil",
+   "quem": "Jan-Emmanuel De Neve",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "dados_bem_estar",
+    "cultura"
+   ]
+  },
+  {
+   "id": "d1-10_30-quando_o_bem-estar_entra",
+   "dia": "2026-09-16",
+   "inicio": "10:30",
+   "fim": "11:10",
+   "titulo": "Quando o bem-estar entra na tese",
+   "descricao": "Como investidores, mercado e empresas estão transformando bem-estar em decisão de negócio",
+   "quem": "Paula Benevides",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "dados_bem_estar"
+   ]
+  },
+  {
+   "id": "d1-11_30-mensurar_intervir_prov",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Mensurar, intervir, provar: a metodologia Oxford para wellbeing como ativo de performance",
+   "descricao": "",
+   "quem": "Jan-Emmanuel De Neve",
+   "espaco": "Sala Masterclass",
+   "formato": "masterclass",
+   "etiqueta": "Masterclass Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "dados_bem_estar",
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-11_30-decidir_sob_press_o_co",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Decidir sob pressão . Como manter clareza em contextos de alta exigência",
+   "descricao": "",
+   "quem": "Tamara Myles",
+   "espaco": "Sala Workshop 1",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-11_30-da_mensura_o_ao_pgr_co",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Da mensuração ao PGR. Como avaliar riscos psicossociais e definir prioridades de ação",
+   "descricao": "",
+   "quem": "Igor Menezes e Esabela Cruz",
+   "espaco": "Sala Workshop 2",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "dados_bem_estar",
+    "regulacao",
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-11_30-o_que_sustenta_equipes_d",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "O que sustenta equipes de alta performance. Ferramentas de inteligência relacional para líderes",
+   "descricao": "",
+   "quem": "Veruska Galvão",
+   "espaco": "Sala Workshop 3",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-11_30-entre_o_riso_e_o_resulta",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Entre o riso e o resultado .  Como o humor afeta a performance",
+   "descricao": "",
+   "quem": "Maryanna com Y",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-11_30-o_trabalho_ainda_engaja_",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "O trabalho ainda engaja?",
+   "descricao": "O que a maior pesquisa global sobre o mercado de trabalho revela sobre propósito, pertencimento e desempenho",
+   "quem": "Yuri Trafane",
+   "espaco": "Arena Sextante",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "dados_bem_estar",
+    "cultura"
+   ]
+  },
+  {
+   "id": "d1-11_30-produtividade_sustent_ve",
+   "dia": "2026-09-16",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Produtividade sustentável. Como manter performance sem esgotar pessoas",
+   "descricao": "",
+   "quem": "Izabella Camargo; Lailson Lima; Irene Reis",
+   "espaco": "Arena Top Voice",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "dados_bem_estar",
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-12_30-a_virada_da_diversidade_",
+   "dia": "2026-09-16",
+   "inicio": "12:30",
+   "fim": "13:30",
+   "titulo": "A virada da diversidade . Estratégias de inclusão para alavancar performance, engajamento e vantagem competitiva",
+   "descricao": "",
+   "quem": "João Yosef Torres e Ana Mocny",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "cultura",
+    "performance",
+    "diversidade"
+   ]
+  },
+  {
+   "id": "d1-12_30-a_nova_era_da_alta_perfo",
+   "dia": "2026-09-16",
+   "inicio": "12:30",
+   "fim": "13:30",
+   "titulo": "A nova era da alta performance",
+   "descricao": "Como preparar corpo e mente para uma vida e carreira mais longevas",
+   "quem": "Fernanda Catena; Márcio Atalla",
+   "espaco": "Arena Sextante",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-13_30-a_virada_da_diversidade_",
+   "dia": "2026-09-16",
+   "inicio": "13:30",
+   "fim": "14:00",
+   "titulo": "A Virada da Diversidade . João Yosef Torres",
+   "descricao": "",
+   "quem": "João Yosef Torres",
+   "espaco": "Livraria da Vila",
+   "formato": "experiencia",
+   "etiqueta": "Lançamento de livro",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "diversidade"
+   ]
+  },
+  {
+   "id": "d1-14_00-aut_grafos_com_jan-emman",
+   "dia": "2026-09-16",
+   "inicio": "14:00",
+   "fim": "15:00",
+   "titulo": "Autógrafos com Jan-Emmanuel De Neve",
+   "descricao": "",
+   "quem": "Jan-Emmanuel De Neve",
+   "espaco": "Prime Lounge",
+   "formato": "experiencia",
+   "etiqueta": "Autógrafos Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "dados_bem_estar"
+   ]
+  },
+  {
+   "id": "d1-15_00-os_tr_s_movimentos_do_l_",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Os três movimentos do líder que destravam aprendizagem coletiva",
+   "descricao": "",
+   "quem": "Amy Edmondson",
+   "espaco": "Sala Masterclass",
+   "formato": "masterclass",
+   "etiqueta": "Masterclass Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica",
+    "lideranca_humana"
+   ]
+  },
+  {
+   "id": "d1-15_00-bem-estar_come_a_na_agen",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Bem-estar começa na agenda. Como transformar intenção em prioridade organizacional",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Sala Workshop 1",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "performance",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "id": "d1-15_00-redesenhar_o_trabalho_pa",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Redesenhar o trabalho para performar melhor. Ferramentas de job crafting para líderes",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Sala Workshop 2",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana"
+   ]
+  },
+  {
+   "id": "d1-15_00-o_que_precisa_ser_dito_",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "O que precisa ser dito. Ferramentas para conversas difíceis na liderança",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Sala Workshop 3",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana"
+   ]
+  },
+  {
+   "id": "d1-15_00-quando_mudar_deixa_de_se",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Quando mudar deixa de ser uma escolha. Como preservar agência, confiança e capacidade de adaptação",
+   "descricao": "",
+   "quem": "Michelle Schneider",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica",
+    "cultura",
+    "diversidade",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "id": "d1-15_00-a_economia_da_distra_o",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "A economia da distração",
+   "descricao": "Os mecanismos invisíveis que sabotam seu foco todos os dias",
+   "quem": "Oscar de Bos",
+   "espaco": "Arena Sextante",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-15_00-autonomia_sem_desorganiz",
+   "dia": "2026-09-16",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Autonomia sem desorganização. Como criar formas de trabalho mais flexíveis e eficientes",
+   "descricao": "",
+   "quem": "Renata Rivetti",
+   "espaco": "Arena Top Voice",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "cultura"
+   ]
+  },
+  {
+   "id": "d1-16_00-a_conversa_que_a_lideran",
+   "dia": "2026-09-16",
+   "inicio": "16:00",
+   "fim": "17:00",
+   "titulo": "A conversa que a liderança evita. O custo cultural e humano de não enfrentar problemas",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "cultura"
+   ]
+  },
+  {
+   "id": "d1-16_00-como_a_consci_ncia_da_fi",
+   "dia": "2026-09-16",
+   "inicio": "16:00",
+   "fim": "17:00",
+   "titulo": "Como a consciência da finitude transforma a forma de viver e as escolhas que fazemos",
+   "descricao": "",
+   "quem": "Ana Claudia Quintana Arantes",
+   "espaco": "Arena Sextante",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "id": "d1-17_20-alta_performance_come_a_",
+   "dia": "2026-09-16",
+   "inicio": "17:20",
+   "fim": "18:10",
+   "titulo": "Alta performance começa por dentro. Autorregulação, pausa e autocompaixão na liderança",
+   "descricao": "",
+   "quem": "Ana Bógus; Adriana Drulla",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "performance"
+   ]
+  },
+  {
+   "id": "d1-18_10-o_mito_do_colaborador_re",
+   "dia": "2026-09-16",
+   "inicio": "18:10",
+   "fim": "19:00",
+   "titulo": "O mito do colaborador resiliente: por que burnout é um problema de desenho de trabalho, não de fraqueza individual",
+   "descricao": "",
+   "quem": "Christina Maslach",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "id": "d1-19_00-coquetel_e_aut_grafos_co",
+   "dia": "2026-09-16",
+   "inicio": "19:00",
+   "fim": null,
+   "titulo": "Coquetel e Autógrafos com Christina Maslach",
+   "descricao": "",
+   "quem": "Christina Maslach",
+   "espaco": "Prime Lounge",
+   "formato": "experiencia",
+   "etiqueta": "Autógrafos Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "id": "d2-09_00-quem_enxerga_antes_lide",
+   "dia": "2026-09-17",
+   "inicio": "09:00",
+   "fim": "09:30",
+   "titulo": "Quem enxerga antes, lidera antes",
+   "descricao": "Uma experiência que transforma percepção em estratégia",
+   "quem": "Convidado Especial",
+   "espaco": "Arena Mind",
+   "formato": "experiencia",
+   "etiqueta": "Abertura",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "lideranca_humana"
+   ]
+  },
+  {
+   "id": "d2-09_30-por_que_os_programas_de_",
+   "dia": "2026-09-17",
+   "inicio": "09:30",
+   "fim": "10:20",
+   "titulo": "Por que os programas de bem-estar falham e o que a ciência diz sobre os que duram",
+   "descricao": "",
+   "quem": "Sonja Lyubomirsky",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica",
+    "dados_bem_estar",
+    "felicidade"
+   ]
+  },
+  {
+   "id": "d2-10_20-da_obriga_o_gest_o_re",
+   "dia": "2026-09-17",
+   "inicio": "10:20",
+   "fim": "11:10",
+   "titulo": "Da obrigação à gestão real: como construir governança de risco psicossocial",
+   "descricao": "",
+   "quem": "Gustavo Locatelli; Mauro Muller; Cirlene Zimmermann",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "regulacao",
+    "lideranca_humana"
+   ]
+  },
+  {
+   "id": "d2-11_30-bem-estar_baseado_em_evi",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Bem-estar baseado em evidência: aprenda a desenhar intervenções que de fato funcionam.",
+   "descricao": "",
+   "quem": "Sonja Lyubomirsky",
+   "espaco": "Sala Masterclass",
+   "formato": "masterclass",
+   "etiqueta": "Masterclass Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "dados_bem_estar",
+    "felicidade"
+   ]
+  },
+  {
+   "id": "d2-11_30-falhar_melhor_como_tran",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Falhar melhor. Como transformar erros em aprendizagem sem reduzir a exigência",
+   "descricao": "",
+   "quem": "Veruska Galvão",
+   "espaco": "Sala Workshop 1",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "id": "d2-11_30-riscos_psicossociais_sem",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Riscos psicossociais sem improviso. Como prevenir, estruturar responsabilidades e atender às exigências legais",
+   "descricao": "",
+   "quem": "Cirlene Zimmermann",
+   "espaco": "Sala Workshop 2",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "regulacao"
+   ]
+  },
+  {
+   "id": "d2-11_30-o_feedback_que_falta_co",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "O feedback que falta. Como tornar visíveis as forças que sustentam o resultado",
+   "descricao": "",
+   "quem": "Tamara Myles",
+   "espaco": "Sala Workshop 3",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica"
+   ]
+  },
+  {
+   "id": "d2-11_30-onde_foi_parar_o_seu_foc",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Onde foi parar o seu foco: o que a neurociência mostra sobre o trabalho moderno",
+   "descricao": "",
+   "quem": "Carla Tieppo",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "saude_mental",
+    "performance"
+   ]
+  },
+  {
+   "id": "d2-11_30-voc_aguenta_ser_l_der_",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Você aguenta ser líder?",
+   "descricao": "Como manter o equilíbrio entre saúde mental e performance em um mundo cada vez mais acelerado",
+   "quem": "Daniel de Barros e Arthur Guerra",
+   "espaco": "Arena Sextante",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "saude_mental",
+    "performance"
+   ]
+  },
+  {
+   "id": "d2-11_30-em_curadoria",
+   "dia": "2026-09-17",
+   "inicio": "11:30",
+   "fim": "12:30",
+   "titulo": "Em curadoria",
+   "descricao": "",
+   "quem": "Em curadoria",
+   "espaco": "Arena Top Voice",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": []
+  },
+  {
+   "id": "d2-12_30-mulheres_que_abrem_camin",
+   "dia": "2026-09-17",
+   "inicio": "12:30",
+   "fim": "13:30",
+   "titulo": "Mulheres que abrem caminho. Como transformar competição em apoio real",
+   "descricao": "",
+   "quem": "Edna Goldoni e convidadas",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "diversidade",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "id": "d2-12_30-lideran_a_emocionalmente",
+   "dia": "2026-09-17",
+   "inicio": "12:30",
+   "fim": "13:30",
+   "titulo": "Liderança emocionalmente madura",
+   "descricao": "Autorregulação, limites saudáveis e equilíbrio sob pressão",
+   "quem": "Alana Anijar",
+   "espaco": "Arena Sextante",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "saude_mental",
+    "performance"
+   ]
+  },
+  {
+   "id": "d2-13_30-lan_amento_livro_carla_t",
+   "dia": "2026-09-17",
+   "inicio": "13:30",
+   "fim": "14:00",
+   "titulo": "Lançamento livro Carla Tieppo",
+   "descricao": "",
+   "quem": "Carla Tieppo",
+   "espaco": "Livraria da Vila",
+   "formato": "experiencia",
+   "etiqueta": "Lançamento de livro",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": []
+  },
+  {
+   "id": "d2-14_00-o_poder_da_sororidade_u",
+   "dia": "2026-09-17",
+   "inicio": "14:00",
+   "fim": "15:00",
+   "titulo": "O poder da sororidade. Um pacto de respeito e apoio que une e transforma a vida das mulheres",
+   "descricao": "",
+   "quem": "Edna Goldoni",
+   "espaco": "Livraria da Vila",
+   "formato": "experiencia",
+   "etiqueta": "Lançamento de livro",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "cultura",
+    "diversidade"
+   ]
+  },
+  {
+   "id": "d2-14_00-aut_grafos_com_sonja_lyu",
+   "dia": "2026-09-17",
+   "inicio": "14:00",
+   "fim": "15:00",
+   "titulo": "Autógrafos com Sonja Lyubomirsky",
+   "descricao": "",
+   "quem": "Sonja Lyubomirsky",
+   "espaco": "Prime Lounge",
+   "formato": "experiencia",
+   "etiqueta": "Autógrafos Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "felicidade"
+   ]
+  },
+  {
+   "id": "d2-15_00-masterclass_os_6_desali",
+   "dia": "2026-09-17",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Masterclass: Os 6 desalinhamentos do burnout: como ler e redesenhar o trabalho do seu time",
+   "descricao": "",
+   "quem": "Christina Maslach",
+   "espaco": "Sala Masterclass",
+   "formato": "masterclass",
+   "etiqueta": "Masterclass Prime",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "saude_mental"
+   ]
+  },
+  {
+   "id": "d2-15_00-infraestrutura_de_perfor",
+   "dia": "2026-09-17",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Infraestrutura de Performance: Desenho pessoal para Executivos sob Pressão Cronica",
+   "descricao": "",
+   "quem": "Carla Tieppo",
+   "espaco": "Sala Workshop 1",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "id": "d2-15_00-trabalho_h_brido_sem_cao",
+   "dia": "2026-09-17",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Trabalho híbrido sem caos. Ferramentas para organizar, colaborar e liderar equipes",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Sala Workshop 2",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "id": "d2-15_00-o_l_der_como_arquiteto_d",
+   "dia": "2026-09-17",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "O líder como arquiteto do trabalho. Rotinas para dar clareza, remover obstáculos e sustentar a performance",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Sala Workshop 3",
+   "formato": "workshop",
+   "etiqueta": "Workshop VIP",
+   "trilhas": [
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "performance"
+   ]
+  },
+  {
+   "id": "d2-15_00-sobreviver_sem_destruir_",
+   "dia": "2026-09-17",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Sobreviver sem destruir o time. Como liderar quando o negócio está sob pressão",
+   "descricao": "",
+   "quem": "Caito Maia",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "performance"
+   ]
+  },
+  {
+   "id": "d2-15_00-seu_c_rebro_n_o_foi_feit",
+   "dia": "2026-09-17",
+   "inicio": "15:00",
+   "fim": "16:00",
+   "titulo": "Seu cérebro não foi feito para isso",
+   "descricao": "O desencontro entre o cérebro humano e as exigências da vida moderna",
+   "quem": "Paul Goldsmith · Mediação: Sibelle Pedral",
+   "espaco": "Arena Sextante",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": true,
+   "online": true,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "id": "d2-16_00-bem-estar_gest_o_como",
+   "dia": "2026-09-17",
+   "inicio": "16:00",
+   "fim": "17:00",
+   "titulo": "Bem-estar é gestão. Como as decisões de liderança constroem o clima das equipes",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "lideranca_humana",
+    "cultura"
+   ]
+  },
+  {
+   "id": "d2-16_00-em_curadoria",
+   "dia": "2026-09-17",
+   "inicio": "16:00",
+   "fim": "17:00",
+   "titulo": "Em curadoria",
+   "descricao": "",
+   "quem": "Em curadoria",
+   "espaco": "Arena Top Voice",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": []
+  },
+  {
+   "id": "d2-17_20-felicidade_como_parte_da",
+   "dia": "2026-09-17",
+   "inicio": "17:20",
+   "fim": "18:10",
+   "titulo": "Felicidade como parte da estratégia. Casos e aprendizados",
+   "descricao": "",
+   "quem": "Em breve",
+   "espaco": "Arena Mind",
+   "formato": "painel",
+   "etiqueta": "Painel",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "felicidade"
+   ]
+  },
+  {
+   "id": "d2-18_10-as_melhores_equipes_erra",
+   "dia": "2026-09-17",
+   "inicio": "18:10",
+   "fim": "19:00",
+   "titulo": "As melhores equipes erram diferente",
+   "descricao": "",
+   "quem": "Amy Edmondson",
+   "espaco": "Arena Mind",
+   "formato": "palestra",
+   "etiqueta": "Palestra",
+   "trilhas": [
+    "mind",
+    "vip",
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica",
+    "lideranca_humana"
+   ]
+  },
+  {
+   "id": "d2-19_00-coquetel_e_aut_grafos_co",
+   "dia": "2026-09-17",
+   "inicio": "19:00",
+   "fim": null,
+   "titulo": "Coquetel e Autógrafos com Amy Edmondson",
+   "descricao": "",
+   "quem": "Amy Edmondson",
+   "espaco": "Prime Lounge",
+   "formato": "experiencia",
+   "etiqueta": "Autógrafos",
+   "trilhas": [
+    "prime"
+   ],
+   "vaga_limitada": false,
+   "online": false,
+   "temas": [
+    "seguranca_psicologica"
+   ]
+  }
+ ],
+ "pessoas": [
+  {
+   "nome": "Amy Edmondson",
+   "credencial": "Harvard · Segurança psicológica",
+   "resumo": "Harvard. Eleita duas vezes pensadora nº 1 do mundo em gestão. Suas pesquisas guiam Google, hospitais e governos.",
+   "foto": "palestrantes/amy.webp",
+   "destaque": true,
+   "na_grade": true,
+   "temas": [
+    "seguranca_psicologica",
+    "dados_bem_estar",
+    "lideranca_humana",
+    "performance"
+   ]
+  },
+  {
+   "nome": "Christina Maslach",
+   "credencial": "Berkeley · Burnout",
+   "resumo": "UC Berkeley. Criou o instrumento que mede burnout no mundo inteiro — base do reconhecimento pela OMS.",
+   "foto": "palestrantes/christina.webp",
+   "destaque": true,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar",
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Jan-Emmanuel De Neve",
+   "credencial": "Oxford · Economia do bem-estar",
+   "resumo": "Oxford. Provou com 30 milhões de colaboradores que bem-estar é causa mensurável de resultado econômico.",
+   "foto": "palestrantes/deneve.webp",
+   "destaque": true,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar",
+    "lideranca_humana"
+   ]
+  },
+  {
+   "nome": "Sonja Lyubomirsky",
+   "credencial": "UC Riverside · Felicidade",
+   "resumo": "UC Riverside. 70 mil citações. Transformou a felicidade em um campo sólido de evidências — e de prática.",
+   "foto": "palestrantes/sonja.webp",
+   "destaque": true,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar",
+    "performance",
+    "felicidade",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Adriana Drulla",
+   "credencial": "Curadora e CEO do Mind",
+   "resumo": "Psicóloga e Mestre em Psicologia Positiva pela University of Pennsylvania, onde estudou com Martin Seligman. Regional Lead, Latin America – Oxford Research & Development, ao lado de Jan-Emmanuel De Neve.",
+   "foto": "palestrantes/adriana.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar"
+   ]
+  },
+  {
+   "nome": "Carla Tieppo",
+   "credencial": "Neurociência aplicada · USP",
+   "resumo": "Doutora em Ciências pela USP e pioneira em neurociência aplicada. Há mais de 30 anos transforma conhecimento sobre o cérebro em estratégias de comportamento, performance e bem-estar.",
+   "foto": "palestrantes/carla.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar",
+    "saude_mental",
+    "performance"
+   ]
+  },
+  {
+   "nome": "Ana Claudia Quintana Arantes",
+   "credencial": "Finitude e significado",
+   "resumo": "Médica formada pela USP, pós-graduada em Psicologia e referência internacional em cuidados paliativos. Mostra por que compreender a finitude aproxima de uma vida com mais significado.",
+   "foto": "palestrantes/ana-claudia.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "saude_mental",
+    "felicidade"
+   ]
+  },
+  {
+   "nome": "Márcio Atalla",
+   "credencial": "Corpo e alta performance",
+   "resumo": "Professor de Educação Física e um dos maiores especialistas brasileiros em qualidade de vida e mudança de hábitos. Há mais de 30 anos desenvolve projetos de bem-estar, movimento e longevidade.",
+   "foto": "palestrantes/marcio.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "performance",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Arthur Guerra",
+   "credencial": "Psiquiatria e performance",
+   "resumo": "Médico psiquiatra, fundador da Clínica Arthur Guerra e do GREA-USP. Discute uma das questões mais urgentes da liderança: é possível ter alta performance sem sacrificar a saúde mental?",
+   "foto": "palestrantes/arthur.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "lideranca_humana",
+    "saude_mental",
+    "performance"
+   ]
+  },
+  {
+   "nome": "Daniel de Barros",
+   "credencial": "Psiquiatria · USP",
+   "resumo": "Médico do Instituto de Psiquiatria do Hospital das Clínicas e professor colaborador da Faculdade de Medicina da USP. Autor de Sofrimento não é doença.",
+   "foto": "palestrantes/daniel.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Izabella Camargo",
+   "credencial": "Produtividade sustentável",
+   "resumo": "Jornalista e criadora da Produtividade Sustentável. Transformou sua experiência com burnout em uma agenda pública sobre limites e saúde mental no trabalho",
+   "foto": "palestrantes/izabella.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "dados_bem_estar",
+    "saude_mental",
+    "performance"
+   ]
+  },
+  {
+   "nome": "Renata Rivetti",
+   "credencial": "Felicidade no trabalho",
+   "resumo": "Pesquisadora em ciência da felicidade, TEDx Speaker e LinkedIn Top Voice. Autora de O Poder do Bem-Estar: um guia para redesenhar o futuro do trabalho.",
+   "foto": "palestrantes/renata.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar",
+    "felicidade",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Tamara Myles",
+   "credencial": "Trabalho significativo · UPenn",
+   "resumo": "Pesquisadora da University of Pennsylvania e professora do Boston College. Autora do best-seller Meaningful Work, apoia empresas como Google, Microsoft e KPMG.",
+   "foto": "palestrantes/tamara.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar"
+   ]
+  },
+  {
+   "nome": "Deepika Chopra",
+   "credencial": "The Optimism Doctor®",
+   "resumo": "Psicóloga clínica e doutora em Psicologia da Saúde, conhecida como The Optimism Doctor®. Mostra por que o otimismo segue sendo uma das competências mais importantes em tempos de incerteza.",
+   "foto": "palestrantes/deepika.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "nome": "Paul Goldsmith",
+   "credencial": "Neurociência · Imperial College",
+   "resumo": "Neurocientista evolucionista, neurologista e professor visitante do Imperial College London. Mostra por que nosso cérebro não evoluiu para lidar com tantos estímulos.",
+   "foto": "palestrantes/paul.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Michael E. Long",
+   "credencial": "Dopamina · Georgetown",
+   "resumo": "Escritor e professor de escrita na Universidade de Georgetown. Autor de Como Domar a Dopamina, explica como a dopamina influencia hábitos, consumo e produtividade.",
+   "foto": "palestrantes/michael.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "dados_bem_estar",
+    "performance"
+   ]
+  },
+  {
+   "nome": "Oscar de Bos",
+   "credencial": "Economia da distração · Focus Academy",
+   "resumo": "Cofundador da Focus Academy, na Holanda, e um dos principais pesquisadores da economia da distração. Mostra por que proteger a atenção é uma competência do século XXI.",
+   "foto": "palestrantes/oscar.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar"
+   ]
+  },
+  {
+   "nome": "Gustavo Locatelli",
+   "credencial": "Consultor e Médico do Trabalho",
+   "resumo": "Médico do Trabalho pela USP e mestre em Saúde Pública pela University of Sydney. Foi Head Global de Saúde da Heineken, liderando estratégias em mais de 80 países.",
+   "foto": "palestrantes/gustavo.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "lideranca_humana"
+   ]
+  },
+  {
+   "nome": "Ana Bógus",
+   "credencial": "Presidente · Beiersdorf Brasil",
+   "resumo": "Presidente da Beiersdorf Brasil, casa de NIVEA e Eucerin. Referência de liderança feminina no país, acredita em liderança facilitadora e engajamento com propósito.",
+   "foto": "palestrantes/ana-bogus.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "lideranca_humana",
+    "cultura"
+   ]
+  },
+  {
+   "nome": "Mauro Muller",
+   "credencial": "NR-1 · Ministério do Trabalho",
+   "resumo": "Auditor Fiscal do Trabalho do MTE. Coordenou os grupos tripartites da revisão da NR-1 (GRO/PGR) e da NR-17, que orientam a gestão de riscos psicossociais.",
+   "foto": "palestrantes/mauro.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "regulacao",
+    "lideranca_humana"
+   ]
+  },
+  {
+   "nome": "Cirlene Zimmermann",
+   "credencial": "Procuradora · MPT",
+   "resumo": "Procuradora do MPT. Lidera o projeto nacional que orienta como o Ministério Público do Trabalho atua em saúde mental no trabalho",
+   "foto": "palestrantes/cirlene.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "lideranca_humana",
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Igor Menezes",
+   "credencial": "People Analytics · Hull",
+   "resumo": "Psicometrista e professor de People Analytics na Hull University Business School, com dois pós-doutorados em Cambridge. Conselheiro Científico do Mind na mensuração da NR-1.",
+   "foto": "palestrantes/igor.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "dados_bem_estar",
+    "regulacao"
+   ]
+  },
+  {
+   "nome": "Veruska Galvão",
+   "credencial": "Segurança psicológica e cultura",
+   "resumo": "Psicóloga organizacional e mentora executiva, precursora em segurança psicológica e cultura organizacional no Brasil. Autora do livro Cultura Organizacional e fundadora da AKTO.",
+   "foto": "palestrantes/veruska.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "seguranca_psicologica",
+    "cultura"
+   ]
+  },
+  {
+   "nome": "Edna Goldoni",
+   "credencial": "Protagonismo e longevidade · IVG",
+   "resumo": "Presidente do IVG e empreendedora social. Referência em protagonismo feminino e longevidade no trabalho, com iniciativas que impactaram mais de 50 mil pessoas.",
+   "foto": "palestrantes/edna.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "nome": "João Yosef Torres",
+   "credencial": "Diversidade e felicidade corporativa",
+   "resumo": "CEO e sócio-fundador da Mais Diversidade e da Happiness360. Referência brasileira em diversidade, inclusão e cultura, assessorou Itaú, Gerdau, BASF e Santander.",
+   "foto": "palestrantes/joao.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "cultura",
+    "diversidade",
+    "felicidade"
+   ]
+  },
+  {
+   "nome": "Alana Anijar",
+   "credencial": "Inteligência emocional",
+   "resumo": "Psicóloga pela UFSC e especialista em Terapia Cognitivo-Comportamental. Criadora do Psicologia na Prática, um dos podcasts de saúde mental mais ouvidos do Brasil.",
+   "foto": "palestrantes/alana.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Yuri Trafane",
+   "credencial": "Engajamento · Ynner",
+   "resumo": "Fundador da Ynner Treinamentos. Apresenta os resultados da maior pesquisa global sobre engajamento no trabalho e o que eles revelam sobre propósito e pertencimento.",
+   "foto": "palestrantes/yuri.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "dados_bem_estar",
+    "cultura"
+   ]
+  },
+  {
+   "nome": "Fernanda Catena",
+   "credencial": "Longevidade e saúde feminina",
+   "resumo": "Médica ortopedista e especialista em longevidade, com formação em Lifestyle Medicine e menopausa por Harvard. À frente do programa de longevidade do Instituto D’Or.",
+   "foto": "palestrantes/fernanda.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "performance"
+   ]
+  },
+  {
+   "nome": "Maryanna com Y",
+   "credencial": "Inteligência HUMORcional",
+   "resumo": "Palestrante TEDx e precursora da Inteligência HUMORcional, Maryanna com Y já impactou mais de 1 milhão de pessoas com experiências no Brasil e no exterior. Pós-graduada em Neurociências pela PUC-RS, estudou felicidade, inteligência emocional e bem-estar em formações como Chief Happiness Officer, Action for Happiness e Search Inside Yourself, do Google",
+   "foto": "palestrantes/maryanna.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "saude_mental",
+    "felicidade"
+   ]
+  },
+  {
+   "nome": "Irene Reis",
+   "credencial": "Educação e saúde mental",
+   "resumo": "Graduada em Letras pela USP, Irene Reis é professora há mais de vinte anos, conciliando educação escolar e corporativa. Especialista em neurociência e comportamento pela PUC, mestre em Ciências da Educação e doutoranda em Saúde Mental no Desenvolvimento Profissional, reúne formações em comunicação não violenta, inteligência emocional, desenvolvimento humano e burnout docente",
+   "foto": "palestrantes/irene.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "dados_bem_estar",
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Lailson Lima",
+   "credencial": "Segurança do trabalho · ConCuidado",
+   "resumo": "Engenheiro de Segurança do Trabalho e Meio Ambiente, Lailson Lima atua há anos na interseção entre segurança, saúde ocupacional e educação. É sócio-fundador e CEO da ConCuidado, vice-presidente da Assessoria Reinventando a Educação, bombeiro civil e possui formação em gestão escolar pela USP, hotelaria hospitalar pelo São Camilo e burnout docente pela PUC",
+   "foto": "palestrantes/lailson.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "regulacao",
+    "lideranca_humana",
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Michelle Schneider",
+   "credencial": "IA e futuro do trabalho",
+   "resumo": "Sócia da Signal & Cipher, consultoria americana de inteligência artificial, Michelle Schneider é autora do best-seller O Profissional do Futuro e professora convidada na Singularity University e na Hebrew University of Jerusalem. Com 20 anos de carreira executiva em big techs como Google, LinkedIn e TikTok, atua na interseção entre IA, liderança e transformação do trabalho",
+   "foto": "palestrantes/michelle.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "lideranca_humana",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Daiana Garbin",
+   "credencial": "Saúde mental e autocompaixão",
+   "resumo": "Jornalista, escritora e criadora de conteúdo, é uma das vozes mais reconhecidas no debate sobre saúde mental, transtornos alimentares e as pressões da vida contemporânea. Autora de Fazendo as Pazes com o Corpo e A Vida Perfeita Não Existe, transforma experiências pessoais e informação qualificada em conversas que ajudam a romper tabus.",
+   "foto": "palestrantes/daiana.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "saude_mental"
+   ]
+  },
+  {
+   "nome": "Ana Mocny",
+   "credencial": "Sócia Capital humano · Deloitte",
+   "resumo": "Sócia de Capital Humano da Deloitte, Ana Mocny atua há mais de 25 anos assessorando empresas em gestão de pessoas, diversidade, equidade e inclusão, liderança e transformação organizacional. Lidera no Brasil as práticas de DE&I, Liderança e Transformação Organizacional da Deloitte, apoiando organizações na construção de culturas mais inclusivas e sustentáveis",
+   "foto": "palestrantes/ana-mocny.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "lideranca_humana",
+    "cultura",
+    "performance",
+    "diversidade",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Esabela Cruz",
+   "credencial": "Cultura e gestão de pessoas",
+   "resumo": "Psicóloga com MBA em Gestão Empresarial pela FGV e especializações em Recursos Humanos e Administração pela FIA/USP, Esabela Cruz é sócia da NR-1 Brasil e professora de MBA na FIA. Com mais de 20 anos de experiência em cultura organizacional, clima, liderança e desenvolvimento humano, atua na interseção entre psicologia, gestão e transformação de ambientes de trabalho",
+   "foto": "palestrantes/esabela.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "regulacao",
+    "lideranca_humana",
+    "cultura",
+    "saude_mental",
+    "performance",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Ivana Moreira",
+   "credencial": "Cofundadora do Mind Summit",
+   "resumo": "Jornalista, empreendedora e cofundadora do Mind Summit. Atua há mais de uma década na criação e curadoria de projetos de conteúdo e grandes eventos, conectando especialistas, empresas e ideias capazes de transformar pessoas e organizações.",
+   "foto": "palestrantes/ivana.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Maurício Giamellaro",
+   "credencial": "CEO · HEINEKEN Brasil",
+   "resumo": "CEO do Grupo HEINEKEN no Brasil, hoje o maior mercado da marca Heineken no mundo. Lidera uma das principais operações da companhia global, combinando crescimento, transformação cultural e uma agenda de impacto e sustentabilidade.",
+   "foto": "palestrantes/mauricio.webp",
+   "destaque": false,
+   "na_grade": false,
+   "temas": [
+    "lideranca_humana",
+    "cultura",
+    "performance",
+    "futuro_trabalho"
+   ]
+  },
+  {
+   "nome": "Paula Benevides",
+   "credencial": "VP de Pessoas, Cultura e Organização da Natura",
+   "resumo": "",
+   "foto": "palestrantes/paula.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "cultura"
+   ]
+  },
+  {
+   "nome": "Caito Maia",
+   "credencial": "Fundador e CEO · Chilli Beans",
+   "resumo": "Fundador e CEO da Chilli Beans, uma das maiores redes de acessórios de moda do país, com mais de 1.400 pontos de venda. Empreendedor reconhecido por transformar cultura, marca e experiência em motores de crescimento.",
+   "foto": "palestrantes/caito.webp",
+   "destaque": false,
+   "na_grade": true,
+   "temas": [
+    "cultura",
+    "futuro_trabalho"
+   ]
+  }
+ ]
+}
