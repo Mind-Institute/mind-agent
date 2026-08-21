@@ -10,8 +10,9 @@ existia só na branch de preview. Aqui é o projeto — separado do mapa do even
 Estado atual: **IA conectada.** A programação vem do `mindagent-bootstrap`
 (10 temas, 67 sessões, 44 palestrantes) com `dados/summit.json` como fallback, e
 o chat responde de verdade pela Edge Function `mindagent-chat`, que fala com a
-OpenAI. As respostas simuladas foram removidas. Falta a identidade via Yazo e o
-deploy.
+OpenAI. As respostas simuladas foram removidas. A identidade do participante
+entra pela URL ou por `postMessage` quando o app do evento embeda a página
+(ver “Identidade do participante”). Falta o deploy.
 
 O painel de administração vive em `admin/` (Vite + React + TypeScript) e é um
 projeto à parte, com o próprio `package.json` e o próprio README.
@@ -178,8 +179,10 @@ o dia em que a função passar a rotear por evento, nada muda aqui.
 Nenhuma outra linha do frontend sabe de onde vêm os dados: `app.js` só chama
 `carregarDadosSummit()`.
 
-O que fica para as próximas etapas: identidade via Yazo, e mover as respostas do
-chat — hoje simuladas por palavras-chave em `app.js` — para o RAG do agente.
+O que fica para as próximas etapas: levar a identidade do participante ao
+backend do agente (hoje ela para no navegador — ver “Identidade do
+participante”), e mover as respostas dos seis fluxos de intenção — hoje montadas
+localmente em `app.js` — para o RAG do agente.
 
 ## `summit.json` como fallback
 
@@ -193,28 +196,53 @@ geração.
 e 44). Serve para a página não morrer numa queda do bootstrap; vale regerar de
 vez em quando para a diferença não crescer.
 
-## Identidade futura via Yazo
+## Identidade do participante (embed pelo app do evento)
 
-A identidade do participante é **opcional por definição**, em `config.js`:
+A identidade é **opcional por definição**, em `config.js`:
 
 ```js
-export const PARTICIPANTE = { nome: null };
-definirParticipante({ nome: 'Fulana' });
+export const PARTICIPANTE = { nome: null, email: null };
+definirParticipante({ nome: 'Fulana', email: 'fulana@empresa.com' });
 ```
 
-Com `nome` nulo o agente cumprimenta sem nome (“Oi! 💚 Sou o Mind Agent…”) —
-**ele nunca chuta quem você é.** Preenchido, chama pela pessoa sem que mais nada
-mude.
+Com tudo nulo o agente cumprimenta sem nome (“Oi! 💚 Sou o Mind Agent…”) —
+**ele nunca chuta quem você é.** Preenchido o `nome`, chama pela pessoa sem que
+mais nada mude. Só e-mail, sem nome, mantém a saudação neutra: e-mail não vira
+apelido.
 
-Quem vai preencher é a Yazo, pela plataforma do evento (ou o e-mail, como
-segunda via), através do `mindagent-bootstrap`. Enquanto isso não existe, o
-valor fica nulo em produção e a saudação é neutra. Nada de nome fixo no código.
+O app do evento embeda a página passando quem está logado no dispositivo, por
+qualquer um dos dois caminhos:
 
-**Ainda não implementado de propósito:** falta o formato definitivo do link
-dinâmico da Yazo. Quando chegar, a identidade entra por aqui — e **não vai para
-a OpenAI**: nome e e-mail servem para a interface e para o registro no Supabase,
-não para o prompt. O `chat-service.js` não tem campo para isso, e é assim que
-deve continuar.
+- **Query string** (o combinado com o fornecedor do app):
+
+  ```
+  https://mind-agent.adriana-3eb.workers.dev/?email=fulana@empresa.com&nome=Fulana
+  ```
+
+  `email` (ou `user_email`) identifica; `nome` (ou `name`) é opcional. A página
+  lê, guarda no `localStorage` (por evento — a identidade sobrevive ao reload,
+  já que a query só vem uma vez) e **remove os parâmetros da barra de
+  endereço**, para o e-mail não vazar em print, histórico ou link compartilhado.
+
+- **postMessage**, para o app mandar depois do load:
+
+  ```js
+  iframe.contentWindow.postMessage(
+    { tipo: 'mindagent:identidade', email: 'fulana@empresa.com', nome: 'Fulana' }, '*');
+  ```
+
+Duas fronteiras que continuam de pé:
+
+- **Isso é identificação, não autenticação.** Qualquer um pode abrir a página
+  com `?email=` de outra pessoa. Serve para personalizar e registrar com quem o
+  agente falou — nunca para liberar dado sensível. Se um dia a página precisar
+  mostrar dado pessoal (agenda reservada, contatos), o app terá de passar um
+  token assinado, não um e-mail em texto puro.
+- **Nada disso vai para a OpenAI.** O payload do `chat-service.js` segue a
+  lista fechada de `shared/CONTRATOS.md`, sem nome nem e-mail — enviar a
+  identidade ao backend do agente (para o `identity_verified` deixar de ser
+  sempre `false`) é mudança de contrato e de política de privacidade, a ser
+  feita na Edge Function junto com o banco, não aqui.
 
 ## Princípio preservado: o agente não agenda por você
 
@@ -226,13 +254,15 @@ mostra o caminho; a ação é sempre da pessoa. Espelha o template
 
 ## Integrações
 
-A página aceita ser embedada e responde a dois gatilhos, os dois abrindo o tour
-direto numa tela:
+A página aceita ser embedada e responde a três gatilhos:
 
+- `?email=…&nome=…` na URL ou
+  `postMessage({ tipo: 'mindagent:identidade', email, nome })` — identifica o
+  participante logado no app (ver “Identidade do participante” acima);
 - `?tutorial=agenda` na URL (`agenda`, `detalhe`, `confirmada`, `minha-agenda`,
   `minha-agenda-17`, `qrcode`, `scanner`, `menu`, `mapa`, `rede`,
-  `palestrantes`, `chat`);
-- `postMessage({ tipo: 'mindagent:tutorial', tela: 'agenda' })`.
+  `palestrantes`, `chat`) — abre o tour direto naquela tela;
+- `postMessage({ tipo: 'mindagent:tutorial', tela: 'agenda' })` — idem.
 
 Ao concluir o tour ela emite `postMessage({ tipo: 'mindagent:tour-concluido' })`
 para a página que a embeda.

@@ -39,20 +39,81 @@ export const CONFIG = {
 /* ============================================================
    IDENTIDADE DO PARTICIPANTE
    ============================================================
-   Opcional por definição. Fica nula até a Yazo (ou o bootstrap)
-   dizer quem abriu a página; sem identidade o agente cumprimenta
-   sem nome — ele nunca chuta um.
+   Opcional por definição. Fica nula até o app do evento dizer quem
+   abriu a página; sem identidade o agente cumprimenta sem nome —
+   ele nunca chuta um.
 
-   Para testar com identidade, preencha `nome` aqui ou chame
+   Como a identidade chega, em ordem de precedência:
+
+   1. Query string — o app do evento embeda a página com o e-mail de
+      quem está logado no dispositivo:
+        https://…/?email=fulana@empresa.com&nome=Fulana
+      `email` (ou `user_email`) identifica; `nome` (ou `name`) é
+      opcional e serve só para a saudação. Os parâmetros são removidos
+      da barra de endereço assim que lidos, para o e-mail não vazar em
+      print, histórico ou link compartilhado.
+   2. postMessage — para o app mandar depois do load:
+        postMessage({ tipo: 'mindagent:identidade',
+                      email: 'fulana@empresa.com', nome: 'Fulana' })
+   3. localStorage — o que a URL trouxe fica guardado por evento, para
+      a identidade sobreviver ao recarregar (a query só vem uma vez).
+
+   IMPORTANTE: isso é identificação, não autenticação — qualquer um
+   pode abrir a página com um e-mail alheio na URL. Serve para
+   personalizar a experiência e registrar com quem o agente falou;
+   nunca para liberar dado sensível. E nada daqui vai para a OpenAI:
+   o payload do chat (`shared/CONTRATOS.md`) continua sem identidade.
+
+   Para testar: abra com `?email=teste@mind.com&nome=Fulana` ou chame
    `definirParticipante({ nome: 'Fulana' })` antes do primeiro chat.
 */
 export const PARTICIPANTE = {
   nome: null,
+  email: null,
 };
+
+const CHAVE_PARTICIPANTE = 'mindagent:v1:' + CONFIG.eventSlug + ':participante';
+
+function emailValido(valor) {
+  return typeof valor === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
+}
 
 export function definirParticipante(dados) {
   PARTICIPANTE.nome = (dados && typeof dados.nome === 'string' && dados.nome.trim())
     ? dados.nome.trim()
     : null;
+  PARTICIPANTE.email = (dados && emailValido(dados.email))
+    ? dados.email.trim().toLowerCase()
+    : null;
+  try {
+    if (PARTICIPANTE.nome || PARTICIPANTE.email) {
+      localStorage.setItem(CHAVE_PARTICIPANTE, JSON.stringify(PARTICIPANTE));
+    } else {
+      localStorage.removeItem(CHAVE_PARTICIPANTE);
+    }
+  } catch { /* sem storage (aba privada), a identidade vive só nesta carga */ }
   return PARTICIPANTE;
 }
+
+/* Roda no import: a URL manda; sem URL, vale o que ficou guardado. */
+(function capturarIdentidade() {
+  let daUrl = null;
+  try {
+    const params = new URLSearchParams(location.search);
+    const email = params.get('email') || params.get('user_email');
+    const nome = params.get('nome') || params.get('name');
+    if (email || nome) {
+      daUrl = { email, nome };
+      ['email', 'user_email', 'nome', 'name'].forEach((p) => params.delete(p));
+      const query = params.toString();
+      history.replaceState(history.state, '',
+        location.pathname + (query ? '?' + query : '') + location.hash);
+    }
+  } catch { /* URL ilegível não derruba a página */ }
+
+  if (daUrl) { definirParticipante(daUrl); return; }
+  try {
+    const guardado = JSON.parse(localStorage.getItem(CHAVE_PARTICIPANTE));
+    if (guardado) definirParticipante(guardado);
+  } catch { /* storage vazio ou corrompido: segue anônimo */ }
+})();

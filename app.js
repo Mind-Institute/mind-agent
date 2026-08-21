@@ -6,7 +6,7 @@
    só desenha e reage.
 */
 
-import { PARTICIPANTE } from './config.js';
+import { PARTICIPANTE, definirParticipante } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -649,6 +649,9 @@ function abrirTutorialEm(tela) {
 addEventListener('message', (e) => {
   const d = e.data;
   if (d && d.tipo === 'mindagent:tutorial') abrirTutorialEm(d.tela);
+  /* O app do evento também pode mandar a identidade depois do load —
+     mesma regra da URL: identifica a pessoa, não autentica. */
+  if (d && d.tipo === 'mindagent:identidade') definirParticipante(d);
 });
 {
   const alvo = new URLSearchParams(location.search).get('tutorial');
@@ -706,8 +709,9 @@ function perguntar(texto) {
 let jaPerguntou = false;
 
 /* Sem identidade, cumprimento sem nome — o agente não chuta quem você é.
-   Quando a Yazo (ou o bootstrap) preencher PARTICIPANTE.nome, ele chama
-   pelo nome sem que mais nada mude. */
+   Quando o app do evento preencher PARTICIPANTE (via URL ou postMessage,
+   ver config.js), ele chama pelo nome sem que mais nada mude. Só e-mail,
+   sem nome, mantém a saudação neutra: e-mail não vira apelido. */
 function saudacao() {
   const nome = PARTICIPANTE.nome && PARTICIPANTE.nome.trim();
   return nome ? 'Oi, ' + nome + '! 💚 ' : 'Oi! 💚 ';
