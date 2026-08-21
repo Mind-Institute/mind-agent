@@ -18,6 +18,17 @@ import { useAdminData } from '@/services/provider-context';
    invalida o recurso inteiro e o dashboard — os números da visão geral
    saem dos mesmos registros, então precisam cair junto. */
 
+/**
+ * Filtro das listas que servem de OPÇÃO num formulário — espaços,
+ * palestrantes, temas.
+ *
+ * Elas precisam vir inteiras. Com a API paginando por padrão, uma lista
+ * cortada faria o `Select` não encontrar o valor do registro, e o
+ * Radix devolveria vazio ao formulário: salvar apagaria o espaço da
+ * sessão sem ninguém pedir.
+ */
+export const TODAS_AS_OPCOES = { porPagina: 500 } as const;
+
 export function useLista<K extends NomeRecurso>(
   recurso: K,
   filtros: ListFilters = {},

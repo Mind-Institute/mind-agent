@@ -8,7 +8,7 @@ import {
   type Palestrante,
   type PalestranteForm,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { PreviaCartaoPalestrante } from './previa-cartao';
@@ -17,6 +17,7 @@ import { Campo } from '@/components/admin/campo';
 import { SelecaoMultipla } from '@/components/admin/editor-lista';
 import { AcoesEditoriais, InfoPublicacao } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro } from '@/components/admin/estados';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -66,8 +67,8 @@ export function DrawerPalestrante({
   aoFechar: () => void;
 }) {
   const sessao = useSessao();
-  const temas = useLista('themes');
-  const sessoes = useLista('sessions', {});
+  const temas = useLista('themes', TODAS_AS_OPCOES);
+  const sessoes = useLista('sessions', TODAS_AS_OPCOES);
 
   const edicao = useEdicaoRecurso<'speakers', PalestranteForm>({
     recurso: 'speakers',
@@ -140,6 +141,8 @@ export function DrawerPalestrante({
                 className="space-y-4"
                 noValidate
               >
+                <AvisoErroEscrita erro={edicao.erroEscrita} />
+
                 {edicao.sujo ? (
                   <Alert variant="atencao">
                     <AlertTriangle />

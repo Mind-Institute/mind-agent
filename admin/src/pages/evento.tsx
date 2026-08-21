@@ -8,6 +8,8 @@ import { useAtualizar, useLista } from '@/hooks/use-recurso';
 import { useAlteracoesNaoSalvas } from '@/hooks/use-alteracoes-nao-salvas';
 import { useSessao } from '@/hooks/use-sessao';
 import { motivoDaRecusa } from '@/lib/permissions';
+import { divergenciasDeLocal } from '@/lib/local-evento';
+import { useRecursoReal } from '@/services/provider-context';
 import { formatarDataExtenso, formatarDataHora } from '@/lib/format';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Campo, SecaoFormulario } from '@/components/admin/campo';
@@ -18,6 +20,7 @@ import {
   Salvando,
 } from '@/components/admin/estados';
 import { DialogoAlteracoesNaoSalvas, DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,8 +49,11 @@ export function PaginaEvento() {
   const consulta = useLista('event');
   const evento = consulta.data?.itens[0];
   const atualizar = useAtualizar('event');
+  const real = useRecursoReal('event');
   const [conflito, setConflito] = useState(false);
   const [salvo, setSalvo] = useState(false);
+  const [erroEscrita, setErroEscrita] = useState<unknown>(null);
+  const divergencias = evento ? divergenciasDeLocal(evento) : [];
 
   const podeEditar = sessao.pode('editar');
 
@@ -79,6 +85,7 @@ export function PaginaEvento() {
   async function salvar(valores: EventoForm) {
     if (!evento) return;
     setSalvo(false);
+    setErroEscrita(null);
     try {
       await atualizar.mutateAsync({
         id: evento.id,
@@ -88,7 +95,10 @@ export function PaginaEvento() {
       formulario.reset(valores);
       setSalvo(true);
     } catch (erro) {
+      /* Conflito tem diálogo próprio; o resto (422, 403, rede) precisa
+         aparecer, ou o formulário só "não salva" e não explica. */
       if (codigoDoErro(erro) === 'conflito') setConflito(true);
+      else setErroEscrita(erro);
     }
   }
 
@@ -118,18 +128,26 @@ export function PaginaEvento() {
       ) : consulta.error ? (
         <EstadoErro erro={consulta.error} aoTentarNovamente={() => void consulta.refetch()} />
       ) : !evento ? (
-        <EstadoErro erro={new Error('O evento padrão não foi encontrado na base de demonstração.')} />
+        <EstadoErro
+          erro={
+            new Error(
+              real
+                ? 'A API administrativa não devolveu nenhum evento em GET /admin/event.'
+                : 'O evento padrão não foi encontrado na base de demonstração.',
+            )
+          }
+        />
       ) : (
         <>
-          {/* Divergência de local: o painel mostra as duas versões e não
+          {/* Divergência de local: o painel mostra as versões e não
               escolhe. Escolher seria inventar dado. */}
-          {evento.locaisCandidatos.length > 1 ? (
+          {divergencias.length > 1 ? (
             <Alert variant="atencao">
               <AlertTriangle />
               <AlertTitle>Local do evento em divergência — precisa de revisão humana</AlertTitle>
               <AlertDescription>
                 <ul className="mt-1 space-y-0.5">
-                  {evento.locaisCandidatos.map((candidato) => (
+                  {divergencias.map((candidato) => (
                     <li key={candidato.valor}>
                       <strong>{candidato.valor}</strong>{' '}
                       <span className="text-muted-foreground">— {candidato.origem}</span>
@@ -143,6 +161,8 @@ export function PaginaEvento() {
               </AlertDescription>
             </Alert>
           ) : null}
+
+          <AvisoErroEscrita erro={erroEscrita} />
 
           {sujo ? (
             <Alert variant="atencao">
@@ -158,7 +178,9 @@ export function PaginaEvento() {
             <Alert variant="info">
               <AlertTitle>Alterações salvas</AlertTitle>
               <AlertDescription>
-                Gravado na base de demonstração. Nada foi enviado ao Supabase.
+                {real
+                  ? 'Gravado na API administrativa. O agente já responde com estes valores.'
+                  : 'Gravado na base de demonstração. Nada foi enviado ao Supabase.'}
               </AlertDescription>
             </Alert>
           ) : null}

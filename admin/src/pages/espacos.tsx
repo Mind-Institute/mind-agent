@@ -2,6 +2,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { MessageSquareQuote } from 'lucide-react';
 import { ROTULO_TIPO_ESPACO, TIPOS_ESPACO, type Espaco } from '@/contracts';
 import { camposFaltantesDoEspaco, ehPalco } from '@/lib/pendencias';
+import { rotuloTipoEspaco } from '@/lib/rotulos';
+import { SeloCategoria } from '@/components/admin/selo-categoria';
 import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem';
 import { SeloAtivo, SeloFaltando } from '@/components/admin/selos';
 import { EstadoVazio } from '@/components/admin/estados';
@@ -26,7 +28,7 @@ export function PaginaEspacos() {
     {
       chave: 'tipo',
       cabecalho: 'Tipo',
-      celula: (e) => <Badge variant="outline">{ROTULO_TIPO_ESPACO[e.tipo]}</Badge>,
+      celula: (e) => <SeloCategoria rotulo={rotuloTipoEspaco(e.tipo)} />,
     },
     {
       /* Aliases têm coluna própria: é por eles que o agente encontra o

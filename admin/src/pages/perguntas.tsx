@@ -10,7 +10,7 @@ import {
   type PerguntaForm,
   type PerguntaSemResposta,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { formatarRelativo } from '@/lib/format';
@@ -19,6 +19,7 @@ import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem'
 import { DrawerEdicao } from '@/components/admin/drawer-edicao';
 import { Campo } from '@/components/admin/campo';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '@/components/admin/estados';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,8 +45,8 @@ const PADRAO: PerguntaForm = {
 function DrawerPergunta({ id, aoFechar }: { id: string | undefined; aoFechar: () => void }) {
   const sessao = useSessao();
   const navegar = useNavigate();
-  const usuarios = useLista('users', {});
-  const conteudos = useLista('content', {});
+  const usuarios = useLista('users', TODAS_AS_OPCOES);
+  const conteudos = useLista('content', TODAS_AS_OPCOES);
 
   const edicao = useEdicaoRecurso<'unanswered', PerguntaForm>({
     recurso: 'unanswered',
@@ -120,6 +121,8 @@ function DrawerPergunta({ id, aoFechar }: { id: string | undefined; aoFechar: ()
                 </AlertDescription>
               </Alert>
             ) : null}
+
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
 
             <fieldset disabled={!podeEditar} className="space-y-4">
               <Campo

@@ -1,13 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle } from 'lucide-react';
 import { rotaFormSchema, type Rota, type RotaForm } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { DrawerEdicao } from '@/components/admin/drawer-edicao';
 import { Campo } from '@/components/admin/campo';
 import { AcoesEditoriais } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro } from '@/components/admin/estados';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,7 +51,7 @@ function paraFormulario(r: Rota): RotaForm {
 
 export function DrawerRota({ id, aoFechar }: { id: string | undefined; aoFechar: () => void }) {
   const sessao = useSessao();
-  const espacos = useLista('spaces', { ordenar: 'nome' });
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
 
   const edicao = useEdicaoRecurso<'routes', RotaForm>({
     recurso: 'routes',
@@ -97,6 +98,8 @@ export function DrawerRota({ id, aoFechar }: { id: string | undefined; aoFechar:
             className="space-y-4"
             noValidate
           >
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
+
             {edicao.sujo ? (
               <Alert variant="atencao">
                 <AlertTriangle />

@@ -9,7 +9,7 @@ import {
   type Estande,
   type EstandeForm,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem';
@@ -17,6 +17,7 @@ import { DrawerEdicao } from '@/components/admin/drawer-edicao';
 import { Campo } from '@/components/admin/campo';
 import { AcoesEditoriais } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '@/components/admin/estados';
 import { SeloAtivo } from '@/components/admin/selos';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +49,7 @@ const PADRAO: EstandeForm = {
 
 function DrawerEstande({ id, aoFechar }: { id: string | undefined; aoFechar: () => void }) {
   const sessao = useSessao();
-  const espacos = useLista('spaces', { ordenar: 'nome' });
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
 
   const edicao = useEdicaoRecurso<'booths', EstandeForm>({
     recurso: 'booths',
@@ -102,6 +103,8 @@ function DrawerEstande({ id, aoFechar }: { id: string | undefined; aoFechar: () 
             className="space-y-4"
             noValidate
           >
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
+
             {edicao.sujo ? (
               <Alert variant="atencao">
                 <AlertTriangle />
@@ -209,7 +212,7 @@ function DrawerEstande({ id, aoFechar }: { id: string | undefined; aoFechar: () 
 export function PaginaEstandes() {
   const { id } = useParams();
   const navegar = useNavigate();
-  const espacos = useLista('spaces', { ordenar: 'nome' });
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
 
   const nomeEspaco = useMemo(() => {
     const mapa = new Map((espacos.data?.itens ?? []).map((e) => [e.id, e.nome]));

@@ -14,7 +14,7 @@ import {
   type DocumentoForm,
   type ReciboReindexacao,
 } from '@/contracts';
-import { useLista, useReindexar } from '@/hooks/use-recurso';
+import { useLista, useReindexar, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { formatarDataHora } from '@/lib/format';
@@ -24,6 +24,7 @@ import { Campo } from '@/components/admin/campo';
 import { SelecaoMultipla } from '@/components/admin/editor-lista';
 import { AcoesEditoriais } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro, EstadoVazio, Salvando } from '@/components/admin/estados';
 import { SeloIndexacao } from '@/components/admin/selos';
 import { Badge } from '@/components/ui/badge';
@@ -90,7 +91,7 @@ function BotaoReindexar({
 
 function DrawerDocumento({ id, aoFechar }: { id: string | undefined; aoFechar: () => void }) {
   const sessao = useSessao();
-  const fontes = useLista('sources', {});
+  const fontes = useLista('sources', TODAS_AS_OPCOES);
   const [recibo, setRecibo] = useState<ReciboReindexacao | null>(null);
 
   const edicao = useEdicaoRecurso<'documents', DocumentoForm>({
@@ -178,6 +179,8 @@ function DrawerDocumento({ id, aoFechar }: { id: string | undefined; aoFechar: (
                 <AlertDescription>{registro.erroIndexacao}</AlertDescription>
               </Alert>
             ) : null}
+
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
 
             {edicao.sujo ? (
               <Alert variant="atencao">
@@ -291,7 +294,7 @@ function DrawerDocumento({ id, aoFechar }: { id: string | undefined; aoFechar: (
 export function PaginaDocumentos() {
   const { id } = useParams();
   const navegar = useNavigate();
-  const fontes = useLista('sources', {});
+  const fontes = useLista('sources', TODAS_AS_OPCOES);
 
   const nomeFonte = useMemo(() => {
     const mapa = new Map((fontes.data?.itens ?? []).map((f) => [f.id, f.nome]));

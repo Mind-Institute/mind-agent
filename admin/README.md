@@ -8,19 +8,25 @@ site estático sem build — este painel não toca em nenhum arquivo dele. A ún
 coisa que atravessa a fronteira é leitura: `../dados/summit.json` como semente e
 `../assets/` para a fonte Satoshi, o símbolo e o favicon.
 
-Estado atual: **autenticação ligada e dashboard real; cadastros ainda em
+Estado atual: **o núcleo do evento é real; os módulos de apoio seguem em
 demonstração.**
 
 - O acesso passa por **Supabase Auth**. Papel e permissões vêm exclusivamente de
   `GET /admin/me`, validado no backend.
-- A **visão geral** lê `GET /admin/dashboard` da Edge Function administrativa.
-- **Todo o resto** — programação, palestrantes, espaços, rotas, estandes,
-  ofertas, conteúdo, documentos, conversas, auditoria — continua no banco em
-  memória. Nenhuma escrita chega ao backend nesta etapa.
+- **Reais, em leitura e escrita:** visão geral, evento, programação,
+  palestrantes, espaços e temas (temas só em leitura).
+- **Ainda em memória:** rotas, estandes, ofertas, conteúdo institucional,
+  documentos, conversas, perguntas sem resposta, usuários e auditoria.
 
-Essa mistura é a coisa mais perigosa do painel, então ela é dita em voz alta: a
-faixa do topo mostra **"Dashboard real · Cadastros em demonstração"** em todas as
-páginas. Ver [Limites desta versão](#limites-desta-versão).
+Essa mistura é a coisa mais perigosa do painel, então ela é dita em voz alta. A
+faixa do topo mostra, em todas as páginas:
+
+> **Evento, programação, palestrantes e espaços reais · Demais módulos em
+> demonstração.**
+
+E cada listagem carrega um selo próprio — *dados reais* ou *demonstração* — para
+não haver dúvida sobre qual tabela você está editando. Ver
+[Limites desta versão](#limites-desta-versão).
 
 ## Como executar
 
@@ -44,6 +50,14 @@ Da pasta `admin/`, os comandos são os de sempre:
 | `npm test` | Roda a suíte inteira uma vez. |
 | `npm run test:watch` | Roda a suíte em modo observador. |
 | `npm run typecheck` | Só a conferência de tipos. |
+
+O projeto é fixado em **Node 22** (`.nvmrc` e `engines`). Em outra versão o
+`npm install` avisa `EBADENGINE` — o build e os testes continuam passando, mas
+a versão de referência é a 22:
+
+```bash
+nvm use
+```
 
 O chat da raiz roda em paralelo, sem interferência:
 
@@ -165,6 +179,8 @@ Os que aparecem em quase toda tela:
 | `DadoPessoal` · `ContatoMascarado` | Exibição mascarada — componente, para dar para procurar no código quem mostra dado pessoal. |
 | `FaixaDemonstracao` | O aviso de modo (demonstração ou híbrido) no topo de toda página. |
 | `GuardaAutenticacao` | Decide entre "restaurando sessão", login, "confirmando permissões", recusa e painel. Transparente no modo simulado. |
+| `SeloCategoria` | Categoria da API. Conhecida aparece traduzida; desconhecida aparece com o código cru, em âmbar. |
+| `AvisoErroEscrita` | 422, 403 e rede na hora de salvar — com a mensagem do backend, os detalhes e o `requestId`. |
 
 E `useEdicaoRecurso`, em `features/comum/`: carregar, preencher, salvar com
 controle de concorrência, publicar, arquivar. Escrito uma vez para que "conflito
@@ -177,6 +193,29 @@ e não só naquele que alguém lembrou.
 React Hook Form valida) e o do **registro** (o que o provedor devolve). Os dois
 são separados de propósito: campo de horário vazio no formulário vira `null` no
 registro, não string vazia.
+
+### Categorias, e por que elas não são convertidas
+
+Os enums acompanham o vocabulário da API real:
+
+| Campo | Valores |
+|---|---|
+| `sessions.tipo` | abertura, palestra, painel, workshop, masterclass, experiencia, lancamento, autografos, **credenciamento**, **almoco**, **intervalo**, **em_curadoria** |
+| `sessions.formato` | presencial, online, hibrido, **remoto** |
+| `spaces.tipo` | palco, sala, arena, lounge, area_expositiva, apoio, externo, **acessibilidade**, **acesso**, **alimentacao**, **ativacao**, **estandes**, **servico** |
+
+Nos **registros** esses campos são `string`, não enum. É deliberado: valor novo
+no backend precisa chegar à tela, não travar a listagem. `src/lib/rotulos.ts`
+resolve o rótulo e diz se ele é conhecido; `SeloCategoria` mostra o código cru,
+marcado, quando não é.
+
+Se o backend passar a usar `mesa_redonda` ou `em-curadoria` com hífen, a
+divergência salta aos olhos na primeira listagem. Um painel que "arredondasse"
+para `palestra` faria alguém editar uma coisa acreditando ser outra — e ninguém
+descobriria.
+
+O mesmo vale nos formulários: o `Select` inclui o valor atual mesmo fora da
+lista conhecida, e salvar preserva o que veio.
 
 Fora isso, `common.ts` define o que atravessa todos os módulos:
 
@@ -227,10 +266,29 @@ Três implementações:
   `obterToken`, manda no header `Authorization`, e avisa a camada de sessão por
   `aoNaoAutorizado` quando leva 401. Sem `VITE_ADMIN_API_BASE_URL` o construtor
   recusa a criação em vez de chutar um endereço.
-- **`HybridAdminDataProvider`** — o desta etapa. `getDashboard()` vai para o
-  HTTP; todo o resto vai para o mock. Ele **não** cai no mock quando o HTTP
-  falha: cair em silêncio faria o painel dizer "dashboard real" mostrando número
-  inventado.
+- **`HybridAdminDataProvider`** — o desta etapa. Encaminha por recurso:
+
+  | Recurso | Destino | Operações que a API expõe |
+  |---|---|---|
+  | `dashboard` | HTTP | leitura |
+  | `event` | HTTP | list, get, update |
+  | `sessions` | HTTP | list, get, create, update, publish, archive |
+  | `speakers` | HTTP | list, get, create, update, publish, archive |
+  | `spaces` | HTTP | list, get, create, update, archive |
+  | `themes` | HTTP | list (somente leitura) |
+  | todos os outros | mock | tudo |
+
+  Duas garantias que valem mais que o roteamento em si:
+
+  **Não existe queda para o mock.** Se um recurso real falha, aparece a tela de
+  erro. Cair no mock em silêncio faria o painel apresentar dado inventado como se
+  fosse do banco.
+
+  **Operação sem endpoint é recusada antes de sair.** Publicar um espaço ou
+  escrever num tema devolve uma frase dizendo que a API não expõe aquilo — em vez
+  de mandar a requisição e traduzir o 404 do gateway em "Registro não
+  encontrado", que mandaria o operador procurar problema de dado onde o problema
+  é de contrato.
 
 Quem escolhe é `criarProvedorPadrao()`, em `services/provider-context.tsx`, a
 partir de `VITE_ADMIN_API_BASE_URL` e `VITE_ADMIN_DATA_MODE`. **Nenhuma página
@@ -401,34 +459,61 @@ mandar um token morto e derrubar a sessão da pessoa no meio de uma edição.
 
 ## Integração com Edge Functions
 
-Ligado para leitura do dashboard. A Edge Function `mindagent-admin` já responde
-no formato do contrato — inclusive o corpo de erro
-(`{ "codigo": "sem_permissao", "mensagem": "…" }`) e o header
+Ligado para o núcleo do evento. A Edge Function `mindagent-admin` responde no
+formato do contrato — inclusive o corpo de erro
+(`{ "codigo": "sem_permissao", "mensagem": "…" }`), o `ListResult`
+(`{ itens, total, pagina, porPagina }`) e o header
 `If-Unmodified-Since-Version` para concorrência otimista.
 
-O que falta para sair do modo híbrido: as respostas de listagem e item por
-recurso, as escritas (`POST`/`PATCH`/`publish`/`archive`) e o pipeline real de
-indexação. Do lado do frontend, é trocar `VITE_ADMIN_DATA_MODE` para `http` —
+Endpoints em uso:
+
+```text
+GET    /admin/me
+GET    /admin/dashboard
+
+GET    /admin/event · GET /admin/event/:id · PATCH /admin/event/:id
+GET    /admin/sessions · /:id · POST · PATCH · POST /:id/publish · /:id/archive
+GET    /admin/speakers · /:id · POST · PATCH · POST /:id/publish · /:id/archive
+GET    /admin/spaces   · /:id · POST · PATCH · POST /:id/archive
+GET    /admin/themes
+```
+
+Toda escrita manda `If-Unmodified-Since-Version: <atualizadoEm>`, e `409` abre o
+diálogo de conflito em vez de sobrescrever o trabalho de outra pessoa.
+
+**Paginação.** A listagem pede `porPagina=50` e usa o `total` da resposta para
+montar o rodapé; `pagina` fica na URL. Listas usadas como OPÇÃO de formulário
+(espaços, palestrantes, temas) pedem `porPagina=500`, porque uma lista cortada
+faria o `Select` não encontrar o valor do registro.
+
+O que falta para sair do híbrido: rotas, estandes, ofertas, conteúdo, documentos,
+conversas, perguntas, usuários e auditoria na API, mais o pipeline real de
+indexação. Do lado do frontend é trocar `VITE_ADMIN_DATA_MODE` para `http` —
 nenhuma página muda.
 
 ## Limites desta versão
 
-- **Nenhuma escrita chega ao backend.** Salvar, publicar, arquivar e reindexar
-  mexem só na memória desta aba. Recarregar a página desfaz tudo, e a faixa no
-  topo avisa. O painel só faz duas requisições à API: `GET /admin/me` e
-  `GET /admin/dashboard`.
-- **Nenhuma tabela foi criada, nenhuma migration foi aplicada, nenhum dado real
-  foi alterado.**
-- **Só o dashboard é real.** Os quatorze outros módulos leem do banco em
-  memória. Um número da visão geral e uma linha da programação, na mesma sessão,
-  vêm de lugares diferentes — é o que a faixa do topo existe para lembrar.
+- **Nove módulos ainda são demonstração.** Rotas, estandes, ofertas, conteúdo
+  institucional, documentos, conversas, perguntas sem resposta, usuários e
+  auditoria vivem na memória do navegador: recarregar desfaz. O selo da listagem
+  e a faixa do topo dizem qual é qual em cada tela.
+- **Escrita real, com o alcance da API.** Sessões e palestrantes aceitam criar,
+  editar, publicar e arquivar; espaços não têm `publish`; o evento só aceita
+  `PATCH`; temas são somente leitura. Pedir o que não existe devolve uma frase
+  explicando, não um 404 disfarçado.
+- **Nenhuma tabela foi criada, nenhuma migration foi aplicada, nenhum deploy foi
+  feito.** O painel só consome os endpoints já publicados.
 - **A tela de login não tem "esqueci minha senha" nem cadastro.** Recuperação e
   convite de usuário ficam para a etapa em que Usuários deixar de ser leitura.
-- **A resposta de `/admin/me` foi validada contra um formato assumido**
-  (`{ papel, permissoes?, nome?, email?, id? }`, aceita também embrulhada em
-  `usuario`/`perfil`/`data`). Não tive credencial para conferir o retorno real —
-  se o formato divergir, o painel recusa a entrada com mensagem explícita em vez
-  de adivinhar um papel.
+- **Não há tela de criação.** `create` existe no provedor, vai para a API e é
+  testado, mas as telas desta versão editam o que já está lá.
+- **Os formatos de resposta foram validados contra o contrato, não contra um
+  login real.** Não posso digitar senha, então `/admin/me`, `/admin/dashboard`
+  e as listagens foram exercitadas com `fetch` falso no formato combinado. As
+  contagens de `sessions`, `speakers` e `themes` foram conferidas contra a API
+  pública do chat (`mindagent-bootstrap`), que serve os mesmos dados: **67, 44 e
+  10**. Se algum campo divergir, o painel mostra erro ou o valor cru — nunca um
+  palpite.
 - **O contrato de `/admin/dashboard` também é conferido em runtime.** Faltando
   `metricas`, `pendencias` ou `alertas`, aparece erro — não um dashboard vazio
   que parece ter funcionado.
@@ -439,12 +524,15 @@ nenhuma página muda.
 - **Não há criação de registro pela interface.** `create` existe no provedor e é
   testado, mas as telas desta versão editam o que já está lá. Cadastro novo entra
   junto com a persistência.
-- **Sem paginação real.** As listas cabem inteiras na tela; a paginação está no
-  contrato (`pagina`, `porPagina`) e será usada quando os volumes exigirem.
+- **Paginação simples.** `porPagina=50` com "anterior/próxima". Sem salto para
+  uma página específica e sem escolha de tamanho.
 - **Rotas não têm editor de mapa.** O diagrama de conexões é de conferência —
   serve para ver de relance quem ficou sem caminho.
 - **Usuários é leitura, e ainda vem do mock.** Convidar pessoa e trocar papel
   dependem de endpoints que não existem.
+- **O backend ainda não recusa escrita por papel.** A interface esconde o botão,
+  mas quem precisa negar o `PATCH` é a Edge Function. Agora que a escrita é
+  real, isso deixou de ser teórico.
 - **Conversas é somente leitura,** de propósito: o painel não responde por aqui.
 - **O local do evento está em divergência e continua assim.** `summit.json` diz
   "São Paulo Expo", material de divulgação diz "Transamérica Expo Center". O
@@ -458,12 +546,13 @@ nenhuma página muda.
 npm test --prefix admin
 ```
 
-124 testes, dez arquivos. Cobrem:
+155 testes, onze arquivos. Cobrem:
 
 | Arquivo | O que garante |
 |---|---|
+| `api-real.test.tsx` | Os verbos e caminhos dos cinco recursos reais; `If-Unmodified-Since-Version` em toda escrita; token e `apikey` nos headers e fora da URL; os dez filtros da programação na query string; paginação a partir do `total` da API; 401, 403, 404, 409, 422 e 503; a divergência de local do evento; os novos enums com rótulo em português; categoria desconhecida mostrada crua; e a regressão do `Select` que apagava o espaço da sessão. |
+| `modo-hibrido.test.tsx` | Encaminhamento seletivo recurso por recurso, leitura e escrita reais nos módulos reais, o resto em memória, temas somente leitura, operação sem endpoint recusada antes de sair, ausência de queda para o mock em erro, e a faixa nomeando os módulos. |
 | `autenticacao.test.tsx` | Restauração da sessão, `onAuthStateChange`, login, validação do formulário, credencial inválida, serviço de auth fora, logout, 401, 403, papel irreconhecível, papel e permissões vindos de `/admin/me`, ausência do seletor "Ver como", token no `Authorization`, token fora da URL e fora do console, e sessão expirada no meio do uso. |
-| `modo-hibrido.test.tsx` | Dashboard com números da API (e não os do mock), o selo e a faixa que dizem isso, formato inesperado virando erro, API fora do ar sem queda silenciosa para o mock, cadastros ainda em memória e nenhuma escrita saindo para o backend. |
 | `provedor-dados.test.ts` | Listagem, filtros, busca sem acento, publicação, arquivamento, conflito de atualização, auditoria, reindexação, injeção de falha, isolamento entre instâncias — e, no `HttpAdminDataProvider`, os caminhos combinados, a tradução de status HTTP e o token fora da URL. |
 | `dominio.test.ts` | Máscaras, formatação em BRL e pt-BR, campos faltantes, conflito de horário (inclusive os casos que **não** são conflito) e a matriz de permissões. |
 | `navegacao.test.tsx` | Os quinze módulos no menu, cada um abrindo sem quebrar, o 404 e a faixa de demonstração. |

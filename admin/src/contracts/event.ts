@@ -39,8 +39,15 @@ export const eventoSchema = registroBaseSchema.extend({
   /**
    * Locais que aparecem em fontes diferentes do projeto. O painel NÃO
    * escolhe entre eles — mostra a divergência para alguém decidir.
+   *
+   * Opcional porque a API real pode não enviar a lista. Quando ela não
+   * vem, `divergenciasDeLocal()` monta as candidatas a partir do que o
+   * painel consegue ver: o cadastro oficial, as regras logísticas e a
+   * cópia congelada em `dados/summit.json`.
    */
-  locaisCandidatos: z.array(z.object({ valor: z.string(), origem: z.string() })),
+  locaisCandidatos: z
+    .array(z.object({ valor: z.string(), origem: z.string() }))
+    .default([]),
 });
 
 export type Evento = z.infer<typeof eventoSchema>;

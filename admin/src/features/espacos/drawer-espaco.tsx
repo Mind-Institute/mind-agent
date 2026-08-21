@@ -7,7 +7,8 @@ import {
   type Espaco,
   type EspacoForm,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
+import { opcoesComAtual, rotuloTipoEspaco } from '@/lib/rotulos';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { DrawerEdicao } from '@/components/admin/drawer-edicao';
@@ -15,6 +16,7 @@ import { Campo } from '@/components/admin/campo';
 import { EditorDeLista } from '@/components/admin/editor-lista';
 import { AcoesEditoriais } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro } from '@/components/admin/estados';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,7 +71,7 @@ function paraFormulario(e: Espaco): EspacoForm {
 
 export function DrawerEspaco({ id, aoFechar }: { id: string | undefined; aoFechar: () => void }) {
   const sessao = useSessao();
-  const espacos = useLista('spaces', { ordenar: 'nome' });
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
 
   const edicao = useEdicaoRecurso<'spaces', EspacoForm>({
     recurso: 'spaces',
@@ -89,7 +91,7 @@ export function DrawerEspaco({ id, aoFechar }: { id: string | undefined; aoFecha
       <DrawerEdicao
         aberto={Boolean(id)}
         titulo={registro?.nome || 'Espaço'}
-        descricao={registro ? ROTULO_TIPO_ESPACO[registro.tipo] : undefined}
+        descricao={registro ? rotuloTipoEspaco(registro.tipo).texto : undefined}
         sujo={edicao.sujo}
         salvando={edicao.salvando}
         podeSalvar={podeEditar}
@@ -116,6 +118,8 @@ export function DrawerEspaco({ id, aoFechar }: { id: string | undefined; aoFecha
             className="space-y-4"
             noValidate
           >
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
+
             {edicao.sujo ? (
               <Alert variant="atencao">
                 <AlertTriangle />
@@ -144,9 +148,12 @@ export function DrawerEspaco({ id, aoFechar }: { id: string | undefined; aoFecha
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {TIPOS_ESPACO.map((tipo) => (
-                          <SelectItem key={tipo} value={tipo}>
-                            {ROTULO_TIPO_ESPACO[tipo]}
+                        {opcoesComAtual(
+                          TIPOS_ESPACO.map((t) => ({ valor: t, rotulo: ROTULO_TIPO_ESPACO[t] })),
+                          formulario.watch('tipo'),
+                        ).map((opcao) => (
+                          <SelectItem key={opcao.valor} value={opcao.valor}>
+                            {opcao.rotulo}
                           </SelectItem>
                         ))}
                       </SelectContent>

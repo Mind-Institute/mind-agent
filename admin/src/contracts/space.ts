@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { registroBaseSchema } from './common';
 
+/* ============================================================
+   TIPOS DE ESPAÇO
+   ============================================================
+   Além dos lugares onde acontece conteúdo (palco, sala, arena), o
+   evento tem espaços de operação e de serviço: acesso, alimentação,
+   acessibilidade, ativação de patrocinador, área de estandes.
+
+   Cada um muda a resposta do agente. "Onde fica o banheiro adaptado"
+   e "onde fica a Arena Mind" não são a mesma pergunta, e achatar os
+   dois em `apoio` apagaria a diferença. */
 export const TIPOS_ESPACO = [
   'palco',
   'sala',
@@ -9,8 +19,17 @@ export const TIPOS_ESPACO = [
   'area_expositiva',
   'apoio',
   'externo',
+  'acessibilidade',
+  'acesso',
+  'alimentacao',
+  'ativacao',
+  'estandes',
+  'servico',
 ] as const;
-export const ROTULO_TIPO_ESPACO: Record<(typeof TIPOS_ESPACO)[number], string> = {
+
+export type TipoEspaco = (typeof TIPOS_ESPACO)[number];
+
+export const ROTULO_TIPO_ESPACO: Record<TipoEspaco, string> = {
   palco: 'Palco',
   sala: 'Sala',
   arena: 'Arena',
@@ -18,6 +37,12 @@ export const ROTULO_TIPO_ESPACO: Record<(typeof TIPOS_ESPACO)[number], string> =
   area_expositiva: 'Área expositiva',
   apoio: 'Apoio',
   externo: 'Externo',
+  acessibilidade: 'Acessibilidade',
+  acesso: 'Acesso',
+  alimentacao: 'Alimentação',
+  ativacao: 'Ativação',
+  estandes: 'Estandes',
+  servico: 'Serviço',
 };
 
 export const espacoFormSchema = z.object({
@@ -26,7 +51,8 @@ export const espacoFormSchema = z.object({
     .string()
     .min(2, 'Informe o slug.')
     .regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífen.'),
-  tipo: z.enum(TIPOS_ESPACO),
+  /* String, e não enum — ver a nota em session.ts. */
+  tipo: z.string().min(1, 'Escolha o tipo.'),
   /**
    * Os aliases são como o participante chama o espaço no chat
    * ("palco principal"). Sem eles o agente não encontra o lugar —
@@ -49,7 +75,8 @@ export type EspacoForm = z.infer<typeof espacoFormSchema>;
 export const espacoSchema = registroBaseSchema.extend({
   nome: z.string(),
   slug: z.string(),
-  tipo: z.enum(TIPOS_ESPACO),
+  /* String, e não enum: tipo novo no backend precisa chegar à tela. */
+  tipo: z.string(),
   aliases: z.array(z.string()),
   descricao: z.string(),
   comoChegar: z.string(),

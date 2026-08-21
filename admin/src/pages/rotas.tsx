@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftRight, ArrowRight } from 'lucide-react';
 import type { Rota } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { formatarDistancia, formatarDuracao } from '@/lib/format';
 import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem';
 import { SeloAtivo } from '@/components/admin/selos';
@@ -15,8 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export function PaginaRotas() {
   const { id } = useParams();
   const navegar = useNavigate();
-  const espacos = useLista('spaces', { ordenar: 'nome' });
-  const rotas = useLista('routes', {});
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
+  const rotas = useLista('routes', TODAS_AS_OPCOES);
 
   const nomeEspaco = useMemo(() => {
     const mapa = new Map((espacos.data?.itens ?? []).map((e) => [e.id, e.nome]));

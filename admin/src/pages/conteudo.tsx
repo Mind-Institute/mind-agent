@@ -20,6 +20,7 @@ import { DrawerEdicao } from '@/components/admin/drawer-edicao';
 import { Campo } from '@/components/admin/campo';
 import { AcoesEditoriais, InfoPublicacao } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro, EstadoVazio } from '@/components/admin/estados';
 import { SeloEditorial } from '@/components/admin/selos';
 import { Badge } from '@/components/ui/badge';
@@ -118,6 +119,8 @@ function DrawerConteudo({ id, aoFechar }: { id: string | undefined; aoFechar: ()
             className="space-y-4"
             noValidate
           >
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
+
             {edicao.sujo ? (
               <Alert variant="atencao">
                 <AlertTriangle />

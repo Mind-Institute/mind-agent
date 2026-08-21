@@ -26,6 +26,8 @@ export interface EdicaoRecurso<K extends NomeRecurso, TForm extends FieldValues>
   salvando: boolean;
   salvo: boolean;
   conflito: boolean;
+  /** Erro da última escrita que não foi conflito (422, 403, rede…). */
+  erroEscrita: unknown;
   fecharConflito: () => void;
   recarregar: () => void;
   salvar: (valores: TForm) => Promise<void>;
@@ -59,6 +61,7 @@ export function useEdicaoRecurso<K extends NomeRecurso, TForm extends FieldValue
 
   const [conflito, setConflito] = useState(false);
   const [salvo, setSalvo] = useState(false);
+  const [erroEscrita, setErroEscrita] = useState<unknown>(null);
 
   const formulario = useForm<TForm>({ resolver, defaultValues: padrao });
   const registro = consulta.data;
@@ -67,6 +70,7 @@ export function useEdicaoRecurso<K extends NomeRecurso, TForm extends FieldValue
     if (registro) formulario.reset(paraFormulario(registro));
     else formulario.reset(padrao);
     setSalvo(false);
+    setErroEscrita(null);
     // `formulario` e `padrao` são estáveis o bastante; reagir ao registro basta.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registro]);
@@ -80,14 +84,21 @@ export function useEdicaoRecurso<K extends NomeRecurso, TForm extends FieldValue
     return { atualizadoEmEsperado: versionado?.atualizadoEm ?? null };
   }
 
+  /**
+   * Executa a escrita e traduz a falha em ESTADO, nunca em exceção
+   * solta. Com a API real no caminho, 422 e 403 são rotina — deixar a
+   * promessa rejeitar produziria "unhandled rejection" e a pessoa
+   * ficaria olhando um formulário que não salvou e não explicou.
+   */
   async function comConflito(acao: () => Promise<unknown>) {
+    setErroEscrita(null);
     try {
       await acao();
       setSalvo(true);
       aoSalvar?.();
     } catch (erro) {
       if (codigoDoErro(erro) === 'conflito') setConflito(true);
-      else throw erro;
+      else setErroEscrita(erro);
     }
   }
 
@@ -100,6 +111,7 @@ export function useEdicaoRecurso<K extends NomeRecurso, TForm extends FieldValue
     salvando: atualizar.isPending || publicarMut.isPending || arquivarMut.isPending,
     salvo,
     conflito,
+    erroEscrita,
     fecharConflito: () => setConflito(false),
     recarregar: () => {
       setConflito(false);

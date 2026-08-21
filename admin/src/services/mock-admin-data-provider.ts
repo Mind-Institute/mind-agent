@@ -121,6 +121,10 @@ export interface OpcoesMock {
 export class MockAdminDataProvider implements AdminDataProvider {
   readonly modo = 'mock' as const;
 
+  origemDoRecurso(): 'mock' {
+    return 'mock';
+  }
+
   readonly banco: BancoMock;
   private latenciaMs: number;
   private autor: ContextoAutor;

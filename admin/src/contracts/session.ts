@@ -1,6 +1,17 @@
 import { z } from 'zod';
 import { registroEditorialSchema, statusEditorialSchema } from './common';
 
+/* ============================================================
+   TIPOS DE SESSÃO
+   ============================================================
+   A lista vem do que a API real usa. Além dos formatos de conteúdo,
+   a grade tem blocos operacionais (credenciamento, almoço, intervalo)
+   e o marcador de conteúdo ainda não fechado (`em_curadoria`).
+
+   Categoria desconhecida NÃO é convertida em outra: ela aparece na
+   tela com o próprio código, via `rotuloTipoSessao`. Traduzir em
+   silêncio esconderia mudança de vocabulário do backend — e o painel
+   passaria a mentir sobre o que está na base. */
 export const TIPOS_SESSAO = [
   'abertura',
   'palestra',
@@ -10,8 +21,15 @@ export const TIPOS_SESSAO = [
   'experiencia',
   'lancamento',
   'autografos',
+  'credenciamento',
+  'almoco',
+  'intervalo',
+  'em_curadoria',
 ] as const;
-export const ROTULO_TIPO_SESSAO: Record<(typeof TIPOS_SESSAO)[number], string> = {
+
+export type TipoSessao = (typeof TIPOS_SESSAO)[number];
+
+export const ROTULO_TIPO_SESSAO: Record<TipoSessao, string> = {
   abertura: 'Abertura',
   palestra: 'Palestra',
   painel: 'Painel',
@@ -20,13 +38,20 @@ export const ROTULO_TIPO_SESSAO: Record<(typeof TIPOS_SESSAO)[number], string> =
   experiencia: 'Experiência',
   lancamento: 'Lançamento de livro',
   autografos: 'Autógrafos',
+  credenciamento: 'Credenciamento',
+  almoco: 'Almoço',
+  intervalo: 'Intervalo',
+  em_curadoria: 'Em curadoria',
 };
 
-export const FORMATOS_SESSAO = ['presencial', 'online', 'hibrido'] as const;
-export const ROTULO_FORMATO_SESSAO: Record<(typeof FORMATOS_SESSAO)[number], string> = {
+export const FORMATOS_SESSAO = ['presencial', 'online', 'hibrido', 'remoto'] as const;
+export type FormatoSessao = (typeof FORMATOS_SESSAO)[number];
+
+export const ROTULO_FORMATO_SESSAO: Record<FormatoSessao, string> = {
   presencial: 'Presencial',
   online: 'Online',
   hibrido: 'Híbrido',
+  remoto: 'Remoto',
 };
 
 export const NIVEIS_SESSAO = ['introdutorio', 'intermediario', 'avancado'] as const;
@@ -51,17 +76,16 @@ export const sessaoFormSchema = z
     descricao: z.string().max(4000, 'Máximo de 4000 caracteres.').default(''),
     dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Escolha o dia.'),
     inicio: z.string().regex(HORA, 'Use o formato HH:MM.'),
-    /* Coquetel e sessão de autógrafos não têm hora de término no
-       `summit.json` — vazio é um valor válido, não um erro de digitação. */
-    fim: z
-      .string()
-      .regex(HORA, 'Use o formato HH:MM.')
-      .or(z.literal(''))
-      .default(''),
+    /* Coquetel e sessão de autógrafos não têm hora de término —
+       vazio é um valor válido, não um erro de digitação. */
+    fim: z.string().regex(HORA, 'Use o formato HH:MM.').or(z.literal('')).default(''),
     espacoId: z.string().min(1, 'Escolha o espaço.'),
-    tipo: z.enum(TIPOS_SESSAO),
-    formato: z.enum(FORMATOS_SESSAO),
-    trilhas: z.array(z.enum(TRILHAS)).min(1, 'Selecione ao menos uma trilha.'),
+    /* String, e não enum: se a API usar uma categoria que o painel
+       ainda não conhece, o formulário PRESERVA o valor em vez de
+       recusar o registro ou trocar por um parecido. */
+    tipo: z.string().min(1, 'Escolha o tipo.'),
+    formato: z.string().min(1, 'Escolha o formato.'),
+    trilhas: z.array(z.string()).min(1, 'Selecione ao menos uma trilha.'),
     temas: z.array(z.string()).default([]),
     palestranteIds: z.array(z.string()).default([]),
     necessitaReserva: z.boolean().default(false),
@@ -97,13 +121,15 @@ export const sessaoSchema = registroEditorialSchema.extend({
   /** `null` em sessão aberta (coquetel, autógrafos). */
   fim: z.string().nullable(),
   espacoId: z.string().nullable(),
-  tipo: z.enum(TIPOS_SESSAO),
-  formato: z.enum(FORMATOS_SESSAO),
-  trilhas: z.array(z.enum(TRILHAS)),
+  /* Nos registros vindos da API o tipo e o formato são STRING, não
+     enum: valor novo no backend precisa chegar à tela, não travar. */
+  tipo: z.string(),
+  formato: z.string(),
+  trilhas: z.array(z.string()),
   temas: z.array(z.string()),
   palestranteIds: z.array(z.string()),
-  /** Texto original de `summit.json` — preservado enquanto a ligação
-   *  com `palestranteIds` não estiver completa. */
+  /** Texto original de `quem`, preservado enquanto a ligação com
+   *  `palestranteIds` não estiver completa. */
   quemTexto: z.string(),
   necessitaReserva: z.boolean(),
   vagasTotais: z.number().nullable(),

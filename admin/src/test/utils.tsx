@@ -1,11 +1,13 @@
 import { afterEach } from 'vitest';
-import { render, type RenderResult } from '@testing-library/react';
+import { act, render, type RenderResult } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import type { QueryClient } from '@tanstack/react-query';
 import type { Papel, PerfilAdmin, SessaoAuth } from '@/contracts';
 import { Provedores, criarClienteDeConsulta } from '@/App';
 import { rotasAdmin } from '@/routes';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
+import { HttpAdminDataProvider } from '@/services/http-admin-data-provider';
+import { HybridAdminDataProvider } from '@/services/hybrid-admin-data-provider';
 import type { AdminDataProvider } from '@/services/admin-data-provider';
 import type { FabricaProvedor } from '@/services/provider-context';
 import type { PortaAutenticacao } from '@/services/auth';
@@ -45,6 +47,7 @@ export interface OpcoesRender {
   /** Ausente = modo simulado, sem login. */
   porta?: PortaAutenticacao | null;
   baseUrlApi?: string;
+  chavePublicavel?: string | null;
   fetchImpl?: typeof fetch;
 }
 
@@ -64,6 +67,7 @@ export function renderizarPainel({
   agora,
   porta,
   baseUrlApi,
+  chavePublicavel = null,
   fetchImpl,
 }: OpcoesRender = {}): ResultadoRender {
   const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0, agora });
@@ -79,7 +83,7 @@ export function renderizarPainel({
       queryClient={cliente}
       porta={porta}
       baseUrlApi={baseUrlApi}
-      chavePublicavel={null}
+      chavePublicavel={chavePublicavel}
       fetchImpl={fetchImpl}
     >
       <RouterProvider router={roteador} />
@@ -151,12 +155,18 @@ export function criarPortaFalsa(
       sessao = null;
       ouvintes.forEach((o) => o(null));
     },
+
     encerrar() {
       chamadas.encerrar += 1;
     },
     emitir(nova) {
       sessao = nova;
-      ouvintes.forEach((o) => o(nova));
+      /* Evento externo (o Supabase avisando) mexe no estado do React.
+         Sem `act` o React reclama, e com razão: o teste afirmaria
+         sobre uma árvore que ainda não terminou de atualizar. */
+      act(() => {
+        ouvintes.forEach((o) => o(nova));
+      });
     },
   };
 
@@ -180,28 +190,59 @@ export interface FetchFalso {
   ultima: (trecho: string) => ChamadaHttp | undefined;
 }
 
+export interface RotaFalsa {
+  status?: number;
+  corpo?: unknown;
+  erroDeRede?: boolean;
+}
+
 /**
- * `fetch` de mentira dirigido por rotas. A chave é um trecho do
- * caminho (`/admin/me`); o valor descreve o que responder.
+ * `fetch` de mentira dirigido por rotas.
+ *
+ * A chave é um trecho do caminho (`/admin/me`), opcionalmente com o
+ * método na frente (`PATCH /admin/sessions/x`). Vence a chave MAIS
+ * ESPECÍFICA — a que casa o caminho mais longo, e entre empates a que
+ * declara método. Sem isso `/admin/sessions` capturaria também
+ * `/admin/sessions/:id`, e o teste do item receberia uma lista.
  */
-export function criarFetchFalso(
-  rotas: Record<string, { status?: number; corpo?: unknown; erroDeRede?: boolean }>,
-): FetchFalso {
+export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
   const chamadas: ChamadaHttp[] = [];
+
+  const definicoes = Object.entries(rotas).map(([chave, rota]) => {
+    const partes = chave.trim().split(' ');
+    const temMetodo = partes.length > 1;
+    return {
+      metodo: temMetodo ? partes[0].toUpperCase() : null,
+      caminho: temMetodo ? partes.slice(1).join(' ') : chave,
+      rota,
+    };
+  });
+
+  function escolher(url: string, metodo: string): RotaFalsa | undefined {
+    const candidatas = definicoes.filter(
+      (d) => url.includes(d.caminho) && (!d.metodo || d.metodo === metodo),
+    );
+    if (candidatas.length === 0) return undefined;
+    candidatas.sort((a, b) => {
+      const porCaminho = b.caminho.length - a.caminho.length;
+      if (porCaminho !== 0) return porCaminho;
+      return (b.metodo ? 1 : 0) - (a.metodo ? 1 : 0);
+    });
+    return candidatas[0].rota;
+  }
 
   const impl = (async (entrada: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof entrada === 'string' ? entrada : entrada.toString();
+    const metodo = (init?.method ?? 'GET').toUpperCase();
     const cabecalhos: Record<string, string> = {};
     const brutos = init?.headers;
     if (brutos) {
       if (brutos instanceof Headers) brutos.forEach((v, k) => (cabecalhos[k] = v));
       else Object.assign(cabecalhos, brutos as Record<string, string>);
     }
-    chamadas.push({ url, metodo: init?.method ?? 'GET', cabecalhos });
+    chamadas.push({ url, metodo, cabecalhos });
 
-    const chave = Object.keys(rotas).find((k) => url.includes(k));
-    const rota = chave ? rotas[chave] : undefined;
-
+    const rota = escolher(url, metodo);
     if (!rota) {
       return new Response(JSON.stringify({ codigo: 'nao_encontrado', mensagem: 'sem rota falsa' }), {
         status: 404,
@@ -230,3 +271,70 @@ export const PERFIL_ADMINISTRADOR: PerfilAdmin = {
   papel: 'administrador',
   permissoes: null,
 };
+
+/* ============================================================
+   PAINEL EM MODO HÍBRIDO
+   ============================================================
+   Monta o painel autenticado com o HybridAdminDataProvider ligado a um
+   `fetch` falso. É o ambiente dos testes de API real: nenhuma
+   requisição sai, e cada chamada fica registrada para o teste afirmar
+   método, URL e cabeçalhos. */
+
+export const API_FALSA = 'https://api.exemplo.invalido/mindagent-admin';
+
+/** Publicável de mentira. A real nunca entra em teste nem em commit. */
+export const CHAVE_FALSA = 'sb_publishable_de_teste';
+
+export const PERFIL_HTTP = {
+  id: 'usr-teste',
+  email: 'ana.ribeiro@exemplo.com.br',
+  nome: 'Ana Ribeiro',
+  papel: 'administrador',
+};
+
+export interface OpcoesHibrido {
+  rota?: string;
+  /** Rotas do `fetch` falso, além de `/admin/me`. */
+  rotas?: Record<string, RotaFalsa>;
+  perfil?: unknown;
+}
+
+export function renderizarHibrido({ rota = '/', rotas = {}, perfil }: OpcoesHibrido = {}) {
+  const porta = criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE });
+  const falso = criarFetchFalso({
+    '/admin/me': { corpo: perfil ?? PERFIL_HTTP },
+    ...rotas,
+  });
+  const mock = new MockAdminDataProvider({ latenciaMs: 0 });
+
+  const tela = renderizarPainel({
+    rota,
+    porta,
+    baseUrlApi: API_FALSA,
+    chavePublicavel: CHAVE_FALSA,
+    fetchImpl: falso.fetch,
+    provedor: (o) =>
+      new HybridAdminDataProvider(
+        new HttpAdminDataProvider({
+          baseUrl: API_FALSA,
+          fetchImpl: falso.fetch,
+          chavePublicavel: CHAVE_FALSA,
+          obterToken: o.obterToken,
+          aoNaoAutorizado: o.aoNaoAutorizado,
+        }),
+        mock,
+      ),
+  });
+
+  return { ...tela, falso, porta, mock };
+}
+
+/** Resposta de listagem no formato que a API devolve. */
+export function lista(itens: unknown[], extra: { total?: number; pagina?: number; porPagina?: number } = {}) {
+  return {
+    itens,
+    total: extra.total ?? itens.length,
+    pagina: extra.pagina ?? 1,
+    porPagina: extra.porPagina ?? Math.max(itens.length, 1),
+  };
+}

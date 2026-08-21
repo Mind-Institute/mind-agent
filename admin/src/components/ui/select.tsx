@@ -3,7 +3,30 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Select = SelectPrimitive.Root;
+/**
+ * O Radix chama `onValueChange('')` quando o valor controlado não casa
+ * com nenhum `SelectItem` montado — e no painel isso acontece sempre
+ * que o registro aponta para algo fora da lista carregada (espaço de
+ * outra página, categoria nova do backend, item inativo).
+ *
+ * Aceitar esse aviso apagaria o vínculo: bastava abrir a sessão e
+ * salvar qualquer outro campo para o espaço dela ir para `null`. O
+ * painel não oferece opção vazia em nenhum select — quando "nenhum" é
+ * válido, ele tem valor próprio ('nenhum', 'todos') —, então string
+ * vazia aqui é sempre ruído do componente, nunca escolha de alguém.
+ */
+const Select = ({
+  onValueChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) => (
+  <SelectPrimitive.Root
+    {...props}
+    onValueChange={(valor) => {
+      if (valor !== '') onValueChange?.(valor);
+    }}
+  />
+);
+Select.displayName = 'Select';
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 

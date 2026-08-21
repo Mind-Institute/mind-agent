@@ -22,6 +22,15 @@ export interface AdminDataProvider {
   /** Qual implementação está ativa. A interface mostra isso no topo. */
   readonly modo: 'mock' | 'http' | 'hybrid';
 
+  /**
+   * De onde ESTE recurso vem agora.
+   *
+   * No modo híbrido a resposta varia por recurso, e a tela precisa
+   * saber: uma página real não pode dizer "gravado na base de
+   * demonstração" depois de um PATCH que foi para o backend.
+   */
+  origemDoRecurso(resource: NomeRecurso): 'http' | 'mock';
+
   list<K extends NomeRecurso>(
     resource: K,
     filters?: ListFilters,

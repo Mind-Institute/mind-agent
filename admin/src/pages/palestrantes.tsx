@@ -6,7 +6,7 @@ import {
   STATUS_EDITORIAL,
   type Palestrante,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { camposFaltantesDoPalestrante } from '@/lib/pendencias';
 import { urlDaFoto } from '@/lib/fotos';
 import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem';
@@ -18,8 +18,8 @@ import { Badge } from '@/components/ui/badge';
 export function PaginaPalestrantes() {
   const { id } = useParams();
   const navegar = useNavigate();
-  const temas = useLista('themes');
-  const sessoes = useLista('sessions', {});
+  const temas = useLista('themes', TODAS_AS_OPCOES);
+  const sessoes = useLista('sessions', TODAS_AS_OPCOES);
 
   const contagemSessoes = useMemo(() => {
     const mapa = new Map<string, number>();

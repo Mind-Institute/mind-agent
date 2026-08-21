@@ -27,6 +27,14 @@ import {
 } from '@/contracts';
 import type { AdminDataProvider } from './admin-data-provider';
 import { erroDaResposta, erroDeRede } from './http-erros';
+import { normalizarLista, normalizarRegistro } from './normalizacao';
+
+/** Header de concorrência otimista, aceito pela Edge Function. */
+function cabecalhoVersao(opcoes?: OpcoesEscrita): Record<string, string> {
+  return opcoes?.atualizadoEmEsperado
+    ? { 'If-Unmodified-Since-Version': opcoes.atualizadoEmEsperado }
+    : {};
+}
 
 /** Como o painel obtém o token da sessão vigente. */
 export type ProvedorDeToken = () => Promise<string | null>;
@@ -51,6 +59,10 @@ export interface OpcoesHttp {
 
 export class HttpAdminDataProvider implements AdminDataProvider {
   readonly modo = 'http' as const;
+
+  origemDoRecurso(): 'http' {
+    return 'http';
+  }
 
   private readonly baseUrl: string;
   private readonly obterToken: ProvedorDeToken;
@@ -128,72 +140,81 @@ export class HttpAdminDataProvider implements AdminDataProvider {
   /* GET /admin/:resource · GET /admin/:resource/:id                   */
   /* ---------------------------------------------------------------- */
 
-  list<K extends NomeRecurso>(
+  async list<K extends NomeRecurso>(
     resource: K,
     filters: ListFilters = {},
   ): Promise<ListResult<MapaRecursos[K]>> {
-    return this.pedir<ListResult<MapaRecursos[K]>>(this.caminho([resource], filters));
+    return normalizarLista(resource, await this.pedir(this.caminho([resource], filters)));
   }
 
-  get<K extends NomeRecurso>(resource: K, id: string): Promise<MapaRecursos[K]> {
-    return this.pedir<MapaRecursos[K]>(this.caminho([resource, id]));
+  async get<K extends NomeRecurso>(resource: K, id: string): Promise<MapaRecursos[K]> {
+    return normalizarRegistro(resource, await this.pedir(this.caminho([resource, id])));
   }
 
   /* ---------------------------------------------------------------- */
   /* POST /admin/:resource · PATCH /admin/:resource/:id                */
   /* ---------------------------------------------------------------- */
 
-  create<K extends NomeRecurso>(
+  async create<K extends NomeRecurso>(
     resource: K,
     payload: Partial<MapaRecursos[K]>,
   ): Promise<MapaRecursos[K]> {
-    return this.pedir<MapaRecursos[K]>(this.caminho([resource]), {
-      method: 'POST',
-      corpo: payload,
-    });
+    return normalizarRegistro(
+      resource,
+      await this.pedir(this.caminho([resource]), { method: 'POST', corpo: payload }),
+    );
   }
 
-  update<K extends NomeRecurso>(
+  async update<K extends NomeRecurso>(
     resource: K,
     id: string,
     payload: Partial<MapaRecursos[K]>,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
-    return this.pedir<MapaRecursos[K]>(this.caminho([resource, id]), {
-      method: 'PATCH',
-      corpo: payload,
-      /* Controle de concorrência otimista. A Edge Function já aceita
-         este header — ele está no `access-control-allow-headers`. */
-      headers: opcoes?.atualizadoEmEsperado
-        ? { 'If-Unmodified-Since-Version': opcoes.atualizadoEmEsperado }
-        : {},
-    });
+    return normalizarRegistro(
+      resource,
+      await this.pedir(this.caminho([resource, id]), {
+        method: 'PATCH',
+        corpo: payload,
+        /* Controle de concorrência otimista. A Edge Function aceita
+           este header — ele está no `access-control-allow-headers`. */
+        headers: cabecalhoVersao(opcoes),
+      }),
+    );
   }
 
   /* ---------------------------------------------------------------- */
   /* POST /admin/:resource/:id/publish · /archive                      */
   /* ---------------------------------------------------------------- */
 
-  publish<K extends NomeRecurso>(
+  async publish<K extends NomeRecurso>(
     resource: K,
     id: string,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
-    return this.pedir<MapaRecursos[K]>(this.caminho([resource, id, 'publish']), {
-      method: 'POST',
-      corpo: { atualizadoEmEsperado: opcoes?.atualizadoEmEsperado ?? null },
-    });
+    return normalizarRegistro(
+      resource,
+      await this.pedir(this.caminho([resource, id, 'publish']), {
+        method: 'POST',
+        corpo: { atualizadoEmEsperado: opcoes?.atualizadoEmEsperado ?? null },
+        headers: cabecalhoVersao(opcoes),
+      }),
+    );
   }
 
-  archive<K extends NomeRecurso>(
+  async archive<K extends NomeRecurso>(
     resource: K,
     id: string,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
-    return this.pedir<MapaRecursos[K]>(this.caminho([resource, id, 'archive']), {
-      method: 'POST',
-      corpo: { atualizadoEmEsperado: opcoes?.atualizadoEmEsperado ?? null },
-    });
+    return normalizarRegistro(
+      resource,
+      await this.pedir(this.caminho([resource, id, 'archive']), {
+        method: 'POST',
+        corpo: { atualizadoEmEsperado: opcoes?.atualizadoEmEsperado ?? null },
+        headers: cabecalhoVersao(opcoes),
+      }),
+    );
   }
 
   /* ---------------------------------------------------------------- */

@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Painel administrativo do Mind Agent — Mind Summit 2026",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -3,9 +3,10 @@ import { useModoDados } from '@/services/provider-context';
 
 /**
  * O painel precisa ser honesto sobre o próprio estado, e o modo
- * híbrido é o momento mais perigoso: número real e cadastro simulado
- * dividindo a mesma tela. Por isso o aviso fica no topo de toda página,
- * não em nota de rodapé onde ninguém lê antes de confiar num número.
+ * híbrido é o momento mais perigoso: módulo real e módulo simulado
+ * dividindo a mesma barra lateral. Por isso a faixa nomeia quais são
+ * quais, no topo de toda página — não em nota de rodapé, onde ninguém
+ * lê antes de confiar num número.
  */
 export function FaixaDemonstracao() {
   const modo = useModoDados();
@@ -19,9 +20,12 @@ export function FaixaDemonstracao() {
       >
         <SatelliteDish className="size-3.5 shrink-0" />
         <p>
-          <strong className="font-black">Dashboard real · Cadastros em demonstração.</strong> Os
-          números da visão geral vêm da API administrativa. Todo o resto ainda é simulado e vive só
-          na memória do navegador: editar, publicar, arquivar e reindexar não chegam ao backend.
+          <strong className="font-black">
+            Evento, programação, palestrantes e espaços reais · Demais módulos em demonstração.
+          </strong>{' '}
+          A visão geral e esses quatro módulos leem e gravam na API administrativa. Rotas, estandes,
+          ofertas, conteúdo, documentos, conversas, perguntas, usuários e auditoria vivem só na
+          memória do navegador.
         </p>
       </div>
     );

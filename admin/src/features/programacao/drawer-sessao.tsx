@@ -15,7 +15,8 @@ import {
   type Sessao,
   type SessaoForm,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
+import { opcoesComAtual } from '@/lib/rotulos';
 import { useSessao } from '@/hooks/use-sessao';
 import { useEdicaoRecurso } from '@/features/comum/use-edicao-recurso';
 import { DrawerEdicao } from '@/components/admin/drawer-edicao';
@@ -23,6 +24,7 @@ import { Campo } from '@/components/admin/campo';
 import { EditorDeLista, SelecaoMultipla } from '@/components/admin/editor-lista';
 import { AcoesEditoriais, InfoPublicacao } from '@/components/admin/acoes-editoriais';
 import { DialogoConflito } from '@/components/admin/dialogos';
+import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoCarregando, EstadoErro } from '@/components/admin/estados';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -83,9 +85,9 @@ function paraFormulario(sessao: Sessao): SessaoForm {
 
 export function DrawerSessao({ id, aoFechar }: { id: string | undefined; aoFechar: () => void }) {
   const sessaoUsuario = useSessao();
-  const espacos = useLista('spaces', { ordenar: 'nome' });
-  const temas = useLista('themes');
-  const palestrantes = useLista('speakers', { ordenar: 'nome' });
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
+  const temas = useLista('themes', TODAS_AS_OPCOES);
+  const palestrantes = useLista('speakers', { ordenar: 'nome', ...TODAS_AS_OPCOES });
 
   const edicao = useEdicaoRecurso<'sessions', SessaoForm>({
     recurso: 'sessions',
@@ -151,6 +153,8 @@ export function DrawerSessao({ id, aoFechar }: { id: string | undefined; aoFecha
             className="space-y-4"
             noValidate
           >
+            <AvisoErroEscrita erro={edicao.erroEscrita} />
+
             {edicao.sujo ? (
               <Alert variant="atencao">
                 <AlertTriangle />
@@ -202,9 +206,18 @@ export function DrawerSessao({ id, aoFechar }: { id: string | undefined; aoFecha
                         <SelectValue placeholder="Escolha o espaço" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(espacos.data?.itens ?? []).map((espaco) => (
-                          <SelectItem key={espaco.id} value={espaco.id}>
-                            {espaco.nome}
+                        {/* O espaço atual entra na lista mesmo que não
+                            venha da API: sem ele o Radix devolveria vazio
+                            ao formulário e salvar apagaria o vínculo. */}
+                        {opcoesComAtual(
+                          (espacos.data?.itens ?? []).map((e) => ({
+                            valor: e.id,
+                            rotulo: e.nome,
+                          })),
+                          formulario.watch('espacoId'),
+                        ).map((opcao) => (
+                          <SelectItem key={opcao.valor} value={opcao.valor}>
+                            {opcao.rotulo}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -248,9 +261,12 @@ export function DrawerSessao({ id, aoFechar }: { id: string | undefined; aoFecha
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {TIPOS_SESSAO.map((tipo) => (
-                          <SelectItem key={tipo} value={tipo}>
-                            {ROTULO_TIPO_SESSAO[tipo]}
+                        {opcoesComAtual(
+                          TIPOS_SESSAO.map((t) => ({ valor: t, rotulo: ROTULO_TIPO_SESSAO[t] })),
+                          formulario.watch('tipo'),
+                        ).map((opcao) => (
+                          <SelectItem key={opcao.valor} value={opcao.valor}>
+                            {opcao.rotulo}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -272,9 +288,12 @@ export function DrawerSessao({ id, aoFechar }: { id: string | undefined; aoFecha
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {FORMATOS_SESSAO.map((formato) => (
-                          <SelectItem key={formato} value={formato}>
-                            {ROTULO_FORMATO_SESSAO[formato]}
+                        {opcoesComAtual(
+                          FORMATOS_SESSAO.map((f) => ({ valor: f, rotulo: ROTULO_FORMATO_SESSAO[f] })),
+                          formulario.watch('formato'),
+                        ).map((opcao) => (
+                          <SelectItem key={opcao.valor} value={opcao.valor}>
+                            {opcao.rotulo}
                           </SelectItem>
                         ))}
                       </SelectContent>

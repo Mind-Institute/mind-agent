@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import type { AdminApiError } from '@/contracts';
+import type { AdminApiError, NomeRecurso } from '@/contracts';
 import { useSessaoOpcional } from '@/hooks/use-sessao';
 import type { AdminDataProvider } from './admin-data-provider';
 import { MockAdminDataProvider } from './mock-admin-data-provider';
@@ -90,11 +90,27 @@ export function useAdminData(): AdminDataProvider {
   return provedor;
 }
 
-/** `true` quando alguma parte da tela ainda mostra dado simulado. */
+/** `true` quando alguma parte do painel ainda mostra dado simulado. */
 export function useModoDemonstracao(): boolean {
   return useAdminData().modo !== 'http';
 }
 
 export function useModoDados(): ModoDados {
   return useAdminData().modo;
+}
+
+/**
+ * De onde ESTE recurso vem agora.
+ *
+ * As páginas usam isto para não mentir depois de salvar: em módulo real
+ * a confirmação fala do backend; em módulo simulado ela avisa que nada
+ * saiu do navegador.
+ */
+export function useOrigemRecurso(resource: NomeRecurso): 'http' | 'mock' {
+  return useAdminData().origemDoRecurso(resource);
+}
+
+/** `true` quando o recurso é servido pela API real. */
+export function useRecursoReal(resource: NomeRecurso): boolean {
+  return useOrigemRecurso(resource) === 'http';
 }

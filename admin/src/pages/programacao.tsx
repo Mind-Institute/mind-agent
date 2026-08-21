@@ -8,7 +8,9 @@ import {
   TIPOS_SESSAO,
   type Sessao,
 } from '@/contracts';
-import { useLista } from '@/hooks/use-recurso';
+import { rotuloFormatoSessao, rotuloTipoSessao } from '@/lib/rotulos';
+import { SeloCategoria } from '@/components/admin/selo-categoria';
+import { useLista, TODAS_AS_OPCOES } from '@/hooks/use-recurso';
 import { camposFaltantesDaSessao, detectarConflitos } from '@/lib/pendencias';
 import { formatarData } from '@/lib/format';
 import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem';
@@ -25,10 +27,10 @@ export function PaginaProgramacao() {
   /* A detecção de conflito precisa da grade inteira, não da página
      filtrada: duas sessões podem colidir mesmo que só uma esteja
      visível no recorte atual. */
-  const todas = useLista('sessions', {});
-  const espacos = useLista('spaces', { ordenar: 'nome' });
-  const temas = useLista('themes');
-  const palestrantes = useLista('speakers', { ordenar: 'nome' });
+  const todas = useLista('sessions', TODAS_AS_OPCOES);
+  const espacos = useLista('spaces', { ordenar: 'nome', ...TODAS_AS_OPCOES });
+  const temas = useLista('themes', TODAS_AS_OPCOES);
+  const palestrantes = useLista('speakers', { ordenar: 'nome', ...TODAS_AS_OPCOES });
 
   const conflitos = useMemo(
     () => detectarConflitos(todas.data?.itens ?? []),
@@ -105,7 +107,14 @@ export function PaginaProgramacao() {
     {
       chave: 'tipo',
       cabecalho: 'Tipo',
-      celula: (s) => <Badge variant="outline">{ROTULO_TIPO_SESSAO[s.tipo]}</Badge>,
+      celula: (s) => (
+        <div className="flex flex-wrap gap-1">
+          <SeloCategoria rotulo={rotuloTipoSessao(s.tipo)} />
+          {s.formato && s.formato !== 'presencial' ? (
+            <SeloCategoria rotulo={rotuloFormatoSessao(s.formato)} variante="secondary" />
+          ) : null}
+        </div>
+      ),
     },
     {
       chave: 'reserva',
