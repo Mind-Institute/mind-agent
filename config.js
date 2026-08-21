@@ -43,11 +43,13 @@ export const CONFIG = {
    abriu a página; sem identidade o agente cumprimenta sem nome —
    ele nunca chuta um.
 
-   Quem usa isto é o chat clássico, `/classic.html`. A Central do
-   Evento (`/`) tem a sua própria leitura de identidade, em
-   `agent-dados.js`, com política diferente: lá `?nome` e `?email` só
-   valem em `?preview=1`. As duas conviverem é decisão pendente, não
-   descuido — está anotada no README.
+   As duas páginas usam isto — a Central do Evento (`/`, a URL que o
+   app do evento embeda) e o chat clássico (`/classic.html`) — com a
+   mesma política: identificação leve, para saudação e registro, nunca
+   para liberar dado pessoal. Na Central, a jornada personalizada
+   continua atrás de `perfil.identificado` (identificação segura), e o
+   modo `?preview=1` mantém a semântica própria de prévia de design
+   (`agent-dados.js`/`lerIdentidade`): lá esta captura não roda.
 
    Como a identidade chega, em ordem de precedência:
 
@@ -70,9 +72,9 @@ export const CONFIG = {
    nunca para liberar dado sensível. E nada daqui vai para a OpenAI:
    o payload do chat (`shared/CONTRATOS.md`) continua sem identidade.
 
-   Para testar: abra `/classic.html?email=teste@mind.com&nome=Fulana`
-   ou chame `definirParticipante({ nome: 'Fulana' })` antes do primeiro
-   chat.
+   Para testar: abra `/?email=teste@mind.com&nome=Fulana` (vale também
+   em `/classic.html`) ou chame `definirParticipante({ nome: 'Fulana' })`
+   antes do primeiro chat.
 */
 export const PARTICIPANTE = {
   nome: null,
@@ -104,17 +106,20 @@ export function definirParticipante(dados) {
 
 /* Lê a identidade: a URL manda; sem URL, vale o que ficou guardado.
 
-   NÃO roda no import, e isso é deliberado. A Central do Evento
-   (`app.js` → `agent-dados.js`) tem a sua própria leitura de `?nome` e
-   `?email`, e só confia neles em `?preview=1`. Se a captura fosse efeito
-   de import, ela rodaria na home também — pela cadeia `app.js →
-   chat-service.js → config.js` — e apagaria os parâmetros da URL antes
-   de a home os ler. Quem quer identidade chama. Hoje é só o chat
-   clássico (`app-classic.js`). */
+   NÃO roda no import, e isso é deliberado: config.js entra em qualquer
+   página pela cadeia de imports, e capturar como efeito colateral
+   limparia a URL antes de a página decidir. Quem quer identidade chama —
+   hoje, a Central (`app.js`) e o chat clássico (`app-classic.js`).
+
+   Em `?preview=1` a captura não roda: é o modo de prévia de design da
+   Central (`agent-dados.js`/`lerIdentidade`), onde `?nome` e `?email`
+   são cenografia com semântica própria — e a URL precisa ficar intacta
+   para essa leitura. */
 export function capturarIdentidade() {
   let daUrl = null;
   try {
     const params = new URLSearchParams(location.search);
+    if (params.get('preview') === '1') return PARTICIPANTE;
     const email = params.get('email') || params.get('user_email');
     const nome = params.get('nome') || params.get('name');
     if (email || nome) {

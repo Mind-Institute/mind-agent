@@ -1,6 +1,16 @@
 import * as D from './agent-dados.js';
 import * as R from './agent-regras.js';
+import { PARTICIPANTE, capturarIdentidade, definirParticipante } from './config.js';
 import { enviarMensagem } from './chat-service.js';
+
+/* Identificação leve vinda do app do evento (`?email=…&nome=…`), que
+   embeda esta página. Personaliza saudação e nada mais: não é a
+   identificação segura que libera a jornada pessoal — essa continua
+   atrás de `perfil.identificado`. Em `?preview=1` a captura não roda
+   (a prévia tem semântica própria em `lerIdentidade`), e ela limpa a
+   URL depois de ler — por isso vem antes do `lerIdentidade` de `state`,
+   que só usa `?nome`/`?email` no modo prévia, onde a URL fica intacta. */
+capturarIdentidade();
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, classe, texto) => {
@@ -327,7 +337,8 @@ function abrirChat(pergunta) {
   $('chat-overlay').hidden = false;
   if (!state.mensagens.length) {
     state.mensagens.push(true);
-    mensagem('agent', 'Estou acompanhando a programação oficial do Summit. O que você precisa?');
+    const nome = state.perfil.nome || PARTICIPANTE.nome;
+    mensagem('agent', (nome ? `Oi, ${nome}! ` : '') + 'Estou acompanhando a programação oficial do Summit. O que você precisa?');
   }
   if (pergunta) setTimeout(() => enviarChat(pergunta), 120);
   else $('chat-input').focus();
@@ -357,7 +368,15 @@ function configurarChat() {
 function configurarSheets() {
   $('detail-close').addEventListener('click', () => { $('detail-backdrop').hidden = true; });
   $('detail-backdrop').addEventListener('click', (event) => { if (event.target === $('detail-backdrop')) $('detail-backdrop').hidden = true; });
-  $('help-open').addEventListener('click', () => { $('help-backdrop').hidden = false; });
+  $('help-open').addEventListener('click', () => {
+    /* O jeito de conferir, dentro do app, qual identidade chegou pela URL —
+       textContent de propósito: nome e e-mail vêm de fora, nunca viram HTML. */
+    $('ajuda-identidade').textContent = PARTICIPANTE.email
+      ? 'Identificado pelo app do evento: ' +
+        (PARTICIPANTE.nome ? PARTICIPANTE.nome + ' — ' : '') + PARTICIPANTE.email
+      : 'Este dispositivo ainda não foi identificado pelo app do evento.';
+    $('help-backdrop').hidden = false;
+  });
   $('help-close').addEventListener('click', () => { $('help-backdrop').hidden = true; });
   $('help-backdrop').addEventListener('click', (event) => { if (event.target === $('help-backdrop')) $('help-backdrop').hidden = true; });
 }
@@ -380,7 +399,8 @@ function boasVindas() {
   try { visto = localStorage.getItem('mind-agent:boas-vindas:v2') === '1'; } catch { visto = false; }
   if (visto || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const modal = $('welcome');
-  const falas = [state.perfil.nome ? `Olá, ${state.perfil.nome}.` : 'Bem-vindo ao Mind Summit.', 'Sou a Mind. Fico com você nos dois dias.', 'Sempre que precisar, me chame aqui embaixo.'];
+  const nome = state.perfil.nome || PARTICIPANTE.nome;
+  const falas = [nome ? `Olá, ${nome}.` : 'Bem-vindo ao Mind Summit.', 'Sou a Mind. Fico com você nos dois dias.', 'Sempre que precisar, me chame aqui embaixo.'];
   modal.hidden = false;
   let passo = 0;
   const intervalo = setInterval(() => {
@@ -462,6 +482,13 @@ async function iniciar() {
     area.append(card);
   }
 }
+
+/* O app do evento também pode mandar a identidade depois do load —
+   mesma regra da URL: identifica a pessoa, não autentica. */
+window.addEventListener('message', (event) => {
+  const d = event.data;
+  if (d && d.tipo === 'mindagent:identidade') definirParticipante(d);
+});
 
 window.addEventListener('beforeunload', () => clearInterval(tickTimer));
 iniciar();

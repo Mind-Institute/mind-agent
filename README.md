@@ -198,13 +198,15 @@ vez em quando para a diferença não crescer.
 
 ## Identidade do participante (embed pelo app do evento)
 
-Quem usa o que está descrito aqui é o **chat clássico, `/classic.html`**. A
-Central do Evento (`/`) tem a sua própria leitura de identidade, em
-`agent-dados.js`, com política mais fechada: lá `?nome` e `?email` só valem
-sob `?preview=1`, e um e-mail fora disso é marcado como não verificado. As
-duas conviverem é **decisão pendente** — unificar significa escolher uma
-política de confiança para `?email`, e isso é chamada de produto, não de
-refactor.
+Vale para as duas páginas — a **Central do Evento (`/`)**, que é a URL que o
+app do evento embeda, e o **chat clássico (`/classic.html`)** — com a mesma
+política de confiança: `?email` da URL é **identificação leve**. Personaliza a
+saudação, aparece no painel de ajuda (?) e ficará no registro de com quem o
+agente falou; **nunca libera dado pessoal**. Na Central, a jornada
+personalizada continua atrás de identificação segura (`perfil.identificado`,
+em `agent-dados.js`), e o modo de prévia de design (`?preview=1`) mantém a
+semântica própria: nele a captura não roda e `?nome`/`?email` são cenografia
+de `lerIdentidade`.
 
 A identidade é **opcional por definição**, em `config.js`:
 
@@ -224,7 +226,7 @@ qualquer um dos dois caminhos:
 - **Query string** (o combinado com o fornecedor do app):
 
   ```
-  https://mind-agent.adriana-3eb.workers.dev/classic.html?email=fulana@empresa.com&nome=Fulana
+  https://mind-agent.adriana-3eb.workers.dev/?email=fulana@empresa.com&nome=Fulana
   ```
 
   `email` (ou `user_email`) identifica; `nome` (ou `name`) é opcional. A página
@@ -262,8 +264,8 @@ mostra o caminho; a ação é sempre da pessoa. Espelha o template
 
 ## Integrações
 
-O chat clássico (`/classic.html`) aceita ser embedado e responde a três
-gatilhos:
+A página aceita ser embedada e responde a três gatilhos (identidade nas duas
+páginas; o tour, só no chat clássico `/classic.html`):
 
 - `?email=…&nome=…` na URL ou
   `postMessage({ tipo: 'mindagent:identidade', email, nome })` — identifica o
