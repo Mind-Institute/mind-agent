@@ -8,6 +8,7 @@
 
 import { PARTICIPANTE } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
+import { enviarMensagem } from './chat-service.js';
 
 /* ---------- Splash ---------- */
 const splash = document.getElementById('splash');
@@ -555,53 +556,11 @@ document.getElementById('tour-para-chat').addEventListener('click', () => {
 /* pré-carrega as telas para a navegação não piscar */
 Object.values(TELAS).forEach((t) => { const i = new Image(); i.src = TOUR_IMG_SRC(t.img); });
 
-/* ---------- Chat mockado ---------- */
+/* ---------- Chat conectado ao Mind Agent ---------- */
 const mensagens = document.getElementById('mensagens');
 const formChat = document.getElementById('form-chat');
 const campoChat = document.getElementById('campo-chat');
 let chatIniciado = false;
-
-const RESPOSTAS = [
-  { chaves: ['acontecendo', 'agora', 'rolando'],
-    texto: 'Agora (dia 16): credenciamento aberto no hall principal e, às 9h15, "Do benefício à transformação: o futuro do bem-estar" abre a Arena Mind. Na versão final eu respondo isso em tempo real, cruzando o horário com a programação. ⏱️' },
-  { chaves: ['devo assistir', 'assistir', 'recomenda', 'recomendação', 'imperdível', 'imperdivel', 'melhor palestra'],
-    texto: 'Depende do seu objetivo! Para visão de negócio, o keynote da Arena Mind às 9h15. Para mão na massa, o workshop "Da mensuração ao PGR" às 11h30 — reserve o lugar! Na versão final eu recomendo com base no seu perfil e nos seus favoritos. 💚' },
-  { chaves: ['como funciona o app', 'funciona o app', 'usar o app', 'tutorial'],
-    texto: 'Melhor eu te mostrar: volte à tela inicial e toque em "Fazer tour do app" — você navega pelas telas de verdade, cumprindo missões. Resumo: coração salva a sessão, workshop precisa de reserva + check-in, e seu QR Code é sua credencial.' },
-  { chaves: ['encontrar alguém', 'encontrar alguem', 'encontrar uma pessoa', 'networking', 'contato', 'conectar'],
-    texto: 'Vá em Menu → Área de network para buscar quem está no evento e enviar convite. Pessoalmente é ainda mais rápido: peça para a pessoa abrir o QR Code dela e escaneie com "Escanear Qr Code" — o perfil vai direto para seus contatos.',
-    passo: 'rede' },
-  { chaves: ['bio', 'palestrante', 'quem é', 'quem e', 'currículo', 'curriculo'],
-    texto: 'A lista completa está em Menu → Palestrantes, com bio e sessões de cada um. Na versão final é só me perguntar "quem é [nome]?" que eu trago a bio na hora, com as sessões da pessoa.' },
-  { chaves: ['mapa', 'onde fica', 'arena', 'palco', 'sala', 'espaço', 'lounge', 'banheiro'],
-    texto: 'O mapa está em Menu → Mapa do evento: Arena Mind, Arena Top Voice, lounges (Prime, Heineken, BWG), coworking, estandes e banheiros do Pavilhão 3. Dá para filtrar por tipo de espaço.',
-    passo: 'mapa' },
-  { chaves: ['credenciamento', 'check-in', 'checkin', 'entrada', 'abre', 'chegar cedo', 'qr'],
-    texto: 'O credenciamento abre às 8h nos dois dias, no hall principal. Com o QR Code aqui do app você passa pela fila expressa — deixe ele salvo antes de sair de casa. 😉',
-    passo: 'qr' },
-  { chaves: ['workshop', 'reserva', 'reservar', 'vaga', 'lugar', 'como agendo', 'como faço para agendar'],
-    texto: 'Eu ainda não consigo agendar por você — quem faz isso é você, em dois toques: abra a sessão na aba Agenda e toque em "Reservar lugar". Três coisas que valem saber: as reservas caem 5 minutos antes do conteúdo começar, para dar lugar à fila de espera; se a sessão já estiver sem vaga, dá para esperar na fila e pegar assento remanescente; e Arena Sextante, Arena LinkedIn, Workshops e Masterclasses têm vagas limitadas — nesses casos vale agendar antes. Te mostro onde fica:',
-    passo: 'reservar' },
-  { chaves: ['lotada', 'sem vaga', 'esgotou', 'fila de espera', 'fila'],
-    texto: 'Sem vaga não é o fim: dá para esperar na fila de espera e pegar assento remanescente. As reservas caem 5 minutos antes do início — quem reservou e não chegou perde o lugar, então costuma sobrar. Vale ficar por perto da sala um pouco antes.',
-    passo: 'reservar' },
-  { chaves: ['dress code', 'roupa', 'vestir', 'traje'],
-    texto: 'Não tem dress code oficial — vá como se sentir bem. A maioria vem de casual business. Dica de quem conhece: leve um casaco, o pavilhão fica gelado. 🧥' },
-  { chaves: ['metrô', 'metro', 'como chegar', 'ônibus', 'onibus', 'estacionamento', 'carro', 'uber', 'logística', 'logistica'],
-    texto: 'O evento é no Transamérica Expo Center (Pavilhão 3), em São Paulo. Há estacionamento no local e ponto de Uber/99 sinalizado na entrada. Na versão final eu calculo a melhor rota a partir de onde você estiver.' },
-  { chaves: ['comer', 'comida', 'almoço', 'almoco', 'alimentação', 'alimentacao', 'restaurante', 'café', 'cafe'],
-    texto: 'Você encontra praça de alimentação e cafés nos dois dias. Quem tem ingresso VIP ou Prime conta com lounge exclusivo com serviço dedicado.' },
-  { chaves: ['programação', 'programacao', 'agenda', 'horário', 'horario', 'palestra', 'dia 16', 'dia 17', 'quando'],
-    texto: 'A programação rola das 9h às 19h nos dias 16 e 17 de setembro, com +50 palestrantes. Na aba Agenda você navega por dia e salva no coração o que não quer perder. 💚',
-    passo: 'favoritar' },
-  { chaves: ['wifi', 'wi-fi', 'internet'],
-    texto: 'Tem Wi-Fi gratuito em todo o pavilhão: rede MINDSUMMIT26, sem senha. Se precisar de conexão para demo ou reunião, os lounges têm sinal reforçado.' },
-  { chaves: ['ingresso', 'trilha', 'vip', 'prime', 'upgrade'],
-    texto: 'Os ingressos seguem 3 trilhas: Mind, VIP e Prime — cada sessão mostra as tags das trilhas com acesso. Quer fazer upgrade? Dá para resolver na hora, no balcão ao lado do credenciamento.' },
-  { chaves: ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'quem é você', 'quem e voce'],
-    texto: 'Oi! 💚 Eu sou o Mind Agent, a IA do Summit. Posso ajudar com programação, reservas de workshop, arenas, credenciamento, transporte e tudo mais sobre o evento. O que você quer saber?' },
-];
-const RESPOSTA_PADRAO = 'Boa pergunta! Nesta prévia eu respondo um conjunto limitado de temas. Na versão final vou conhecer o evento inteiro — e o que eu não souber, eu sei quem sabe: te aponto a pessoa ou o balcão certo. ✨';
 
 /* Passos que o agente sabe mostrar. Espelha a tabela `tutorial_passos` do
    Supabase: chave, a tela do app e o elemento que fica destacado. */
@@ -696,29 +655,52 @@ addEventListener('message', (e) => {
   if (alvo) addEventListener('load', () => { fecharSplash(); abrirTutorialEm(alvo); });
 }
 
-function responder(pergunta) {
+let respostaEmAndamento = false;
+
+async function responder(pergunta) {
   const digitando = document.createElement('div');
   digitando.className = 'bolha mind';
   digitando.innerHTML = '<span class="digitando"><i></i><i></i><i></i></span>';
   mensagens.appendChild(digitando);
   mensagens.scrollTop = mensagens.scrollHeight;
 
-  const q = pergunta.toLowerCase();
-  const achada = RESPOSTAS.find((r) => r.chaves.some((c) => q.includes(c)));
-  setTimeout(() => {
+  respostaEmAndamento = true;
+  campoChat.disabled = true;
+  formChat.querySelector('.enviar').disabled = true;
+  try {
+    const resposta = await enviarMensagem(pergunta);
     digitando.remove();
-    bolha(achada ? achada.texto : RESPOSTA_PADRAO, 'mind', achada && achada.passo);
-  }, 900 + Math.min(pergunta.length * 12, 600));
+    const q = pergunta.toLowerCase();
+    const passo = ['onde fica', 'mapa', 'arena', 'palco', 'sala', 'lounge', 'banheiro']
+      .some((chave) => q.includes(chave)) ? 'mapa' : null;
+    bolha(resposta.answer, 'mind', passo);
+  } catch (erro) {
+    digitando.remove();
+    const mensagem = erro?.name === 'AbortError'
+      ? 'A resposta demorou demais. Tente novamente.'
+      : (erro?.message || 'Não consegui responder agora. Tente novamente.');
+    bolha(mensagem, 'mind');
+  } finally {
+    respostaEmAndamento = false;
+    campoChat.disabled = false;
+    formChat.querySelector('.enviar').disabled = false;
+    campoChat.focus();
+  }
 }
 
 function perguntar(texto) {
-  if (!texto || !texto.trim()) return;
+  if (!texto || !texto.trim() || respostaEmAndamento) return;
+  const limpo = texto.trim();
   jaPerguntou = true;
-  bolha(texto.trim(), 'eu');
+  bolha(limpo, 'eu');
   /* Quando o agente pediu o desafio, a próxima frase não é uma pergunta de
-     FAQ — é o problema da pessoa. Ele lê e devolve leitura antes de indicar. */
-  if (esperandoDesafio) return setTimeout(() => responderDesafio(texto.trim()), 700);
-  responder(texto);
+     FAQ — é o problema da pessoa. A leitura vem da IA; os cards vêm depois,
+     para o fluxo não terminar em parágrafo. */
+  if (esperandoDesafio) {
+    esperandoDesafio = false;
+    return responder(limpo).then(() => cardsDoDesafio(limpo));
+  }
+  responder(limpo);
 }
 
 let jaPerguntou = false;
@@ -1140,10 +1122,11 @@ function abrirIntencao(id) {
   setTimeout(() => FLUXOS[id](), 550);
 }
 
-/* Desafio em texto livre: casa o que a pessoa escreveu com os temas, mostra
-   a leitura e só então indica. É o "entender antes de recomendar" na prática. */
-function responderDesafio(texto) {
-  esperandoDesafio = false;
+/* Desafio em texto livre: a leitura passou a vir da IA, que responde antes
+   disto rodar. O que fica aqui é o que o fluxo entrega de visual e é local —
+   casar o texto com os temas da grade, dar peso ao perfil e abrir os cards.
+   Continua sendo "entender antes de recomendar": a recomendação vem depois. */
+function cardsDoDesafio(texto) {
   const achados = DADOS.temas.filter((t) =>
     t.rotulo.toLowerCase().split(/[^a-zà-ÿ]+/).some((w) => w.length > 4 &&
       texto.toLowerCase().includes(w)) ||
@@ -1152,14 +1135,11 @@ function responderDesafio(texto) {
         texto.toLowerCase().includes(w))));
   const usar = achados.length ? achados : DADOS.temas.filter((t) => PERFIL.temas[t.codigo]);
   if (!usar.length) {
-    bolha('Ainda não consegui ligar isso a um tema da grade. Marque o que chega mais perto:', 'mind');
+    bolha('Para eu te mostrar as sessões, marque o tema que chega mais perto do que você descreveu:', 'mind');
     return setTimeout(() => pedirTemas(() => FLUXOS.palestras()), 400);
   }
   usar.forEach((t) => pesoTema(t.codigo, 3));
-  bolha('Pelo que você descreveu, o que está em jogo é ' +
-    usar.map((t) => t.rotulo.toLowerCase()).join(' e ') +
-    '. Antes da indicação, a leitura: problema desse tipo raramente se resolve com mais uma iniciativa — costuma estar no desenho do trabalho e no que a liderança sinaliza que é aceitável.', 'mind');
-  setTimeout(() => FLUXOS.palestras(), 900);
+  setTimeout(() => FLUXOS.palestras(), 500);
 }
 
 /* ============================================================

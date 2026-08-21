@@ -1,0 +1,135 @@
+import { CONFIG } from './config.js';
+
+const PREFIXO = 'mindagent:v1:' + CONFIG.eventSlug + ':';
+const CHAVES = {
+  auth: PREFIXO + 'auth',
+  session: PREFIXO + 'chat-session',
+  device: PREFIXO + 'device-id',
+};
+
+function ler(chave) {
+  try { return JSON.parse(localStorage.getItem(chave)); }
+  catch { return null; }
+}
+
+function salvar(chave, valor) {
+  localStorage.setItem(chave, JSON.stringify(valor));
+}
+
+function remover(chave) {
+  localStorage.removeItem(chave);
+}
+
+function id() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+  });
+}
+
+function dispositivo() {
+  let atual = localStorage.getItem(CHAVES.device);
+  if (!atual) {
+    atual = id();
+    localStorage.setItem(CHAVES.device, atual);
+  }
+  return atual;
+}
+
+async function authRequest(caminho, body) {
+  const response = await fetch(CONFIG.supabaseUrl + caminho, {
+    method: 'POST',
+    headers: {
+      apikey: CONFIG.supabasePublishableKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) {
+    throw new Error(payload.msg || 'Não foi possível iniciar a sessão segura.');
+  }
+  const auth = {
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token,
+    expires_at: payload.expires_at || Math.floor(Date.now() / 1000) + (payload.expires_in || 3600),
+  };
+  salvar(CHAVES.auth, auth);
+  return auth;
+}
+
+async function autenticar(forcarNova = false) {
+  if (forcarNova) remover(CHAVES.auth);
+  const atual = ler(CHAVES.auth);
+  const agora = Math.floor(Date.now() / 1000);
+  if (atual?.access_token && Number(atual.expires_at) > agora + 60) return atual;
+
+  if (atual?.refresh_token) {
+    try {
+      return await authRequest('/auth/v1/token?grant_type=refresh_token', {
+        refresh_token: atual.refresh_token,
+      });
+    } catch {
+      remover(CHAVES.auth);
+      remover(CHAVES.session);
+    }
+  }
+  return authRequest('/auth/v1/signup', {});
+}
+
+async function chamar(message, clientMessageId) {
+  const auth = await autenticar();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 32000);
+  try {
+    const response = await fetch(
+      CONFIG.supabaseUrl + '/functions/v1/' + CONFIG.chatFunction,
+      {
+        method: 'POST',
+        headers: {
+          apikey: CONFIG.supabasePublishableKey,
+          Authorization: 'Bearer ' + auth.access_token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message,
+          event_slug: CONFIG.eventSlug,
+          device_id: dispositivo(),
+          client_message_id: clientMessageId,
+          session: ler(CHAVES.session) || undefined,
+        }),
+        cache: 'no-store',
+        signal: controller.signal,
+      },
+    );
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function enviarMensagem(message) {
+  const texto = String(message || '').trim();
+  if (!texto) throw new Error('Escreva uma mensagem.');
+  const clientMessageId = id();
+
+  let resultado = await chamar(texto, clientMessageId);
+  if (resultado.response.status === 401) {
+    remover(CHAVES.auth);
+    remover(CHAVES.session);
+    await autenticar(true);
+    resultado = await chamar(texto, clientMessageId);
+  } else if (resultado.payload?.error?.code === 'session_expired') {
+    remover(CHAVES.session);
+    resultado = await chamar(texto, clientMessageId);
+  }
+
+  if (!resultado.response.ok || !resultado.payload?.ok) {
+    throw new Error(resultado.payload?.error?.message || 'Não consegui responder agora. Tente novamente.');
+  }
+  if (resultado.payload.session) salvar(CHAVES.session, resultado.payload.session);
+  return resultado.payload;
+}

@@ -235,6 +235,7 @@ body {
   border: 0;
   background: var(--verde); color: var(--surface-deep);
 }
+.doca input:disabled, .doca .enviar:disabled { opacity: .55; cursor: wait; }
 .doca svg { width: 19px; height: 19px; }
 
 /* Cartão de ajuda (?) */

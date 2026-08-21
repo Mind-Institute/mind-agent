@@ -7,10 +7,14 @@ dependências: uma página que abre em qualquer navegador ou por QR code.
 Veio da pasta `mindagent/` do repositório `Mind-Institute/mindsummit2026`, onde
 existia só na branch de preview. Aqui é o projeto — separado do mapa do evento.
 
-Estado atual: **frontend consolidado e lendo do `mindagent-bootstrap`.** A
-programação vem da API (10 temas, 67 sessões, 44 palestrantes), com o
-`dados/summit.json` do repositório como fallback. Falta a identidade via Yazo e
-o deploy.
+Estado atual: **IA conectada.** A programação vem do `mindagent-bootstrap`
+(10 temas, 67 sessões, 44 palestrantes) com `dados/summit.json` como fallback, e
+o chat responde de verdade pela Edge Function `mindagent-chat`, que fala com a
+OpenAI. As respostas simuladas foram removidas. Falta a identidade via Yazo e o
+deploy.
+
+O painel de administração vive em `admin/` (Vite + React + TypeScript) e é um
+projeto à parte, com o próprio `package.json` e o próprio README.
 
 ## Como executar localmente
 
@@ -33,11 +37,13 @@ Live Server). Não há passo de build: o que está no repositório é o que roda
 | `styles.css` | Tokens da marca, as quatro vistas, o tour e os componentes de UI generativa. |
 | `app.js` | A aplicação: splash, navegação, motor do tour, chat, perfil vivo e o mapa. ES module — entra por `<script type="module">`. |
 | `config.js` | Configuração central e a identidade do participante. O único lugar que sabe de onde vêm os dados e quem está usando. |
-| `data-service.js` | A camada de dados. Ninguém mais no frontend chama `fetch` de conteúdo. |
+| `data-service.js` | A camada de dados (conteúdo do evento). Ninguém mais no frontend chama `fetch` de conteúdo. |
+| `chat-service.js` | A camada do chat: sessão anônima do Supabase Auth, JWT guardado e renovado, e a chamada à Edge Function. Ninguém mais no frontend fala com o chat. |
 | `dados/summit.json` | Cópia congelada da programação (10 temas, 53 sessões, 39 pessoas). Só é lida se a API não responder (ver abaixo). |
 | `assets/tour/` | As 12 capturas de tela do app usadas pelo tour. |
 | `assets/palestrantes/` | As 39 fotos referenciadas por `pessoas[].foto`. |
 | `assets/` | Símbolo Mind, favicon e a fonte Satoshi (`.woff2`). |
+| `admin/` | O painel de administração — projeto Vite/React separado. Ver `admin/README.md`. |
 
 O `index.html` monolítico anterior foi separado sem alterar uma linha de CSS
 nem de markup: o `<style>` virou `styles.css` e o `<script>` virou `app.js`,
@@ -50,14 +56,42 @@ Tudo em `config.js`:
 ```js
 export const CONFIG = {
   eventSlug: 'mind-summit-2026',
-  apiBaseUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-bootstrap',
-  useLocalFallback: true,  // cai no dados/summit.json se a API não responder
+  apiBaseUrl: 'https://…/functions/v1/mindagent-bootstrap',  // programação
+  useLocalFallback: true,          // cai no dados/summit.json se a API não responder
+  supabaseUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co',
+  supabasePublishableKey: 'sb_publishable_…',                 // pública por definição
+  chatFunction: 'mindagent-chat',                             // a IA
 };
 ```
 
-A URL do bootstrap é pública e abre sem autenticação — **nenhuma chave, `anon
-key` ou credencial mora no cliente.** Quem guarda segredo é o
-`mindagent-bootstrap`, do lado do servidor.
+Só entra aqui o que é público: a URL do bootstrap (abre sem autenticação) e a
+publishable key, feita para viver no cliente. **`service_role`, secret key e
+`OPENAI_API_KEY` nunca entram no frontend** — moram nas Edge Functions. Quem
+fala com a OpenAI é a `mindagent-chat`, nunca o navegador.
+
+## Chat e privacidade
+
+O chat responde de verdade. O caminho de uma pergunta:
+
+1. O navegador abre uma **sessão anônima** do Supabase Auth e guarda o JWT, o
+   refresh token, um `device_id` e a sessão do chat no `localStorage` — assim a
+   conversa sobrevive ao recarregar a página. O JWT é renovado quando vence.
+2. `chat-service.js` chama `POST /functions/v1/mindagent-chat` com `apikey`,
+   `Authorization: Bearer <JWT anônimo>` e um corpo enxuto: `message`,
+   `event_slug`, `device_id`, `client_message_id` e `session`. **Nada mais.**
+3. A Edge Function busca o contexto oficial, **mascara e-mail e telefone**, e
+   manda para a OpenAI apenas a pergunta mascarada e o contexto público, com
+   `store: false`.
+4. Mensagens e interesses detectados são gravados no Supabase — é o que
+   alimenta a experiência do agente e o painel `/admin`.
+
+**Perfil, nome, e-mail identificado, cargo, empresa e histórico da conversa não
+são enviados ao modelo.** O frontend não tem como contornar isso: ele não manda
+esses campos, e o mascaramento acontece do lado do servidor.
+
+Em caso de JWT inválido ou sessão expirada, o serviço tenta **uma única vez**
+com credencial nova. Há timeout de 32s, e a interface diz o que aconteceu em vez
+de travar.
 
 ## Contrato da camada de dados
 
@@ -140,6 +174,12 @@ Quem vai preencher é a Yazo, pela plataforma do evento (ou o e-mail, como
 segunda via), através do `mindagent-bootstrap`. Enquanto isso não existe, o
 valor fica nulo em produção e a saudação é neutra. Nada de nome fixo no código.
 
+**Ainda não implementado de propósito:** falta o formato definitivo do link
+dinâmico da Yazo. Quando chegar, a identidade entra por aqui — e **não vai para
+a OpenAI**: nome e e-mail servem para a interface e para o registro no Supabase,
+não para o prompt. O `chat-service.js` não tem campo para isso, e é assim que
+deve continuar.
+
 ## Princípio preservado: o agente não agenda por você
 
 Vale registrar porque é fácil de quebrar sem perceber. Toda resposta com passo
@@ -163,9 +203,10 @@ para a página que a embeda.
 
 ## Pontos em aberto
 
-- **As respostas do chat são simuladas** — palavras-chave em `RESPOSTAS`, mais
-  os seis fluxos de intenção. A prévia diz isso na tela (“Prévia de design —
-  respostas simuladas”). O agente real (RAG) vem com o backend.
+- **Os seis fluxos de intenção continuam locais.** Agenda, palestras, pessoas,
+  desafio, insight e plano são montados no navegador a partir dos dados do
+  bootstrap — só a pergunta em texto livre vai para a IA. No fluxo do desafio, a
+  leitura vem da IA e os cards continuam saindo daqui.
 - **`<meta name="robots" content="noindex">` continua no `<head>`**, de
   propósito, enquanto a aplicação está em desenvolvimento.
 - **Sem Open Graph.** Fica para o go-live, junto com a decisão sobre o
