@@ -1,0 +1,46 @@
+{
+  // ============================================================
+  // DEPLOY — Cloudflare Workers com assets estáticos
+  // ============================================================
+  // Um site, dois produtos:
+  //
+  //   /        → Mind Agent, o chat público
+  //   /admin/  → Painel Admin
+  //
+  // O que sobe é `dist-cloudflare/`, montado por `npm run build`. NUNCA
+  // subir a raiz do repositório: ela tem `admin/index.html`, o ponto de
+  // entrada de desenvolvimento do Vite, que aponta para `/src/main.tsx`
+  // e não existe em produção. Era essa a causa da tela branca em
+  // /admin/.
+  //
+  // Segredo nenhum mora aqui. As chaves de verdade (`service_role`,
+  // `OPENAI_API_KEY`) ficam nas Edge Functions do Supabase. O frontend
+  // carrega apenas a publishable key, que é pública por construção.
+  //
+  // As variáveis `VITE_*` do painel são de BUILD, não de runtime: elas
+  // entram no bundle. Configure em Workers → Settings → Build →
+  // Variables and Secrets. Ver `.env.example`.
+
+  "name": "mind-agent",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2026-08-21",
+
+  "assets": {
+    "directory": "./dist-cloudflare",
+    "binding": "ASSETS",
+
+    // O Worker roda ANTES do pipeline de assets só nestes caminhos. É o
+    // que mantém o fallback de SPA restrito ao painel: o chat não tem
+    // rota de cliente, então um 404 dele deve continuar 404, e não virar
+    // a home.
+    "run_worker_first": ["/admin", "/admin/*"],
+
+    // Fora do Worker, arquivo inexistente é 404 — nunca a home.
+    "not_found_handling": "none"
+  }
+
+  // Domínio próprio: descomente quando o DNS estiver pronto.
+  // "routes": [
+  //   { "pattern": "mindagent.mindsummit.com.br", "custom_domain": true }
+  // ]
+}
