@@ -331,6 +331,10 @@ body {
   background: var(--surface);
   color: var(--texto-suave);
   border-radius: 4px 20px 20px 20px;
+  /* A IA responde em parágrafos. Sem isto as quebras de linha colapsam
+     e a resposta vira um bloco só — as respostas simuladas de antes eram
+     de uma linha e nunca cobraram isso. */
+  white-space: pre-wrap;
 }
 .bolha.eu {
   align-self: flex-end;

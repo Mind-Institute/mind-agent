@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, obterParticipante } from './config.js';
 
 const PREFIXO = 'mindagent:v1:' + CONFIG.eventSlug + ':';
 const CHAVES = {
@@ -79,6 +79,21 @@ async function autenticar(forcarNova = false) {
   return authRequest('/auth/v1/signup', {});
 }
 
+/* A identidade que vai para a NOSSA Edge Function — nunca para a OpenAI.
+   É a `mindagent-chat` que procura o e-mail em `mind.people`, amarra o
+   `participante_id` e monta o contexto público. O frontend só entrega o
+   que a Yazo disse, e só quando há e-mail válido: sem e-mail não existe
+   ninguém para procurar, e o campo nem aparece no corpo. */
+function identidade() {
+  const p = obterParticipante();
+  if (!p.email) return undefined;
+  return {
+    email: p.email,
+    name: p.nome || undefined,
+    source: p.origem || 'yazo_url',
+  };
+}
+
 async function chamar(message, clientMessageId) {
   const auth = await autenticar();
   const controller = new AbortController();
@@ -99,6 +114,7 @@ async function chamar(message, clientMessageId) {
           device_id: dispositivo(),
           client_message_id: clientMessageId,
           session: ler(CHAVES.session) || undefined,
+          identity: identidade(),
         }),
         cache: 'no-store',
         signal: controller.signal,

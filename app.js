@@ -6,9 +6,14 @@
    só desenha e reage.
 */
 
-import { PARTICIPANTE } from './config.js';
+import { PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { enviarMensagem } from './chat-service.js';
+
+/* Quem abriu a página, antes de qualquer tela: a Yazo manda `email` e
+   `nome` na URL, e a saudação depende disso. Chamada explícita de
+   propósito — importar `config.js` não captura nada. */
+capturarIdentidade();
 
 /* ---------- Splash ---------- */
 const splash = document.getElementById('splash');
