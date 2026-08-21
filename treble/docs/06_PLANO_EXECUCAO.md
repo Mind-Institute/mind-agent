@@ -19,9 +19,13 @@ documentos.
       com defaults seguros; ingressos usam `mind.offers` (já existia),
       FAQ usa `mind.organization_content`
       (migration `supabase/migrations/20260821_treble_inbound_mvp.sql`)
-- [ ] Popular com dados reais — **precisa da Adriana**: preços e links de
-      checkout Eduzz por categoria (→ `mind.offers`), regras comerciais
-      reais (→ `mind.commercial_rules`), cupons (→ `mind.coupons`), FAQ
+- [x] `mind.offers` populada (2026-08-21): 22 ofertas mapeadas do catálogo
+      Eduzz do projeto vendas-dashboard — categoria × lote com preço,
+      grupos VIP e viradas; Lote 5 vigente (confirmado pelas vendas).
+      Detalhes e pendências em `../integrations/eduzz.md`
+- [ ] Ainda **precisa da Adriana**: validar 1 link `sun.eduzz.com`, regras
+      comerciais reais (→ `mind.commercial_rules`), cupons (→ `mind.coupons`),
+      FAQ, preços dos upgrades (inconsistentes no catálogo)
 - [ ] Validar na mão: "preço atual do VIP?", "checkout do PRIME?",
       "cupom X vale?" — direto no banco, sem IA
 
