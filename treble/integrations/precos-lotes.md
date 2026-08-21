@@ -38,21 +38,33 @@ Depois: Lote 6 (28/08 → 04/09, Mind 1.697 · VIP 2.697) e Lote 7
   também existem e estão em `mind.offers` (`publico=false`, sem checkout —
   grupo fecha com vendedor).
 
-## Pendências na fonte (para a Adriana confirmar)
+## Sincronização contínua (construída em 2026-08-21) ✅
 
-1. **Lote 7 com preços aparentemente trocados** em `lote_precos`:
-   Mind = R$ 2.797 e VIP = R$ 1.797 — o inverso da progressão de todos os
-   lotes anteriores (Mind sempre ~R$ 1.000 mais barato). Provável troca de
-   digitação. **Não carreguei o Lote 7 no `mind.offers`** até corrigirem
-   na fonte.
-2. **Dois mecanismos de desconto de grupo convivem** (tiers percentuais ×
+`mind.offers` acompanha a fonte sozinha, sem passo manual:
+
+```
+pg_cron (a cada 30 min, projeto mind-agent)
+  → Edge Function mindagent-sync-precos
+    → GET pricing (endpoint público do mind-summit-propostas)
+    → sanidade por lote (mind < vip ≤ prime, valores positivos)
+    → RPC mindagent_sync_offers (upsert de ofertas + tiers, marca vigente)
+```
+
+- Código versionado: `supabase/functions/mindagent-sync-precos/index.ts`
+  e `supabase/migrations/20260821_sync_precos_lotes.sql`.
+- Guardrail: lote com preços incoerentes é **pulado e reportado**; se a
+  incoerência for no lote vigente, a sync inteira aborta (HTTP 422) e
+  mantém os dados anteriores — nunca grava lixo por cima da verdade.
+- Testada de ponta a ponta: 18 ofertas sincronizadas (lotes 2–7),
+  vigente = 5, zero anomalias. Lote 7 veio correto da fonte
+  (Mind 1.797 · VIP 2.797) — a suspeita de troca registrada antes era
+  erro de leitura manual, retirada.
+- Editar preço/lote no mind-summit-propostas é o único gesto necessário;
+  em até 30 min o bot reflete.
+
+## Pendências (para a Adriana confirmar)
+
+1. **Dois mecanismos de desconto de grupo convivem** (tiers percentuais ×
    produtos "Grupo VIP" com valor fixo). Qual o bot deve citar?
-3. `settings.event_date` diz `2026-09-01`, mas o evento é 16–17/09 —
+2. `settings.event_date` diz `2026-09-01`, mas o evento é 16–17/09 —
    conferir o que esse campo significa para o site.
-
-## Sincronização contínua (próximo passo, não construído)
-
-A carga atual é manual. Para a virada de 28/08 não depender de ninguém:
-um workflow n8n (ou `pg_cron`) lendo `lotes`/`lote_precos` do
-mind-summit-propostas e fazendo upsert em `mind.offers` — preço e lote
-nunca mais divergem entre site, dashboard e bot.
