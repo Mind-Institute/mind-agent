@@ -180,11 +180,29 @@ describe('HttpAdminDataProvider', () => {
     expect(() => new HttpAdminDataProvider({ baseUrl: '' })).toThrow(AdminApiError);
   });
 
-  it('monta os caminhos combinados com o backend futuro', async () => {
+  it('monta os caminhos combinados com o backend', async () => {
     const chamadas: { url: string; init?: RequestInit }[] = [];
+    /* Corpo válido conforme o contrato: envelope na listagem, registro
+       nas demais. Resposta fora do formato agora é erro — é o que o
+       teste de contrato em `api-real.test.tsx` verifica. */
+    const envelope = { itens: [], total: 0, pagina: 1, porPagina: 0 };
+    const registro = {
+      id: 'ses_1',
+      titulo: 'Sessão',
+      dia: '2026-09-16',
+      inicio: '09:00',
+      tipo: 'palestra',
+      status: 'publicado',
+      atualizadoEm: '2026-08-12T09:00:00.000Z',
+    };
     const fetchFalso = (async (url: string | URL, init?: RequestInit) => {
       chamadas.push({ url: String(url), init });
-      return new Response(JSON.stringify({ itens: [], total: 0, pagina: 1, porPagina: 0 }), {
+      const caminho = new URL(String(url)).pathname;
+      /* Só o GET na raiz do recurso é listagem; o POST no mesmo caminho
+         é criação e devolve um registro. */
+      const metodo = (init?.method ?? 'GET').toUpperCase();
+      const eListagem = metodo === 'GET' && /\/admin\/[a-z]+$/.test(caminho);
+      return new Response(JSON.stringify(eListagem ? envelope : registro), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });

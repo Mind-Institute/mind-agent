@@ -11,13 +11,7 @@ import type { Conversa } from './conversation';
 import type { PerguntaSemResposta } from './unanswered';
 import type { Usuario } from './user';
 import type { RegistroAuditoria } from './audit';
-
-/** Tema do evento — usado como opção nos filtros e formulários. */
-export interface Tema {
-  id: string;
-  codigo: string;
-  rotulo: string;
-}
+import type { Tema } from './theme';
 
 /**
  * O nome do recurso é o mesmo na URL da futura Edge Function

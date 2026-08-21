@@ -5,11 +5,15 @@ import { registroBaseSchema } from './common';
    PAPÉIS
    ============================================================
    Estes papéis desenham a INTERFACE — escondem botão, marcam página
-   como "sem permissão". Eles NÃO são controle de acesso.
+   como "sem permissão". Eles não são o controle de acesso.
 
-   A autorização real precisa acontecer na Edge Function, contra o JWT
-   do Supabase Auth, lendo o papel de uma tabela do banco — nunca de
-   `user_metadata`, que é editável pelo próprio usuário. */
+   O controle de acesso existe e é do backend: a Edge Function lê o papel
+   em `mind_admin_users` e a função SQL `mind_admin_mutate_resource`
+   valida de novo antes de escrever. O papel nunca sai de
+   `user_metadata`, que é editável pelo próprio usuário.
+
+   O painel recebe o papel em `GET /admin/me` — mesma fonte que autoriza
+   — então esta lista e a do backend não divergem por acidente. */
 export const PAPEIS = ['administrador', 'editor', 'aprovador', 'atendimento', 'analista'] as const;
 export const papelSchema = z.enum(PAPEIS);
 export type Papel = z.infer<typeof papelSchema>;

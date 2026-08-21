@@ -371,3 +371,31 @@ describe('o token no modo híbrido', () => {
     expect(tudo).not.toMatch(/sb_publishable/i);
   });
 });
+
+describe('o selo do topo', () => {
+  it('resume o modo híbrido sem prometer o que não é', async () => {
+    renderizarHibrido({ rotas: ROTAS_BASICAS });
+
+    await screen.findByText('777');
+    expect(screen.getByText('núcleo real · apoio em demonstração')).toBeVisible();
+    /* O texto antigo dizia que só o dashboard era real. */
+    expect(screen.queryByText(/dashboard real · cadastros mock/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('aviso da tela de usuários', () => {
+  it('diz que a lista é mock e que a autorização já é do backend', async () => {
+    renderizarHibrido({ rota: '/usuarios', rotas: ROTAS_BASICAS });
+
+    const aviso = await screen.findByRole('alert');
+    expect(aviso).toHaveTextContent('Esta lista é demonstração; a autorização é real');
+    expect(aviso).toHaveTextContent('mind_admin_users');
+    expect(aviso).toHaveTextContent('mind_admin_mutate_resource');
+    expect(aviso).toHaveTextContent(/analista.*foi recusado/i);
+    expect(aviso).toHaveTextContent(/user_metadata/);
+
+    /* As afirmações desatualizadas não podem voltar. */
+    expect(aviso).not.toHaveTextContent(/Enquanto o backend não existir/i);
+    expect(aviso).not.toHaveTextContent(/qualquer pessoa com acesso ao painel enxerga tudo/i);
+  });
+});

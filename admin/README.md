@@ -121,9 +121,9 @@ painel mentiria em uma das duas.
 
 **3. O painel não inventa dado.** Quando a fonte é ambígua — o local do evento,
 por exemplo — ele mostra a divergência e pede revisão humana, em vez de escolher.
-Quando o dashboard real não responde no formato do contrato, aparece erro, não
-número inventado, e não há queda silenciosa para o mock. É o mesmo princípio que
-sustenta o agente.
+Quando a API responde fora do contrato, aparece erro de contrato, não campo
+preenchido por conta própria nem queda silenciosa para o mock. É o mesmo
+princípio que sustenta o agente.
 
 **4. Autenticação e autorização são coisas separadas.** O Supabase Auth diz
 *quem* entrou. `GET /admin/me` diz *o que essa pessoa pode*. O painel não deduz a
@@ -208,6 +208,31 @@ Nos **registros** esses campos são `string`, não enum. É deliberado: valor no
 no backend precisa chegar à tela, não travar a listagem. `src/lib/rotulos.ts`
 resolve o rótulo e diz se ele é conhecido; `SeloCategoria` mostra o código cru,
 marcado, quando não é.
+
+### Validação das respostas reais
+
+`src/services/validacao-api.ts` confere toda resposta dos cinco recursos reais
+contra o schema Zod do recurso, e o envelope `ListResult` contra
+`{ itens, total, pagina, porPagina }`.
+
+A regra que organiza os schemas é o que o painel faz com o campo:
+
+| | Campos | Por quê |
+|---|---|---|
+| **Obrigatório** | `id`, `atualizadoEm`, `status`, e a identidade do recurso (`titulo`, `nome`, `codigo`, `dia`, `inicio`, `tipo`, datas e local do evento) | Sem `id` o registro não abre; sem `atualizadoEm` a escrita perde o `If-Unmodified-Since-Version` e passa a sobrescrever o trabalho de outra pessoa. Preencher isso por conta própria seria esconder uma quebra de contrato. |
+| **Default explícito** | descrições, arrays, coordenadas, flags | Vazio é estado legítimo, e o painel já mostra "falta biografia" como pendência. Cada default está anotado no schema com o motivo. |
+| **Passa intacto** | `tipo`, `formato` | Categoria desconhecida aparece com o código cru. |
+
+Resposta fora do formato levanta `AdminApiError` com a mensagem **"Contrato
+incompatível em GET /admin/…"** e uma lista de `caminho: problema` —
+`itens.3.id: esperado string, veio undefined`.
+
+**O erro nunca carrega o corpo da resposta.** Só o caminho do campo e o tipo do
+problema; nem o valor recebido em enum, nem nada no console. O índice diz *qual*
+registro quebrou sem revelar *o que* ele continha.
+
+Recurso sem schema (os módulos que ainda não têm contrato fechado) passa sem
+conferência — não faz sentido barrá-lo por um schema que não existe.
 
 Se o backend passar a usar `mesa_redonda` ou `em-curadoria` com hífen, a
 divergência salta aos olhos na primeira listagem. Um painel que "arredondasse"
@@ -405,9 +430,18 @@ de `/admin/me`, que valida o JWT e lê de uma **tabela do banco** —
 nunca de `user_metadata`, que o próprio usuário edita. O seletor "Ver como"
 existe só no modo de demonstração, e some quando há login de verdade.
 
-O que ainda falta, e é do backend: recusar as requisições de escrita por papel.
-Enquanto os cadastros forem mock, esse risco não existe; quando `VITE_ADMIN_DATA_MODE`
-virar `http`, existe — e é lá que precisa estar resolvido.
+**A recusa de escrita por papel já existe, e é do backend, em duas camadas:**
+
+1. a Edge Function administrativa lê o papel em `mind_admin_users` e confere se
+   aquele papel pode fazer aquela ação;
+2. a função SQL `mind_admin_mutate_resource` valida o papel outra vez antes de
+   escrever. `anon` e `authenticated` não executam a RPC direto.
+
+Conferido em transação: papel `analista` tentando atualizar foi recusado.
+
+Ou seja: divergência entre a matriz da interface e o backend produz um **403
+visível**, não um vazamento. Esta matriz existe para poupar o clique inútil, não
+para autorizar.
 
 ## Autenticação com Supabase Auth
 
@@ -530,9 +564,11 @@ nenhuma página muda.
   serve para ver de relance quem ficou sem caminho.
 - **Usuários é leitura, e ainda vem do mock.** Convidar pessoa e trocar papel
   dependem de endpoints que não existem.
-- **O backend ainda não recusa escrita por papel.** A interface esconde o botão,
-  mas quem precisa negar o `PATCH` é a Edge Function. Agora que a escrita é
-  real, isso deixou de ser teórico.
+- **A tela de Usuários é demonstração; a autorização não é.** A lista vem do
+  banco em memória — convidar pessoa e trocar papel dependem de endpoints que
+  não existem. A recusa de escrita por papel já roda no backend, em duas camadas
+  (Edge Function + `mind_admin_mutate_resource`), com `anon` e `authenticated`
+  sem acesso direto à RPC.
 - **Conversas é somente leitura,** de propósito: o painel não responde por aqui.
 - **O local do evento está em divergência e continua assim.** `summit.json` diz
   "São Paulo Expo", material de divulgação diz "Transamérica Expo Center". O
@@ -546,11 +582,11 @@ nenhuma página muda.
 npm test --prefix admin
 ```
 
-155 testes, onze arquivos. Cobrem:
+166 testes, onze arquivos. Cobrem:
 
 | Arquivo | O que garante |
 |---|---|
-| `api-real.test.tsx` | Os verbos e caminhos dos cinco recursos reais; `If-Unmodified-Since-Version` em toda escrita; token e `apikey` nos headers e fora da URL; os dez filtros da programação na query string; paginação a partir do `total` da API; 401, 403, 404, 409, 422 e 503; a divergência de local do evento; os novos enums com rótulo em português; categoria desconhecida mostrada crua; e a regressão do `Select` que apagava o espaço da sessão. |
+| `api-real.test.tsx` | Validação de contrato: resposta válida aceita com os opcionais vindo do default, registro sem `id`, sem `atualizadoEm`, sem `titulo`/`nome`, listagem sem `itens`, envelope sem `total`/`pagina`/`porPagina`, tema sem `codigo`, tipo desconhecido preservado, erro apontando o índice sem revelar conteúdo, e nenhuma escrita no console. Mais: os verbos e caminhos dos cinco recursos reais; `If-Unmodified-Since-Version` em toda escrita; token e `apikey` nos headers e fora da URL; os dez filtros da programação na query string; paginação a partir do `total` da API; 401, 403, 404, 409, 422 e 503; a divergência de local do evento; os novos enums com rótulo em português; categoria desconhecida mostrada crua; e a regressão do `Select` que apagava o espaço da sessão. |
 | `modo-hibrido.test.tsx` | Encaminhamento seletivo recurso por recurso, leitura e escrita reais nos módulos reais, o resto em memória, temas somente leitura, operação sem endpoint recusada antes de sair, ausência de queda para o mock em erro, e a faixa nomeando os módulos. |
 | `autenticacao.test.tsx` | Restauração da sessão, `onAuthStateChange`, login, validação do formulário, credencial inválida, serviço de auth fora, logout, 401, 403, papel irreconhecível, papel e permissões vindos de `/admin/me`, ausência do seletor "Ver como", token no `Authorization`, token fora da URL e fora do console, e sessão expirada no meio do uso. |
 | `provedor-dados.test.ts` | Listagem, filtros, busca sem acento, publicação, arquivamento, conflito de atualização, auditoria, reindexação, injeção de falha, isolamento entre instâncias — e, no `HttpAdminDataProvider`, os caminhos combinados, a tradução de status HTTP e o token fora da URL. |

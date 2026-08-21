@@ -1,22 +1,27 @@
 /* ============================================================
    PERMISSÕES — DA INTERFACE, NÃO DO SISTEMA
    ============================================================
-   ⚠️  LEIA ANTES DE USAR ISTO COMO SEGURANÇA.
-
    Este arquivo decide o que a tela MOSTRA. Ele esconde botão, marca
    página como "sem permissão" e evita que alguém tente uma ação que
-   vai ser recusada. Isso é usabilidade.
+   vai ser recusada. Isso é usabilidade, não segurança: quem abre o
+   console muda o papel em memória e vê a interface inteira.
 
-   Não é controle de acesso. Qualquer pessoa com o console aberto muda
-   o papel em memória e vê tudo — porque o dado já está no navegador.
+   A AUTORIZAÇÃO DE VERDADE JÁ EXISTE, e é do backend, em duas camadas:
 
-   A autorização de verdade acontece na Edge Function administrativa:
-   ela valida o JWT do Supabase Auth, lê o papel de uma TABELA do banco
-   (nunca de `user_metadata`, que o próprio usuário edita) e recusa a
-   requisição. O frontend nunca é a última palavra.
+   1. a Edge Function administrativa valida o JWT do Supabase Auth, lê o
+      papel em `mind_admin_users` e confere se aquele papel pode fazer
+      aquela ação;
+   2. a função SQL `mind_admin_mutate_resource` valida o papel outra vez
+      antes de escrever. `anon` e `authenticated` não executam a RPC
+      direto.
 
-   Enquanto a Edge Function não existe, o seletor de papel do topo é um
-   simulador de interface — e a tela diz isso. */
+   Conferido em transação: papel `analista` tentando atualizar foi
+   recusado. O papel nunca sai de `user_metadata`, que o próprio usuário
+   edita.
+
+   Ou seja: divergência entre esta matriz e o backend produz uma recusa
+   visível (403), não um vazamento. O frontend nunca é a última palavra —
+   e agora existe uma última palavra. */
 
 import type { Papel } from '@/contracts';
 

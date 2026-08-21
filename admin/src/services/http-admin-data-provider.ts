@@ -27,7 +27,7 @@ import {
 } from '@/contracts';
 import type { AdminDataProvider } from './admin-data-provider';
 import { erroDaResposta, erroDeRede } from './http-erros';
-import { normalizarLista, normalizarRegistro } from './normalizacao';
+import { validarLista, validarRegistro } from './validacao-api';
 
 /** Header de concorrência otimista, aceito pela Edge Function. */
 function cabecalhoVersao(opcoes?: OpcoesEscrita): Record<string, string> {
@@ -144,11 +144,19 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     resource: K,
     filters: ListFilters = {},
   ): Promise<ListResult<MapaRecursos[K]>> {
-    return normalizarLista(resource, await this.pedir(this.caminho([resource], filters)));
+    return validarLista(
+      resource,
+      await this.pedir(this.caminho([resource], filters)),
+      `GET /admin/${resource}`,
+    );
   }
 
   async get<K extends NomeRecurso>(resource: K, id: string): Promise<MapaRecursos[K]> {
-    return normalizarRegistro(resource, await this.pedir(this.caminho([resource, id])));
+    return validarRegistro(
+      resource,
+      await this.pedir(this.caminho([resource, id])),
+      `GET /admin/${resource}/${id}`,
+    );
   }
 
   /* ---------------------------------------------------------------- */
@@ -159,9 +167,10 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     resource: K,
     payload: Partial<MapaRecursos[K]>,
   ): Promise<MapaRecursos[K]> {
-    return normalizarRegistro(
+    return validarRegistro(
       resource,
       await this.pedir(this.caminho([resource]), { method: 'POST', corpo: payload }),
+      `POST /admin/${resource}`,
     );
   }
 
@@ -171,7 +180,7 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     payload: Partial<MapaRecursos[K]>,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
-    return normalizarRegistro(
+    return validarRegistro(
       resource,
       await this.pedir(this.caminho([resource, id]), {
         method: 'PATCH',
@@ -180,6 +189,7 @@ export class HttpAdminDataProvider implements AdminDataProvider {
            este header — ele está no `access-control-allow-headers`. */
         headers: cabecalhoVersao(opcoes),
       }),
+      `PATCH /admin/${resource}/${id}`,
     );
   }
 
@@ -192,13 +202,14 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     id: string,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
-    return normalizarRegistro(
+    return validarRegistro(
       resource,
       await this.pedir(this.caminho([resource, id, 'publish']), {
         method: 'POST',
         corpo: { atualizadoEmEsperado: opcoes?.atualizadoEmEsperado ?? null },
         headers: cabecalhoVersao(opcoes),
       }),
+      `POST /admin/${resource}/${id}/publish`,
     );
   }
 
@@ -207,13 +218,14 @@ export class HttpAdminDataProvider implements AdminDataProvider {
     id: string,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
-    return normalizarRegistro(
+    return validarRegistro(
       resource,
       await this.pedir(this.caminho([resource, id, 'archive']), {
         method: 'POST',
         corpo: { atualizadoEmEsperado: opcoes?.atualizadoEmEsperado ?? null },
         headers: cabecalhoVersao(opcoes),
       }),
+      `POST /admin/${resource}/${id}/archive`,
     );
   }
 

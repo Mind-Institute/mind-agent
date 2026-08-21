@@ -92,14 +92,19 @@ export function PaginaConfiguracoes() {
             ) : provedor.modo === 'hybrid' ? (
               <div className="space-y-2 text-muted-foreground">
                 <p>
-                  <strong className="text-foreground">Dashboard real:</strong> a visão geral vem de{' '}
-                  <code className="font-mono">GET /admin/dashboard</code>, com o token da sessão no
-                  header <code className="font-mono">Authorization</code>.
+                  <strong className="text-foreground">Núcleo real:</strong> visão geral, evento,
+                  programação, palestrantes, espaços e temas vêm da API administrativa, com o token
+                  da sessão no header <code className="font-mono">Authorization</code>. Escrita
+                  incluída — temas são somente leitura.
                 </p>
                 <p>
-                  <strong className="text-foreground">Cadastros em demonstração:</strong> todo o
-                  resto continua no banco em memória. Nenhuma escrita chega ao backend nesta etapa —
-                  salvar, publicar, arquivar e reindexar mexem só nesta aba.
+                  <strong className="text-foreground">Apoio em demonstração:</strong> rotas,
+                  estandes, ofertas, conteúdo, documentos, conversas, perguntas, usuários e auditoria
+                  continuam no banco em memória. Salvar ali mexe só nesta aba.
+                </p>
+                <p>
+                  As respostas dos módulos reais são validadas contra os schemas do painel. Formato
+                  incompatível vira erro na tela — não campo preenchido por conta própria.
                 </p>
               </div>
             ) : (

@@ -114,28 +114,33 @@ export const sessaoFormSchema = z
 export type SessaoForm = z.infer<typeof sessaoFormSchema>;
 
 export const sessaoSchema = registroEditorialSchema.extend({
-  titulo: z.string(),
-  descricao: z.string(),
-  dia: z.string(),
-  inicio: z.string(),
+  /* Obrigatórios: sem eles a linha da grade não existe. */
+  titulo: z.string().min(1),
+  dia: z.string().min(1),
+  inicio: z.string().min(1),
+  /* Tipo e formato são STRING, não enum: categoria nova no backend
+     chega à tela com o próprio código em vez de travar a listagem. O
+     tipo é exigido — ele é a identidade do bloco na grade. */
+  tipo: z.string().min(1),
+  formato: z.string().default(''),
+
+  /* Opcionais de verdade, com default explícito. */
+  descricao: z.string().default(''),
   /** `null` em sessão aberta (coquetel, autógrafos). */
-  fim: z.string().nullable(),
-  espacoId: z.string().nullable(),
-  /* Nos registros vindos da API o tipo e o formato são STRING, não
-     enum: valor novo no backend precisa chegar à tela, não travar. */
-  tipo: z.string(),
-  formato: z.string(),
-  trilhas: z.array(z.string()),
-  temas: z.array(z.string()),
-  palestranteIds: z.array(z.string()),
+  fim: z.string().nullable().default(null),
+  /** `null` = sessão sem espaço, que o painel já trata como pendência. */
+  espacoId: z.string().nullable().default(null),
+  trilhas: z.array(z.string()).default([]),
+  temas: z.array(z.string()).default([]),
+  palestranteIds: z.array(z.string()).default([]),
   /** Texto original de `quem`, preservado enquanto a ligação com
    *  `palestranteIds` não estiver completa. */
-  quemTexto: z.string(),
-  necessitaReserva: z.boolean(),
-  vagasTotais: z.number().nullable(),
-  vagasDisponiveis: z.number().nullable(),
-  nivel: z.enum(NIVEIS_SESSAO).nullable(),
-  resultadosEsperados: z.array(z.string()),
+  quemTexto: z.string().default(''),
+  necessitaReserva: z.boolean().default(false),
+  vagasTotais: z.number().nullable().default(null),
+  vagasDisponiveis: z.number().nullable().default(null),
+  nivel: z.enum(NIVEIS_SESSAO).nullable().default(null),
+  resultadosEsperados: z.array(z.string()).default([]),
 });
 
 export type Sessao = z.infer<typeof sessaoSchema>;

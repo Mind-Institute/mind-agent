@@ -1,4 +1,4 @@
-import { ShieldAlert } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { DESCRICAO_PAPEL, PAPEIS, ROTULO_PAPEL, type Usuario } from '@/contracts';
 import { formatarDataHora } from '@/lib/format';
 import { PaginaListagem, type Coluna } from '@/components/admin/pagina-listagem';
@@ -72,20 +72,32 @@ export function PaginaUsuarios() {
       estadoVazio={
         <EstadoVazio
           titulo="Nenhum usuário encontrado"
-          descricao="Quando o Supabase Auth for ligado, esta lista vem do banco."
+          descricao="A lista ainda é demonstração. Quando a API expuser o recurso, ela passa a vir de mind_admin_users — a mesma tabela que o backend já usa para autorizar."
         />
       }
       antesDaTabela={() => (
-        <Alert variant="atencao">
-          <ShieldAlert />
-          <AlertTitle>Isto não é controle de acesso</AlertTitle>
+        <Alert variant="info">
+          <ShieldCheck />
+          <AlertTitle>Esta lista é demonstração; a autorização é real</AlertTitle>
           <AlertDescription>
-            Os papéis desta tela escondem botão e marcam página como &ldquo;sem
-            permissão&rdquo; — nada além disso. A autorização real precisa acontecer na Edge
-            Function, contra o JWT do Supabase Auth, lendo o papel de uma <strong>tabela do
-            banco</strong>, nunca de <code className="font-mono">user_metadata</code>, que o próprio
-            usuário consegue editar. Enquanto o backend não existir, considere que qualquer pessoa
-            com acesso ao painel enxerga tudo.
+            <p>
+              Os registros abaixo vêm do banco em memória — convidar pessoa e trocar papel dependem
+              de endpoints que ainda não existem.
+            </p>
+            <p className="mt-2">
+              O que <strong>já vale</strong> é a autorização, e ela é do backend, em duas camadas: a
+              Edge Function lê o papel em <code className="font-mono">mind_admin_users</code> e
+              confere a ação; a função SQL{' '}
+              <code className="font-mono">mind_admin_mutate_resource</code> valida o papel de novo
+              antes de escrever. Os papéis <code className="font-mono">anon</code> e{' '}
+              <code className="font-mono">authenticated</code> não executam a RPC direto. Testado em
+              transação: <strong>analista</strong> tentando atualizar foi recusado.
+            </p>
+            <p className="mt-2">
+              O papel nunca sai de <code className="font-mono">user_metadata</code>, que o próprio
+              usuário consegue editar. Os papéis desta interface apenas escondem botão e marcam
+              página como &ldquo;sem permissão&rdquo; — quem nega a escrita é o banco.
+            </p>
           </AlertDescription>
         </Alert>
       )}

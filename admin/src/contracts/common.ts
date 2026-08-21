@@ -5,9 +5,8 @@ import { z } from 'zod';
    ============================================================
    rascunho → em_revisao → publicado → arquivado
 
-   IMPORTANTE: as regras abaixo governam o que a INTERFACE mostra.
-   A autorização de verdade é do backend — ver `src/lib/permissions.ts`
-   e a seção "Limites" do README. */
+   As regras abaixo governam o que a INTERFACE mostra. Quem autoriza a
+   escrita é o backend, em duas camadas — ver `src/lib/permissions.ts`. */
 export const STATUS_EDITORIAL = ['rascunho', 'em_revisao', 'publicado', 'arquivado'] as const;
 export const statusEditorialSchema = z.enum(STATUS_EDITORIAL);
 export type StatusEditorial = z.infer<typeof statusEditorialSchema>;
@@ -22,18 +21,31 @@ export const ROTULO_STATUS_EDITORIAL: Record<StatusEditorial, string> = {
 /* ============================================================
    METADADOS COMUNS
    ============================================================ */
+/* A fronteira entre OBRIGATÓRIO e OPCIONAL aqui não é estética: ela
+   decide o que o painel aceita da API real.
+
+   - `id` e `atualizadoEm` são obrigatórios. Sem id não há como abrir
+     nem editar o registro; sem `atualizadoEm` a escrita perde o
+     `If-Unmodified-Since-Version` e passa a sobrescrever o trabalho de
+     outra pessoa em silêncio. Preencher esses dois por conta própria
+     seria esconder uma quebra de contrato.
+   - `criadoEm` e `atualizadoPor` são descritivos: aparecem em texto e
+     nada depende deles. Ausentes, ganham default explícito. */
 export const registroBaseSchema = z.object({
-  id: z.string(),
-  criadoEm: z.string(),
-  atualizadoEm: z.string(),
-  atualizadoPor: z.string().nullable(),
+  id: z.string().min(1),
+  criadoEm: z.string().default(''),
+  atualizadoEm: z.string().min(1),
+  atualizadoPor: z.string().nullable().default(null),
 });
 export type RegistroBase = z.infer<typeof registroBaseSchema>;
 
 export const registroEditorialSchema = registroBaseSchema.extend({
+  /* Obrigatório: o selo editorial e o botão de publicar saem daqui.
+     Chutar "rascunho" faria o painel mostrar como não publicado algo
+     que talvez esteja no ar. */
   status: statusEditorialSchema,
-  publicadoEm: z.string().nullable(),
-  publicadoPor: z.string().nullable(),
+  publicadoEm: z.string().nullable().default(null),
+  publicadoPor: z.string().nullable().default(null),
 });
 export type RegistroEditorial = z.infer<typeof registroEditorialSchema>;
 

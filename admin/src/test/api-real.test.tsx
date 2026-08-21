@@ -76,11 +76,78 @@ const ROTAS = {
   '/admin/themes': { corpo: lista([{ id: 'cultura', codigo: 'cultura', rotulo: 'Cultura' }]) },
 };
 
+const PALESTRANTE_DA_API = {
+  id: 'pal_real_1',
+  nome: 'Amy Edmondson',
+  cargo: 'Segurança psicológica',
+  organizacao: 'Harvard',
+  biografia: 'Pesquisadora.',
+  foto: '',
+  temas: ['seguranca_psicologica'],
+  destaque: true,
+  sessaoIds: [],
+  status: 'publicado',
+  publicadoEm: '2026-08-01T00:00:00.000Z',
+  publicadoPor: 'API',
+  criadoEm: '2026-08-01T00:00:00.000Z',
+  atualizadoEm: '2026-08-10T00:00:00.000Z',
+  atualizadoPor: 'API',
+};
+
+const ESPACO_DA_API = {
+  id: 'esp_real_1',
+  nome: 'Arena Real',
+  slug: 'arena-real',
+  tipo: 'arena',
+  aliases: ['palco real'],
+  comoChegar: 'Ao fundo.',
+  coordenadaX: 1,
+  coordenadaY: 2,
+  ativo: true,
+  criadoEm: '2026-08-01T00:00:00.000Z',
+  atualizadoEm: '2026-08-10T00:00:00.000Z',
+};
+
+const TEMA_DA_API = { id: 'cultura', codigo: 'cultura', rotulo: 'Cultura organizacional' };
+
+/**
+ * Rotas com corpo VÁLIDO para cada recurso real: envelope na listagem
+ * (`/admin/x`) e registro nas rotas de item (`/admin/x/`), inclusive
+ * publish e archive. Serve aos testes cuja asserção é sobre verbo, URL
+ * e cabeçalho — não sobre o formato do corpo.
+ */
+function rotasValidas() {
+  const porRecurso: Record<string, unknown> = {
+    sessions: SESSAO_DA_API,
+    speakers: PALESTRANTE_DA_API,
+    spaces: ESPACO_DA_API,
+    event: EVENTO_DA_API,
+    themes: TEMA_DA_API,
+  };
+  const rotas: Record<string, { corpo: unknown }> = {};
+  for (const [recurso, registro] of Object.entries(porRecurso)) {
+    rotas[`GET /admin/${recurso}`] = { corpo: lista([registro]) };
+    /* POST na raiz do recurso é criação: devolve o registro criado. */
+    rotas[`POST /admin/${recurso}`] = { corpo: registro };
+    rotas[`/admin/${recurso}/`] = { corpo: registro };
+  }
+  return rotas;
+}
+
 /** Provedor HTTP puro, para afirmar verbo, caminho e cabeçalho. */
 function criarProvedorHttp(
   rotas: Record<string, { status?: number; corpo?: unknown; erroDeRede?: boolean }> = {},
 ) {
-  const falso = criarFetchFalso({ '/admin/': { corpo: {} }, ...rotas });
+  /* A rota do teste substitui a padrão do mesmo caminho — inclusive as
+     variantes por método. Sem isso a padrão, mais específica, venceria e
+     o teste nunca veria o corpo que pediu. */
+  const caminho = (chave: string) => chave.trim().split(' ').pop();
+  const doTeste = new Set(Object.keys(rotas).map(caminho));
+  const padrao = Object.fromEntries(
+    Object.entries(rotasValidas()).filter(([chave]) => !doTeste.has(caminho(chave))),
+  );
+
+  const falso = criarFetchFalso({ ...padrao, ...rotas });
   const http = new HttpAdminDataProvider({
     baseUrl: API_FALSA,
     fetchImpl: falso.fetch,
@@ -92,9 +159,7 @@ function criarProvedorHttp(
 
 describe('verbos e caminhos dos recursos reais', () => {
   it('listagem, item, criação, atualização, publicação e arquivamento', async () => {
-    const { http, falso } = criarProvedorHttp({
-      '/admin/sessions': { corpo: lista([SESSAO_DA_API]) },
-    });
+    const { http, falso } = criarProvedorHttp();
 
     await http.list('sessions');
     await http.get('sessions', 'ses_real_1');
@@ -172,21 +237,180 @@ describe('verbos e caminhos dos recursos reais', () => {
     }
   });
 
-  it('preenche campo ausente sem inventar valor', async () => {
-    /* A API devolve uma sessão sem `temas` nem `trilhas`: a listagem não
-       pode quebrar num `.map` de undefined, e o que veio fica intacto. */
+});
+
+describe('contrato das respostas reais', () => {
+  /** Sessão completa, menos o campo que o teste quer derrubar. */
+  function sessaoSem(campo: string) {
+    const copia: Record<string, unknown> = { ...SESSAO_DA_API };
+    delete copia[campo];
+    return copia;
+  }
+
+  it('resposta válida é aceita, com os opcionais vindo do default do schema', async () => {
     const { http } = criarProvedorHttp({
       '/admin/sessions': {
-        corpo: lista([{ id: 'ses_x', titulo: 'Só o essencial', tipo: 'mesa_redonda' }]),
+        corpo: lista([
+          {
+            id: 'ses_minima',
+            titulo: 'Só o essencial',
+            dia: '2026-09-16',
+            inicio: '09:00',
+            tipo: 'mesa_redonda',
+            status: 'publicado',
+            atualizadoEm: '2026-08-12T09:00:00.000Z',
+          },
+        ]),
       },
     });
 
     const { itens } = await http.list('sessions');
+    expect(itens).toHaveLength(1);
+    /* Opcionais ganham o default declarado no schema… */
     expect(itens[0].temas).toEqual([]);
     expect(itens[0].trilhas).toEqual([]);
-    expect(itens[0].titulo).toBe('Só o essencial');
-    /* Categoria fora do vocabulário do painel NÃO é convertida. */
+    expect(itens[0].descricao).toBe('');
+    expect(itens[0].fim).toBeNull();
+    expect(itens[0].espacoId).toBeNull();
+    /* …e a categoria desconhecida passa intacta, sem tradução. */
     expect(itens[0].tipo).toBe('mesa_redonda');
+    expect(itens[0].titulo).toBe('Só o essencial');
+  });
+
+  it('registro sem id é recusado como contrato incompatível', async () => {
+    const { http } = criarProvedorHttp({
+      '/admin/sessions': { corpo: lista([sessaoSem('id')]) },
+    });
+
+    await expect(http.list('sessions')).rejects.toSatisfy((e: unknown) => {
+      if (!ehErroAdmin(e)) return false;
+      expect(e.message).toMatch(/Contrato incompatível em GET \/admin\/sessions/);
+      expect(e.detalhes).toContain('itens.0.id: esperado string, veio undefined');
+      return true;
+    });
+  });
+
+  it('registro sem atualizadoEm é recusado — a escrita perderia o controle de versão', async () => {
+    const { http } = criarProvedorHttp({
+      '/admin/sessions/': { corpo: sessaoSem('atualizadoEm') },
+    });
+
+    await expect(http.get('sessions', 'ses_real_1')).rejects.toSatisfy((e: unknown) => {
+      if (!ehErroAdmin(e)) return false;
+      expect(e.message).toMatch(/Contrato incompatível em GET \/admin\/sessions\/ses_real_1/);
+      expect(e.detalhes).toContain('atualizadoEm: esperado string, veio undefined');
+      return true;
+    });
+  });
+
+  it('título ou nome ausente não é preenchido em silêncio', async () => {
+    const semTitulo = criarProvedorHttp({
+      '/admin/sessions': { corpo: lista([sessaoSem('titulo')]) },
+    });
+    await expect(semTitulo.http.list('sessions')).rejects.toSatisfy(
+      (e: unknown) => ehErroAdmin(e) && String(e.detalhes).includes('itens.0.titulo'),
+    );
+
+    const semNome = criarProvedorHttp({
+      '/admin/speakers': {
+        corpo: lista([{ ...PALESTRANTE_DA_API, nome: undefined }]),
+      },
+    });
+    await expect(semNome.http.list('speakers')).rejects.toSatisfy(
+      (e: unknown) => ehErroAdmin(e) && String(e.detalhes).includes('itens.0.nome'),
+    );
+  });
+
+  it('listagem sem itens é recusada no envelope', async () => {
+    const { http } = criarProvedorHttp({
+      '/admin/spaces': { corpo: { total: 27, pagina: 1, porPagina: 50 } },
+    });
+
+    await expect(http.list('spaces')).rejects.toSatisfy((e: unknown) => {
+      if (!ehErroAdmin(e)) return false;
+      expect(e.detalhes).toContain('itens: esperado array, veio undefined');
+      return true;
+    });
+  });
+
+  it('envelope sem total, pagina ou porPagina também é recusado', async () => {
+    const { http } = criarProvedorHttp({
+      '/admin/themes': { corpo: { itens: [TEMA_DA_API] } },
+    });
+
+    await expect(http.list('themes')).rejects.toSatisfy((e: unknown) => {
+      if (!ehErroAdmin(e)) return false;
+      const d = String(e.detalhes);
+      expect(d).toContain('total');
+      expect(d).toContain('pagina');
+      expect(d).toContain('porPagina');
+      return true;
+    });
+  });
+
+  it('tema exige id, codigo e rotulo — a API já devolve id = codigo', async () => {
+    const valido = criarProvedorHttp({ '/admin/themes': { corpo: lista([TEMA_DA_API]) } });
+    const { itens } = await valido.http.list('themes');
+    expect(itens[0]).toEqual(TEMA_DA_API);
+    expect(itens[0].id).toBe(itens[0].codigo);
+
+    const semCodigo = criarProvedorHttp({
+      '/admin/themes': { corpo: lista([{ id: 'cultura', rotulo: 'Cultura' }]) },
+    });
+    await expect(semCodigo.http.list('themes')).rejects.toSatisfy(
+      (e: unknown) => ehErroAdmin(e) && String(e.detalhes).includes('itens.0.codigo'),
+    );
+  });
+
+  it('o erro diz QUAL registro quebrou, sem revelar o conteúdo dele', async () => {
+    const { http } = criarProvedorHttp({
+      '/admin/sessions': {
+        corpo: lista([SESSAO_DA_API, { ...SESSAO_DA_API, id: undefined, titulo: 'Sigilo Absoluto' }]),
+      },
+    });
+
+    await expect(http.list('sessions')).rejects.toSatisfy((e: unknown) => {
+      if (!ehErroAdmin(e)) return false;
+      const texto = e.message + ' ' + JSON.stringify(e.detalhes);
+      /* Aponta o índice… */
+      expect(texto).toContain('itens.1.id');
+      /* …e não carrega o corpo da resposta. */
+      expect(texto).not.toContain('Sigilo Absoluto');
+      expect(texto).not.toContain('esp_real_1');
+      return true;
+    });
+  });
+
+  it('nada é escrito no console quando o contrato quebra', async () => {
+    const escrito: string[] = [];
+    const capturar = (...args: unknown[]) => escrito.push(args.map(String).join(' '));
+    const espioes = (['log', 'info', 'warn', 'error', 'debug'] as const).map((nivel) =>
+      vi.spyOn(console, nivel).mockImplementation(capturar),
+    );
+
+    try {
+      const { http } = criarProvedorHttp({
+        '/admin/sessions': {
+          corpo: lista([{ ...SESSAO_DA_API, id: undefined, descricao: 'Conteúdo Sigiloso' }]),
+        },
+      });
+      await expect(http.list('sessions')).rejects.toThrow(/Contrato incompatível/);
+    } finally {
+      espioes.forEach((e) => e.mockRestore());
+    }
+
+    expect(escrito.join('\n')).toBe('');
+  });
+
+  it('recurso sem schema passa sem conferência', async () => {
+    /* Rotas, estandes e afins ainda não têm contrato fechado; em modo
+       `http` eles não podem ser barrados por um schema que não existe. */
+    const { http } = criarProvedorHttp({
+      '/admin/routes': { corpo: lista([{ qualquer: 'coisa' }]) },
+    });
+
+    const { itens } = await http.list('routes');
+    expect(itens).toHaveLength(1);
   });
 });
 

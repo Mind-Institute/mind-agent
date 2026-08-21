@@ -14,8 +14,9 @@ import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
    - sem `VITE_ADMIN_API_BASE_URL` → `mock`, sempre. Sem endereço o
      painel não inventa um.
    - com a URL, `VITE_ADMIN_DATA_MODE` escolhe entre `mock`, `hybrid`
-     (dashboard real, cadastros simulados) e `http` (tudo real).
-     Ausente, o padrão é `hybrid` — o estado desta etapa. */
+     (núcleo do evento na API, módulos de apoio em memória — quais são
+     quais está em `RECURSOS_REAIS`) e `http` (tudo na API). Ausente, o
+     padrão é `hybrid`, o estado desta etapa. */
 
 export type ModoDados = 'mock' | 'http' | 'hybrid';
 

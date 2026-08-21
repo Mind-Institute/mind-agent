@@ -73,20 +73,29 @@ export const espacoFormSchema = z.object({
 export type EspacoForm = z.infer<typeof espacoFormSchema>;
 
 export const espacoSchema = registroBaseSchema.extend({
-  nome: z.string(),
-  slug: z.string(),
-  /* String, e não enum: tipo novo no backend precisa chegar à tela. */
-  tipo: z.string(),
-  aliases: z.array(z.string()),
-  descricao: z.string(),
-  comoChegar: z.string(),
-  localPrincipal: z.string(),
-  espacoPaiId: z.string().nullable(),
-  andar: z.string(),
-  coordenadaX: z.number().nullable(),
-  coordenadaY: z.number().nullable(),
-  acessivel: z.boolean(),
-  observacaoAcessibilidade: z.string(),
-  ativo: z.boolean(),
+  /* Obrigatórios: o nome identifica o lugar em toda resposta do agente,
+     e o tipo muda o que ele responde — "onde fica o palco" e "onde fica
+     o banheiro adaptado" não são a mesma pergunta.
+     String, e não enum: tipo novo no backend chega à tela com o próprio
+     código em vez de travar a listagem. */
+  nome: z.string().min(1),
+  tipo: z.string().min(1),
+
+  slug: z.string().default(''),
+  aliases: z.array(z.string()).default([]),
+  descricao: z.string().default(''),
+  comoChegar: z.string().default(''),
+  localPrincipal: z.string().default(''),
+  espacoPaiId: z.string().nullable().default(null),
+  andar: z.string().default(''),
+  coordenadaX: z.number().nullable().default(null),
+  coordenadaY: z.number().nullable().default(null),
+  /* Default `false`: sem a informação, o painel não promete
+     acessibilidade que ninguém confirmou. */
+  acessivel: z.boolean().default(false),
+  observacaoAcessibilidade: z.string().default(''),
+  /* Default `true`: registro que existe está em uso até alguém dizer o
+     contrário — é o que a listagem já assume ao filtrar por ativos. */
+  ativo: z.boolean().default(true),
 });
 export type Espaco = z.infer<typeof espacoSchema>;

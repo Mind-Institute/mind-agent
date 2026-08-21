@@ -25,17 +25,21 @@ export const eventoFormSchema = z.object({
 export type EventoForm = z.infer<typeof eventoFormSchema>;
 
 export const eventoSchema = registroBaseSchema.extend({
-  nome: z.string(),
-  slug: z.string(),
-  dataInicio: z.string(),
-  dataFim: z.string(),
-  local: z.string(),
-  cidade: z.string(),
-  fusoHorario: z.string(),
-  descricao: z.string(),
-  regraReserva: z.string(),
-  regraVagas: z.string(),
-  ativo: z.boolean(),
+  /* Obrigatórios: nome, datas e local são o que o agente repete em toda
+     resposta sobre quando e onde. Data ausente preenchida com '' faria a
+     grade calcular horário sobre nada. */
+  nome: z.string().min(1),
+  dataInicio: z.string().min(1),
+  dataFim: z.string().min(1),
+  local: z.string().min(1),
+
+  slug: z.string().default(''),
+  cidade: z.string().default(''),
+  fusoHorario: z.string().default(''),
+  descricao: z.string().default(''),
+  regraReserva: z.string().default(''),
+  regraVagas: z.string().default(''),
+  ativo: z.boolean().default(true),
   /**
    * Locais que aparecem em fontes diferentes do projeto. O painel NÃO
    * escolhe entre eles — mostra a divergência para alguém decidir.

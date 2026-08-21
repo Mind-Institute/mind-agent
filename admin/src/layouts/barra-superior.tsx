@@ -14,9 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+/* Selo curto; a faixa logo abaixo nomeia módulo por módulo. */
 const ROTULO_MODO: Record<string, { texto: string; variante: 'sucesso' | 'destructive' | 'atencao' }> = {
   mock: { texto: 'dados simulados', variante: 'destructive' },
-  hybrid: { texto: 'dashboard real · cadastros mock', variante: 'atencao' },
+  hybrid: { texto: 'núcleo real · apoio em demonstração', variante: 'atencao' },
   http: { texto: 'API administrativa', variante: 'sucesso' },
 };
 

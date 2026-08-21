@@ -14,14 +14,18 @@ export const palestranteFormSchema = z.object({
 export type PalestranteForm = z.infer<typeof palestranteFormSchema>;
 
 export const palestranteSchema = registroEditorialSchema.extend({
-  nome: z.string(),
-  cargo: z.string(),
-  organizacao: z.string(),
-  biografia: z.string(),
-  foto: z.string(),
-  temas: z.array(z.string()),
-  destaque: z.boolean(),
+  /* Obrigatório: é como a pessoa é identificada em toda a interface. */
+  nome: z.string().min(1),
+
+  /* O resto é conteúdo editorial — vazio é estado legítimo, e o painel
+     já mostra "falta biografia" como pendência. */
+  cargo: z.string().default(''),
+  organizacao: z.string().default(''),
+  biografia: z.string().default(''),
+  foto: z.string().default(''),
+  temas: z.array(z.string()).default([]),
+  destaque: z.boolean().default(false),
   /** Preenchido pelo provedor a partir das sessões — leitura apenas. */
-  sessaoIds: z.array(z.string()),
+  sessaoIds: z.array(z.string()).default([]),
 });
 export type Palestrante = z.infer<typeof palestranteSchema>;
