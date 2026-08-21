@@ -1,176 +1,128 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="robots" content="noindex" />
-<title>Mind Agent — Mind Summit 2026</title>
-<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-<link rel="apple-touch-icon" href="./assets/simbolo-mind-verde.png" />
-<link rel="stylesheet" href="./styles.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <title>Mind Agent — Central do Evento</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="./assets/simbolo-mind-verde.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./chat-format.css" />
 </head>
 <body>
+  <div class="app-shell" id="app">
+    <header class="topbar">
+      <span class="brand"><img src="./assets/simbolo-mind-verde.png" alt="" />Mind Agent</span>
+      <span class="top-actions">
+        <span class="preview-badge" id="preview-badge" hidden></span>
+        <button class="icon-button" id="help-open" type="button" aria-label="O que é a central do evento">?</button>
+      </span>
+    </header>
 
-  <!-- ============ SPLASH: animação de abertura ============ -->
-  <div class="splash" id="splash">
-    <div class="splash-cena">
-      <span class="splash-marca"><span class="splash-halo"></span>
-      <svg class="splash-simbolo" viewBox="698.13 264.35 522.24 522.24" role="img" aria-label="Mind">
-        <path d="M1143.23,448.33c-21.02,0-40.08,8.41-53.99,22.05-32.36,27.8-75.06,45.12-121.83,46.93,1.81-46.77,19.14-89.47,46.93-121.83,13.64-13.91,22.05-32.97,22.05-53.99,0-42.6-34.54-77.14-77.14-77.14s-77.14,34.54-77.14,77.14c0,21.02,8.41,40.08,22.05,53.99,27.79,32.36,45.12,75.06,46.93,121.83-46.77-1.81-89.47-19.14-121.83-46.93-13.91-13.64-32.97-22.05-53.99-22.05-42.6,0-77.14,34.54-77.14,77.14s34.54,77.14,77.14,77.14c21.02,0,40.08-8.41,53.99-22.05,32.36-27.79,75.06-45.12,121.83-46.93-1.81,46.77-19.14,89.47-46.93,121.83-13.64,13.91-22.05,32.97-22.05,53.99,0,42.6,34.54,77.14,77.14,77.14s77.14-34.54,77.14-77.14c0-21.02-8.41-40.08-22.05-53.99-27.8-32.36-45.12-75.06-46.93-121.83,46.77,1.81,89.47,19.14,121.83,46.93,13.91,13.64,32.97,22.05,53.99,22.05,42.6,0,77.14-34.54,77.14-77.14s-34.54-77.14-77.14-77.14Z" />
-      </svg></span>
-      <p class="splash-fala" id="splash-fala"></p>
-      <span class="splash-selo">mind <b>summit</b> · 2026</span>
-    </div>
-    <button class="splash-pular" id="pular" type="button">Pular</button>
-  </div>
+    <main class="main-scroll" id="main-scroll">
+      <span class="eyebrow journey-eyebrow">Sua jornada</span>
+      <h1>Hoje no <em>Mind</em></h1>
 
-  <!-- ============ HOME: o Mind Agent ============ -->
-  <section class="vista ativa" id="vista-home">
-    <div class="home-rolagem">
-      <header class="h-topo">
-        <span class="h-marca"><img src="./assets/simbolo-mind-verde.png" alt="" />Mind Agent</span>
-        <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
-        <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
+      <div class="day-tabs" id="day-tabs" role="tablist" aria-label="Dias do evento"></div>
+
+      <section class="progress-block" aria-label="Progresso do dia">
+        <div class="progress-copy"><span id="progress-label">Programação oficial</span><strong id="progress-value"></strong></div>
+        <div class="progress-track"><span id="progress-bar"></span></div>
+      </section>
+
+      <div id="status-area" aria-live="polite"></div>
+
+      <section class="agenda-section">
+        <span class="eyebrow" id="agenda-label">Programação de hoje</span>
+        <div id="agenda-list"></div>
+        <button class="text-button" id="agenda-toggle" type="button" hidden></button>
+      </section>
+
+      <aside class="anonymous-note" id="anonymous-note" hidden>
+        <strong>Você está vendo a programação oficial</strong>
+        <span>Abra a central pelo app do Summit para eu reconhecer sua sessão com segurança e montar uma jornada personalizada.</span>
+      </aside>
+
+      <div class="section-divider"></div>
+      <div class="content-tabs" id="content-tabs" role="tablist" aria-label="Central do evento">
+        <button class="active" type="button" data-tab="agora" role="tab">Agora</button>
+        <button type="button" data-tab="conteudos" role="tab">Conteúdos</button>
+      </div>
+      <section class="cards-area" id="cards-area" aria-live="polite"></section>
+
+      <p class="event-footer" id="event-footer"></p>
+    </main>
+
+    <footer class="chat-dock">
+      <button class="chat-launch" id="chat-open" type="button">
+        <img src="./assets/simbolo-mind-preto.png" alt="" />Fale com a Mind
+      </button>
+    </footer>
+
+    <section class="overlay chat-overlay" id="chat-overlay" role="dialog" aria-modal="true" aria-label="Chat com a Mind" hidden>
+      <header class="overlay-header">
+        <button class="icon-button" id="chat-close" type="button" aria-label="Voltar para a central">‹</button>
+        <span class="chat-avatar"><img src="./assets/simbolo-mind-verde.png" alt="" /></span>
+        <span><strong>Mind Agent</strong><small><i></i><span id="chat-status">Responde na hora</span></small></span>
       </header>
-
-      <p class="h-sub">Seu concierge dentro do Summit</p>
-      <h1 class="h-titulo">O que você quer fazer<em>?</em></h1>
-
-      <!-- As intenções são montadas a partir dos dados do data-service -->
-      <div class="h-intencoes" id="intencoes"></div>
-
-      <div class="h-divisor"></div>
-      <span class="h-etq">Conheça o aplicativo</span>
-      <button class="h-tour" id="abrir-tour" type="button"><span class="play">▶</span> Fazer tour do app</button>
-
-      <p class="h-rodape">Mind Summit 2026 · 16–17 set · São Paulo Expo</p>
-    </div>
-
-    <div class="doca">
-      <form id="form-home">
-        <input type="text" id="campo-home" placeholder="Ou escreva o que você precisa…" autocomplete="off" enterkeyhint="send" />
-        <button type="button" class="mic" id="btn-mic" aria-label="Perguntar por voz">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg>
-        </button>
-        <button type="submit" class="enviar" aria-label="Enviar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+      <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+      <p class="privacy-note">IA conectada à base oficial · e-mail e telefone são mascarados.</p>
+      <div class="suggestions" id="suggestions"></div>
+      <form class="chat-form" id="chat-form">
+        <input id="chat-input" type="text" placeholder="Escreva o que você precisa…" autocomplete="off" enterkeyhint="send" aria-label="Mensagem para a Mind" />
+        <button type="submit" aria-label="Enviar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" /></svg>
         </button>
       </form>
-    </div>
-  </section>
+    </section>
 
-  <!-- ============ CHAT ============ -->
-  <section class="vista" id="vista-chat">
-    <div class="c-topo">
-      <button class="c-voltar" data-volta aria-label="Voltar">‹</button>
-      <span class="avatar"><img src="./assets/simbolo-mind-verde.png" alt="" /></span>
-      <div>
-        <strong>Mind Agent</strong>
-        <small>Responde na hora</small>
+    <div class="sheet-backdrop" id="detail-backdrop" hidden>
+      <section class="sheet" role="dialog" aria-modal="true" aria-label="Detalhes da atividade">
+        <span class="eyebrow green" id="detail-label"></span>
+        <h2 id="detail-title"></h2>
+        <strong class="detail-line" id="detail-line"></strong>
+        <p id="detail-description"></p>
+        <div class="detail-tags" id="detail-tags"></div>
+        <button class="primary-button" id="detail-close" type="button">Entendi</button>
+      </section>
+    </div>
+
+    <div class="sheet-backdrop" id="help-backdrop" hidden>
+      <section class="sheet" role="dialog" aria-modal="true" aria-label="O que é a central do evento">
+        <h2>A central do evento</h2>
+        <p>Sua jornada fica sempre no topo. O resto da tela muda com o dia: os cards entram quando servem e saem quando deixam de servir.</p>
+        <ul class="help-list">
+          <li>Sua programação oficial vem do Supabase.</li>
+          <li>O chat responde pela IA usando apenas dados oficiais.</li>
+          <li>Dados pessoais só aparecem depois de identificação segura.</li>
+          <li>Enquetes e avaliações só aparecem quando publicadas.</li>
+        </ul>
+        <p class="help-note">Perfil e histórico não são enviados ao modelo.</p>
+        <a class="secondary-link" href="./classic.html">Abrir experiência clássica e tour do app</a>
+        <button class="primary-button" id="help-close" type="button">Entendi</button>
+      </section>
+    </div>
+
+    <div class="welcome" id="welcome" role="dialog" aria-label="Boas-vindas da Mind" hidden>
+      <span class="welcome-symbol"><i></i><img src="./assets/simbolo-mind-coral.png" alt="" /></span>
+      <p id="welcome-copy">Bem-vindo ao Mind Summit.</p>
+      <span class="welcome-brand">mind <b>summit</b> · 2026</span>
+      <button id="welcome-skip" type="button">Pular</button>
+    </div>
+
+    <aside class="simulation" id="simulation" hidden>
+      <button id="simulation-toggle" type="button"><i></i>Simulação</button>
+      <div id="simulation-panel" hidden>
+        <span class="eyebrow coral">Simulação de horário</span>
+        <strong id="simulation-clock">--:--</strong>
+        <input id="simulation-range" type="range" min="420" max="1200" step="5" aria-label="Horário simulado" />
+        <div id="simulation-scenarios"></div>
+        <button id="rules-test" type="button">Rodar testes das regras</button>
+        <p id="rules-result"></p>
       </div>
-    </div>
-
-    <div class="mensagens" id="mensagens" aria-live="polite"></div>
-    <p class="aviso-mock">IA conectada à base oficial · e-mail e telefone são mascarados.</p>
-
-    <div class="doca">
-      <form id="form-chat">
-        <input type="text" id="campo-chat" placeholder="Escreva o que você precisa…" autocomplete="off" enterkeyhint="send" />
-        <button type="button" class="mic" aria-label="Perguntar por voz">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg>
-        </button>
-        <button type="submit" class="enviar" aria-label="Enviar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
-        </button>
-      </form>
-    </div>
-  </section>
-
-  <!-- ============ SEU SUMMIT: o perfil que cresce ============ -->
-  <section class="vista" id="vista-summit">
-    <div class="c-topo">
-      <button class="c-voltar" data-volta aria-label="Voltar">‹</button>
-      <span class="avatar"><img src="./assets/simbolo-mind-verde.png" alt="" /></span>
-      <div>
-        <strong>Seu Summit</strong>
-        <small id="summit-sub">Vai se desenhando conforme você usa</small>
-      </div>
-    </div>
-    <div class="s-rolagem">
-      <div class="mapa-caixa" id="mapa-caixa"></div>
-      <div class="legenda">
-        <span><i style="background:var(--verde)"></i>Temas</span>
-        <span><i style="background:var(--acao)"></i>Sessões</span>
-        <span><i style="background:var(--roxo)"></i>Pessoas</span>
-        <span><i style="background:var(--coral)"></i>Insights</span>
-      </div>
-      <div class="contadores" id="contadores"></div>
-      <div class="s-linha" id="s-linha"></div>
-    </div>
-  </section>
-
-  <!-- ============ TOUR: navegação real ============ -->
-  <section class="vista" id="vista-tour">
-    <div class="t-missao">
-      <button class="c-voltar" id="fechar-tour" aria-label="Fechar tour">×</button>
-      <p class="t-texto" id="missao-texto"><i>1/7</i>Salvar uma sessão na sua agenda</p>
-      <span class="t-prog" id="missao-prog" aria-hidden="true"></span>
-      <button class="c-voltar" id="ver-missoes" aria-label="Ver missões">☰</button>
-    </div>
-
-    <div class="t-palco">
-      <div class="fone" id="fone">
-        <div class="frame" id="frame">
-          <div class="conteudo" id="conteudo">
-            <img id="tela-img" alt="" />
-          </div>
-          <div class="rotulo" id="rotulo"></div>
-          <div class="balao base" id="balao"></div>
-          <div class="brinde" id="brinde"></div>
-          <div class="folha-fundo" id="folha-fundo">
-            <div class="folha" id="folha"></div>
-          </div>
-        </div>
-        <nav class="fnav" id="fnav" aria-label="Abas do app"></nav>
-      </div>
-    </div>
-
-    <div class="missoes-fundo" id="missoes-fundo">
-      <div class="missoes-cartao">
-        <h3>Suas missões</h3>
-        <ol id="missoes-lista"></ol>
-        <button type="button" id="fechar-missoes">Continuar o tour</button>
-        <button type="button" class="sair" id="sair-tour">Sair do tour</button>
-      </div>
-    </div>
-
-    <div class="fim-fundo" id="fim-fundo">
-      <div class="fim-cartao">
-        <img src="./assets/simbolo-mind-verde.png" alt="" />
-        <h3>Você mandou bem!</h3>
-        <p>Já sabe salvar uma sessão, reservar seu lugar, ver sua agenda, usar o QR Code, achar o mapa e adicionar contatos. E lembre: no <b>Chat</b> do app eu fico à disposição para dúvidas, sugestão de conteúdo e agenda, bios de palestrantes e logística. O que eu não souber, eu sei quem sabe. 😉</p>
-        <button class="btn-verde" type="button" id="btn-concluir">Concluir tour</button>
-        <button class="link-mind" type="button" id="tour-para-chat">Perguntar ao Mind Agent →</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Cartão de ajuda -->
-  <div class="ajuda-fundo" id="ajuda">
-    <div class="ajuda-cartao">
-      <h2>O que é o Mind Agent?</h2>
-      <p>Mais que um chatbot: uma camada inteligente de navegação do Summit, que reconhece quem é você e acompanha sua jornada nos dois dias.</p>
-      <ul class="ajuda-lista">
-        <li><b>Reconhece você</b> pela plataforma Yazo (ou pelo e-mail) e retoma de onde parou.</li>
-        <li><b>Lembra do contexto</b> — perfil, objetivos, interesses e o que já conversamos — para recomendar as sessões certas.</li>
-        <li><b>Age sozinho quando ajuda</b>: lembra da reserva antes de começar, chama para a enquete na palestra, pede feedback depois e manda o material por WhatsApp.</li>
-        <li><b>Responde com base atualizada</b> (RAG) sobre agenda, palestrantes, salas e horários — sem inventar.</li>
-      </ul>
-      <p class="ajuda-nota">A IA usa a base oficial. Perfil e histórico não são enviados ao modelo.</p>
-      <button type="button" id="fechar-ajuda">Entendi</button>
-    </div>
+    </aside>
   </div>
-
-<script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
