@@ -20,6 +20,13 @@
 name = "mind-agent"
 compatibility_date = "2026-08-20"
 
+# O Workers Builds não tem comando de build configurado no painel: ele
+# instala dependências na raiz (vazia) e chama direto o wrangler. Este
+# passo garante que o wrangler mesmo monte o `dist/` antes de subir —
+# instalando as dependências do painel, que ficam em admin/.
+[build]
+command = "npm ci --prefix admin && npm run build"
+
 [assets]
 directory = "./dist"
 
