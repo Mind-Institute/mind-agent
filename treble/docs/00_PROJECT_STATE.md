@@ -40,6 +40,17 @@ handoff humano, opt-out.
 - [ ] **API key do Treble**: guardar como secret no Supabase
       (`TREBLE_API_KEY`), nunca no chat nem no repositório
 
+## Nota: CI de deploy do site (fora do escopo do bot, registrado aqui)
+
+O Workers Builds da Cloudflare (worker `mind-agent`, conectado ao repo em
+2026-08-21) falhava em todo push por dois problemas combinados: nome no
+`wrangler.toml` divergente do worker (`mindagent` × `mind-agent`) e
+ausência de comando de build no CI — o deploy rodava sem o `dist/`
+existir. Correções no repositório: nome alinhado e passo `[build]` do
+wrangler montando o `dist/` antes do upload (validado localmente
+simulando o ambiente limpo do CI). Aguardando build verde para
+confirmar o encerramento.
+
 ## Próximos passos (ordem completa em [`06_PLANO_EXECUCAO.md`](06_PLANO_EXECUCAO.md))
 
 1. Criar as tabelas do MVP no projeto Supabase `mind-agent`
