@@ -10,6 +10,9 @@
     "build:admin": "npm run build --prefix admin",
     "build:cloudflare": "node scripts/build-cloudflare.mjs",
     "preview:cloudflare": "node scripts/servir-cloudflare.mjs",
+    "banco:inspecionar": "node scripts/alimentar-banco.mjs inspecionar",
+    "banco:lacunas": "node scripts/alimentar-banco.mjs lacunas",
+    "banco:aplicar": "node scripts/alimentar-banco.mjs aplicar",
     "typecheck:admin": "npm run typecheck --prefix admin",
     "test:admin": "npm run test --prefix admin",
     "deploy": "wrangler deploy"

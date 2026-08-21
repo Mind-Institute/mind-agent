@@ -98,6 +98,40 @@ Os demais módulos do painel ainda rodam em memória. O painel marca na
 tela o que é simulado (`faixa-demonstracao`, `aviso-escrita`) e recusa
 operação que o contrato não tem, em vez de mandar e traduzir o 404.
 
+### Escrita em lote — `scripts/alimentar-banco.mjs`
+
+O painel edita um registro por vez, o que é certo para curadoria e caro
+para preencher lacuna em 30 sessões. O script faz isso pela **mesma**
+Edge Function — logo herda validação, tradução admin→chat, auditoria e
+RLS. Não existe atalho pelo Postgres, e ele recusa token cuja `role` não
+seja `authenticated`.
+
+```
+npm run banco:inspecionar                        # snapshot + relatório de lacunas
+npm run banco:lacunas                            # só o relatório, do snapshot
+npm run banco:aplicar -- plano.json              # dry-run: mostra o diff
+npm run banco:aplicar -- plano.json --aplicar    # escreve
+```
+
+Um plano é dado, não código — `{ recurso, acao, id, campos, motivo }`,
+com `acao` em `atualizar` | `criar` | `publicar`. Três garantias que
+importam:
+
+- **Dry-run é o padrão.** Sem `--aplicar` nada sai da máquina.
+- **Campo com conteúdo não é sobrescrito** sem `--sobrescrever`. O banco
+  está à frente do repositório; presumir o contrário apaga trabalho.
+- **Toda escrita manda `If-Unmodified-Since-Version`.** Registro que
+  mudou desde o snapshot dá conflito em vez de atropelar o painel.
+
+O token do operador vem de `MINDAGENT_ADMIN_TOKEN` no ambiente ou em
+`.env.admin.local` (ignorado pelo git) — nunca por argumento, que vaza
+em histórico de shell. Snapshot e diário de escritas ficam em `.banco/`,
+também fora do git: retrato de um instante não é fonte de verdade.
+
+**Cuidado:** sessão já publicada aparece no chat na hora do `PATCH`. Não
+existe rascunho de campo — o fluxo editorial é do registro, não da
+edição.
+
 ## Onde os dois nomes divergem
 
 O Admin edita em um vocabulário e o Chat lê em outro. **A tradução mora

@@ -13,3 +13,14 @@ Thumbs.db
 # Saída do deploy — montada por `npm run build`
 /dist-cloudflare/
 /dist/
+
+# Variáveis de ambiente reais — nunca versionar. O .gitignore de `admin/`
+# já cobria as dele; a raiz não cobria nada, e é aqui que fica o token do
+# operador usado por `scripts/alimentar-banco.mjs`.
+.env
+.env.*
+!.env.example
+
+# Snapshots e diários de escrita do `alimentar-banco.mjs`. Retrato do
+# banco num instante, não fonte de verdade — o banco é a fonte.
+/.banco/
