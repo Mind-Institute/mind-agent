@@ -49,6 +49,8 @@ export interface OpcoesRender {
   baseUrlApi?: string;
   chavePublicavel?: string | null;
   fetchImpl?: typeof fetch;
+  /** Prefixo do roteador, como em produção (`/admin`). */
+  basename?: string;
 }
 
 export interface ResultadoRender extends RenderResult {
@@ -69,10 +71,11 @@ export function renderizarPainel({
   baseUrlApi,
   chavePublicavel = null,
   fetchImpl,
+  basename,
 }: OpcoesRender = {}): ResultadoRender {
   const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0, agora });
   const instancia = typeof usado === 'function' ? null : usado;
-  const roteador = createMemoryRouter(rotasAdmin, { initialEntries: [rota] });
+  const roteador = createMemoryRouter(rotasAdmin, { initialEntries: [rota], basename });
   const cliente = criarClienteDeConsulta();
   clientesVivos.add(cliente);
 

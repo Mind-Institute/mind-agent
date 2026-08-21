@@ -43,6 +43,12 @@ export const CONFIG = {
    abriu a página; sem identidade o agente cumprimenta sem nome —
    ele nunca chuta um.
 
+   Quem usa isto é o chat clássico, `/classic.html`. A Central do
+   Evento (`/`) tem a sua própria leitura de identidade, em
+   `agent-dados.js`, com política diferente: lá `?nome` e `?email` só
+   valem em `?preview=1`. As duas conviverem é decisão pendente, não
+   descuido — está anotada no README.
+
    Como a identidade chega, em ordem de precedência:
 
    1. Query string — o app do evento embeda a página com o e-mail de
@@ -64,8 +70,9 @@ export const CONFIG = {
    nunca para liberar dado sensível. E nada daqui vai para a OpenAI:
    o payload do chat (`shared/CONTRATOS.md`) continua sem identidade.
 
-   Para testar: abra com `?email=teste@mind.com&nome=Fulana` ou chame
-   `definirParticipante({ nome: 'Fulana' })` antes do primeiro chat.
+   Para testar: abra `/classic.html?email=teste@mind.com&nome=Fulana`
+   ou chame `definirParticipante({ nome: 'Fulana' })` antes do primeiro
+   chat.
 */
 export const PARTICIPANTE = {
   nome: null,
@@ -95,8 +102,16 @@ export function definirParticipante(dados) {
   return PARTICIPANTE;
 }
 
-/* Roda no import: a URL manda; sem URL, vale o que ficou guardado. */
-(function capturarIdentidade() {
+/* Lê a identidade: a URL manda; sem URL, vale o que ficou guardado.
+
+   NÃO roda no import, e isso é deliberado. A Central do Evento
+   (`app.js` → `agent-dados.js`) tem a sua própria leitura de `?nome` e
+   `?email`, e só confia neles em `?preview=1`. Se a captura fosse efeito
+   de import, ela rodaria na home também — pela cadeia `app.js →
+   chat-service.js → config.js` — e apagaria os parâmetros da URL antes
+   de a home os ler. Quem quer identidade chama. Hoje é só o chat
+   clássico (`app-classic.js`). */
+export function capturarIdentidade() {
   let daUrl = null;
   try {
     const params = new URLSearchParams(location.search);
@@ -111,9 +126,10 @@ export function definirParticipante(dados) {
     }
   } catch { /* URL ilegível não derruba a página */ }
 
-  if (daUrl) { definirParticipante(daUrl); return; }
+  if (daUrl) return definirParticipante(daUrl);
   try {
     const guardado = JSON.parse(localStorage.getItem(CHAVE_PARTICIPANTE));
     if (guardado) definirParticipante(guardado);
   } catch { /* storage vazio ou corrompido: segue anônimo */ }
-})();
+  return PARTICIPANTE;
+}

@@ -11,4 +11,5 @@ Thumbs.db
 *.log
 
 # Saída do deploy — montada por `npm run build`
+/dist-cloudflare/
 /dist/

@@ -182,7 +182,7 @@ Nenhuma outra linha do frontend sabe de onde vêm os dados: `app.js` só chama
 O que fica para as próximas etapas: levar a identidade do participante ao
 backend do agente (hoje ela para no navegador — ver “Identidade do
 participante”), e mover as respostas dos seis fluxos de intenção — hoje montadas
-localmente em `app.js` — para o RAG do agente.
+localmente em `app-classic.js` — para o RAG do agente.
 
 ## `summit.json` como fallback
 
@@ -197,6 +197,14 @@ e 44). Serve para a página não morrer numa queda do bootstrap; vale regerar de
 vez em quando para a diferença não crescer.
 
 ## Identidade do participante (embed pelo app do evento)
+
+Quem usa o que está descrito aqui é o **chat clássico, `/classic.html`**. A
+Central do Evento (`/`) tem a sua própria leitura de identidade, em
+`agent-dados.js`, com política mais fechada: lá `?nome` e `?email` só valem
+sob `?preview=1`, e um e-mail fora disso é marcado como não verificado. As
+duas conviverem é **decisão pendente** — unificar significa escolher uma
+política de confiança para `?email`, e isso é chamada de produto, não de
+refactor.
 
 A identidade é **opcional por definição**, em `config.js`:
 
@@ -216,7 +224,7 @@ qualquer um dos dois caminhos:
 - **Query string** (o combinado com o fornecedor do app):
 
   ```
-  https://mind-agent.adriana-3eb.workers.dev/?email=fulana@empresa.com&nome=Fulana
+  https://mind-agent.adriana-3eb.workers.dev/classic.html?email=fulana@empresa.com&nome=Fulana
   ```
 
   `email` (ou `user_email`) identifica; `nome` (ou `name`) é opcional. A página
@@ -254,7 +262,8 @@ mostra o caminho; a ação é sempre da pessoa. Espelha o template
 
 ## Integrações
 
-A página aceita ser embedada e responde a três gatilhos:
+O chat clássico (`/classic.html`) aceita ser embedado e responde a três
+gatilhos:
 
 - `?email=…&nome=…` na URL ou
   `postMessage({ tipo: 'mindagent:identidade', email, nome })` — identifica o
