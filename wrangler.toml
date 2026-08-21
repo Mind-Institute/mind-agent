@@ -15,7 +15,9 @@
 # `OPENAI_API_KEY`) ficam nas Edge Functions do Supabase, configuradas
 # por lá. O frontend só carrega a publishable key, que é pública.
 
-name = "mindagent"
+# O nome precisa bater com o worker ao qual o Workers Builds está
+# atrelado na Cloudflare ("mind-agent") — divergência aqui derruba o CI.
+name = "mind-agent"
 compatibility_date = "2026-08-20"
 
 [assets]
