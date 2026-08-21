@@ -7,9 +7,10 @@ dependências: uma página que abre em qualquer navegador ou por QR code.
 Veio da pasta `mindagent/` do repositório `Mind-Institute/mindsummit2026`, onde
 existia só na branch de preview. Aqui é o projeto — separado do mapa do evento.
 
-Estado atual: **frontend consolidado, pronto para receber backend.** A camada de
-dados já está isolada e a identidade do participante já é opcional; falta ligar
-o `mindagent-bootstrap` e a Yazo. Sem deploy configurado e sem Supabase.
+Estado atual: **frontend consolidado e lendo do `mindagent-bootstrap`.** A
+programação vem da API (10 temas, 67 sessões, 44 palestrantes), com o
+`dados/summit.json` do repositório como fallback. Falta a identidade via Yazo e
+o deploy.
 
 ## Como executar localmente
 
@@ -33,7 +34,7 @@ Live Server). Não há passo de build: o que está no repositório é o que roda
 | `app.js` | A aplicação: splash, navegação, motor do tour, chat, perfil vivo e o mapa. ES module — entra por `<script type="module">`. |
 | `config.js` | Configuração central e a identidade do participante. O único lugar que sabe de onde vêm os dados e quem está usando. |
 | `data-service.js` | A camada de dados. Ninguém mais no frontend chama `fetch` de conteúdo. |
-| `dados/summit.json` | A programação — evento, 10 temas, 53 sessões, 39 pessoas. Fonte temporária (ver abaixo). |
+| `dados/summit.json` | Cópia congelada da programação (10 temas, 53 sessões, 39 pessoas). Só é lida se a API não responder (ver abaixo). |
 | `assets/tour/` | As 12 capturas de tela do app usadas pelo tour. |
 | `assets/palestrantes/` | As 39 fotos referenciadas por `pessoas[].foto`. |
 | `assets/` | Símbolo Mind, favicon e a fonte Satoshi (`.woff2`). |
@@ -49,14 +50,14 @@ Tudo em `config.js`:
 ```js
 export const CONFIG = {
   eventSlug: 'mind-summit-2026',
-  apiBaseUrl: null,        // raiz do mindagent-bootstrap; null = usa o arquivo local
-  useLocalFallback: true,  // permite cair no dados/summit.json do repositório
+  apiBaseUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-bootstrap',
+  useLocalFallback: true,  // cai no dados/summit.json se a API não responder
 };
 ```
 
-Nenhuma chave de Supabase, URL de Edge Function ou credencial mora aqui — nem
-vai morar. Quem guarda segredo é o `mindagent-bootstrap`; o frontend só fala
-com ele.
+A URL do bootstrap é pública e abre sem autenticação — **nenhuma chave, `anon
+key` ou credencial mora no cliente.** Quem guarda segredo é o
+`mindagent-bootstrap`, do lado do servidor.
 
 ## Contrato da camada de dados
 
@@ -91,34 +92,36 @@ A ordem das origens sai do config: com `apiBaseUrl` preenchida a API vem
 primeiro e o arquivo local vira rede de segurança; com ela nula, só o arquivo.
 Desligar as duas deixa a página sem fonte — e ela diz isso na tela.
 
-## Uso temporário de `summit.json`
+## Integração com o `mindagent-bootstrap`
 
-`dados/summit.json` é **fonte de transição**, não o destino. Ele é gerado por
-`scripts/gerar-dados-mindagent.mjs` no repositório do site, a partir de
-`src/data/programacao.json` e `src/data/speakers.json` — **não editar à mão**,
-a edição se perde na próxima geração.
+A API é a origem oficial. O `data-service.js` pede
+`GET {apiBaseUrl}/eventos/{eventSlug}/summit` e recebe a forma do contrato, com
+`_meta.generated_at` e `_meta.schema_version` por cima (campos extra são
+ignorados). Validado em 20/08/2026: **10 temas, 67 sessões, 44 palestrantes**,
+`Access-Control-Allow-Origin: *`, sem autenticação, `Cache-Control: max-age=60`.
 
-Ele existe para o frontend poder ser construído e testado antes do backend. É
-uma cópia congelada: horário que muda na Yazo não chega aqui até alguém rodar o
-gerador de novo.
+Uma observação para quem for mexer no bootstrap: hoje a função **ignora o
+caminho** — responde a mesma coisa na raiz e em
+`/eventos/mind-summit-2026/summit`. O frontend já manda o caminho completo, então
+o dia em que a função passar a rotear por evento, nada muda aqui.
 
-## Integração futura com o `mindagent-bootstrap`
+Nenhuma outra linha do frontend sabe de onde vêm os dados: `app.js` só chama
+`carregarDadosSummit()`.
 
-Quando o `mindagent-bootstrap` entrar no ar, a troca é de uma linha:
-
-```js
-apiBaseUrl: 'https://…',   // em vez de null
-```
-
-O `data-service.js` passa a pedir
-`GET {apiBaseUrl}/eventos/{eventSlug}/summit` e mantém o arquivo local como
-fallback enquanto `useLocalFallback` estiver ligado. Se a resposta da API vier
-na forma do contrato, **nenhuma outra linha do frontend muda** — `app.js` não
-sabe nem precisa saber de onde vem.
-
-O que fica para essa etapa: a forma exata da resposta (hoje o caminho da URL é
-uma suposição razoável, não um acordo), autenticação, e mover as respostas do
+O que fica para as próximas etapas: identidade via Yazo, e mover as respostas do
 chat — hoje simuladas por palavras-chave em `app.js` — para o RAG do agente.
+
+## `summit.json` como fallback
+
+`dados/summit.json` deixou de ser a fonte e virou rede de segurança: só é lido
+se a API não responder. Ele é gerado por `scripts/gerar-dados-mindagent.mjs` no
+repositório do site, a partir de `src/data/programacao.json` e
+`src/data/speakers.json` — **não editar à mão**, a edição se perde na próxima
+geração.
+
+É uma cópia congelada e já está atrás da API (53 sessões e 39 pessoas, contra 67
+e 44). Serve para a página não morrer numa queda do bootstrap; vale regerar de
+vez em quando para a diferença não crescer.
 
 ## Identidade futura via Yazo
 
