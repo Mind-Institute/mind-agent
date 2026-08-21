@@ -91,3 +91,19 @@ Guardrails nascem seguros: sem regra ativa liberando, desconto e menção a
 cupom são proibidos por default.
 Descarta: as tabelas `tickets`, `faq` e `event_info` previstas nos docs —
 substituídas pelos equivalentes que já existiam.
+
+**D-13 — Desconto de grupo é sempre pelos tiers percentuais.** (2026-08-21, Adriana)
+Existiam dois mecanismos na Eduzz: produtos "Grupo VIP" com valor fixo
+(R$250/500 off) e os `pricing_tiers` percentuais (5–9: 10% · 10+: 20% ·
+15+: 30% · 20+: 35%). Decisão da Adriana: o bot cita só os tiers e
+transfere grupo para vendedor fechar. As ofertas de grupo de valor fixo
+ficam `ativo=false, publico=false` e a sync nunca as reativa.
+
+**D-14 — Cérebro v0.1: contexto completo por turno, sem loop de tools.** (2026-08-21)
+Como o conjunto de dados comerciais é pequeno (ofertas vigentes + próximo
+lote + regras + políticas + FAQ), o v0.1 injeta o contexto oficial inteiro
+a cada turno (RPC `treble_agent_context`) e faz UMA chamada ao LLM com
+saída estruturada — cabe no limite de 10 s do webhook do Treble. Guardrail
+extra em código: preço "R$ X" na resposta que não exista no contexto
+derruba o turno para handoff. Loop de tool-calling fica para quando o
+contexto crescer (ex.: agenda completa).

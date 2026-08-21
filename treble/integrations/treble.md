@@ -1,7 +1,41 @@
 # Integração Treble — contrato e roteiro de configuração
 
-> Status: contrato definido; roteiro passo a passo será completado na
-> Fase 3 (ver `../docs/06_PLANO_EXECUCAO.md`), com prints do painel.
+> Status (2026-08-21): **cérebro v0.1 no ar e testado isolado** — Edge
+> Function `treble-inbound-agent`. Falta só a montagem do fluxo no painel
+> do Treble (roteiro abaixo).
+
+## Roteiro de montagem no painel (fluxo de teste)
+
+URL do webhook (o `TOKEN` fica fora do repositório — pedir no chat da
+sessão ou rodar `select public.treble_agent_token()`):
+
+```
+https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/treble-inbound-agent?token=TOKEN
+```
+
+1. **Bloco de entrada** (mensagem simples): saudação curta. Ativar
+   *salvar resposta* com o nome de variável **`mensagem`** (texto).
+2. Na saída desse bloco, **adicionar o webhook** com a URL acima
+   (método POST). O corpo que o Treble envia já contém a variável salva e
+   o `session_external_id`; a função aceita os dois formatos.
+3. **Bloco de resposta** (mensagem simples) exibindo `{{resposta_ia}}`,
+   também com *salvar resposta* em `mensagem` e o MESMO webhook na saída —
+   apontando para ele mesmo (loop da conversa).
+4. **Rota de handoff**: condição `needs_human = true` → bloco de
+   transferência para o inbox dos vendedores (antes do loop).
+5. Publicar e testar no Playground/WhatsApp.
+
+A função devolve `user_session_keys`: `resposta_ia`, `needs_human`,
+`intent`, `audience`, `checkout_sent`.
+
+## O que o v0.1 já faz (testado)
+
+- Preço/lote/parcelamento reais (fonte sincronizada a cada 30 min),
+  urgência verdadeira da virada de lote
+- Roteador b2c/b2b/suporte (D-11); grupo → tiers percentuais + handoff (D-13)
+- Não inventa desconto (regras em `mind.commercial_rules`); guardrail em
+  código derruba preço não-oficial para handoff
+- Persiste tudo em `treble.conversations`/`messages` com estado e desfecho
 
 ## Mecanismo (documentação oficial do Treble)
 

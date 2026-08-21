@@ -71,10 +71,11 @@ begin
     returning 1
   ) select count(*) into n_upserts from ins;
 
-  -- Ofertas de grupo acompanham o lote vigente
+  -- D-13: ofertas de grupo (valor fixo) ficam sempre desativadas —
+  -- desconto de grupo é pelos tiers percentuais (commercial_rules).
   update mind.offers
-     set ativo = ((elegibilidade->>'lote')::int = p_vigente), atualizado_em = now()
-   where event_id = ev and elegibilidade ? 'grupo';
+     set ativo = false, publico = false, atualizado_em = now()
+   where event_id = ev and elegibilidade ? 'grupo' and (ativo or publico);
 
   -- Tiers de desconto por volume
   update mind.commercial_rules
