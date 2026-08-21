@@ -9,3 +9,6 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Saída do deploy — montada por `npm run build`
+/dist/

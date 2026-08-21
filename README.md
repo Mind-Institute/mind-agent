@@ -27,7 +27,43 @@ motivos: a página busca os dados por `fetch` e o `app.js` é um ES module — e
 `file://` os dois são bloqueados pelo navegador.
 
 Qualquer servidor estático serve (`python -m http.server`, `php -S`, extensão
-Live Server). Não há passo de build: o que está no repositório é o que roda.
+Live Server). O chat não tem passo de build: o que está no repositório é o que
+roda.
+
+O painel administrativo é um projeto Vite separado, na porta 5174:
+
+```bash
+npm run dev:admin
+```
+
+## Deploy — dois produtos, um site
+
+```bash
+npm run build
+```
+
+Constrói o painel e monta `dist/`, que é o que sobe:
+
+```
+dist/            → Mind Agent, o chat público (arquivos da raiz)
+dist/admin/      → Painel Admin (build do Vite, base /admin/)
+dist/_redirects  → /admin sem barra e deep link do painel
+```
+
+`/` abre o chat e `/admin` abre o painel. Cada um tem a sua pasta `assets/`,
+em níveis diferentes — não colidem. Para conferir o artefato antes de publicar:
+
+```bash
+npm run preview:deploy
+```
+
+**Nunca publicar a raiz do repositório.** Os dois `assets/` colidiriam, e
+README, `admin/node_modules` e `.env.local` iriam para o ar. A configuração do
+Worker está em `wrangler.toml`, apontando para `dist/`.
+
+Os contratos que os dois produtos compartilham estão em
+[`shared/CONTRATOS.md`](shared/CONTRATOS.md) — leitura obrigatória antes de
+mexer no banco ou nas Edge Functions.
 
 ## Estrutura dos arquivos
 
@@ -211,8 +247,13 @@ para a página que a embeda.
   propósito, enquanto a aplicação está em desenvolvimento.
 - **Sem Open Graph.** Fica para o go-live, junto com a decisão sobre o
   `noindex`.
-- **Deploy não configurado.** Site estático puro: publica como está por
-  Cloudflare Pages ou por um Worker com binding de assets.
+- **O fallback do chat é silencioso.** Se o `mindagent-bootstrap` cair, a
+  página passa a ler `dados/summit.json` — que hoje está 14 sessões e 5 pessoas
+  atrás — sem avisar ninguém. Não sobrescreve nada oficial, mas durante o evento
+  um dado velho na tela é pior que um aviso de indisponibilidade.
+- **`wrangler publish` ainda não foi rodado.** O `wrangler.toml` está pronto e o
+  `dist/` foi validado localmente (`/` e `/admin`), mas a publicação depende da
+  conta Cloudflare.
 - **`assets/simbolo-mind-branco.png` e
   `assets/mind-summit-2026-branco-horizontal-transp.png`** vieram no pacote
   original mas não são referenciados pela página.

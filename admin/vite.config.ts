@@ -9,6 +9,11 @@ import react from '@vitejs/plugin-react';
  * (`../assets/`) — leitura, nunca escrita.
  */
 export default defineConfig({
+  /* O painel é servido sob /admin, o chat na raiz. Sem isto o build
+     emite `/assets/index-*.js` absoluto, que em produção cai nos assets
+     do chat e o painel abre em branco. O `basename` do roteador lê este
+     mesmo valor via `import.meta.env.BASE_URL`. */
+  base: '/admin/',
   plugins: [react()],
   resolve: {
     alias: {

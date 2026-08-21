@@ -74,8 +74,14 @@ export function Provedores({
 
 /* React Router 7: os sinalizadores `v7_*` da versão 6 viraram o
    comportamento padrão, e o `future` do RouterProvider deixou de
-   existir. Nada a declarar aqui. */
-const roteador = createBrowserRouter(rotasAdmin);
+   existir. Nada a declarar aqui.
+
+   O `basename` sai do `base` do Vite (`/admin/`), então rota e asset
+   nunca discordam: o painel é servido sob /admin ao lado do chat, que
+   fica na raiz. Em teste, `BASE_URL` é `/` e o MemoryRouter das suítes
+   não passa por aqui. */
+const raiz = import.meta.env.BASE_URL.replace(/\/+$/, '');
+const roteador = createBrowserRouter(rotasAdmin, raiz ? { basename: raiz } : undefined);
 
 /* Sem Supabase configurado, `porta` é `null` e o painel roda em modo
    demonstração — que é como ele nasceu e continua utilizável. */
