@@ -72,7 +72,15 @@ document.querySelectorAll('[data-volta]').forEach((b) =>
 
 /* Ajuda (?) */
 const ajuda = document.getElementById('ajuda');
-document.getElementById('btn-ajuda').addEventListener('click', () => ajuda.classList.add('aberto'));
+document.getElementById('btn-ajuda').addEventListener('click', () => {
+  /* O jeito de conferir, dentro do app, qual identidade chegou pela URL —
+     textContent de propósito: nome e e-mail vêm de fora, nunca viram HTML. */
+  document.getElementById('ajuda-identidade').textContent = PARTICIPANTE.email
+    ? 'Identificado pelo app do evento: ' +
+      (PARTICIPANTE.nome ? PARTICIPANTE.nome + ' — ' : '') + PARTICIPANTE.email
+    : 'Este dispositivo ainda não foi identificado pelo app do evento.';
+  ajuda.classList.add('aberto');
+});
 document.getElementById('fechar-ajuda').addEventListener('click', () => ajuda.classList.remove('aberto'));
 ajuda.addEventListener('click', (e) => { if (e.target === ajuda) ajuda.classList.remove('aberto'); });
 

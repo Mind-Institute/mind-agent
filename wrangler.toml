@@ -15,7 +15,11 @@
 # `OPENAI_API_KEY`) ficam nas Edge Functions do Supabase, configuradas
 # por lá. O frontend só carrega a publishable key, que é pública.
 
-name = "mindagent"
+# O nome tem de ser o do Worker que já está no ar — é ele que atende
+# mind-agent.adriana-3eb.workers.dev, a URL embedada no app do evento.
+# Outro nome aqui criaria um segundo Worker em outra URL, e o app
+# continuaria vendo a versão antiga.
+name = "mind-agent"
 compatibility_date = "2026-08-20"
 
 [assets]
