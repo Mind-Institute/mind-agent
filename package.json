@@ -7,7 +7,7 @@
     "dev": "npx -y serve .",
     "dev:admin": "npm run dev --prefix admin",
     "build:admin": "npm run build --prefix admin",
-    "build": "npm run build:admin && node scripts/montar-deploy.mjs",
+    "build": "npm ci --prefix admin && npm run build:admin && node scripts/montar-deploy.mjs",
     "typecheck:admin": "npm run typecheck --prefix admin",
     "test:admin": "npm run test --prefix admin",
     "preview:deploy": "npx -y serve dist"
