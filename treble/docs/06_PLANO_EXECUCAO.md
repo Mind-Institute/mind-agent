@@ -14,10 +14,14 @@ documentos.
 
 ## Fase 1 — Dados (Claude, sem dependências)
 
-- [ ] Criar tabelas `tickets`, `coupons`, `commercial_rules`, `faq`,
-      `event_info`, `conversations` no projeto `mind-agent` (migrations)
-- [ ] Popular com dados reais mínimos — **precisa da Adriana**: preços e
-      links de checkout Eduzz por categoria, regras comerciais, FAQ
+- [x] Estruturas criadas (2026-08-21, ver D-12): schema `treble`
+      (conversations + messages), `mind.coupons`, `mind.commercial_rules`
+      com defaults seguros; ingressos usam `mind.offers` (já existia),
+      FAQ usa `mind.organization_content`
+      (migration `supabase/migrations/20260821_treble_inbound_mvp.sql`)
+- [ ] Popular com dados reais — **precisa da Adriana**: preços e links de
+      checkout Eduzz por categoria (→ `mind.offers`), regras comerciais
+      reais (→ `mind.commercial_rules`), cupons (→ `mind.coupons`), FAQ
 - [ ] Validar na mão: "preço atual do VIP?", "checkout do PRIME?",
       "cupom X vale?" — direto no banco, sem IA
 

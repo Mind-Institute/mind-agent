@@ -65,3 +65,29 @@ e abandono via API/webhooks Eduzz (fase 2 da construção).
 **D-10 — Handoff para os vendedores no inbox do Treble.** (2026-08-21)
 O fluxo do Treble tem rota fixa de transferência; o agente prepara resumo
 da conversa nas variáveis de sessão antes de transferir.
+
+**D-11 — O "master router" é função, não frota.** (2026-08-21)
+O desenho antigo previa um agente roteador no Treble triando B2C / B2B /
+cliente-suporte antes de passar a agentes separados. Na arquitetura nova o
+roteamento acontece em três camadas: (1) entrada determinística no fluxo do
+Treble (origem da campanha/link pré-preenche `audience`); (2) classificação
+a cada turno como primeiro passo do cérebro único, que troca de playbook
+(prompt + tools) sem trocar de agente — o lead que muda de assunto no meio
+não perde contexto; (3) handoff para a fila humana certa (vendedor B2C,
+time B2B, suporte). Playbook vira agente separado só quando os dados de
+`treble.conversations.audience` justificarem.
+Descarta: agente roteador dedicado e frota de agentes na V1 (coerente com D-7).
+
+**D-12 — Reusar o schema `mind`; criar só o que falta.** (2026-08-21)
+A inspeção do banco mostrou que a Fase 1 planejada já existia em grande
+parte: `mind.offers` é a tabela de ingressos (código, valor, lote,
+checkout_url, elegibilidade — vazia, aguardando dados), `mind.policies` e
+`mind.event_rules` cobrem políticas e regras textuais, `mind.organization_content`
+recebe o FAQ, e `mind.knowledge_documents/chunks` já é a base RAG.
+Criados apenas: schema `treble` (conversations + messages, RLS sem policies
+— só service role), `mind.coupons` e `mind.commercial_rules`
+(migration `20260821_treble_inbound_mvp.sql`, aplicada em 2026-08-21).
+Guardrails nascem seguros: sem regra ativa liberando, desconto e menção a
+cupom são proibidos por default.
+Descarta: as tabelas `tickets`, `faq` e `event_info` previstas nos docs —
+substituídas pelos equivalentes que já existiam.

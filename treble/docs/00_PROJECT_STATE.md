@@ -37,8 +37,11 @@ handoff humano, opt-out.
 - [ ] **Regras comerciais reais**: valores, política de cupom/desconto,
       condições e exceções (Adriana vai enviar)
 - [ ] **Tom de voz do Mind**: material de referência (Adriana vai enviar)
-- [ ] **API key do Treble**: guardar como secret no Supabase
-      (`TREBLE_API_KEY`), nunca no chat nem no repositório
+- [ ] **Roteamento de handoff**: quem atende B2B e suporte no inbox do
+      Treble — filas separadas ou as mesmas pessoas? (ver D-11)
+- [x] **API key do Treble**: guardada como secret `TREBLE_API_KEY` nas
+      Edge Functions (2026-08-21); rotacionar no painel Developers do
+      Treble antes do go-live
 
 ## Nota: CI de deploy do site (fora do escopo do bot, registrado aqui)
 
