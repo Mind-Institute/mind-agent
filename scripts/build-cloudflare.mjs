@@ -88,8 +88,31 @@ function filtro(origem) {
   return true;
 }
 
+/* Instala as dependências do painel se elas não estiverem lá.
+   O painel tem `package.json` próprio e a raiz não declara workspaces,
+   então um `install` na raiz NÃO traz o Vite. No Workers Builds da
+   Cloudflare só a raiz é instalada — sem isto, o build do painel morre
+   em "vite: not found". Na máquina de quem desenvolve é no-op. */
+async function instalarDependenciasDoPainel() {
+  const ADMIN = join(RAIZ, 'admin');
+  if (await existe(join(ADMIN, 'node_modules'))) return;
+
+  const temLock = await existe(join(ADMIN, 'package-lock.json'));
+  const comando = temLock ? 'npm ci' : 'npm install';
+  console.log('admin/node_modules ausente — rodando `' + comando + '`…');
+
+  /* `cwd` em vez de `--prefix`: o `npm ci` ignora `--prefix` em algumas
+     versões e instalaria na raiz. */
+  const r = spawnSync(comando, { cwd: ADMIN, stdio: 'inherit', shell: true });
+  if (r.status !== 0) {
+    throw new Error('a instalação das dependências do painel falhou');
+  }
+}
+
 /** Constrói o painel. `vite build` já roda o `tsc --noEmit` antes. */
-function construirPainel() {
+async function construirPainel() {
+  await instalarDependenciasDoPainel();
+
   console.log('construindo o painel…');
   const r = spawnSync('npm run build --prefix admin', {
     cwd: RAIZ,
@@ -115,8 +138,8 @@ async function main() {
         não são tocados aqui — quem cuida de `admin/dist` é o Vite. */
   await rm(SAIDA, { recursive: true, force: true });
 
-  /* 2. Constrói o painel (gera `admin/dist`). */
-  construirPainel();
+  /* 2. Constrói o painel (gera `admin/dist`), instalando o que faltar. */
+  await construirPainel();
 
   /* 3. Cria a saída. */
   await mkdir(SAIDA, { recursive: true });

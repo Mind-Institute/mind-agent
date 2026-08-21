@@ -25,6 +25,17 @@
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-08-21",
 
+  // O build faz parte do deploy, e não de uma configuração de painel.
+  // O Workers Builds da Cloudflare executa SÓ o comando de deploy
+  // (`npx wrangler deploy`); e `dist-cloudflare/` é artefato, está no
+  // `.gitignore`, logo não existe no clone. Sem esta linha, o deploy
+  // morre em "assets.directory does not exist" — foi o que aconteceu.
+  // O Wrangler roda este comando ANTES de ler os assets, então a pasta
+  // nasce aqui. Vale igual na máquina de quem for subir na mão.
+  "build": {
+    "command": "npm run build"
+  },
+
   "assets": {
     "directory": "./dist-cloudflare",
     "binding": "ASSETS",
