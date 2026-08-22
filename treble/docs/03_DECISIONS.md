@@ -228,3 +228,48 @@ seria peso morto e mais uma cópia para desencontrar. Vão para o bucket
 público `mind-assets` (convertidas em webp, 570 KB no total), e
 `mind_foto_url()` resolve `asset_path` para a URL pública com fallback para
 o `foto_url` antigo — ninguém fica sem imagem durante a troca.
+
+**D-27 — Schema = de quem é a informação.** (2026-08-22, Adriana)
+"Os agentes não são donos dos dados. O Mind Intelligence é dono dos dados."
+O banco passa a ter dois eixos. **Produto:** `catalogo` diz o que existe,
+`mind` é a empresa, `comum` é o que os produtos reusam, e cada linha de
+produto (`summit`, `institute`, `dash`, `eventos`) guarda o que é só dela —
+edição e turma são linha dentro, não schema novo. **Pessoa:** `crm` diz quem
+é e o que comprou, `engagement` o que aconteceu, `intelligence` o que a gente
+infere. Os agentes (`treble`, `concierge`) ficam só com config, prompt, fila
+e flag. `catalogo.produtos.schema_dados` liga um eixo ao outro.
+
+**D-28 — O CRM não se mexe.** (2026-08-22, Adriana)
+"Fui eu que fiz o CRM. Não é pra você dissolver ele, nem desmanchar. Tá ótimo
+o CRM, não dá pra mexer." Eu tinha proposto criar `core.people` +
+`core.person_attributes` — desnecessário: `crm.pessoas` + `crm.pessoas_interno`
+já são exatamente isso, e `crm.pessoa_produtos` já é o que a pessoa comprou.
+Não existe schema `core`. O que faltava — resolver telefone, sessão do Treble,
+e-mail do HubSpot e dispositivo para uma pessoa só — nasceu em
+`engagement.identidades`, apontando para `crm.pessoas`, sem tocar no CRM.
+
+**D-29 — Uma base de conhecimento por linha de produto.** (2026-08-22, Adriana)
+Filtro por coluna não segurou: `knowledge_documents` acumulou sete colunas de
+escopo e continuava sendo uma base só. Agora cada linha tem a sua, e expõe a
+view `conhecimento` = a casa dela UNION `comum` (o institucional da Mind). O
+agente do Institute lê `institute.conhecimento` e é **fisicamente** incapaz de
+trazer chunk do Summit. O isolamento deixa de depender de a consulta lembrar
+de filtrar. Custo aceito: linha nova pede uma migration de template.
+
+**D-30 — Órfã se marca, não se apaga.** (2026-08-22, Adriana)
+"Esse negócio de fazer um negócio sem muito pensar. Coloca uma flag pra gente
+reavaliar o que é isso." `mechanisms` (7 linhas, ninguém lê, propósito
+desconhecido) foi para o schema `quarentena` com um `COMMENT` explicando. O
+schema é a flag: fica visível, nada se perde, e nenhuma função passa a ler por
+acidente. `knowledge_sources` saiu da lista de órfãs — `api.knowledge` lê ela
+e `knowledge_documents.fonte_id` aponta para ela.
+
+**D-31 — Migração de schema com view de compatibilidade na mesma transação.**
+(2026-08-22) O concierge está em produção e não pode cair.
+`ALTER TABLE ... SET SCHEMA` é atualização de catálogo — instantânea. A view
+de compatibilidade nasce na mesma transação, então nenhuma sessão vê a tabela
+sumida. A exceção é `ON CONFLICT`, que não funciona em view auto-atualizável:
+para as seis funções que fazem upsert, os schemas novos entram **antes** de
+`mind`/`concierge` no `search_path`, e o nome sem qualificar cai na tabela
+real. No fim, o `DROP` das views é o teste de que a migração terminou: se algo
+ainda lesse por elas, ele falha — e falhou uma vez, como devia.
