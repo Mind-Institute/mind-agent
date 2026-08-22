@@ -43,7 +43,7 @@ Pesquisa mais ampla, tipicamente delegada ao Researcher, com fontes/caveats.
 Representação do que sabemos/inferimos sobre pessoa, relação e situação. Inclui facts, insights, intents, summaries e product fit.
 
 ## Fact
-Informação objetivamente conhecida/verificada, com provenance.
+Informação objetivamente conhecida/verificada, com provenance. Não deve duplicar silenciosamente uma entidade canônica melhor.
 
 ## Insight
 Inferência útil com confidence/provenance, por exemplo pain, objection, preference, buying_signal.
@@ -66,6 +66,9 @@ Estratégia/tática selecionável dentro do playbook para avançar o objetivo at
 ## Guardrail
 Limite/regra que restringe comportamento, por exemplo não inventar preço, desconto máximo, escalada obrigatória.
 
+## Behavior Spec
+Documento normativo que define o que é comportamento excelente de um agente antes da escolha de prompt/model/playbook. Ex.: `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`.
+
 ## Decisioning
 Camada que escolhe o melhor move/next action para a situação atual usando intelligence, playbook e policies.
 
@@ -83,6 +86,11 @@ Representação única e autoritativa de uma entidade global, por exemplo `peopl
 
 ## Person
 Identidade humana canônica global.
+
+## Contact Point
+Meio/identificador humano de contato de uma pessoa, como email ou telefone, com normalização, verificação/validade e provenance quando apropriado.
+
+Não confundir com External Ref.
 
 ## CRM Contact
 Relação comercial de uma person com Mind; não identidade global.
@@ -121,13 +129,25 @@ Direito efetivo de acesso/uso derivado de compra, convite, upgrade etc.
 Contexto de entrada na relação/conversa: source, campaign, landing page, UTM, entry point, offer/product hints.
 
 ## Conversation
-Sessão/linha de conversa em determinado canal/contexto, pertencente ao domínio compartilhado engagement.
+Sessão/linha de conversa em determinado canal/contexto, pertencente ao domínio compartilhado engagement. Uma pessoa pode ter várias conversations em canais diferentes.
 
 ## Interaction
 Evento não necessariamente textual da jornada: click, page view, purchase, attendance, feedback etc.
 
 ## External Ref
-Mapeamento de entidade/id interno para provider/external_id.
+Mapeamento de entidade/id interno para provider/external_id, como HubSpot contact id, Treble id ou Eduzz id.
+
+## Contactability
+Resultado determinístico/policy-driven que indica se um contact point/channel pode ser usado para determinado propósito naquele momento.
+
+## Consent
+Registro de consentimento/legal basis quando aplicável, com purpose/channel/source/timestamps.
+
+## Suppression
+Bloqueio de contato global ou por canal, por exemplo opt-out, do-not-contact, bounce/invalid ou regra operacional/compliance.
+
+## Communication Preference
+Preferência explícita de canal, frequência ou tipo de comunicação quando coletada.
 
 ## Domain Event
 Fato operacional relevante emitido pelo sistema, por exemplo `message.received` ou `purchase.completed`.
@@ -137,6 +157,18 @@ Fila transacional para garantir efeitos externos confiáveis/idempotentes.
 
 ## Agent Run
 Execução rastreável de um agent/profile para um turno/tarefa.
+
+## Context Manifest
+Registro operacional do contexto efetivamente disponibilizado ao modelo em um run, com referências/versões/authority quando útil. Não é chain-of-thought.
+
+## Retrieval Trace
+Registro de tools/queries/record ids/sources/latência usados para obter contexto. Permite depurar por que determinado dado chegou ao modelo sem guardar raciocínio privado.
+
+## Authority
+Classe lógica da origem de um item de contexto, por exemplo `authoritative`, `observed`, `inferred` ou `generated`.
+
+## Freshness
+Quão atual/válido é um dado para seu uso. Diferentes domínios têm diferentes requisitos de freshness.
 
 ## Tool
 Operação semântica que agent pode invocar. Tool não deve expor SQL arbitrário.
@@ -150,6 +182,9 @@ Transferência explícita para humano/outro fluxo, com contexto suficiente.
 ## RAG
 Retrieval-Augmented Generation. É apenas uma técnica dentro de knowledge/context; Mind Intelligence não é “um RAG”.
 
+## Hybrid Retrieval
+Combinação de metadata filters, relational/context links, full-text, vector similarity e eventualmente reranking. Deve ser usada quando semântica é necessária, não como substituto de structured truth.
+
 ## Source of Truth
 Sistema/domínio autoritativo para determinado dado.
 
@@ -158,6 +193,15 @@ Origem rastreável de um dado/inferência: sistema, mensagem, documento, evento,
 
 ## Confidence
 Grau de confiança de uma inferência, não substitui verificação factual.
+
+## Golden Eval
+Caso de teste versionado que representa comportamento esperado importante do agente. Deve ser usado para detectar regressões.
+
+## Hard Failure
+Comportamento que reprova um eval independentemente da fluência, por exemplo preço inventado, discount não autorizado ou opt-out ignorado.
+
+## Eval-driven Development
+Processo em que behavior specs/golden cases são definidos cedo e mudanças de prompt/model/playbook/context/tool são avaliadas contra eles continuamente.
 
 ## ADR
 Architecture Decision Record: registro de decisão arquitetural, alternativas, impacto e rationale.
@@ -171,5 +215,8 @@ Implementação ponta a ponta de uma capacidade real, cobrindo dados → runtime
 ## Memory Loop
 Processo que transforma turnos/interações em memória útil e atualiza contexto futuro.
 
+## Outbound Workflow
+Camada de workflow que reutiliza Sales runtime mas adiciona trigger, eligibility, contactability/suppression, why-now, cadence/send state, follow-up e transição de reply para o Sales runtime normal.
+
 ## Evals
-Testes/métricas sistemáticos de comportamento e qualidade do agent/runtime.
+Testes/métricas sistemáticos de comportamento e qualidade do agent/runtime. Começam antes do primeiro agent target e continuam durante toda a evolução.
