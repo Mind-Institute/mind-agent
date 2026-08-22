@@ -10,7 +10,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 const SYSTEM_INSTRUCTIONS = `Você é vendedor(a) consultivo(a) do Mind Summit 2026 no WhatsApp oficial do Mind (16 e 17 de setembro de 2026, São Paulo Expo).
@@ -147,14 +147,48 @@ Deno.serve(async (req: Request) => {
     return json(400, { ok: false, error: "invalid_json" });
   }
 
-  const sessionId = pick(body, ["session_external_id", "sessionExternalId", "session_id", "sessionId", "cellphone", "celular"]);
-  const message = pick(body, ["mensagem", "message", "text", "resposta", "answer", "user_message"]).slice(0, 1200);
-  const contactName = pick(body, ["name", "nome", "user_name", "first_name"]);
+  const sessionId = pick(body, ["session_external_id", "sessionExternalId", "session_id", "sessionId", "conversation_id", "cellphone", "celular"]);
+  let message = pick(body, [
+    "mensagem", "message", "text", "resposta", "answer", "user_message",
+    "user_response", "response", "user_answer", "respuesta",
+  ]).slice(0, 1200);
+  const contactName = pick(body, ["name", "nome", "user_name", "first_name", "hubspot_firstname"]);
   const phone = pick(body, ["cellphone", "celular", "phone"]);
 
-  if (!sessionId || !message) {
-    return json(422, { ok: false, error: "faltam_campos", detalhe: "esperado session_external_id (ou cellphone) e mensagem" });
+  // Rede de segurança: o Treble entrega a resposta do lead dentro de
+  // user_session_keys, com o nome que o fluxo escolheu ao "salvar resposta".
+  // Se nenhum alias casou, usa a última chave textual que não seja controle.
+  const CONTROLE = new Set([
+    "needs_human", "intent", "audience", "checkout_sent", "resposta_ia",
+    "country_code", "cellphone", "session_id", "conversation_id", "hubspot_firstname",
+  ]);
+  if (!message && Array.isArray(body.user_session_keys)) {
+    const candidatos = (body.user_session_keys as Array<Record<string, unknown>>)
+      .filter((e) => typeof e?.value === "string" && String(e.value).trim().length > 0 &&
+                     !CONTROLE.has(String(e?.key ?? "")));
+    if (candidatos.length > 0) message = String(candidatos[candidatos.length - 1].value).slice(0, 1200);
   }
+
+  if (!sessionId || !message) {
+    // Loga o formato recebido (só nomes de campos) para ajuste rápido.
+    console.warn(JSON.stringify({
+      request_id: requestId, event: "payload_nao_reconhecido",
+      campos: Object.keys(body ?? {}),
+      session_keys: Array.isArray(body.user_session_keys)
+        ? (body.user_session_keys as Array<Record<string, unknown>>).map((e) => String(e?.key ?? ""))
+        : null,
+      tem_session: Boolean(sessionId), tem_mensagem: Boolean(message),
+    }));
+    return json(422, { ok: false, error: "faltam_campos", detalhe: "esperado identificador de sessão e mensagem do lead" });
+  }
+
+  console.info(JSON.stringify({
+    request_id: requestId, event: "webhook_recebido",
+    campos: Object.keys(body ?? {}),
+    session_keys: Array.isArray(body.user_session_keys)
+      ? (body.user_session_keys as Array<Record<string, unknown>>).map((e) => String(e?.key ?? ""))
+      : null,
+  }));
 
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!openAiKey) return json(503, { ok: false, error: "ia_nao_configurada" });
