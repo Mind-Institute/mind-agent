@@ -10,8 +10,10 @@ existia só na branch de preview. Aqui é o projeto — separado do mapa do even
 Estado atual: **IA conectada.** A programação vem do `mindagent-bootstrap`
 (10 temas, 67 sessões, 44 palestrantes) com `dados/summit.json` como fallback, e
 o chat responde de verdade pela Edge Function `mindagent-chat`, que fala com a
-OpenAI. As respostas simuladas foram removidas. Falta a identidade via Yazo e o
-deploy.
+OpenAI. As respostas simuladas foram removidas. A identidade chega pela Yazo
+na URL (ver “Identidade via Yazo”), e o deploy é automático: cada push na
+`main` publica em `mind-agent.adriana-3eb.workers.dev` pelo Workers Builds da
+Cloudflare.
 
 O painel de administração vive em `admin/` (Vite + React + TypeScript) e é um
 projeto à parte, com o próprio `package.json` e o próprio README.
@@ -178,8 +180,9 @@ o dia em que a função passar a rotear por evento, nada muda aqui.
 Nenhuma outra linha do frontend sabe de onde vêm os dados: `app.js` só chama
 `carregarDadosSummit()`.
 
-O que fica para as próximas etapas: identidade via Yazo, e mover as respostas do
-chat — hoje simuladas por palavras-chave em `app.js` — para o RAG do agente.
+O que fica para as próximas etapas: levar a identidade ao backend do agente
+(hoje ela para no navegador — ver “Identidade via Yazo”), e mover as respostas
+dos fluxos locais de `app.js` para o RAG do agente.
 
 ## `summit.json` como fallback
 
@@ -193,28 +196,41 @@ geração.
 e 44). Serve para a página não morrer numa queda do bootstrap; vale regerar de
 vez em quando para a diferença não crescer.
 
-## Identidade futura via Yazo
+## Identidade via Yazo
 
-A identidade do participante é **opcional por definição**, em `config.js`:
+**Implementada.** A Yazo (o app do evento) embeda a página passando quem está
+logado no dispositivo:
 
-```js
-export const PARTICIPANTE = { nome: null };
-definirParticipante({ nome: 'Fulana' });
+```
+https://mind-agent.adriana-3eb.workers.dev/?email=fulana@empresa.com&nome=Fulana
 ```
 
-Com `nome` nulo o agente cumprimenta sem nome (“Oi! 💚 Sou o Mind Agent…”) —
-**ele nunca chuta quem você é.** Preenchido, chama pela pessoa sem que mais nada
-mude.
+`config.js` é o dono da identidade — `capturarIdentidade()`, chamada pelo
+`app.js` antes da primeira saudação. A ordem de prioridade: query string da
+Yazo → `sessionStorage` (mesma aba, até 12 horas) → anônimo. Escolhas que
+valem registro:
 
-Quem vai preencher é a Yazo, pela plataforma do evento (ou o e-mail, como
-segunda via), através do `mindagent-bootstrap`. Enquanto isso não existe, o
-valor fica nulo em produção e a saudação é neutra. Nada de nome fixo no código.
+- **`sessionStorage`, não `localStorage`**: a identidade morre com a aba. Um
+  notebook emprestado no credenciamento não entrega o e-mail de quem usou
+  antes.
+- **Só `email` e `nome`**, sem aliases: alias aceito é porta que ninguém fecha
+  depois.
+- **A URL é limpa antes de validar** (`history.replaceState()`): o e-mail some
+  da barra de endereço, do histórico e de link copiado — e não aparece em
+  console nem em mensagem de erro, nem quando é inválido.
+- **E-mail fora do formato descarta a identidade inteira**; nome sozinho só
+  cumprimenta. O agente nunca chuta um nome nem transforma o antes-do-@ em
+  apelido.
+- Para conferir de dentro do app (onde não há DevTools): o painel de ajuda
+  (?) mostra *“Identificado pela Yazo: Fulana — fulana@empresa.com”* ou que o
+  dispositivo ainda não foi identificado.
 
-**Ainda não implementado de propósito:** falta o formato definitivo do link
-dinâmico da Yazo. Quando chegar, a identidade entra por aqui — e **não vai para
-a OpenAI**: nome e e-mail servem para a interface e para o registro no Supabase,
-não para o prompt. O `chat-service.js` não tem campo para isso, e é assim que
-deve continuar.
+Duas fronteiras de pé: isso é **identificação, não autenticação** (qualquer um
+abre a página com `?email=` alheio — serve para personalizar, nunca para
+liberar dado sensível), e **nada disso vai para a OpenAI** — o payload do
+`chat-service.js` segue a lista fechada de `shared/CONTRATOS.md`. Levar a
+identidade ao backend do agente (`identity_verified` hoje é sempre `false`) é
+mudança de contrato e de política de privacidade, para a Edge Function.
 
 ## Princípio preservado: o agente não agenda por você
 

@@ -6,7 +6,7 @@
    só desenha e reage.
 */
 
-import { PARTICIPANTE, capturarIdentidade } from './config.js';
+import { PARTICIPANTE, capturarIdentidade, obterParticipante } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -77,7 +77,19 @@ document.querySelectorAll('[data-volta]').forEach((b) =>
 
 /* Ajuda (?) */
 const ajuda = document.getElementById('ajuda');
-document.getElementById('btn-ajuda').addEventListener('click', () => ajuda.classList.add('aberto'));
+document.getElementById('btn-ajuda').addEventListener('click', () => {
+  /* O jeito de conferir, de dentro do app embedado (onde não há DevTools),
+     qual identidade a Yazo entregou pela URL. `obterParticipante()` já
+     confere o prazo; `textContent` de propósito — nome e e-mail vêm de
+     fora e nunca viram HTML. */
+  const quem = obterParticipante();
+  document.getElementById('ajuda-identidade').textContent = quem.email
+    ? 'Identificado pela Yazo: ' + (quem.nome ? quem.nome + ' — ' : '') + quem.email
+    : (quem.nome
+      ? 'Identificado pela Yazo: ' + quem.nome
+      : 'Este dispositivo ainda não foi identificado pela Yazo.');
+  ajuda.classList.add('aberto');
+});
 document.getElementById('fechar-ajuda').addEventListener('click', () => ajuda.classList.remove('aberto'));
 ajuda.addEventListener('click', (e) => { if (e.target === ajuda) ajuda.classList.remove('aberto'); });
 
