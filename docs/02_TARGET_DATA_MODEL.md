@@ -22,6 +22,7 @@ Content types iniciais: description, audience, value_proposition, differentiator
 
 ### people
 - people
+- contact_points
 - profiles
 - assets
 - links
@@ -31,6 +32,25 @@ Content types iniciais: description, audience, value_proposition, differentiator
 - product_roles
 
 `people.people` é identidade canônica. Não guardar cópias por papel/canal.
+
+`contact_points` representa meios/identificadores de contato humanos, por exemplo:
+- email;
+- phone;
+- WhatsApp/phone-derived address;
+- outros identificadores de contato quando necessários.
+
+Campos conceituais:
+- person_id;
+- type;
+- raw_value;
+- normalized_value;
+- verified_at / verification_status;
+- primary flag;
+- valid_from / valid_until;
+- source/provenance;
+- timestamps.
+
+Não confundir `contact_points` com `integrations.external_refs`. `contact_points` representa como contactar/identificar a pessoa; `external_refs` representa IDs de entidades em sistemas externos, como HubSpot contact id ou Treble participant id.
 
 `profiles`: profile_type, locale, headline, mini_bio, short_bio, long_bio, optional product/product_run override, validity/status.
 
@@ -91,9 +111,11 @@ Exemplo: Summit 2026 run → offers MIND / VIP / PRIME / Corporate.
 
 `conversations`: person/channel/product scope/start/last/close/status.
 
+Importante: `engagement` é compartilhado entre canais, mas isso **não significa uma única conversa infinita cross-channel**. Uma pessoa pode ter várias conversations (WhatsApp, app, site, humano). A continuidade vem de `people.people`, summaries e intelligence compartilhados.
+
 `entry_contexts`: source, campaign, landing page, referrer, entry point, product/product_run/offer hints, intent_hint, metadata.
 
-Entry context é crítico para Treble. A pessoa que chega por PRIME abandonado e a que chega por “leve sua empresa” não devem receber a mesma pergunta inicial quando o contexto já é conhecido.
+Entry context é crítico para Treble. A pessoa que chega por PRIME abandonado e a que chega por “delegação corporativa” não devem receber a mesma pergunta inicial quando o contexto já é conhecido.
 
 `messages`: raw messages; sender customer/human/agent/system; visible_agent/profile quando aplicável; agent_run_id; content/timestamps.
 
@@ -110,13 +132,21 @@ Não criar tabela separada para dor, desejo, objeção e interesse.
 
 `facts`: fatos objetivamente conhecidos; key/value_json; source; verification status; validity.
 
+**Regra crítica:** `facts` não deve virar uma segunda cópia de dados que já possuem domínio canônico. Exemplos:
+- email/telefone → `people.contact_points`;
+- compra PRIME → `commercial`;
+- affiliation/emprego conhecido → `people.affiliations` ou CRM, conforme semântica;
+- preço VIP → `commercial`.
+
+Use `facts` para o long tail de fatos relevantes que não possuem representação canônica adequada, sempre com provenance.
+
 `insights`: person/org, insight_type, value_text/value_json, confidence, source_type/source_id, status, validity, supersedes_id, created_by_agent_id.
 
 Insight types iniciais: pain, need, desire, goal, interest, preference, objection, constraint, decision_criterion, buying_signal, risk.
 
 `intents`: transient routing signals; person/conversation/message, intent_type, product scope, confidence/status/time.
 
-Intent examples: sales_b2b, sales_b2c, support, research, event_navigation, product_information, complaint, feedback.
+Intent examples: sales_b2b, sales_b2c, support, research, event_navigation, product_information, complaint, feedback, purchase_ready.
 
 `product_fit`: person/product/product_run, fit_score, intent_score, potential_tier, reason_summary, evidence_json, calculated_at.
 
@@ -139,7 +169,7 @@ Intent examples: sales_b2b, sales_b2c, support, research, event_navigation, prod
 
 `claims`: afirmações científicas estruturadas com evidence_strength, caveat e status.
 
-`sources`: papers/books/reports/original sources.
+`sources`: papers/books/reports/original sources, com provenance/authority/version quando apropriado.
 
 `claim_sources`: many-to-many claim ↔ source.
 
@@ -148,6 +178,26 @@ Intent examples: sales_b2b, sales_b2c, support, research, event_navigation, prod
 `document_chunks`: chunks + embeddings (pgvector), quando necessário.
 
 `product_concepts`, `person_concepts`: relações semânticas.
+
+Detalhes de ingestão/retrieval: `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`.
+
+### privacy
+- consents
+- contactability
+- suppressions
+- communication_preferences
+
+O nome físico final pode ser validado no migration plan, mas a responsabilidade é obrigatória antes de outbound.
+
+`consents`: consent/legal-basis records quando aplicável, com purpose/channel/source/timestamps.
+
+`contactability`: estado derivado ou materializado sobre se determinado contact point/channel pode ser usado, com reason/effective dates.
+
+`suppressions`: do-not-contact/global or channel-specific suppression, opt-out, bounce/invalid, compliance or operational blocks.
+
+`communication_preferences`: preferências explícitas de canal/frequência/tipo quando coletadas.
+
+A autorização de envio nunca deve depender apenas da decisão do LLM.
 
 ### service
 - customer_relationships
@@ -181,7 +231,7 @@ Outras linhas herdam Sales Core conforme aplicável.
 - decisions
 - next_actions
 
-`policies`: regras duras, por exemplo limite de desconto, suporte crítico precisa de humano, claim científico de alto risco exige Researcher.
+`policies`: regras duras, por exemplo limite de desconto, suporte crítico precisa de humano, claim científico de alto risco exige Researcher, outbound bloqueado por suppression.
 
 `decisions`: conversation/agent_run/current_stage/objective/selected_move/next_best_action/confidence/rationale_summary.
 
@@ -204,10 +254,15 @@ Guardar rationale operacional suficiente para auditoria; não armazenar chain-of
 - runs
 - tasks
 - actions
+- context_manifests / retrieval_traces (ou representação equivalente)
 
 Base agents sugeridos: router, sales, concierge, service, researcher, recommendation_worker, crm_worker, opportunity_worker.
 
 Profiles iniciais: sales_summit, concierge_summit, service_default, researcher_scientific.
+
+`runs` deve permitir rastrear model/provider, prompt version, playbook version, context profile version, latency, status/error, tool calls e vínculo com decision/evals.
+
+`context_manifests` / `retrieval_traces` devem registrar quais fontes/records/tools/context versions chegaram ao modelo ou foram recuperados, sem armazenar chain-of-thought.
 
 ### integrations
 - external_refs
@@ -236,6 +291,8 @@ Transactional outbox é o padrão desejado para efeitos externos críticos.
 - scores
 - failures
 - human_feedback
+
+Evals existem desde antes do primeiro agent, não apenas na fase final de otimização. Ver `docs/13_EVALS_AND_OBSERVABILITY.md`.
 
 ### agent_api
 Sem tabelas de negócio. Apenas functions/RPCs/views seguras que apresentam contratos semânticos estáveis aos agents.
@@ -310,15 +367,38 @@ Supabase native Auth.
 - knowledge-documents
 - private-attachments
 
+## Context authority envelope
+
+Agent-facing context deve conseguir distinguir, quando relevante:
+```json
+{
+  "value": "...",
+  "source": "...",
+  "authority": "authoritative | observed | inferred | generated",
+  "observed_at": "...",
+  "effective_at": "...",
+  "valid_until": "...",
+  "confidence": 0.93,
+  "sensitivity": "normal"
+}
+```
+
+Não significa duplicar fisicamente todos esses campos em toda tabela; significa que a camada lógica/Agent API deve preservar autoridade, freshness e provenance suficientes.
+
 ## Invariants
 
 1. Canonical person existe uma vez.
-2. Canonical product existe uma vez.
-3. Product run é a chave concreta universal para edição/cohort/delivery/version.
-4. Product-specific schemas são facets, não novas identidades.
-5. Dados inferidos têm provenance/confidence.
-6. Conversas são cross-channel no mesmo domínio `engagement`.
-7. Oferta/preço pertencem a `commercial`, não a Summit.
-8. Conhecimento científico pertence a `knowledge`.
-9. Agent API esconde joins/topologia.
-10. Estrutura final pode evoluir, mas mudanças nesses invariants exigem ADR.
+2. Contact point não é external system id.
+3. Canonical product existe uma vez.
+4. Product run é a chave concreta universal para edição/cohort/delivery/version.
+5. Product-specific schemas são facets, não novas identidades.
+6. Dados inferidos têm provenance/confidence e não sobrescrevem fato verificado.
+7. `intelligence.facts` não duplica silenciosamente domínios canônicos.
+8. Conversations podem ser múltiplas por pessoa/canal; continuidade é via identity/intelligence compartilhados.
+9. Oferta/preço pertencem a `commercial`, não a Summit.
+10. Conhecimento científico pertence a `knowledge`.
+11. Outbound depende de privacy/contactability determinística.
+12. Agent API esconde joins/topologia.
+13. Agent runs devem ser operacionalmente reproduzíveis por versões + context/retrieval trace.
+14. Evals existem desde o início da vertical.
+15. Estrutura final pode evoluir, mas mudanças nesses invariants exigem ADR.
