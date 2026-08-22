@@ -184,3 +184,47 @@ de postura sem perder contexto. As cinco mensagens de abertura, de
 encerramento e de descadastro ficam em `mind.origens`, não no painel do
 Treble: mudar uma mensagem passa a ser um UPDATE, não uma edição de fluxo
 em cinco lugares.
+
+**D-22 — Palestrante fica em tabela separada; o papel é da ligação.** (2026-08-22, Adriana)
+Pergunta dela: cadastrar palestrante à parte com a mini bio, ou junto da
+palestra? Separado, e por um motivo concreto: os 42 palestrantes aparecem
+em 67 sessões — Amy Edmondson em 3, Carla Tieppo em 3 —, então a bio junto
+da palestra viraria 3 cópias da mesma bio para desencontrar. `mind.speakers`
+guarda a pessoa (bio, credencial, frase de card, foto), `mind.sessions`
+guarda a sessão, e `mind.session_speakers` liga as duas com **papel**
+(palestrante / mediação / apresentação / convidado). O papel é da ligação
+porque Denize Savi media um painel e palestra em outro.
+`mind.sessions.ingressos` é coluna nova e é o que faltava para o agente
+dizer "esse workshop é VIP e Prime" sem deduzir do nome da sala.
+
+**D-23 — Uma fonte por fato: as bios duplicadas em knowledge_documents saíram.** (2026-08-22, Adriana)
+Havia 42 documentos `tipo_conteudo = 'palestrante'` em
+`mind.knowledge_documents` com as mesmas bios de `mind.speakers` (conferido
+por md5: idênticas byte a byte). Duas cópias do mesmo fato é uma que
+desatualiza sozinha. Os 42 documentos e seus chunks foram apagados; o
+agente já lia palestrante de `mind.speakers` via `mindagent_chat_search`.
+
+**D-24 — Produto é coluna, não premissa.** (2026-08-22, Adriana)
+"O Mind Summit 2026 é um produto. Logo ele vai morrer e a gente vai começar
+a conversar sobre outros. Tem que já nascer pronto." `mind.produtos` passa a
+existir e `produto_codigo` entra em conteúdo, materiais, origens, regras
+comerciais, políticas, prompts e conversas. NULL significa "vale para
+qualquer produto" — é o caso do tom de voz, das políticas e dos playbooks,
+porque vender é vender; muda o que se vende. `treble.config.produto_padrao`
+diz de que produto o bot fala quando a conversa não indica outro.
+
+**D-25 — O agente sabe onde está no calendário do produto.** (2026-08-22, Adriana)
+Sem isso o bot tenta vender um Summit que já aconteceu. `mind_calendario()`
+devolve a fase (`venda` · `semana_do_evento` · `acontecendo` · `encerrado`),
+os dias que faltam e o que fazer em cada uma. Depois do evento a mesma
+pergunta deixa de ser venda e vira atendimento — e, se houver próxima
+edição cadastrada na mesma linha, o agente redireciona para ela em vez de
+dizer que acabou. Contar dias a partir de datas é onde o LLM erra: o número
+vem pronto, como na D-18.
+
+**D-26 — Imagem vai para bucket, não para o repositório.** (2026-08-22)
+As 42 fotos vieram em PNG (9,3 MB). Commitá-las no repositório do worker
+seria peso morto e mais uma cópia para desencontrar. Vão para o bucket
+público `mind-assets` (convertidas em webp, 570 KB no total), e
+`mind_foto_url()` resolve `asset_path` para a URL pública com fallback para
+o `foto_url` antigo — ninguém fica sem imagem durante a troca.

@@ -10,7 +10,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.6.0";
+const VERSION = "0.7.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O prompt vive no banco (treble.prompts), composto por turno:
@@ -222,6 +222,7 @@ Deno.serve(async (req: Request) => {
         p_origem: conv.origem_codigo ?? origem ?? null,
         p_utm: conv.utm ?? null,
         p_conversa: conv.conversation_id ?? null,
+        p_produto: conv.produto_codigo ?? null,
       }),
       supabase.rpc("treble_agent_prompt", { p_audience: null }),
       cfg.bloco_agenda_busca === "true"
