@@ -25,11 +25,44 @@ No Supabase, estavam publicadas 8 Edge Functions:
 - treble-inbound-agent
 - treble-api
 
-Conclusão: código versionado e runtime publicado não estavam completamente sincronizados. O checkpoint deve preservar as funções publicadas antes de qualquer refactor.
+Conclusão: código versionado e runtime publicado não estavam completamente sincronizados.
+
+## Checkpoint concluído
+
+Branch:
+`checkpoint/pre-mind-intelligence-architecture`
+
+Commit:
+`372992ee22c32e1b0b6b300ad477b60ce41c3701`
+
+Working tree: clean.
+
+Capturado:
+- as 5 Edge Functions que estavam publicadas mas não versionadas foram recuperadas da produção;
+- as 3 Edge Functions já versionadas foram preservadas;
+- 33 migration files existentes no repo foram preservados;
+- ledger das 99 migrations aplicadas foi registrado;
+- nenhum deploy/merge/mutação no Supabase ocorreu durante o checkpoint.
+
+### Gaps do checkpoint
+
+1. `database-schema.sql` não foi gerado porque `supabase db dump` exigia conectividade ao Postgres/API bloqueada pelo proxy do ambiente.
+2. 99 migrations estão aplicadas no banco, mas apenas 33 migration files existem no repo; 71 applied migrations não possuem arquivo correspondente e seus statements existem apenas no ledger do banco.
+3. Configuração/conteúdo curado fora de migrations precisa ser preservado antes de qualquer destruição, incluindo:
+   - `treble.prompts`;
+   - `treble.config`;
+   - `summit.commercial_rules`;
+   - `summit.offers`;
+   - `engagement.origens`;
+   - `crm.mapa_produtos`.
+4. Secrets das Edge Functions não são recuperáveis pelo checkpoint; apenas nomes são conhecidos.
+5. Bucket `mind-assets` não foi incluído no checkpoint.
+
+Esses gaps são hoje parte explícita do risco de migração.
 
 ## Database migration history
 
-O projeto já acumulou muitas migrations entre 2026-08-20 e 2026-08-22, incluindo:
+O projeto acumulou muitas migrations entre 2026-08-20 e 2026-08-22, incluindo:
 - bootstrap inicial de schema/ciclo/privacidade/jornada/LLM;
 - camada Mind Intelligence experimental;
 - event navigation/offers/agent API e rollback;
@@ -101,6 +134,17 @@ Exemplos de dependentes:
 Conclusão:
 Migrar canonical person para `people.people` é mudança coordenada Classe D. Não fazer rename improvisado.
 
+### Identity/contactability implications
+
+O protótipo já possui partes de identidade e consent/consents espalhadas, mas o target precisa distinguir explicitamente:
+- canonical person;
+- human contact points (email/phone/WhatsApp-like identifier);
+- provider external refs;
+- CRM relationship;
+- consent/contactability/suppression.
+
+Isso é necessário antes de outbound para evitar retrofit estrutural.
+
 ## Current conversation/runtime split
 
 Existem dois modelos principais de conversa.
@@ -146,6 +190,8 @@ Pontos fortes observados:
 
 Problema arquitetural:
 Sales e Concierge têm runtimes e stores paralelos. Target deve preservar os melhores comportamentos de ambos em um core compartilhado.
+
+Importante: core compartilhado não exige uma única conversation infinita. A mesma pessoa pode manter conversations distintas por canal, ligadas pela mesma identity/intelligence/summaries.
 
 ## Current Summit model
 
@@ -233,11 +279,26 @@ Há bastante lógica reaproveitável, mas o target deve consolidar contratos sem
 Há knowledge documents/chunks distribuídos por `comum`, `summit`, `institute`, `dash`, `eventos`, com views union em `mind`.
 
 Isso já expressa uma tentativa de separação por linha, mas target diferencia:
+- structured operational truth;
+- canonical people/product entities;
 - knowledge científico/global estruturado;
 - product content/editorial;
 - product-specific documents quando necessário.
 
+O target não deve simplesmente consolidar tudo em um vector index único.
+
 Não apagar antes de mapear conteúdo útil e consumers.
+
+## Current behavior/eval maturity
+
+O protótipo possui structured outputs, prompts modulares e guardrails comerciais úteis, mas ainda não possui uma camada suficientemente explícita de:
+- Sales Behavior Spec;
+- golden conversation suite;
+- hard-failure regressions;
+- context/retrieval trace;
+- eval-driven acceptance por mudança de prompt/model/playbook/retrieval.
+
+Esses elementos passam a fazer parte do target antes da migração do Sales runtime.
 
 ## Security findings observed
 
@@ -251,7 +312,7 @@ Supabase advisor report indicou, entre outros:
 
 Também existem Edge Functions com `verify_jwt=false`; algumas usam token/query secret próprio, outras precisam de revisão individual.
 
-Nada disso deve ser corrigido aleatoriamente durante checkpoint; é backlog obrigatório de hardening antes de go-live.
+Nada disso deve ser corrigido aleatoriamente durante documentação/migração; é backlog obrigatório de hardening antes de go-live.
 
 ## Current architectural diagnosis
 
@@ -265,9 +326,11 @@ Nada disso deve ser corrigido aleatoriamente durante checkpoint; é backlog obri
 - pricing/volume/checkout logic
 - attribution/UTM logic
 - existing webhook contracts
+- curated config/content identified in checkpoint
 
 ### Rebuild/unify architecture
-- canonical person model
+- canonical person/contact point model
+- privacy/contactability/suppression
 - conversation/message core
 - intelligence model
 - catalog product/run distinction
@@ -275,6 +338,8 @@ Nada disso deve ser corrigido aleatoriamente durante checkpoint; é backlog obri
 - agent runtime/profile/tool architecture
 - semantic Agent API
 - source-of-truth governance
+- knowledge ingestion/retrieval governance
+- evals/observability
 
 ### Likely remove after migration
 - duplicate/parallel runtime tables/functions
@@ -282,10 +347,10 @@ Nada disso deve ser corrigido aleatoriamente durante checkpoint; é backlog obri
 - ad hoc overlapping person/interest structures
 - compatibility functions after all consumers migrate
 
-No legacy structure may be dropped merely because it looks duplicate. Confirm consumers/FKs/runtime first.
+No legacy structure may be dropped merely because it looks duplicate. Confirm consumers/FKs/runtime/config/recovery first.
 
 ## Current operational principle
 
 The current system is a prototype, not an architectural contract.
 
-**Preserve useful behavior and data. Do not preserve accidental topology.**
+**Preserve useful behavior, data and configuration. Do not preserve accidental topology.**
