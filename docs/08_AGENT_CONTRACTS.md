@@ -10,6 +10,27 @@ Este documento define a interface lógica que agents devem consumir. Implementa�
 4. Escritas autorizadas por action scope.
 5. Dados sensíveis/minimização por profile.
 6. Agent não escolhe tabela física.
+7. Authoritative structured truth deve permanecer distinguível de inference/generated context.
+8. Contracts relevantes devem carregar freshness/provenance suficiente.
+9. Mudanças agent-facing exigem contract tests + behavior regressions aplicáveis.
+
+## Common context envelope
+
+Quando relevante, outputs podem expor metadados lógicos como:
+```json
+{
+  "value": "...",
+  "source": "...",
+  "authority": "authoritative | observed | inferred | generated",
+  "observed_at": "...",
+  "effective_at": "...",
+  "valid_until": "...",
+  "confidence": 0.93,
+  "sensitivity": "normal"
+}
+```
+
+Não é obrigatório repetir fisicamente esse shape em toda tabela; é um contrato lógico para preservar autoridade/freshness/provenance.
 
 ## Core context functions
 
@@ -32,6 +53,7 @@ Returns conceptual shape:
 ```json
 {
   "person": {},
+  "contact_points": [],
   "profiles": [],
   "organizations": [],
   "affiliations": [],
@@ -64,6 +86,8 @@ Returns conceptual shape:
   "active_insights": []
 }
 ```
+
+A pessoa pode ter outras conversations em outros canais. Shared relationship memory pertence à person/intelligence layer, não precisa ser uma única conversation infinita.
 
 ## Product context
 
@@ -103,18 +127,45 @@ Internally:
 ```
 
 ### `compare_offers(product_run_id, offer_codes[])`
-Return only official, current comparison.
+Return only official/current comparison plus validity/source metadata when appropriate.
 
 ### `get_current_price(offer_id, person_id?, quantity?)`
-Must return authoritative calculated price + applied rule provenance.
+Must return authoritative calculated price + applied rule provenance + validity.
+
+Price must not come from generic document/vector retrieval when commercial authority is available.
+
+## Privacy / contactability
+
+### `get_contactability(person_id, channel?, purpose?)`
+Conceptual return:
+```json
+{
+  "allowed": false,
+  "channel": "whatsapp",
+  "contact_point": null,
+  "reason_codes": ["OPTED_OUT"],
+  "consent": {},
+  "suppression": {},
+  "preference": {},
+  "valid_at": "..."
+}
+```
+
+This result is a deterministic/policy gate. LLMs cannot override `allowed=false`.
+
+### `record_opt_out(...)`
+Authorized deterministic write with source/event provenance and audit.
 
 ## Knowledge
 
 ### `get_relevant_knowledge(query, concept_ids?, product_run_id?, limit?)`
-Return curated relevant claims/documents with sources/caveats when applicable.
+Return curated relevant claims/documents with sources/caveats/authority/freshness when applicable.
 
 ### `search_deep_knowledge(query, filters?)`
 Broader retrieval for Researcher/deep research.
+
+### `get_relevant_product_content(product_run_id, query?, content_types?)`
+Return approved product/editorial content distinct from scientific claims and commercial structured truth.
 
 ## Summit-specific
 
@@ -130,7 +181,8 @@ Broader retrieval for Researcher/deep research.
       "space": {},
       "people": [],
       "concepts": [],
-      "reservation": {}
+      "reservation": {},
+      "authority": "authoritative"
     }
   ]
 }
@@ -155,6 +207,8 @@ Minimum fields:
 - source_type/source_id
 - verification status
 - valid_from/valid_until when relevant
+
+Guardrail: reject/avoid facts that simply duplicate a canonical domain representation when a better owner exists.
 
 ### `record_insight(...)`
 Minimum fields:
@@ -208,6 +262,7 @@ Persist operational decision:
 - next_best_action
 - confidence
 - rationale_summary
+- policy/guardrail references when relevant
 
 No hidden chain-of-thought.
 
@@ -228,8 +283,10 @@ External write through integration layer/outbox where appropriate.
 ### `update_crm(...)`
 Never arbitrary property write from raw LLM. Use allowlisted fields/action scopes.
 
-### `send_email(...)`
+### `send_email(...)` / `send_message(...)`
 Explicitly authorized only; audit and idempotency.
+
+For proactive/outbound send, must receive a successful `get_contactability`/policy gate or equivalent server-side enforcement.
 
 ### `schedule_meeting(...)`
 Explicitly authorized; calendar integration rules apply.
@@ -265,6 +322,26 @@ Conceptual V1 output:
 }
 ```
 
+## Context/retrieval manifest
+
+Orchestrator should be able to persist a logical manifest such as:
+```json
+{
+  "run_id": "...",
+  "context_items": [
+    {
+      "type": "commercial.current_price",
+      "source_id": "...",
+      "authority": "authoritative",
+      "tool": "get_current_price",
+      "included": true
+    }
+  ]
+}
+```
+
+Purpose: operational reproducibility and debugging, not hidden reasoning storage.
+
 ## Structured Sales turn output — conceptual
 
 ```json
@@ -291,12 +368,34 @@ Conceptual V1 output:
 
 Exact schema may evolve; architectural separation must remain.
 
+Behavior must satisfy `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md` and regressions in `docs/13_EVALS_AND_OBSERVABILITY.md`.
+
+## Contract tests / executable architecture
+
+Target repository should add machine-readable contracts where useful:
+```text
+contracts/
+  agent-api/
+  structured-outputs/
+supabase/tests/
+  identity.sql
+  commercial.sql
+  agent_api.sql
+evals/
+  sales_summit/
+  concierge_summit/
+  outbound/
+```
+
+Documentation alone is not enough for Vibe Code safety.
+
 ## Contract versioning
 
 Breaking changes to agent-facing logical shapes require:
 - version bump or compatibility layer;
 - consumer inventory;
 - migration plan;
-- tests.
+- tests;
+- relevant behavior evals.
 
 Physical DB refactors should not force unnecessary prompt/runtime rewrites.
