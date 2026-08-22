@@ -1,0 +1,354 @@
+<div id="mind-blueprint">
+<style>
+#mind-blueprint{background:light-dark(#f7f8fa,#0b0f14);color:light-dark(#17202a,#eef2f7);padding:24px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;border-radius:0;min-height:100%;}
+#mind-blueprint *{box-sizing:border-box}
+#mind-blueprint .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+#mind-blueprint button{border:1px solid light-dark(#cfd6dd,#39424c);background:light-dark(#fff,#141a21);color:inherit;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;min-height:44px}
+#mind-blueprint button.active{background:light-dark(#17202a,#eef2f7);color:light-dark(#fff,#111820)}
+#mind-blueprint .view{display:none}
+#mind-blueprint .view.active{display:block}
+#mind-blueprint h2{font-size:19px;margin:0 0 6px}
+#mind-blueprint h3{font-size:14px;letter-spacing:.02em;margin:0 0 8px}
+#mind-blueprint .sub{color:light-dark(#64707c,#a7b0ba);font-size:13px;margin-bottom:18px}
+#mind-blueprint .grid{display:grid;gap:12px}
+#mind-blueprint .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+#mind-blueprint .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+#mind-blueprint .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+#mind-blueprint .card{background:light-dark(#fff,#121820);border:1px solid light-dark(#dbe1e7,#303943);border-radius:14px;padding:14px;min-width:0}
+#mind-blueprint .card.strong{border-width:2px}
+#mind-blueprint .label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:light-dark(#64707c,#9da7b2);margin-bottom:6px}
+#mind-blueprint .item{padding:6px 8px;border-left:2px solid light-dark(#d5dbe1,#46515c);font-size:12px;line-height:1.35;margin:4px 0}
+#mind-blueprint .item b{font-weight:800}
+#mind-blueprint .arrow{text-align:center;padding:8px 0;font-weight:900;color:light-dark(#66717d,#9ea8b2)}
+#mind-blueprint .row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+#mind-blueprint .pill{display:inline-flex;align-items:center;border:1px solid light-dark(#cfd6dd,#3a4652);border-radius:999px;padding:6px 9px;font-size:12px;margin:3px 3px 3px 0;background:light-dark(#fbfcfd,#171e26)}
+#mind-blueprint .lane{border:1px dashed light-dark(#c9d0d7,#48535f);border-radius:12px;padding:12px;background:light-dark(#fbfcfd,#0f151c)}
+#mind-blueprint .step{display:grid;grid-template-columns:42px 1fr;gap:10px;align-items:start;margin:10px 0}
+#mind-blueprint .num{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:900;background:light-dark(#17202a,#eef2f7);color:light-dark(#fff,#111820)}
+#mind-blueprint .code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;white-space:pre-wrap;background:light-dark(#f3f5f7,#0c1117);border:1px solid light-dark(#dce2e8,#29333d);border-radius:10px;padding:10px;line-height:1.45;overflow:auto}
+#mind-blueprint .phase{border-left:4px solid light-dark(#8b98a5,#7f8c99)}
+#mind-blueprint .ok{font-size:11px;font-weight:800;color:light-dark(#315f46,#8fd0a7)}
+#mind-blueprint .warn{font-size:11px;font-weight:800;color:light-dark(#805b16,#e7bd67)}
+#mind-blueprint .matrix{width:100%;border-collapse:collapse;font-size:12px}
+#mind-blueprint .matrix th,#mind-blueprint .matrix td{border-bottom:1px solid light-dark(#e2e6ea,#2b343e);padding:8px;text-align:left;vertical-align:top}
+#mind-blueprint .matrix th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:light-dark(#66717d,#a2acb6)}
+@media(max-width:900px){#mind-blueprint .g4,#mind-blueprint .g3,#mind-blueprint .g2{grid-template-columns:1fr}#mind-blueprint{padding:16px}}
+</style>
+
+<div class="nav" role="tablist" aria-label="Blueprint views">
+  <button class="active" data-view="overview" type="button">1. Arquitetura</button>
+  <button data-view="database" type="button">2. Supabase</button>
+  <button data-view="agentflow" type="button">3. Fluxo do agente</button>
+  <button data-view="api" type="button">4. Agent API</button>
+  <button data-view="build" type="button">5. Ordem de construção</button>
+</div>
+
+<section id="overview" class="view active">
+  <h2>Arquitetura operacional completa</h2>
+  <div class="sub">O agente não conhece a topologia do banco. O sistema traz contexto essencial, busca o resto sob demanda, decide e registra tudo de volta.</div>
+
+  <div class="grid g4">
+    <div class="card"><div class="label">Canais</div><div class="item">Treble / WhatsApp</div><div class="item">Site</div><div class="item">App / Concierge</div><div class="item">Dash</div><div class="item">Humano / HubSpot</div></div>
+    <div class="card strong"><div class="label">Orquestração</div><div class="item"><b>route-message</b></div><div class="item">resolve pessoa</div><div class="item">entende intenção</div><div class="item">identifica scope</div><div class="item">escolhe agent profile</div></div>
+    <div class="card strong"><div class="label">Context Engineering</div><div class="item"><b>Base Context</b></div><div class="item"><b>Context Planner</b></div><div class="item">retrieval just-in-time</div><div class="item">deep memory</div><div class="item">deep research</div></div>
+    <div class="card"><div class="label">Agentes</div><div class="item">Sales</div><div class="item">Concierge</div><div class="item">Support / CS</div><div class="item">Researcher</div><div class="item">Workers</div></div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="grid g4">
+    <div class="card strong"><div class="label">Intelligence</div><div class="item">o que sabemos?</div><div class="item">fatos</div><div class="item">dores / desejos</div><div class="item">objeções / sinais</div><div class="item">fit / intent</div></div>
+    <div class="card strong"><div class="label">Playbook</div><div class="item">como bons profissionais pensam?</div><div class="item">princípios</div><div class="item">moves</div><div class="item">objection strategies</div><div class="item">guardrails</div></div>
+    <div class="card strong"><div class="label">Decisioning</div><div class="item">o que fazer agora?</div><div class="item">objetivo atual</div><div class="item">melhor move</div><div class="item">next best action</div><div class="item">escalar ou não</div></div>
+    <div class="card strong"><div class="label">Agent</div><div class="item">como executar?</div><div class="item">responde</div><div class="item">usa tool</div><div class="item">delega</div><div class="item">age</div></div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="grid g3">
+    <div class="card"><div class="label">Memory Loop</div><div class="item">salva mensagem</div><div class="item">extrai facts</div><div class="item">extrai insights</div><div class="item">atualiza summary</div><div class="item">recalcula fit</div></div>
+    <div class="card"><div class="label">Actions</div><div class="item">CRM task</div><div class="item">ticket</div><div class="item">follow-up</div><div class="item">email</div><div class="item">handoff</div></div>
+    <div class="card"><div class="label">Evals & Tracing</div><div class="item">qualidade da resposta</div><div class="item">correção factual</div><div class="item">uso de contexto</div><div class="item">conversão / resolução</div><div class="item">falhas por agent/profile</div></div>
+  </div>
+</section>
+
+<section id="database" class="view">
+  <h2>Árvore do Supabase</h2>
+  <div class="sub">Shared schemas guardam entidades universais. Schemas de linha de produto guardam profundidade específica.</div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="label">Shared / Global</div>
+      <div class="item"><b>catalog</b> — product_families, products, product_runs, product_content</div>
+      <div class="item"><b>people</b> — people, profiles, assets, links, works, organizations, affiliations, product_roles</div>
+      <div class="item"><b>crm</b> — contacts, companies, deals, tickets, tasks, owners, pipelines, pipeline_stages</div>
+      <div class="item"><b>commercial</b> — offers, pricing_periods, offer_prices, offer_inclusions, discount_rules, orders, order_items, order_people, payments, refunds, access_rights</div>
+      <div class="item"><b>engagement</b> — conversations, entry_contexts, messages, attachments, interactions</div>
+      <div class="item"><b>intelligence</b> — facts, insights, intents, product_fit, summaries</div>
+      <div class="item"><b>knowledge</b> — concepts, aliases, sources, claims, claim_sources, documents, chunks, product_concepts, person_concepts</div>
+      <div class="item"><b>service</b> — customer_relationships, support_cases, success_goals, health_snapshots, milestones, satisfaction, handoffs</div>
+      <div class="item"><b>playbooks</b> — playbooks, stages, principles, moves, objection_types, objection_strategies, guardrails, examples</div>
+      <div class="item"><b>decisioning</b> — policies, decisions, next_actions</div>
+      <div class="item"><b>agents</b> — registry, profiles, capabilities, profile_capabilities, context_profiles, knowledge_scopes, action_scopes, tools, delegation_rules, prompt_versions, runs, tasks, actions</div>
+      <div class="item"><b>evals</b> — datasets, cases, runs, scores, failures, human_feedback</div>
+      <div class="item"><b>integrations</b> — external_refs, webhook_events, sync_runs, sync_state, sync_errors</div>
+      <div class="item"><b>ops</b> — domain_events, outbox_events, audit_log, idempotency_keys</div>
+      <div class="item"><b>agent_api</b> — functions/RPCs, sem tabelas de negócio</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Product-specific</div>
+      <div class="item"><b>summit</b><br>editions, venues, spaces, edition_people, sessions, session_people, session_concepts, materials, reservations, attendance, feedback, v_agenda</div>
+      <div class="item"><b>institute</b><br>programs, cohorts, modules, lessons, live_sessions, faculty, program_concepts, module_concepts, materials, enrollments, completions, credentials, credential_requirements, credential_awards</div>
+      <div class="item"><b>events</b><br>editions, guests, sessions, materials, attendance, feedback</div>
+      <div class="item"><b>dash</b><br>solutions, use_cases, methodologies, deliverables, client_engagements, engagement_deliverables</div>
+    </div>
+  </div>
+
+  <div class="arrow">↓ catálogo como mapa global</div>
+  <div class="code">catalog.product_families
+├── Summit
+├── Institute
+├── Events
+└── Dash
+
+catalog.products
+├── Mind Summit
+├── Formação A — Estratégica em Bem-Estar no Trabalho e Liderança Positiva
+├── Formação B — Significado no Trabalho
+├── Formação C — Segurança Psicológica
+├── Mind Journey
+├── On Demand ...
+├── Oxford no Conselho
+└── Mind Dash ...
+
+catalog.product_runs
+├── Mind Summit 2025
+├── Mind Summit 2026
+├── Mind Summit 2027
+├── Formação A / turma 2025
+├── Formação B / turma 2025
+├── Formação C / turma 2025
+└── Journey / entrega 2025</div>
+
+  <div class="arrow">↓ uma identidade global, várias facetas</div>
+  <div class="code">Mind Summit 2026 = catalog.product_runs.id = X
+
+summit.editions.product_run_id = X
+commercial.offers.product_run_id = X
+crm.deals.product_run_id = X
+intelligence.product_fit.product_run_id = X
+engagement.conversations.product_run_id = X
+playbooks.playbooks.product_run_id = X
+
+Não existem seis "Summit 2026". Existe uma chave global e várias facetas.</div>
+</section>
+
+<section id="agentflow" class="view">
+  <h2>Fluxo de uma mensagem, ponta a ponta</h2>
+  <div class="sub">Caminho síncrono mínimo para resposta rápida; enriquecimento pesado fica em background.</div>
+
+  <div class="step"><div class="num">1</div><div class="card"><h3>Receber + persistir</h3><div class="item">webhook Treble/App/Site</div><div class="item">idempotency check</div><div class="item">salvar mensagem bruta em engagement.messages</div></div></div>
+  <div class="step"><div class="num">2</div><div class="card"><h3>Resolver identidade</h3><div class="item">email / telefone / IDs externos</div><div class="item">people.people</div><div class="item">integrations.external_refs</div><div class="item">crm.contacts</div></div></div>
+  <div class="step"><div class="num">3</div><div class="card"><h3>Triage</h3><div class="item">intent atual</div><div class="item">produto provável</div><div class="item">capability necessária</div><div class="item">agent profile</div></div></div>
+  <div class="step"><div class="num">4</div><div class="card strong"><h3>Base Context</h3><div class="row"><span class="pill">pessoa</span><span class="pill">empresa/cargo</span><span class="pill">summary</span><span class="pill">últimas mensagens</span><span class="pill">insights ativos</span><span class="pill">deal/ticket</span><span class="pill">scope</span></div></div></div>
+  <div class="step"><div class="num">5</div><div class="card strong"><h3>Context Planner</h3><div class="item">Pergunta: o que preciso saber para responder bem ESTE turno?</div><div class="row"><span class="pill">produto?</span><span class="pill">preço?</span><span class="pill">agenda?</span><span class="pill">ciência?</span><span class="pill">histórico antigo?</span><span class="pill">CS?</span></div></div></div>
+  <div class="step"><div class="num">6</div><div class="card"><h3>Retrieval just-in-time</h3><div class="item">Agent API busca apenas o contexto necessário</div><div class="item">knowledge relevante entra automaticamente quando semanticamente conectado</div><div class="item">deep research só quando necessário</div></div></div>
+  <div class="step"><div class="num">7</div><div class="card strong"><h3>Intelligence → Playbook → Decisioning</h3><div class="item"><b>Intelligence:</b> o que sabemos</div><div class="item"><b>Playbook:</b> como pensar bem</div><div class="item"><b>Decisioning:</b> qual move faz sentido agora</div></div></div>
+  <div class="step"><div class="num">8</div><div class="card"><h3>Executar</h3><div class="item">responder</div><div class="item">usar tool</div><div class="item">delegar para Researcher/Sales/CS</div><div class="item">criar ticket/task/follow-up se permitido</div></div></div>
+  <div class="step"><div class="num">9</div><div class="card"><h3>Persistir a ação</h3><div class="item">agents.runs</div><div class="item">decisioning.decisions</div><div class="item">agents.actions</div><div class="item">engagement.messages</div></div></div>
+  <div class="step"><div class="num">10</div><div class="card strong"><h3>Background memory loop</h3><div class="item">extract-turn-intelligence</div><div class="item">consolidar facts</div><div class="item">atualizar summaries</div><div class="item">recalcular product_fit</div><div class="item">sync HubSpot</div><div class="item">evaluate-opportunity</div></div></div>
+</section>
+
+<section id="api" class="view">
+  <h2>Agent API: o contrato que os agentes enxergam</h2>
+  <div class="sub">Nunca dar acesso livre a SQL como interface principal. Tools devem ser semânticas, estreitas e previsíveis.</div>
+
+  <div class="grid g3">
+    <div class="card"><div class="label">Context</div><div class="item"><b>build_base_context()</b></div><div class="item">get_person_context()</div><div class="item">get_relationship_context()</div><div class="item">get_conversation_context()</div><div class="item">get_product_context()</div><div class="item">get_service_context()</div></div>
+    <div class="card"><div class="label">Retrieval</div><div class="item">get_relevant_product_content()</div><div class="item">get_commercial_context()</div><div class="item">get_relevant_knowledge()</div><div class="item">search_deep_knowledge()</div><div class="item">search_person_history()</div><div class="item">find_summit_sessions()</div></div>
+    <div class="card"><div class="label">Memory</div><div class="item">record_fact()</div><div class="item">record_insight()</div><div class="item">record_intent()</div><div class="item">update_summary()</div><div class="item">record_product_fit()</div></div>
+    <div class="card"><div class="label">Strategy</div><div class="item">get_effective_playbook()</div><div class="item">get_applicable_policies()</div><div class="item">record_decision()</div><div class="item">get_next_best_actions()</div></div>
+    <div class="card"><div class="label">Actions</div><div class="item">create_followup()</div><div class="item">create_ticket()</div><div class="item">create_crm_task()</div><div class="item">update_crm()</div><div class="item">send_email()</div><div class="item">schedule_meeting()</div></div>
+    <div class="card"><div class="label">Delegation</div><div class="item">delegate_task()</div><div class="item">handoff_to_human()</div><div class="item">request_deep_research()</div><div class="item">request_sales_assist()</div><div class="item">request_cs_assist()</div></div>
+  </div>
+
+  <div class="arrow">↓ exemplo de contrato</div>
+  <div class="code">get_product_context(product_run_id, relevance_query?)
+
+RETORNA SEMPRE O MESMO FORMATO LÓGICO:
+{
+  product: {...},
+  run: {...},
+  positioning: {...},
+  relevant_content: [...],
+  relevant_people: [...],
+  commercial: {...},
+  concepts: [...]
+}
+
+Internamente:
+Summit   → catalog + summit + commercial + knowledge + people
+Institute→ catalog + institute + commercial + knowledge + people
+Dash     → catalog + dash + commercial + knowledge + people
+Events   → catalog + events + commercial + knowledge + people
+
+O agente não precisa saber onde cada dado mora.</div>
+
+  <div class="arrow">↓ profiles controlam o comportamento</div>
+  <table class="matrix">
+    <thead><tr><th>Profile</th><th>Contexto automático</th><th>Knowledge discoverable</th><th>Ações principais</th></tr></thead>
+    <tbody>
+      <tr><td><b>sales_summit</b></td><td>pessoa, CRM, insights, Summit atual, oferta, preço, playbook</td><td>Institute, Dash, ciência</td><td>sell, recommend, objection, follow-up, delegate research</td></tr>
+      <tr><td><b>concierge_summit</b></td><td>pessoa, ingresso, agenda, reservas, interesses, Summit atual</td><td>Institute, Dash, ciência</td><td>recommend session, reserve, feedback, identify opportunity</td></tr>
+      <tr><td><b>service_default</b></td><td>pessoa, compras, acessos, tickets, health, histórico</td><td>produtos relacionados</td><td>resolve, CS, recommend, handoff sales</td></tr>
+      <tr><td><b>researcher</b></td><td>question, concepts, source requirements</td><td>knowledge completo</td><td>research, synthesize, cite, return structured answer</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="build" class="view">
+  <h2>Ordem de implementação — para começar agora</h2>
+  <div class="sub">Não construa o universo inteiro antes do primeiro agente. Construa uma vertical completa e depois expanda.</div>
+
+  <div class="card phase">
+    <div class="label">Fase 0 — Guardrails de arquitetura</div>
+    <div class="item">repo + Supabase local + dev/staging/prod</div>
+    <div class="item">docs/architecture.md</div>
+    <div class="item">docs/data-dictionary.md</div>
+    <div class="item">docs/source-of-truth.md</div>
+    <div class="item">docs/agent-contracts.md</div>
+    <div class="ok">ENTREGA: ambiente seguro para Vibe Code sem drift arquitetural</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 1 — Núcleo de identidade e catálogo</div>
+    <div class="row"><span class="pill">catalog</span><span class="pill">people</span><span class="pill">integrations.external_refs</span></div>
+    <div class="item">seed: famílias Summit / Institute / Events / Dash</div>
+    <div class="item">seed: Mind Summit + Summit 2026</div>
+    <div class="item">seed: pessoas/palestrantes principais</div>
+    <div class="ok">TESTE: get_person + get_product básico</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 2 — Summit 2026 profundo</div>
+    <div class="row"><span class="pill">summit</span><span class="pill">commercial</span><span class="pill">knowledge concepts</span></div>
+    <div class="item">agenda, sessões, espaços, palestrantes</div>
+    <div class="item">MIND / VIP / PRIME / Corporate</div>
+    <div class="item">preços/lotes/condições/inclusions</div>
+    <div class="item">session_concepts e product_concepts</div>
+    <div class="ok">TESTE: get_product_context(Summit 2026)</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 3 — Memória comercial</div>
+    <div class="row"><span class="pill">crm</span><span class="pill">engagement</span><span class="pill">intelligence</span></div>
+    <div class="item">contacts/companies/deals</div>
+    <div class="item">conversations/messages/entry_context</div>
+    <div class="item">facts/insights/intents/summaries/product_fit</div>
+    <div class="ok">TESTE: pessoa retorna com memória entre conversas</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase strong">
+    <div class="label">Fase 4 — Primeiro agente real: Sales Summit</div>
+    <div class="row"><span class="pill">playbooks</span><span class="pill">decisioning</span><span class="pill">agents</span><span class="pill">agent_api</span></div>
+    <div class="item">Sales Core + Summit Sales + Summit 2026 overlay</div>
+    <div class="item">sales_summit context profile</div>
+    <div class="item">Base Context + Context Planner</div>
+    <div class="item">tools de produto, preço, knowledge e CRM</div>
+    <div class="ok">ENTREGA: vendedor Summit funcional ponta a ponta</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 5 — Memory loop + automação comercial</div>
+    <div class="item">extract-turn-intelligence</div>
+    <div class="item">refresh-summary</div>
+    <div class="item">evaluate-opportunity</div>
+    <div class="item">HubSpot sync / tasks / tickets / follow-up</div>
+    <div class="item">queues + outbox pattern</div>
+    <div class="ok">ENTREGA: conversa melhora automaticamente a próxima conversa</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 6 — Customer Success + Atendimento</div>
+    <div class="row"><span class="pill">service</span><span class="pill">service_default profile</span></div>
+    <div class="item">support cases</div>
+    <div class="item">customer goals</div>
+    <div class="item">health / milestones</div>
+    <div class="item">recommend + handoff sales</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 7 — Concierge + Researcher</div>
+    <div class="item">concierge_summit profile</div>
+    <div class="item">researcher profile</div>
+    <div class="item">delegate_task()</div>
+    <div class="item">reservations / attendance / feedback</div>
+    <div class="item">deep scientific research</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 8 — Institute, Dash e Events</div>
+    <div class="item">implementar schemas específicos usando o mesmo contrato get_product_context()</div>
+    <div class="item">profiles sales_institute, sales_dash, sales_events</div>
+    <div class="item">herança de playbooks</div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <div class="card phase">
+    <div class="label">Fase 9 — Evals e otimização</div>
+    <div class="row"><span class="pill">evals</span><span class="pill">tracing</span><span class="pill">human feedback</span></div>
+    <div class="item">golden conversations</div>
+    <div class="item">accuracy / relevance / naturalness</div>
+    <div class="item">conversion / resolution</div>
+    <div class="item">A/B de context profiles e playbooks</div>
+    <div class="ok">ENTREGA: sistema melhora com evidência, não por feeling</div>
+  </div>
+
+  <div class="arrow">↓ regras permanentes para Vibe Code</div>
+  <div class="code">1. Nunca duplicar person, organization, product ou concept.
+2. Nunca criar tabela nova sem verificar se a entidade já existe.
+3. Todo dado derivado por IA guarda source + confidence + provenance.
+4. LLMs usam Agent API; não recebem SQL livre como interface principal.
+5. Schemas específicos podem diferir; contratos retornados aos agentes devem ser consistentes.
+6. Toda mudança de schema = declarative schema + migration + test.
+7. Se a tarefa exigir mudar arquitetura, propor antes de implementar.
+8. Nunca conectar coding agent diretamente ao banco de produção.
+9. Tudo que altera sistema externo deve ser idempotente e auditável.
+10. Não carregar contexto demais: base context mínimo + retrieval just-in-time.</div>
+</section>
+
+<script>
+(() => {
+  const root=document.getElementById('mind-blueprint');
+  if(!root||root.dataset.init==='1')return;
+  root.dataset.init='1';
+  const buttons=[...root.querySelectorAll('[data-view]')];
+  const views=[...root.querySelectorAll('.view')];
+  buttons.forEach(btn=>btn.addEventListener('click',()=>{
+    buttons.forEach(b=>b.classList.remove('active'));
+    views.forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    const target=root.querySelector('#'+btn.dataset.view);
+    if(target)target.classList.add('active');
+  }));
+})();
+</script>
+</div>
