@@ -10,7 +10,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 const SYSTEM_INSTRUCTIONS = `Você é vendedor(a) consultivo(a) do Mind Summit 2026 no WhatsApp oficial do Mind (16 e 17 de setembro de 2026, São Paulo Expo).
@@ -162,11 +162,23 @@ Deno.serve(async (req: Request) => {
     "needs_human", "intent", "audience", "checkout_sent", "resposta_ia",
     "country_code", "cellphone", "session_id", "conversation_id", "hubspot_firstname",
   ]);
+  // Não é fala de gente: identificadores internos do Treble (DS_5511...),
+  // números puros, hashes. Observado no teste real: "DS_5511918446162"
+  // chegou como se fosse mensagem e o agente respondeu ao nada.
+  const pareceIdentificador = (v: string) =>
+    /^[A-Z]{2,6}[_-]?\d{6,}$/i.test(v) || /^\+?\d[\d\s()-]{6,}$/.test(v) ||
+    /^[0-9a-f]{16,}$/i.test(v);
+
   if (!message && Array.isArray(body.user_session_keys)) {
     const candidatos = (body.user_session_keys as Array<Record<string, unknown>>)
-      .filter((e) => typeof e?.value === "string" && String(e.value).trim().length > 0 &&
-                     !CONTROLE.has(String(e?.key ?? "")));
+      .filter((e) => typeof e?.value === "string" && String(e.value).trim().length > 1 &&
+                     !CONTROLE.has(String(e?.key ?? "")) &&
+                     !pareceIdentificador(String(e.value).trim()));
     if (candidatos.length > 0) message = String(candidatos[candidatos.length - 1].value).slice(0, 1200);
+  }
+  if (message && pareceIdentificador(message)) {
+    console.warn(JSON.stringify({ request_id: requestId, event: "mensagem_descartada_identificador" }));
+    message = "";
   }
 
   if (!sessionId || !message) {
@@ -214,6 +226,24 @@ Deno.serve(async (req: Request) => {
     ]);
     if (convError || !conv) throw new Error("conversa_falhou");
     if (ctxError || !contexto) throw new Error("contexto_falhou");
+
+    // Webhook duplicado do Treble: mesma fala em segundos → devolve a
+    // resposta anterior em vez de gerar (e cobrar) outra.
+    const { data: jaRespondida } = await supabase.rpc("treble_agent_resposta_repetida", {
+      p_conversation_id: conv.conversation_id,
+      p_mensagem: message,
+      p_janela_segundos: 90,
+    });
+    if (typeof jaRespondida === "string" && jaRespondida.trim()) {
+      console.info(JSON.stringify({ request_id: requestId, event: "turno_duplicado_ignorado" }));
+      return json(200, {
+        ok: true, duplicado: true,
+        user_session_keys: [
+          { key: "resposta_ia", value: jaRespondida },
+          { key: "needs_human", value: String(conv.needs_human === true) },
+        ],
+      });
+    }
 
     const historico = Array.isArray(conv.historico) ? conv.historico : [];
     const agendaSegura = agenda && typeof agenda === "object"
