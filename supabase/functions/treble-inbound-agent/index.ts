@@ -60,10 +60,16 @@ const RESPONSE_SCHEMA = {
   required: ["answer", "audience", "intent", "ticket_interest", "objection", "needs_human", "checkout_sent", "stage", "desfecho"],
 };
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+};
+
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+    headers: { ...CORS, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 }
 
@@ -110,6 +116,8 @@ Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
   const url = new URL(req.url);
+
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (req.method === "GET" && url.pathname.endsWith("/health")) {
     return json(200, { ok: true, service: "treble-inbound-agent", version: VERSION });
