@@ -60,3 +60,62 @@ revoke all on function public.treble_materiais(text) from public, anon, authenti
 
 -- treble_agent_context vira wrapper: corpo grande em _base + momento + materiais.
 -- (corpo de treble_agent_context_base: ver definição vigente no banco)
+
+-- ============================================================
+-- Enriquecimento de mind.materiais (pedido da Adriana):
+-- transcrição, resumo, objeções que quebra, ICP e UTM por canal.
+-- A prateleira é compartilhada: o mesmo material rende links
+-- diferentes no WhatsApp e no site, para medir separado.
+-- ============================================================
+alter table mind.materiais
+  add column if not exists conteudo_resumo text,
+  add column if not exists transcricao text,
+  add column if not exists objecoes_que_quebra text[] default '{}',
+  add column if not exists icp text[] default '{}',
+  add column if not exists duracao_segundos integer,
+  add column if not exists utm_campaign text;
+
+create or replace function public.mind_material_link(
+  p_url text, p_codigo text, p_utm_campaign text, p_canal text
+) returns text
+language sql immutable
+as $$
+  select p_url
+      || case when position('?' in p_url) > 0 then '&' else '?' end
+      || 'utm_source=' || case p_canal
+            when 'whatsapp_treble' then 'whatsapp'
+            when 'site_concierge'  then 'site'
+            else 'mind' end
+      || '&utm_medium=' || case p_canal
+            when 'whatsapp_treble' then 'chatbot_whatsapp'
+            when 'site_concierge'  then 'chatbot_site'
+            else p_canal end
+      || '&utm_campaign=' || coalesce(nullif(p_utm_campaign,''), p_codigo)
+      || '&utm_content=agente';
+$$;
+
+create or replace function public.mind_materiais_para(
+  p_canal text default 'whatsapp_treble',
+  p_audiencia text default 'desconhecido',
+  p_icp text default null
+) returns jsonb
+language sql security definer set search_path = public, mind
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'titulo', m.titulo, 'tipo', m.tipo,
+           'sobre_o_que_e', m.conteudo_resumo,
+           'quando_usar', m.quando_usar,
+           'objecoes_que_quebra', m.objecoes_que_quebra,
+           'link', public.mind_material_link(m.url, m.codigo, m.utm_campaign, p_canal)
+         ) order by m.ordem), '[]'::jsonb)
+  from mind.materiais m
+  where m.ativo
+    and (coalesce(p_audiencia,'desconhecido') = any(m.audiencias))
+    and (cardinality(m.icp) = 0 or p_icp is null or p_icp = any(m.icp));
+$$;
+revoke all on function public.mind_materiais_para(text, text, text) from public, anon, authenticated;
+
+create or replace function public.treble_materiais(p_audience text default 'desconhecido')
+returns jsonb
+language sql security definer set search_path = public, mind
+as $$ select public.mind_materiais_para('whatsapp_treble', p_audience, null) $$;
