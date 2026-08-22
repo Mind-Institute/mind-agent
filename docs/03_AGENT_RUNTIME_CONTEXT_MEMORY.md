@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define como um turno deve fluir, como agents recebem contexto, como memória é persistida e como delegação/ações funcionam.
+Define como um turno deve fluir, como agents recebem contexto, como memória é persistida, como autoridade/freshness é preservada e como delegação/ações funcionam.
 
 ## Runtime físico esperado
 
@@ -17,7 +17,7 @@ Database Functions / RPCs
 (build context / semantic reads)
         |
         v
-prepared context
+prepared context + context manifest
         |
         v
 LLM
@@ -46,18 +46,19 @@ response      tool call
 2. Validar auth/origem.
 3. Idempotency/dedup.
 4. Persistir raw message.
-5. Resolver pessoa.
+5. Resolver pessoa e contact/external identifiers.
 6. Resolver entry context e product scope.
 7. Triage intent/capability/profile.
 8. Build Base Context.
 9. Context Planner identifica gaps.
 10. Agent API busca apenas o necessário.
-11. Carregar playbook e policies aplicáveis.
-12. Decisioning escolhe move/next action.
-13. Agent gera resposta e/ou tool call.
-14. Tool executor executa apenas ação autorizada.
-15. Persistir run/decision/action/response.
-16. Retornar ao canal.
+11. Registrar context manifest/retrieval trace suficiente para reprodutibilidade operacional.
+12. Carregar playbook e policies aplicáveis.
+13. Decisioning escolhe move/next action.
+14. Agent gera resposta e/ou tool call.
+15. Tool executor executa apenas ação autorizada.
+16. Persistir run/decision/action/response.
+17. Retornar ao canal.
 
 A resposta do WhatsApp não deve bloquear em trabalho pesado que pode ser posterior.
 
@@ -102,7 +103,8 @@ Cada tool deve ter:
 - output previsível;
 - permission/action scope;
 - idempotency quando escreve;
-- audit trail quando produz efeito externo.
+- audit trail quando produz efeito externo;
+- authority/freshness metadata quando relevante.
 
 ## Profiles
 
@@ -132,6 +134,8 @@ Capabilities:
 - follow-up;
 - delegate research;
 - handoff human.
+
+Behavioral source of truth: `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`.
 
 ### concierge_summit
 Auto context:
@@ -205,7 +209,8 @@ Só separar em serviço/modelo próprio se evals mostrarem necessidade.
 
 ### Facts
 Objetivamente conhecidos e verificáveis.
-Ex.: pessoa trabalha na Empresa X; comprou PRIME; email é Y.
+
+Regra: não duplicar fatos que já possuem representação canônica apropriada. Email/telefone ficam em `people.contact_points`; compra em `commercial`; affiliation em `people.affiliations` ou CRM conforme semântica.
 
 ### Insights
 Inferências úteis.
@@ -215,7 +220,7 @@ Sempre com source/confidence/provenance.
 
 ### Intents
 Sinais transitórios de routing.
-Ex.: sales_b2b, event_navigation, support.
+Ex.: sales_b2b, event_navigation, support, purchase_ready.
 
 ### Summaries
 Compressão de relação, não substituto da evidência.
@@ -235,17 +240,36 @@ Regras:
 - permitir supersession/invalidation;
 - manter evidência de origem;
 - separar explicit confirmation de inferred signal;
-- summaries devem ser refresháveis.
+- summaries devem ser refresháveis;
+- não duplicar dados canônicos em `facts`.
+
+## Conversation model across channels
+
+`engagement` é compartilhado, mas uma pessoa pode ter múltiplas conversations:
+
+```text
+PERSON
+ ├─ WhatsApp conversation
+ ├─ App conversation
+ ├─ Site conversation
+ └─ Human conversation
+        ↓
+shared intelligence
+shared summaries
+shared relationship
+```
+
+A continuidade entre canais vem da pessoa e da memória compartilhada, não de uma conversa infinita única.
 
 ## Identity resolution
 
 Desired order:
 - trusted external id when mapped;
-- email;
-- normalized phone;
+- verified/normalized contact point;
 - known auth/user account;
 - explicit merge resolution for ambiguity.
 
+`people.contact_points` guarda meios/identificadores humanos de contato.
 `integrations.external_refs` guarda ids externos de Treble, HubSpot, Eduzz etc.
 
 Não criar pessoa nova para cada canal.
@@ -275,6 +299,21 @@ Deve ser simples:
 
 Não virar um agent de negócios gigante.
 
+## Context authority/freshness
+
+Contexto entregue ao modelo deve conseguir distinguir, quando necessário:
+- authoritative;
+- observed;
+- inferred;
+- generated;
+- freshness/validity;
+- confidence;
+- sensitivity.
+
+Exemplo: preço oficial não deve parecer equivalente a “lead parece sensível a preço”.
+
+Detalhes: `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`.
+
 ## Delegation
 
 `delegate_task()` permite specialist profile sem trocar necessariamente a persona visível.
@@ -303,12 +342,16 @@ Ações como criar task, mandar email, atualizar CRM devem:
 - registrar audit/event/outbox;
 - tratar retries sem duplicar efeito.
 
+Para outbound, nenhuma decisão do LLM substitui contactability/consent/suppression determinísticos. Ver `docs/14_OUTBOUND_WORKFLOW.md`.
+
 ## LLM observability
 
 `agents.runs` deve permitir rastrear:
 - profile/version;
 - model/provider;
 - prompt version;
+- playbook version;
+- context profile version;
 - tool calls;
 - latency;
 - status/error;
@@ -317,16 +360,38 @@ Ações como criar task, mandar email, atualizar CRM devem:
 
 Não é necessário guardar chain-of-thought.
 
+## Context manifest / retrieval trace
+
+Cada run deve poder registrar o que efetivamente foi usado/retrieved:
+- tool/function;
+- record/source ids;
+- authority/freshness;
+- version/hash quando útil;
+- query/filter descriptor seguro;
+- latency;
+- included_in_final_context.
+
+Objetivo: reproduzir operationalmente por que determinado dado chegou ao modelo sem armazenar raciocínio privado.
+
+## Evals as part of runtime development
+
+Evals começam antes do primeiro agent e acompanham mudanças de prompt, playbook, context profile, retrieval, model e tools.
+
+Ver `docs/13_EVALS_AND_OBSERVABILITY.md`.
+
 ## Anti-patterns
 
 - Um Edge Function diferente contendo uma arquitetura completa para cada agent.
-- Cada canal com suas próprias tabelas de conversation/message.
+- Cada canal com suas próprias tabelas de person/intelligence.
+- Forçar todos os canais numa conversation infinita única.
 - Prompt gigante com todos os preços/sessões/speakers.
 - LLM escolhendo tabelas/SQL diretamente.
 - Interest/pain/objection virando colunas ad hoc em conversation.
+- `intelligence.facts` virando duplicata do banco inteiro.
 - Agent respondendo antes de persistir/claim idempotency quando webhook pode repetir.
 - Background enrichment bloqueando WhatsApp.
 - Researcher sendo chamado em todo turno.
+- Não registrar contexto/retrieval suficiente para investigar uma resposta ruim.
 
 ## MVP acceptance test
 
@@ -338,4 +403,6 @@ O skeleton só é considerado funcional quando:
 5. resposta usa dados oficiais;
 6. insight/intent relevante é persistido;
 7. pessoa volta depois;
-8. agent lembra da relação sem reiniciar a conversa.
+8. agent lembra da relação sem reiniciar a conversa;
+9. run pode ser auditado por versões + context/retrieval trace;
+10. golden evals críticos continuam passando.
