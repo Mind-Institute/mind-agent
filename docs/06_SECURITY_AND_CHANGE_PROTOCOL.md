@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Impedir que velocidade de build, coding agents ou colaboradores criem risco operacional, vazamento de dados ou drift arquitetural.
+Impedir que velocidade de build, coding agents ou colaboradores criem risco operacional, vazamento de dados, contato indevido ou drift arquitetural.
 
 ## Ambientes
 
@@ -29,7 +29,19 @@ Regras:
 - manter grants mínimos;
 - revisar search_path de funções;
 - preferir SECURITY INVOKER quando suficiente;
-- SECURITY DEFINER exige justificativa e grants explícitos.
+- SECURITY DEFINER exige justificativa e grants explícitos;
+- não destruir legacy enquanto consumers/configuração/recovery não estiverem mapeados.
+
+## Checkpoint/recovery constraints atuais
+
+Antes de qualquer migration destrutiva, considerar os gaps do checkpoint de 2026-08-22:
+- 71 migrations aplicadas sem arquivo correspondente no repo;
+- schema dump estrutural ainda ausente por bloqueio de rede/CLI;
+- configuração curada existente fora de migrations;
+- secrets não recuperáveis pelo checkpoint;
+- bucket `mind-assets` não capturado.
+
+Esses itens não impedem toda evolução, mas impedem remoção irresponsável de estruturas que podem conter a única cópia recuperável de lógica/configuração.
 
 ## RLS
 
@@ -85,6 +97,31 @@ Writes em HubSpot, Treble, email, calendário etc. devem:
 - tolerar retry;
 - não duplicar efeito.
 
+## Privacy / contactability / outbound
+
+Outbound e mensagens proativas exigem controles determinísticos antes do LLM:
+- contact point válido/verificado quando aplicável;
+- consent/legal basis conforme política aplicável;
+- opt-out;
+- channel suppression;
+- global do-not-contact;
+- communication preferences;
+- cadence/recent-contact policy;
+- active human owner/coordination policy quando aplicável.
+
+O LLM pode sugerir uma mensagem, mas **não pode sobrescrever uma suppression/contactability negativa**.
+
+Qualquer send workflow deve registrar:
+- why-now/trigger;
+- eligibility result;
+- privacy/contactability decision;
+- idempotency key;
+- provider external id;
+- delivery/result;
+- follow-up state.
+
+Ver `docs/14_OUTBOUND_WORKFLOW.md`.
+
 ## AI / data handling
 
 - Reduzir PII enviada ao LLM quando não necessária.
@@ -93,6 +130,18 @@ Writes em HubSpot, Treble, email, calendário etc. devem:
 - Guardar operational rationale curto, structured decision e evidence links.
 - `store:false` quando política/runtime exigir e for suportado.
 - Dados derivados devem carregar provenance/confidence.
+- Context manifest/retrieval trace deve guardar referências e versões, não raciocínio privado.
+- Não enviar dados irrelevantes ao modelo “por precaução”.
+
+## Knowledge/data authority safety
+
+- preço, disponibilidade, agenda, acesso e pagamento usam authoritative structured data quando disponível;
+- embeddings/document chunks não substituem fonte operacional;
+- ingestion não pode sobrescrever domínio mais autoritativo sem política explícita;
+- stale content precisa ser detectável/invalidadável;
+- scientific claims de alto impacto devem preservar source/caveat/approval quando necessário.
+
+Ver `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`.
 
 ## Current known security findings — 2026-08-22
 
@@ -105,7 +154,7 @@ Observados diretamente no projeto Supabase durante auditoria de leitura:
 - Edge Functions públicas (`verify_jwt=false`) que dependem de mecanismos próprios de autenticação;
 - diferença entre código versionado e funções publicadas.
 
-Esses achados são **backlog obrigatório antes de go-live**, mas não devem ser corrigidos de forma oportunística no meio do checkpoint/migração sem plano.
+Esses achados são **backlog obrigatório antes de go-live**, mas não devem ser corrigidos oportunisticamente no meio de outra migration sem plano.
 
 ## Change classes
 
@@ -128,6 +177,10 @@ Exige checkpoint, migration plan, compatibility strategy, rollback/recovery e ap
 Ex.: envio em massa, CRM write, deploy prod, alteração de auth/permissions.
 Exige autorização explícita, idempotency e audit.
 
+### Classe F — agent behavior / prompt / model / retrieval
+Pode parecer “só prompt”, mas pode alterar resultado de negócio.
+Exige identificar behavior spec + eval cases relevantes e rodar regressão apropriada.
+
 ## Protocol before implementation
 
 1. Ler `README_FIRST.md`.
@@ -136,10 +189,11 @@ Exige autorização explícita, idempotency e audit.
 4. Verificar source of truth.
 5. Verificar dependências/FKs/consumidores.
 6. Determinar se muda arquitetura.
-7. Se muda: ADR + aprovação antes de código.
-8. Implementar somente escopo pedido.
-9. Testar acceptance criteria.
-10. Atualizar documentação/status.
+7. Identificar behavior/eval impact se agent-facing.
+8. Se muda arquitetura: ADR + aprovação antes de código.
+9. Implementar somente escopo pedido.
+10. Testar acceptance criteria + regressions pertinentes.
+11. Atualizar documentação/status.
 
 ## Protocol for architecture changes
 
@@ -161,10 +215,23 @@ Obrigatório:
 - checkpoint recuperável;
 - row counts/data validation se há dados;
 - dependency map;
+- inventory de configs/content fora de migrations;
 - compatibility view/RPC quando necessário;
 - migration reversível ou recovery procedure;
 - consumers migrated/tested;
 - only then remove legacy.
+
+## Protocol for behavior changes
+
+Para prompt/playbook/model/context/retrieval/tool behavior:
+- localizar `Behavior Spec` aplicável;
+- localizar golden cases relevantes;
+- registrar versões afetadas;
+- implementar de forma estreita;
+- rodar regressão;
+- não editar expected behavior só para esconder regressão.
+
+Ver `docs/13_EVALS_AND_OBSERVABILITY.md`.
 
 ## Coding agent permissions philosophy
 
@@ -183,9 +250,14 @@ Novo colaborador deve conseguir responder antes de tocar código:
 - qual branch/ambiente posso alterar?
 - posso mexer em produção? (não por padrão)
 - onde está a canonical person?
+- diferença entre contact point e external id?
 - diferença entre product e product_run?
 - onde preço é autoridade?
+- quando RAG é inadequado?
 - como agents acessam dados?
+- qual behavior spec governa o agente?
+- quais evals precisam passar?
+- como outbound decide se pode contactar?
 - quando preciso de ADR?
 
-Se não souber, ainda não deve fazer alteração estrutural.
+Se não souber, ainda não deve fazer alteração estrutural ou behavior-critical.
