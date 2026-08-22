@@ -141,3 +141,46 @@ veio (primeira gravação vence). A tabela nasce vazia: a lista de botões é
 conteúdo aprovado, não inventado.
 Descarta: `utm_source` fixo por canal (o modelo anterior, que não distinguia
 Mind Summit de Institute de Dash).
+
+**D-18 — A janela de urgência é de 7 dias, e a contagem sai do banco.** (2026-08-22, Adriana)
+Os lotes viram sempre no mesmo dia da semana (hoje, quinta). A comunicação
+da virada começa exatamente 7 dias antes, no mesmo dia da semana, e conta
+7, 6, 5… até o último dia. Fora dessa janela o agente **não** menciona
+virada, contagem nem aumento: prazo distante lido como urgência soa a
+pressão inventada. `mind_virada_de_lote()` devolve dias restantes, se a
+janela está aberta, o dia da semana e quanto cada categoria sobe — contar
+data é onde o LLM erra e onde o erro não é auditável. A janela é
+configurável em `treble.config.janela_urgencia_dias`.
+
+**D-19 — Escassez de categoria é campo, não dedução.** (2026-08-22, Adriana)
+"Quando o lote vira, quem estava em dúvida corre, e a categoria pode não
+ficar mais disponível" só vale dito quando for verdade. `mind.offers.procura`
+(`normal` / `alta` / `ultimas_vagas`) controla isso por categoria; sem o
+campo dizer, o agente não insinua. VIP e Prime entram como `alta` por
+autorização dela. Nunca prometer esgotamento em data, nunca inventar número
+de vagas.
+
+**D-20 — A UTM original sobrevive até o checkout; o bot não a sobrescreve.** (2026-08-22, Adriana)
+O WhatsApp quebra a cadeia de atribuição (não existe query string numa
+conversa). O site registra a UTM em `mind.utm_sessoes` via
+`mind_utm_registrar()`, recebe um token de 8 caracteres e o embute no texto
+pré-preenchido do `wa.me` (`[ref ab12cd34]`). O cérebro lê, resolve, grava
+em `treble.conversations.utm`, apaga o token do texto — o lead não escreveu
+aquilo — e o contexto já entrega `checkout_url` com a atribuição embutida.
+No checkout a UTM original vai **intacta**: `utm_source=google` continua
+`google`. Sobrescrever com "mindsummit" tiraria da mídia paga o crédito da
+venda que ela gerou. A camada do bot viaja em parâmetros próprios
+(`mind_canal`, `mind_origem`, `mind_conversa`) que não disputam com os
+`utm_`; `gclid`/`fbclid` passam adiante para o Google e a Meta fecharem a
+conversão com o clique.
+Descarta: `utm_source` do canal no checkout (o modelo da D-17 continua
+valendo para links de material, onde a pergunta é outra).
+
+**D-21 — Um fluxo no Treble para os cinco botões; a mensagem de abertura vive no banco.** (2026-08-22)
+O documento de mensagens do site previa "direcionar bot B2B", "bot roteador"
+e "bot atendimento" — desenho da época da frota de agentes. Com o cérebro
+único isso vira `mind.origens.audiencia_sugerida`, e a mesma conversa muda
+de postura sem perder contexto. As cinco mensagens de abertura, de
+encerramento e de descadastro ficam em `mind.origens`, não no painel do
+Treble: mudar uma mensagem passa a ser um UPDATE, não uma edição de fluxo
+em cinco lugares.

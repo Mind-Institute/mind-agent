@@ -10,7 +10,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O prompt vive no banco (treble.prompts), composto por turno:
@@ -138,6 +138,10 @@ Deno.serve(async (req: Request) => {
   // manda isso como variável de sessão vinda do link de entrada.
   const origem = pick(body, ["origem", "origem_codigo", "origin", "botao", "utm_content", "entry_point"])
     .slice(0, 60);
+  // O WhatsApp não tem query string: a UTM que trouxe a pessoa ao site viaja
+  // como token curto dentro do texto pré-preenchido do wa.me ("[ref ab12cd34]").
+  // Lemos, guardamos na conversa e tiramos do texto — o lead não escreveu isso.
+  let utmToken = pick(body, ["utm_token", "ref", "token_utm"]).slice(0, 8);
 
   // Rede de segurança: o Treble entrega a resposta do lead dentro de
   // user_session_keys, com o nome que o fluxo escolheu ao "salvar resposta".
@@ -161,6 +165,13 @@ Deno.serve(async (req: Request) => {
                      !pareceIdentificador(String(e.value).trim()));
     if (candidatos.length > 0) message = String(candidatos[candidatos.length - 1].value).slice(0, 1200);
   }
+  const REF = /\[?\s*ref[:\s]\s*([a-z0-9]{8})\s*\]?/i;
+  const achouRef = message.match(REF);
+  if (achouRef) {
+    if (!utmToken) utmToken = achouRef[1].toLowerCase();
+    message = message.replace(REF, "").trim();
+  }
+
   if (message && pareceIdentificador(message)) {
     console.warn(JSON.stringify({ request_id: requestId, event: "mensagem_descartada_identificador" }));
     message = "";
@@ -195,13 +206,23 @@ Deno.serve(async (req: Request) => {
 
   try {
     const telefoneHash = phone ? await sha256(phone) : null;
-    const [{ data: conv, error: convError }, { data: contexto, error: ctxError }, promptPre, { data: agenda }] = await Promise.all([
-      supabase.rpc("treble_agent_start", {
-        p_session_external_id: sessionId,
-        p_contact: { nome: contactName || null, telefone: phone || null, telefone_hash: telefoneHash },
-        p_origem: origem || null,
+    // start vem primeiro porque o contexto monta o checkout com a UTM da
+    // conversa: sem isso o link sai sem atribuição.
+    const { data: conv, error: convError } = await supabase.rpc("treble_agent_start", {
+      p_session_external_id: sessionId,
+      p_contact: { nome: contactName || null, telefone: phone || null, telefone_hash: telefoneHash },
+      p_origem: origem || null,
+      p_utm_token: utmToken || null,
+    });
+    if (convError || !conv) throw new Error("conversa_falhou");
+
+    const [{ data: contexto, error: ctxError }, promptPre, { data: agenda }] = await Promise.all([
+      supabase.rpc("treble_agent_context", {
+        p_audience: null,
+        p_origem: conv.origem_codigo ?? origem ?? null,
+        p_utm: conv.utm ?? null,
+        p_conversa: conv.conversation_id ?? null,
       }),
-      supabase.rpc("treble_agent_context", { p_audience: null, p_origem: origem || null }),
       supabase.rpc("treble_agent_prompt", { p_audience: null }),
       cfg.bloco_agenda_busca === "true"
         ? supabase.rpc("mindagent_chat_search", {
@@ -211,7 +232,6 @@ Deno.serve(async (req: Request) => {
           })
         : Promise.resolve({ data: null, error: null }),
     ]);
-    if (convError || !conv) throw new Error("conversa_falhou");
     if (ctxError || !contexto) throw new Error("contexto_falhou");
 
     // Webhook duplicado do Treble: mesma fala em segundos → devolve a
@@ -255,6 +275,7 @@ Deno.serve(async (req: Request) => {
         stage: conv.stage,
         nome_contato: conv.nome_contato ?? contactName ?? null,
         origem_codigo: conv.origem_codigo ?? origem ?? null,
+        utm_de_origem: conv.utm ?? null,
       },
       historico,
       mensagem_do_lead: redact(message),
@@ -303,9 +324,24 @@ Deno.serve(async (req: Request) => {
     // Total de grupo é multiplicação de preço oficial por quantidade — conta
     // legítima, não preço inventado. Os valores unitários com desconto já vêm
     // calculados do banco (precos_por_volume), então basta aceitar o múltiplo.
-    const unitarios = [...precosOficiais]
-      .map((v) => Math.round(Number(v)))
-      .filter((v) => Number.isFinite(v) && v >= 100 && v <= 100000);
+    // Só campos que são preço de verdade viram base de multiplicação — a URL
+    // de checkout carrega uuid, e dígito de uuid não é preço.
+    const camposDePreco = (obj: unknown, chaves: string[]): number[] => {
+      const saida: number[] = [];
+      const anda = (n: unknown) => {
+        if (Array.isArray(n)) return n.forEach(anda);
+        if (n && typeof n === "object") {
+          for (const [k, v] of Object.entries(n as Record<string, unknown>)) {
+            if (chaves.includes(k) && Number.isFinite(Number(v))) saida.push(Math.round(Number(v)));
+            else anda(v);
+          }
+        }
+      };
+      anda(obj);
+      return saida;
+    };
+    const unitarios = camposDePreco(contexto, ["valor", "valor_por_ingresso_com_desconto", "valor_cheio_por_ingresso"])
+      .filter((v) => v >= 100 && v <= 100000);
     const ehMultiploDeOficial = (valor: number) =>
       unitarios.some((u) => valor % u === 0 && valor / u >= 2 && valor / u <= 60);
     const precosNaResposta = answer.match(/R\$\s?([\d.]+)/g) ?? [];
