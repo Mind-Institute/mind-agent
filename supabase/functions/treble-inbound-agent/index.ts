@@ -10,7 +10,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.3.0";
+const VERSION = "0.5.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O prompt vive no banco (treble.prompts), composto por turno:
@@ -133,6 +133,11 @@ Deno.serve(async (req: Request) => {
   ]).slice(0, 1200);
   const contactName = pick(body, ["name", "nome", "user_name", "first_name", "hubspot_firstname"]);
   const phone = pick(body, ["cellphone", "celular", "phone"]);
+  // Origem = o botão pelo qual a pessoa entrou. Decide o utm_source (site),
+  // o campo oculto do HubSpot e a mensagem de abertura. O fluxo do Treble
+  // manda isso como variável de sessão vinda do link de entrada.
+  const origem = pick(body, ["origem", "origem_codigo", "origin", "botao", "utm_content", "entry_point"])
+    .slice(0, 60);
 
   // Rede de segurança: o Treble entrega a resposta do lead dentro de
   // user_session_keys, com o nome que o fluxo escolheu ao "salvar resposta".
@@ -140,6 +145,7 @@ Deno.serve(async (req: Request) => {
   const CONTROLE = new Set([
     "needs_human", "intent", "audience", "checkout_sent", "resposta_ia",
     "country_code", "cellphone", "session_id", "conversation_id", "hubspot_firstname",
+    "origem", "origem_codigo", "utm_content",
   ]);
   // Não é fala de gente: identificadores internos do Treble (DS_5511...),
   // números puros, hashes. Observado no teste real: "DS_5511918446162"
@@ -193,8 +199,9 @@ Deno.serve(async (req: Request) => {
       supabase.rpc("treble_agent_start", {
         p_session_external_id: sessionId,
         p_contact: { nome: contactName || null, telefone: phone || null, telefone_hash: telefoneHash },
+        p_origem: origem || null,
       }),
-      supabase.rpc("treble_agent_context"),
+      supabase.rpc("treble_agent_context", { p_audience: null, p_origem: origem || null }),
       supabase.rpc("treble_agent_prompt", { p_audience: null }),
       cfg.bloco_agenda_busca === "true"
         ? supabase.rpc("mindagent_chat_search", {
@@ -247,6 +254,7 @@ Deno.serve(async (req: Request) => {
         audience: conv.audience,
         stage: conv.stage,
         nome_contato: conv.nome_contato ?? contactName ?? null,
+        origem_codigo: conv.origem_codigo ?? origem ?? null,
       },
       historico,
       mensagem_do_lead: redact(message),
@@ -292,10 +300,19 @@ Deno.serve(async (req: Request) => {
     const precosOficiais = new Set<string>(
       JSON.stringify({ contexto, agendaSegura }).match(/\d+(?:\.\d+)?/g) ?? [],
     );
+    // Total de grupo é multiplicação de preço oficial por quantidade — conta
+    // legítima, não preço inventado. Os valores unitários com desconto já vêm
+    // calculados do banco (precos_por_volume), então basta aceitar o múltiplo.
+    const unitarios = [...precosOficiais]
+      .map((v) => Math.round(Number(v)))
+      .filter((v) => Number.isFinite(v) && v >= 100 && v <= 100000);
+    const ehMultiploDeOficial = (valor: number) =>
+      unitarios.some((u) => valor % u === 0 && valor / u >= 2 && valor / u <= 60);
     const precosNaResposta = answer.match(/R\$\s?([\d.]+)/g) ?? [];
     for (const p of precosNaResposta) {
       const bruto = p.replace(/R\$\s?/, "").replace(/\./g, "");
-      if (!precosOficiais.has(bruto) && !precosOficiais.has(bruto + ".00")) {
+      if (!precosOficiais.has(bruto) && !precosOficiais.has(bruto + ".00") &&
+          !ehMultiploDeOficial(Number(bruto))) {
         console.error(JSON.stringify({ request_id: requestId, event: "preco_inventado", preco: p }));
         return json(200, {
           ok: true, guarded: true,

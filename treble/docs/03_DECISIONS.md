@@ -107,3 +107,37 @@ saída estruturada — cabe no limite de 10 s do webhook do Treble. Guardrail
 extra em código: preço "R$ X" na resposta que não exista no contexto
 derruba o turno para handoff. Loop de tool-calling fica para quando o
 contexto crescer (ex.: agenda completa).
+
+**D-15 — Em B2B, o agente municia; não transfere.** (2026-08-22, Adriana)
+A análise das conversas dos últimos dois meses mostrou 53 leads travados em
+"verba da empresa" e 59 perguntando espontaneamente sobre grupo. Quem diz
+"preciso da aprovação do diretor" não quer um vendedor: quer argumento para
+defender a compra lá dentro. O agente passa a informar o tier de desconto na
+primeira resposta sobre grupo, montar a conta e entregar o racional; o
+consultor entra por necessidade (contrato, nota fiscal, condição fora da
+regra) ou a pedido.
+Revisa a metade "transfere grupo para vendedor fechar" da D-13 — os tiers
+percentuais continuam valendo integralmente. Mudou em três lugares que
+precisavam andar juntos: `treble.prompts.playbook_b2b`, o `config.acao` da
+regra `desconto_por_volume`, e `mindagent_sync_offers`, que reescrevia a
+regra a cada 30 minutos e desfazia a mudança sozinha.
+
+**D-16 — Conta de grupo é calculada no banco, não pelo LLM.** (2026-08-22)
+Descoberto testando a D-15: o guardrail de preço derrubou a primeira resposta
+de grupo, e com razão — R$ 2.078 (20% off do VIP) não existia em lugar nenhum
+dos dados oficiais, então era indistinguível de preço inventado. A RPC
+`mind_precos_por_volume()` cruza `mind.offers` × tiers e entrega valor com
+desconto, economia e parcelamento prontos no contexto (coerente com D-3).
+O guardrail passou a aceitar também múltiplo inteiro (2 a 60) de preço
+oficial: total de grupo é multiplicação, não invenção.
+
+**D-17 — A origem (botão de entrada) é conceito de primeira classe.** (2026-08-22, Adriana)
+`mind.origens` guarda, por botão de cada site: o site (que vira `utm_source`),
+o campo oculto do formulário do HubSpot, a mensagem de abertura do bot e a
+audiência sugerida. O canal define o `utm_medium` — Treble = `chatbot`,
+concierge do site = `chatbot_concierge` — e o código do botão vira
+`utm_content`. `treble.conversations.origem_codigo` grava de onde a conversa
+veio (primeira gravação vence). A tabela nasce vazia: a lista de botões é
+conteúdo aprovado, não inventado.
+Descarta: `utm_source` fixo por canal (o modelo anterior, que não distinguia
+Mind Summit de Institute de Dash).
