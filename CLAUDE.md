@@ -1,134 +1,153 @@
 # Claude Code Project Rules
 
-You are the technical executor of the Mind Intelligence project. Architecture is governed by the versioned project documents, not by local convenience.
-
-## Mandatory pre-read
-
-Before ANY work, read:
+Before doing any work, read:
 1. `README_FIRST.md`
 2. `docs/00_EXECUTION_CONTROL.md`
 3. `docs/00_ARCHITECTURE.md`
 
-Before architecture, schema, migration, agent-runtime, identity, product-model or cross-domain work, ALSO read:
-4. `docs/01_PROJECT_MEMORY.md`
-5. `docs/02_TARGET_DATA_MODEL.md`
-6. `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
-7. the relevant domain document
-8. any related ADRs
+You are the technical executor of this project. Architecture is governed by the versioned project documents, not by convenience in the current task.
 
-Before changing product/commercial logic, read `docs/04_PRODUCT_AND_COMMERCIAL_MODEL.md`.
-Before changing execution order, read `docs/05_IMPLEMENTATION_ROADMAP.md`.
-Before production/security/access work, read `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`.
-Before migrating legacy structures, read `docs/07_CURRENT_STATE_2026-08-22.md` and the current migration plan/checkpoint docs.
-Before implementing Agent API/tools, read `docs/08_AGENT_CONTRACTS.md`.
-Before sync/source-of-truth changes, read `docs/09_SOURCE_OF_TRUTH_DRAFT.md` (or its finalized successor).
-Use `docs/10_GLOSSARY.md` when terminology is ambiguous.
+## Mandatory behavior
 
-Do not load every document into every tiny task; load the relevant deep context when the task can affect architecture or semantics.
+- Do not invent new schemas, tables, entities, runtimes or architectural patterns without checking the existing architecture first.
+- Do not duplicate person, organization, product, product run or concept.
+- Do not treat CRM contact as canonical person identity.
+- Do not treat email/phone/contact points as the same thing as provider external ids.
+- Do not treat a product edition/cohort as a new canonical product.
+- Do not expose arbitrary SQL as the main interface for LLM agents.
+- Do not put commercial truth such as price, lot, availability or discount authority inside prompts.
+- Do not use embeddings/vector search as universal source of truth when structured authoritative data exists.
+- Do not silently turn AI inference into fact; persist source, confidence and provenance.
+- Do not copy canonical data into `intelligence.facts` merely for convenience.
+- Do not make production schema changes manually outside versioned migrations.
+- Do not delete or destructively alter structures without checkpoint and rollback/recovery plan.
+- Do not deploy or modify production unless the task explicitly authorizes it.
+- Do not expose privileged secrets to browser/client code.
+- Do not create a parallel conversation runtime when shared `engagement` should be used.
+- Do not assume shared engagement means one infinite conversation across every channel.
+- Do not redesign the architecture while implementing a local feature.
+- Do not ship an agent behavior change without the relevant eval/regression checks.
+- Do not allow LLM decisions to override deterministic privacy/contactability/suppression rules.
 
-## Role boundary
+## Read the domain-specific docs before implementation
 
-You execute implementation. You do not silently own or redesign architecture.
+### Database/entity/schema work
+Read:
+- `docs/02_TARGET_DATA_MODEL.md`
+- `docs/09_SOURCE_OF_TRUTH_DRAFT.md`
+- `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`
+- future Current → Target / Migration Plan when present.
 
-If a task seems to require a new schema, entity, runtime, source of truth, canonical id, contract or architectural pattern not already defined:
-- STOP before implementation;
-- describe the exact conflict;
-- explain why the current architecture does not cover it;
-- propose the smallest viable options;
-- describe migration/compatibility impact;
-- wait for approval.
+### Sales behavior/prompt/playbook/decisioning
+Read:
+- `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`
+- `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
+- `docs/08_AGENT_CONTRACTS.md`
+- `docs/13_EVALS_AND_OBSERVABILITY.md`
 
-## Core invariants
+Behavior Spec is authoritative for what good Sales behavior means. Do not rewrite the behavior definition merely to fit an implementation.
 
-- `people.people` is the target canonical person identity.
-- CRM relationship is not canonical person identity.
-- `catalog.products` != `catalog.product_runs`.
-- Product-specific schemas are facets/extensions, not duplicate canonical identities.
-- Sales and Concierge must converge on shared identity, engagement, intelligence and runtime.
-- Intelligence != Playbook != Decisioning != Agent.
-- Agents use semantic Agent API contracts; arbitrary SQL is not their primary interface.
-- AI-derived data preserves source, confidence and provenance.
-- Commercial truth (price/lot/discount authority) comes from commercial data/policies, not prompts.
-- Scientific truth belongs to knowledge, not product copy.
-- Context is minimal by default + just-in-time retrieval.
-- Do not create parallel conversation/memory systems by channel.
+### Knowledge/RAG/site ingestion/retrieval
+Read:
+- `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`
+- `docs/02_TARGET_DATA_MODEL.md`
+- `docs/08_AGENT_CONTRACTS.md`
+- `docs/13_EVALS_AND_OBSERVABILITY.md`
+
+Do not solve all knowledge questions with generic vector retrieval.
+
+### Outbound
+Read:
+- `docs/14_OUTBOUND_WORKFLOW.md`
+- `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`
+- privacy/contactability parts of `docs/02_TARGET_DATA_MODEL.md`
+- `docs/13_EVALS_AND_OBSERVABILITY.md`
+
+### Concierge
+Read:
+- `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
+- `docs/08_AGENT_CONTRACTS.md`
+- `docs/13_EVALS_AND_OBSERVABILITY.md`
+- Summit/product docs relevant to the task.
+
+### Security/RLS/webhooks/external writes
+Read:
+- `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`
+- `docs/09_SOURCE_OF_TRUTH_DRAFT.md`
+
+## If a task conflicts with architecture
+
+Stop before implementing the conflicting change.
+Return:
+1. the exact conflict;
+2. why the current request would violate architecture;
+3. the smallest viable options;
+4. expected migration/compatibility impact.
+
+Wait for approval before implementing an architectural deviation.
 
 ## Scope discipline
 
 Implement only the requested step.
-Do not opportunistically refactor unrelated code.
-Do not build future domains because they are described in the target architecture.
-Do not turn a migration task into a redesign.
+Do not opportunistically refactor unrelated parts of the repository.
+Do not build future domains just because the schema allows them.
 
-The active scope is always defined by `docs/00_EXECUTION_CONTROL.md`.
-
-## Production discipline
-
-- Production is not a development environment.
-- Do not deploy or mutate production unless the task explicitly authorizes it.
-- Do not manually change production schema through Dashboard as normal workflow.
-- Do not delete or destructively alter structures without checkpoint + migration/recovery plan.
-- Never expose service role or privileged secrets to browser/client code.
-- `verify_jwt=false` requires an intentional alternative authentication mechanism and review.
+`docs/00_EXECUTION_CONTROL.md` decides what is active now.
 
 ## Required quality for schema changes
 
-For every structural DB change, when applicable include:
-- versioned migration;
-- target/schema source;
-- dependency/FK review;
-- validation query/tests;
-- compatibility note;
-- rollback or recovery note;
-- documentation update.
+Every structural database change should include, when applicable:
+- declarative/current schema source;
+- migration;
+- rollback or reversibility/recovery note;
+- tests/validation query;
+- documentation update;
+- dependency/consumer review for legacy objects.
 
-Class-D changes (identity/source-of-truth/destructive moves) require explicit migration plan and approval before execution.
+## Required quality for agent-facing contract changes
 
-## Required quality for runtime changes
+When changing Agent API or structured output:
+- update versioned contract/schema where applicable;
+- inventory consumers;
+- preserve compatibility or explicitly migrate;
+- run contract tests;
+- run relevant behavior evals.
 
-For Edge Functions/orchestrators/tools:
-- preserve versioned source in Git;
-- define input/output contract;
-- define auth;
-- define timeout/failure behavior;
-- define idempotency for repeatable webhooks/actions;
-- log safely without unnecessary PII;
-- add acceptance test.
+## Required quality for external actions
 
-## External actions
+Writes to HubSpot, Treble, email, calendar or other external systems must be idempotent and auditable.
 
-Writes to HubSpot, Treble, email, calendar or other systems must be:
-- explicitly authorized by action scope/task;
-- idempotent when possible;
-- auditable;
-- retry-safe.
+Outbound additionally requires deterministic contactability/consent/suppression and cadence checks before send.
 
 ## Context philosophy
 
 Agent runtime uses:
-- small Base Context;
+- minimal Base Context;
 - Context Planner;
-- semantic just-in-time retrieval;
-- deep memory/research only when necessary.
+- just-in-time retrieval;
+- deep memory/research only when necessary;
+- authority/freshness metadata where relevant;
+- context/retrieval trace for debugging.
 
-Never fix missing context by blindly loading entire datasets/history into prompts.
+Do not solve missing context by loading entire datasets into prompts.
 
-## Migration philosophy
+## Evals philosophy
 
-The current system is a prototype.
+Evals are part of development, not a final polishing phase.
 
-Preserve useful behavior and data, not accidental topology.
-Do not preserve a legacy table merely because code already points to it; use compatibility layers and staged consumer migration when the target architecture requires a move.
-Do not drop legacy until all known consumers are migrated/tested.
+Before changing prompt/model/playbook/context/retrieval/tool behavior:
+1. identify relevant golden cases;
+2. implement narrowly;
+3. run relevant regressions;
+4. do not rewrite expected behavior simply to make a failing implementation pass.
 
-## Output discipline for assigned tasks
+## Current execution state
 
-When finishing an implementation task, report:
-1. files/migrations changed;
-2. what behavior changed;
-3. tests/validation performed;
-4. production impact (should be none unless explicitly authorized);
-5. remaining gap/blocker;
-6. whether `00_EXECUTION_CONTROL.md` should now be updated.
+Always defer to `docs/00_EXECUTION_CONTROL.md` for:
+- active objective;
+- current phase;
+- checkpoint/gaps;
+- done criteria;
+- explicitly forbidden work.
 
-Do not begin the next roadmap item automatically.
+If this file and `00_EXECUTION_CONTROL.md` disagree on sequencing, stop and report the discrepancy rather than guessing.
