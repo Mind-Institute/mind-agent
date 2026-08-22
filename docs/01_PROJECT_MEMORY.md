@@ -24,23 +24,25 @@ A arquitetura não deve seguir o canal nem o agent. Deve seguir as **entidades e
 
 Uma pessoa é a mesma pessoa no Treble, no app, no HubSpot e no Summit.
 Um produto é o mesmo produto para Sales, Concierge e Customer Success.
-Uma conversa em canais diferentes continua pertencendo a um histórico de relacionamento comum.
+Conversas em canais diferentes pertencem ao mesmo relacionamento, ainda que possam ser conversations distintas.
 Uma evidência científica continua sendo a mesma evidência, independentemente do agent que a consulta.
 
 ## 3. O que é compartilhado vs específico
 
 ### Compartilhado
 - identidade de pessoas e organizações;
+- contact points e external refs;
 - catálogo de produtos e runs;
 - CRM e relação comercial;
 - oferta/preço/pagamento/acesso;
 - conversas/interações;
 - facts, insights, intents, summaries, fit;
 - conhecimento/evidência;
+- privacy/contactability/suppression;
 - playbooks;
 - decisioning;
 - runtime de agents;
-- integrações, auditoria, idempotência e evals.
+- integrações, auditoria, idempotência, tracing e evals.
 
 ### Específico por linha
 Cada linha pode ter profundidade própria sem obrigar todas as linhas a usar o mesmo modelo físico.
@@ -53,6 +55,8 @@ Events pode ser mais simples.
 A consistência é exigida na **interface semântica para os agents**, não necessariamente em tabelas idênticas por produto.
 
 ## 4. Arquitetura conceitual
+
+A espinha dorsal é:
 
 ```text
 DATA
@@ -68,6 +72,21 @@ AGENT
 ACTION
   ↓
 MEMORY LOOP
+```
+
+Mas a revisão consolidada de agent engineering adiciona duas camadas externas obrigatórias:
+
+```text
+BUSINESS OUTCOME
+      ↓
+BEHAVIOR SPEC
+      ↓
+EVALS
+      ↓
+[espinha dorsal acima]
+      ↓
+OBSERVABILITY + EVAL DATA
+      ↺
 ```
 
 ### Data
@@ -106,6 +125,12 @@ Exemplo: objeção de preço não deve automaticamente disparar desconto. O sist
 Executa a decisão em linguagem natural ou através de ferramentas.
 
 O agent pode responder, consultar, recomendar, delegar, registrar, criar task ou fazer handoff conforme seu profile e permissões.
+
+### Behavior Spec
+Define o que é comportamento excelente antes de prompt, model, playbook ou implementação. Para Sales, ver `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`.
+
+### Evals
+Definem como verificar se o comportamento realmente melhorou ou regrediu. Evals começam antes do primeiro agent target, não no final.
 
 ## 5. Context engineering
 
@@ -147,6 +172,9 @@ Histórico antigo, eventos, cliques e interações de menor frequência entram a
 ### Deep research
 Pesquisa científica aprofundada pode ser delegada a Researcher em vez de poluir todo agent com contexto pesado.
 
+### Context manifest / retrieval trace
+Cada run deve conseguir registrar quais fontes/records/tools/versões chegaram ao modelo, sem guardar chain-of-thought. Isso permite depurar uma resposta ruim por evidência operacional, não por adivinhação.
+
 ## 6. Memória: quente e profunda
 
 ### Hot / Base
@@ -182,6 +210,8 @@ A mesma pessoa pode simultaneamente ser:
 
 Nenhum desses papéis justifica duplicar a pessoa.
 
+`people.contact_points` representa meios/identificadores humanos de contato.
+`integrations.external_refs` representa ids de sistemas externos.
 `crm.contacts` representa a relação comercial com Mind.
 `people.affiliations` representa vínculos institucionais.
 `people.product_roles` representa papéis em produtos/runs.
@@ -226,6 +256,13 @@ Exemplos de concepts:
 - resilience.
 
 Claims científicos devem ser estruturados, associados às fontes e ter força/caveats quando apropriado.
+
+A revisão consolidada acrescenta uma regra forte: **structured authoritative truth vem antes de generic vector retrieval**. Preço, agenda, acesso, compra e disponibilidade não devem ser respondidos por embedding quando existe uma fonte estruturada autoritativa.
+
+O pipeline de knowledge deve ser:
+source → version/raw snapshot → parse/normalize → classify → validate/provenance → index → retrieval policy → Agent API.
+
+Ver `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`.
 
 ## 10. Agent model
 
@@ -310,6 +347,8 @@ O agent deve automaticamente saber:
 
 e responder sem reiniciar a descoberta.
 
+Além de “funcionar”, Sales deve satisfazer a especificação de comportamento e golden evals. Um vendedor tecnicamente integrado porém comercialmente medíocre é falha do projeto.
+
 ## 14. Concierge Summit
 
 Concierge deve reutilizar o mesmo core e adicionar capacidades específicas:
@@ -325,6 +364,8 @@ Concierge deve reutilizar o mesmo core e adicionar capacidades específicas:
 - oportunidade comercial quando relevante.
 
 A conversa não deve ser invasivamente diagnóstica. Pode aprender objetivos/dor suficiente para conectar conteúdo útil, mas não transformar experiência em interrogatório.
+
+A conversa do app pode ser distinta da WhatsApp conversation; continuidade vem da mesma pessoa e intelligence compartilhada.
 
 ## 15. Service / CS / Support
 
@@ -355,7 +396,7 @@ Eventos de domínio podem incluir:
 
 A matriz definitiva de source of truth deve ser explicitamente validada antes da migração. Hipótese atual: Supabase é autoridade para catálogo/knowledge/intelligence; HubSpot deve provavelmente permanecer autoridade operacional para owner/stage do CRM.
 
-## 17. Segurança
+## 17. Segurança, privacy e outbound
 
 Princípios:
 - public schema quase vazio;
@@ -370,11 +411,17 @@ Princípios:
 - ações externas idempotentes/auditáveis;
 - dev/staging antes de produção.
 
-## 18. Evals
+Outbound não é “inbound ao contrário”. Ele reutiliza Sales runtime, mas adiciona trigger, eligibility, why-now, contactability/consent/suppression, cadence/send state e coordenação com humano/owner.
 
-O sistema deve evoluir por evidência, não feeling.
+LLM nunca pode sobrescrever uma suppression/contactability negativa.
 
-Métricas futuras:
+Ver `docs/14_OUTBOUND_WORKFLOW.md`.
+
+## 18. Evals e observability
+
+Evals não são trabalho futuro. Eles começam antes do primeiro agent target.
+
+Dimensões:
 - accuracy;
 - relevance;
 - naturalness;
@@ -384,6 +431,8 @@ Métricas futuras:
 - conversão/resolução;
 - não inventar fatos;
 - não perguntar informação já conhecida;
+- tool/retrieval discipline;
+- memory extraction quality;
 - human feedback.
 
 Também devemos testar variantes de contexto:
@@ -393,6 +442,10 @@ Também devemos testar variantes de contexto:
 - playbook versions;
 - Sales sozinho vs Sales + Researcher.
 
+Agent runs devem guardar model/prompt/playbook/context versions + tool/retrieval trace suficiente para reproduzir operationalmente uma resposta ruim.
+
+Ver `docs/13_EVALS_AND_OBSERVABILITY.md`.
+
 ## 19. Filosofia de implementação
 
 1. Preservar comportamento bom, não topologia acidental.
@@ -401,13 +454,16 @@ Também devemos testar variantes de contexto:
 4. Mudança arquitetural precisa ser explícita.
 5. Não overbuildar componentes futuros.
 6. Manter compatibilidade conceitual com Concierge desde o Sales.
-7. Commit/checkpoint em marcos importantes.
-8. Nunca depender da memória de uma pessoa ou agent para manter a arquitetura.
+7. Arquitetar contactability/privacy cedo para não retrofit outbound.
+8. Definir comportamento e evals antes de otimizar prompt/model.
+9. Transformar arquitetura em contracts/tests, não só documentos.
+10. Commit/checkpoint em marcos importantes.
+11. Nunca depender da memória de uma pessoa ou agent para manter a arquitetura.
 
 ## 20. Divisão de trabalho esperada
 
 ### Guia/arquitetura
-Mantém macro, escopo, acceptance tests, decisões e documentação.
+Mantém macro, escopo, behavior specs, acceptance tests, decisões e documentação.
 
 ### Coding agent
 Executa implementação no repositório e deve parar diante de conflito arquitetural.
@@ -421,17 +477,41 @@ Canal real de vendas / WhatsApp.
 ### App
 Canal do Concierge.
 
-## 21. Estado de prioridade
+## 21. Estado de prioridade consolidado
 
-A ordem operacional sempre prevalece sobre expansões futuras:
+A ordem operacional consolidada é:
 
 1. checkpoint;
-2. documentação/guardrails;
-3. migração física planejada;
-4. Sales Summit E2E;
-5. Concierge Summit;
-6. memory loop e automações maduras;
-7. demais agentes/produtos;
-8. evals/otimização contínua.
+2. documentação/guardrails + behavior specs + eval baseline;
+3. current-to-target + migration plan;
+4. ambientes/security/contracts executáveis;
+5. identity + catalog;
+6. Summit + commercial + knowledge mínimo;
+7. engagement + intelligence + CRM core;
+8. Sales Summit Inbound E2E;
+9. Concierge Summit;
+10. Sales Outbound;
+11. Service/CS/Support + Researcher;
+12. Institute/Dash/Events;
+13. advanced optimization.
+
+Evals, observability, memory quality, knowledge quality e security são trilhas contínuas, não fases finais.
 
 Consulte `docs/00_EXECUTION_CONTROL.md` para o estado atual exato.
+
+## 22. Nota de revisão de agent engineering — 2026-08-22
+
+Após a primeira documentação da arquitetura, foi feita uma revisão explícita com foco em sistemas agentic e Vibe Code. A conclusão foi:
+
+- a plataforma de dados estava bem desenhada;
+- o maior risco remanescente era construir infraestrutura elegante sem especificar suficientemente a excelência do agente;
+- por isso Behavior Specs e Evals foram movidos para o início;
+- knowledge passou a ter ingestão/versionamento/authority/retrieval policy explícitos;
+- contact points foram separados de external refs;
+- privacy/contactability/suppression virou requisito fundacional antes de outbound;
+- outbound foi definido como workflow, não um segundo Sales brain;
+- context manifests/retrieval traces passaram a ser obrigatórios para observabilidade;
+- `intelligence.facts` deixou de poder virar cópia genérica do banco;
+- shared engagement foi esclarecido como domínio comum, não uma única conversation infinita.
+
+Essas não são otimizações opcionais. Elas fazem parte da intenção arquitetural consolidada.
