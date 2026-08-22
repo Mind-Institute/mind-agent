@@ -1,11 +1,12 @@
-// Cérebro v0.1 do agente inbound de vendas do Mind Summit no WhatsApp.
+// Cérebro do agente inbound de vendas do Mind no WhatsApp.
 // O Treble entrega cada mensagem via webhook (?token=... valida a origem);
 // o agente consulta a fonte da verdade (RPC treble_agent_context), chama a
 // OpenAI com saída estruturada e devolve user_session_keys para o fluxo.
 //
 // Guardrails: preço, checkout e lote vêm SOMENTE do contexto oficial;
-// sem regra comercial liberando, desconto não existe; grupos seguem os
-// tiers percentuais e vão para vendedor humano (D-13).
+// sem regra comercial liberando, desconto não existe; a conta de grupo sai
+// pronta do banco (D-16); a atribuição viaja do site até o checkout (D-20);
+// e o calendário do produto decide se é hora de vender ou de atender (D-25).
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
@@ -277,6 +278,7 @@ Deno.serve(async (req: Request) => {
         nome_contato: conv.nome_contato ?? contactName ?? null,
         origem_codigo: conv.origem_codigo ?? origem ?? null,
         utm_de_origem: conv.utm ?? null,
+        produto: conv.produto_codigo ?? null,
       },
       historico,
       mensagem_do_lead: redact(message),
