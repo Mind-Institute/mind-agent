@@ -65,6 +65,10 @@ Os contratos que os dois produtos compartilham estão em
 [`shared/CONTRATOS.md`](shared/CONTRATOS.md) — leitura obrigatória antes de
 mexer no banco ou nas Edge Functions.
 
+O modelo de acesso ao CRM — quem é a pessoa e qual agente pode saber o
+quê sobre ela — está em [`CRM.md`](CRM.md), obrigatório antes de ligar
+qualquer agente novo a dado individual.
+
 ## Estrutura dos arquivos
 
 | Arquivo | O que é |
