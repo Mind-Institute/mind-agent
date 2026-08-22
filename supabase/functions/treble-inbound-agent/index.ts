@@ -10,7 +10,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.1.3";
+const VERSION = "0.2.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 const SYSTEM_INSTRUCTIONS = `Você é vendedor(a) consultivo(a) do Mind Summit 2026 no WhatsApp oficial do Mind (16 e 17 de setembro de 2026, São Paulo Expo).
@@ -170,11 +170,13 @@ Deno.serve(async (req: Request) => {
         p_contact: { nome: contactName || null, telefone: phone || null, telefone_hash: telefoneHash },
       }),
       supabase.rpc("treble_agent_context"),
-      supabase.rpc("mindagent_chat_search", {
-        p_event_slug: "mind-summit-2026",
-        p_query: message.slice(0, 300),
-        p_limit: 8,
-      }),
+      cfg.bloco_agenda_busca === "true"
+        ? supabase.rpc("mindagent_chat_search", {
+            p_event_slug: "mind-summit-2026",
+            p_query: message.slice(0, 300),
+            p_limit: 8,
+          })
+        : Promise.resolve({ data: null, error: null }),
     ]);
     if (convError || !conv) throw new Error("conversa_falhou");
     if (ctxError || !contexto) throw new Error("contexto_falhou");
