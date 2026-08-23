@@ -8,18 +8,24 @@
 // pronta do banco (D-16); a atribuição viaja do site até o checkout (D-20);
 // e o calendario do produto decide se e hora de vender ou de atender (D-25).
 //
-// v0.8.2 — a conversa vira pessoa. Duas buscas antes de criar: pela chave que
-// veio (WhatsApp) e, depois de pedir o que falta, pela chave nova (e-mail).
-// O nome nunca decide identidade — apelido pontua menos que pessoa diferente —
-// então quando ele destoa o agente PERGUNTA, sem revelar dado de terceiro.
-// A segunda busca roda em TODO turno em que o lead diz algo sobre si, mesmo
-// com a conversa já ligada: é assim que o sobrenome entra e é assim que duas
-// fichas da mesma pessoa aparecem (precisa_fundir) em vez de conviverem.
+// v0.9.0 — a conversa vira pessoa, e o cadastro cresce durante a venda.
+// Duas buscas antes de criar: pela chave que veio (WhatsApp) e, depois de
+// pedir o que falta, pela chave nova (e-mail). O nome nunca decide identidade
+// — apelido pontua menos que pessoa diferente — então quando ele destoa o
+// agente PERGUNTA, sem revelar dado de terceiro. A segunda busca roda em TODO
+// turno em que o lead diz algo sobre si, mesmo com a conversa já ligada.
+//
+// Cadastro progressivo: nome e WhatsApp gravam na hora, sem esperar o e-mail.
+// Sobrenome, empresa e cargo entram no turno em que a pessoa fala, podendo vir
+// todos numa resposta só. O e-mail é pedido duas vezes e só — quem está
+// comprando nem sempre tem paciência de WhatsApp, e nada disso vale mais que a
+// venda. Cada turno também escreve na fila de saída do HubSpot, para o lead não
+// se perder se a conversa morrer no meio.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.8.2";
+const VERSION = "0.9.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O prompt vive no banco (treble.prompts), composto por turno:
@@ -58,6 +64,14 @@ const RESPONSE_SCHEMA = {
       type: ["string", "null"], maxLength: 200,
       description: "O e-mail que o lead deu NESTE turno, exatamente como escrito. null se não deu nenhum neste turno.",
     },
+    empresa_informada: {
+      type: ["string", "null"], maxLength: 160,
+      description: "A empresa onde o lead trabalha, se ele disse NESTE turno. Só o nome da empresa dele — não a empresa de um terceiro, nem o nome de um evento ou produto. null se não disse.",
+    },
+    cargo_informado: {
+      type: ["string", "null"], maxLength: 120,
+      description: "O cargo do lead, se ele disse NESTE turno (\"sou head de RH\", \"trabalho como gerente\"). null se não disse.",
+    },
     // Resposta a "esse cadastro é seu?": true = é ela, false = é de outra
     // pessoa, null = não foi perguntado ou não respondeu.
     confirmou_ser_titular: {
@@ -68,7 +82,8 @@ const RESPONSE_SCHEMA = {
   required: [
     "answer", "audience", "intent", "ticket_interest", "objection",
     "needs_human", "checkout_sent", "stage", "desfecho",
-    "nome_informado", "email_informado", "confirmou_ser_titular",
+    "nome_informado", "email_informado", "empresa_informada", "cargo_informado",
+    "confirmou_ser_titular",
   ],
 };
 
@@ -240,8 +255,16 @@ Deno.serve(async (req: Request) => {
 
     // Estado da identidade neste turno.
     let idConhecida = conv.pessoa_encontrada === true;
+    let idPessoa: string | null = (conv.participante_id ?? null) as string | null;
     let idPerfil = (conv.perfil ?? null) as Record<string, unknown> | null;
-    let idFalta: string[] = Array.isArray(conv.falta) ? conv.falta as string[] : [];
+    // OBRIGATORIO trava; DESEJAVEL nunca trava a venda. Quem separa e o banco.
+    let idObrigatorio: string[] = Array.isArray(conv.falta_obrigatorio)
+      ? conv.falta_obrigatorio as string[]
+      : (Array.isArray(conv.falta) ? conv.falta as string[] : []);
+    let idDesejavel: string[] = Array.isArray(conv.falta_desejavel) ? conv.falta_desejavel as string[] : [];
+    // Depois de duas respostas sem o e-mail chegar, para de pedir e atende assim
+    // mesmo: quem esta comprando nem sempre tem paciencia de WhatsApp.
+    let idPedirEmail = conv.pedir_email === true;
     let idPergunta: Record<string, unknown> | null = null;
 
     // SEGUNDA BUSCA: só quando o lead entrega uma chave nova. O e-mail é
@@ -261,8 +284,11 @@ Deno.serve(async (req: Request) => {
         idPergunta = ident.pergunta ?? null;
       } else if (ident?.pessoa_encontrada) {
         idConhecida = true;
+        idPessoa = (ident.participante_id ?? idPessoa) as string | null;
         idPerfil = ident.perfil ?? null;
-        idFalta = Array.isArray(ident.falta) ? ident.falta : [];
+        idObrigatorio = Array.isArray(ident.falta_obrigatorio) ? ident.falta_obrigatorio : [];
+        idDesejavel = Array.isArray(ident.falta_desejavel) ? ident.falta_desejavel : [];
+        idPedirEmail = idObrigatorio.includes("email") && idPedirEmail;
         console.info(JSON.stringify({
           request_id: requestId, event: "pessoa_identificada", criou: ident.criou === true,
         }));
@@ -336,13 +362,21 @@ Deno.serve(async (req: Request) => {
       quem_esta_falando: {
         ja_identificada: idConhecida,
         perfil: idPerfil,
-        ainda_falta: idFalta,
+        // Duas listas, e a diferença entre elas é regra de negócio, não estilo.
+        precisa_saber: idPedirEmail ? idObrigatorio : idObrigatorio.filter((f) => f !== "email"),
+        bom_saber: idDesejavel,
         pergunta_de_identidade: idPergunta,
         como_agir: idPergunta
           ? "Faça a pergunta_de_identidade com suas palavras, no seu tom, antes de seguir. Não cite nome, e-mail ou empresa de nenhum outro cadastro."
-          : idFalta.length > 0
-            ? "Peça UM item de ainda_falta quando a conversa permitir, sem parecer formulário. Nunca peça o que já está em perfil."
-            : "Você já sabe quem é. Não peça dado nenhum de cadastro.",
+          : [
+              "Nunca peça o que já está em perfil.",
+              "Peça no máximo UM item por mensagem, embutido na conversa, sem parecer formulário.",
+              "Se a pessoa desconversar ou não quiser dar, siga vendendo. Nada aqui vale mais que a venda.",
+              !idPedirEmail && idObrigatorio.includes("email")
+                ? "Você já pediu o e-mail duas vezes. NÃO peça de novo — atenda sem ele."
+                : "",
+              "bom_saber (sobrenome, empresa, cargo) só entra se couber natural. Nunca insista.",
+            ].filter(Boolean).join(" "),
       },
       historico,
       mensagem_do_lead: redact(message),
@@ -381,6 +415,7 @@ Deno.serve(async (req: Request) => {
       objection: string | null; needs_human: boolean; checkout_sent: boolean;
       stage: string; desfecho: string | null;
       nome_informado: string | null; email_informado: string | null;
+      empresa_informada: string | null; cargo_informado: string | null;
       confirmou_ser_titular: boolean | null;
     };
     const answer = String(turn.answer ?? "").trim().slice(0, 700);
@@ -429,17 +464,16 @@ Deno.serve(async (req: Request) => {
     // a resposta já foi dada e a próxima mensagem tenta de novo.
     const nomeDito = (turn.nome_informado ?? "").trim() || null;
     const emailDito = (turn.email_informado ?? "").trim().match(EMAIL_RE)?.[0] ?? null;
-    // So CRIA com E-MAIL em maos: sem ele a segunda busca nao aconteceu, e
-    // criar a pessoa agora significaria duplicar a cliente antiga que so
-    // seria encontrada pelo e-mail. Nome sozinho nunca cria — quem garante
-    // isso e o banco, em treble_agent_identificar.
+    // Grava com o que tiver: nome + WhatsApp já bastam, o e-mail não é
+    // condição para atender. Quem decide isso é o banco, em
+    // mind_identificar_pessoa — aqui só entregamos o que o turno trouxe.
     //
-    // Mas a chamada acontece mesmo com a pessoa ja ligada: e assim que o
-    // sobrenome entra. A busca de cima roda antes do modelo ler a mensagem,
-    // com o primeiro nome que veio do WhatsApp; so aqui existe "Renata
-    // Vasconcelos" inteiro. A funcao so preenche o que esta vazio (coalesce),
-    // nunca sobrescreve, e devolve precisa_fundir se o e-mail for de outra
-    // ficha — que e a segunda busca que a Adriana pediu, acontecendo sempre.
+    // A chamada acontece mesmo com a pessoa já ligada: é assim que o sobrenome
+    // entra. A busca de cima roda antes de o modelo ler a mensagem, com o
+    // primeiro nome que veio do WhatsApp; só aqui existe "Renata Vasconcelos"
+    // inteiro. A função preenche apenas o que está vazio, nunca sobrescreve, e
+    // devolve precisa_fundir se o e-mail for de outra ficha — a segunda busca
+    // acontecendo em todo turno, que é o que impede a duplicata permanente.
     const chaveNova = emailDito ?? emailNaMensagem;
     if (chaveNova || nomeDito || turn.confirmou_ser_titular !== null) {
       const { data: ident2, error: err2 } = await supabase.rpc("treble_agent_identificar", {
@@ -460,9 +494,57 @@ Deno.serve(async (req: Request) => {
         }));
       } else if (ident2?.pessoa_encontrada) {
         idConhecida = true;
+        idPessoa = (ident2.participante_id ?? idPessoa) as string | null;
         console.info(JSON.stringify({
           request_id: requestId, event: "pessoa_identificada_pos_turno", criou: ident2.criou === true,
         }));
+      }
+    }
+
+    // CADASTRO PROGRESSIVO: sobrenome, empresa e cargo entram na hora em que a
+    // pessoa fala, sem turno extra e sem sobrescrever o que já existe. Podem vir
+    // todos numa resposta só ("sou a Renata, head de RH da Acme").
+    const empresaDita = (turn.empresa_informada ?? "").trim() || null;
+    const cargoDito = (turn.cargo_informado ?? "").trim() || null;
+    if (idPessoa && (empresaDita || cargoDito || nomeDito || chaveNova)) {
+      const sobrenomeDito = nomeDito && nomeDito.includes(" ")
+        ? nomeDito.slice(nomeDito.indexOf(" ") + 1).trim() || null
+        : null;
+      const { error: errC } = await supabase.rpc("mind_pessoa_completar", {
+        p_pessoa_id: idPessoa,
+        p_sobrenome: sobrenomeDito,
+        p_empresa: empresaDita,
+        p_cargo: cargoDito,
+        p_email: chaveNova,
+      });
+      if (errC) {
+        console.error(JSON.stringify({ request_id: requestId, event: "completar_falhou", detalhe: errC.message }));
+      }
+    }
+
+    // A FILA DE SAÍDA. Roda em todo turno com pessoa conhecida: se a conversa
+    // morrer no meio, o lead já está gravado com o que se sabia até ali.
+    // A função reescreve a linha pendente da mesma conversa, não empilha.
+    if (idPessoa) {
+      const { error: errL } = await supabase.rpc("mind_lead_capturar", {
+        p_pessoa_id: idPessoa,
+        p_agente: "treble-inbound-agent",
+        p_referencia: sessionId,
+        p_contexto: {
+          origem: conv.origem_codigo ?? origem ?? null,
+          utm: conv.utm ?? null,
+          produto: conv.produto_codigo ?? null,
+          audience: turn.audience,
+          intent: turn.intent,
+          ticket_interest: turn.ticket_interest,
+          objection: turn.objection,
+          stage: turn.stage,
+          desfecho: turn.desfecho,
+          needs_human: turn.needs_human,
+        },
+      });
+      if (errL) {
+        console.error(JSON.stringify({ request_id: requestId, event: "lead_capturar_falhou", detalhe: errL.message }));
       }
     }
 
