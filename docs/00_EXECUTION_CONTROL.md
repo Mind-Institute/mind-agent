@@ -4,7 +4,7 @@ Este arquivo é a torre de controle operacional do projeto. Deve ser atualizado 
 
 ## Objetivo atual
 
-Preparar a arquitetura, os contratos e o plano de migração para entregar Sales Summit funcional end-to-end sem perder a arquitetura definitiva do Mind Intelligence.
+Entregar Sales Summit funcional end-to-end sem perder a arquitetura definitiva do Mind Intelligence.
 
 ## Próximo deadline operacional
 
@@ -18,6 +18,16 @@ A reconciliação com o sistema real gerou apenas ajustes explícitos registrado
 
 Mudanças arquiteturais futuras só podem ocorrer por decisão explícita documentada.
 
+Regra operacional atual de migração/reuso:
+- `docs/19_LEGACY_REUSE_AND_MIGRATION_POLICY.md`
+- o sistema atual NÃO é descartável;
+- infraestrutura, integrações, contratos e dados operacionais podem ser importantes para continuidade;
+- conteúdo/config/regra existente NÃO é automaticamente confiável ou aprovado;
+- revisão do sistema atual acontece just-in-time por objeto target;
+- cada objeto decide `REUSE / TRANSFORM / REBUILD / DO NOT MIGRATE`;
+- nada é migrado apenas porque existe;
+- `DO NOT MIGRATE` não autoriza apagar estrutura viva antes de consumer/cutover verification.
+
 ---
 
 ## CONCLUÍDO — FASE 0A: CHECKPOINT DO SISTEMA EXISTENTE
@@ -28,26 +38,27 @@ Checkpoint branch:
 Commit:
 `372992ee22c32e1b0b6b300ad477b60ce41c3701`
 
-Working tree: clean.
-
-Capturado:
+Capturado originalmente:
 - 8 Edge Functions contabilizadas;
 - 5 funções publicadas recuperadas da produção;
 - 3 funções já estavam versionadas;
-- 33 migration files no repo;
 - ledger das 99 migrations aplicadas registrado;
 - nada alterado no Supabase;
 - nenhum deploy.
 
-### Gaps de recuperação conhecidos
+### Recovery complementar — concluído
 
-1. `database-schema.sql` não foi gerado por bloqueio de rede/CLI ao Postgres/Supabase.
-2. 71 migrations aplicadas não possuem arquivo correspondente no repositório; os statements existem no ledger do banco.
-3. Conteúdo/configuração curada fora de migrations precisa ser preservado/migrado explicitamente, incluindo `treble.prompts`, `treble.config`, `summit.commercial_rules`, `summit.offers`, `engagement.origens`, `crm.mapa_produtos` e configurações úteis do Concierge.
-4. Secrets de Edge Functions não são recuperáveis pelo checkpoint; apenas nomes estão conhecidos.
-5. Bucket `mind-assets` não foi incluído no checkpoint.
+- as 71 migrations aplicadas que não tinham arquivo correspondente foram recuperadas e arquivadas no Git;
+- as 5 Edge Functions production-only estão arquivadas em `archive/pre-architecture/`;
+- PR #7 foi mergeado;
+- PR #6 foi fechado sem merge como superseded.
 
-Esses gaps são restrições do Migration Plan. Nenhuma estrutura correspondente deve ser destruída até existir recovery/compatibility/validation suficiente.
+### Gaps remanescentes relevantes
+
+1. ainda falta structural schema baseline ou equivalente reproduzível;
+2. secrets devem ser conhecidos por nome/dependência, nunca por valor no Git;
+3. `mind-assets` só é blocker quando um target/cutover depender de asset cuja continuidade não esteja protegida;
+4. consumers/security serão mapeados just-in-time conforme os objetos target forem tocados.
 
 ---
 
@@ -96,109 +107,76 @@ Objetivo: confrontar arquitetura target com o Supabase/GitHub reais antes de esc
 Resultado principal:
 - `docs/15_CURRENT_TO_TARGET_MAP.md`
 
-O mapa classifica estruturas atuais como:
-- KEEP
-- MOVE
-- EVOLVE
-- MERGE
-- SPLIT
-- REBUILD
-- RETIRE
-- TARGET ADJUSTMENT
+Ajustes do target congelados:
+- `docs/16_TARGET_ADJUSTMENTS_FROM_RECONCILIATION.md`
 
-Também registra prioridades P0–P3, comportamento a preservar, riscos de recovery/security, APIs/Edge Functions e ondas lógicas de migração.
-
-### Ajustes do target descobertos e congelados
-
-Registrados em:
-`docs/16_TARGET_ADJUSTMENTS_FROM_RECONCILIATION.md`
-
-Incluem:
-- `people.identity_merges`;
-- `catalog.product_components`;
-- `commercial.discount_codes`;
-- `engagement.entry_points`;
-- `privacy.data_requests`;
-- preservação de polls/exhibitors/navigation/event rules/networking no Summit quando aplicável;
-- manutenção de um domínio de infraestrutura `platform` para model/provider/embedding routing e telemetria;
-- `integrations.value_mappings`;
-- recomendação de preservar o nome físico `summit.locations` salvo conflito semântico real.
-
-### Diagnóstico final da reconciliação
-
-A arquitetura target continua válida. A migração deve ser cirúrgica, não destrutiva:
-- preservar IDs/dados/comportamentos quando útil;
-- mudar ownership/topologia quando necessário;
-- usar compatibility layers durante cutover;
-- só retirar legado após consumer/data/config verification.
+Diagnóstico:
+- arquitetura target continua válida;
+- migração é cirúrgica e não destrutiva;
+- current system é consultado por objeto no momento da implementação;
+- live continuity permanece protegida até cutover validado.
 
 ---
 
-## ETAPA ATUAL — FASE 0D: MIGRATION PLAN + SOURCE OF TRUTH FINAL
+## CONCLUÍDO — FASE 0D: MIGRATION PLAN CORRIGIDO PARA EXECUÇÃO JUST-IN-TIME
+
+Documentos:
+- `docs/17_MIGRATION_PLAN.md`
+- `docs/19_LEGACY_REUSE_AND_MIGRATION_POLICY.md`
+
+Decisões autoritativas adicionadas em 2026-08-22:
+- dados de interação atuais do Concierge são TESTE e não são target backfill requirement;
+- prompts/playbooks/templates/configs/regras/conteúdo criados durante prototipagem não são business truth por padrão;
+- conteúdo comercial atual exige validação explícita antes de virar Playbook, Decisioning, Intelligence, Knowledge ou Source of Truth;
+- não existe bulk migration obrigatório de conteúdo/config não validado;
+- revisão é just-in-time por target object;
+- dados e contratos operacionais podem ser reutilizados quando validados e necessários para continuidade;
+- sistema atual não deve ser apagado casualmente nem tratado como descartável.
+
+---
+
+## ETAPA ATUAL — WAVE 0 REDUZIDA: RECOVERY + ENVIRONMENT SAFETY
 
 ### Objetivo
 
-Converter o Current → Target Map em uma sequência executável de mudanças sem ainda alterar produção.
+Fechar apenas o mínimo necessário para iniciar a primeira migration target de forma segura, reversível e testável.
 
-O documento principal será:
-`docs/17_MIGRATION_PLAN.md`
+### Já concluído
 
-Em paralelo, `docs/09_SOURCE_OF_TRUTH_DRAFT.md` deve ser fechado como versão final quando as autoridades operacionais restantes forem confirmadas.
+- 71 migrations recuperadas;
+- production-only Edge Functions recuperadas;
+- current→target map concluído;
+- migration plan corrigido;
+- política just-in-time registrada.
 
-### O Migration Plan deve especificar por onda
+### Falta antes da primeira migration target
 
-Para cada mudança:
-- objeto atual;
-- objeto target;
-- dependências/FKs/consumers;
-- IDs e dados a preservar;
-- config a exportar/versionar;
-- nova schema/table/function necessária;
-- backfill;
-- dual-read/dual-write ou wrapper, se necessário;
-- teste antes/depois;
-- security/RLS;
-- rollback/recovery;
-- critério de cutover;
-- critério para remover legacy;
-- responsável/coding-agent task boundary.
+1. obter structural schema baseline ou snapshot equivalente reproduzível, preferencialmente automatizado;
+2. identificar consumers/contracts que podem ser afetados pela PRIMEIRA target migration;
+3. documentar nomes/dependências de secrets necessários, sem valores;
+4. estabelecer dev/staging seguro para testar a primeira migration;
+5. identificar RLS / SECURITY DEFINER / search_path / public-execute risks apenas nos objetos que a primeira target migration tocar.
 
-### P0 que o plano deve resolver antes de qualquer operação destrutiva
+### Explicitamente NÃO é blocker
 
-1. estratégia de baseline/recovery para as 71 migrations sem arquivo;
-2. captura/versionamento de configuração curada fora de migration;
-3. inventário/recovery do `mind-assets` quando necessário;
-4. mapa de consumidores das Edge Functions/RPCs legadas;
-5. estratégia para as 12 tabelas atualmente com RLS desabilitado;
-6. revisão de funções privilegiadas/security-definer/search_path relevantes;
-7. ambiente seguro de desenvolvimento/staging para testar migrations antes de produção.
+- exportar em massa prompts/configs/templates atuais;
+- revisar todo conteúdo de negócio antes de começar implementação;
+- backfill de dados de interação do Concierge;
+- inventário completo de todo asset/consumer do sistema;
+- auditoria de segurança do banco inteiro antes de Wave 1.
 
-## Definition of Done — Fase 0D
+### Exit criteria
 
-- existe uma sequência física de migração sem saltos arquiteturais;
-- cada wave tem entrada, saída, acceptance test e rollback;
-- nenhuma estrutura atual é removida sem consumer check;
-- Sales e Concierge permanecem recuperáveis durante a transição;
-- os P0 de recovery/security têm tratamento explícito;
-- Source of Truth deixa de ser DRAFT ou mantém apenas exceções explicitamente bloqueadas;
-- a primeira tarefa de implementation para o coding agent é pequena, reversível e testável.
+- produção atual reproduzível/recuperável o suficiente para comparação e rollback;
+- dev/staging seguro disponível;
+- dependências que podem quebrar com a primeira target change são conhecidas;
+- secret dependencies necessárias são conhecidas sem copiar valores;
+- security risks relevantes aos primeiros objetos são conhecidos;
+- nenhum dado/contrato operacional necessário ao primeiro cutover depende de uma cópia desconhecida.
 
 ---
 
-## PRÓXIMA ETAPA — FASE 0E: DEV / STAGING / PROD + GUARDRAILS EXECUTÁVEIS
-
-Antes de alterar produção:
-- environment separation;
-- permissions separadas;
-- migrations controladas;
-- secrets separados;
-- RLS/security baseline;
-- DB tests/contracts/eval fixtures;
-- deploy protocol.
-
----
-
-## Depois
+## DEPOIS — ORDEM CONGELADA
 
 ### FASE 1 — IDENTITY + CATALOG
 - people.people
@@ -208,6 +186,7 @@ Antes de alterar produção:
 - privacy/contactability foundation
 - catalog products/product_runs/product_components
 - integrations.external_refs/value_mappings
+- review current-system correspondente just-in-time por objeto.
 
 ### FASE 2 — SUMMIT + COMMERCIAL + KNOWLEDGE MÍNIMO
 - Summit 2026 / edition facet
@@ -217,11 +196,13 @@ Antes de alterar produção:
 - product content
 - concepts/claims/sources mínimos
 - ingestion/retrieval pattern
+- conteúdo comercial só entra quando validado.
 
 ### FASE 3 — ENGAGEMENT + INTELLIGENCE + CRM CORE
 - conversations/messages/entry_points/entry_contexts/interactions
 - facts/insights/intents/summaries/product_fit
 - CRM relationship layer
+- Concierge test data não é backfill.
 
 ### FASE 4 — SALES SUMMIT INBOUND E2E
 - behavior spec → playbook
@@ -250,18 +231,16 @@ Antes de alterar produção:
 ### FASE 8 — INSTITUTE / DASH / EVENTS
 
 ### FASE 9 — ADVANCED OPTIMIZATION
-Evals já existem antes; aqui entram A/B, model/context/retrieval optimization, cost/latency e expansão contínua.
 
 ---
 
 ## Não fazer agora
 
-- não criar migration target ainda;
-- não alterar Supabase de produção;
-- não habilitar RLS em massa sem policies/consumer analysis;
-- não apagar estruturas atuais;
-- não perder os 71 migration statements/configurações fora de migration;
-- não refatorar Sales/Concierge enquanto o Migration Plan não definir compatibility/cutover;
+- não fazer bulk export/migration de conteúdo/config não validado;
+- não tratar conteúdo existente como business truth por default;
+- não apagar current-system objects antes de consumer/cutover verification;
+- não alterar Supabase de produção enquanto Wave 0 reduzida não tiver saído;
+- não habilitar RLS em massa;
 - não construir outbound/CS/Institute/Dash agora;
 - não criar abstrações fora da arquitetura target;
 - não tratar evals como trabalho futuro opcional;
