@@ -78,6 +78,16 @@ async function propriedadesDe(objeto: string, token: string) {
   return tipos;
 }
 
+// CARGA INICIAL: a listagem percorre todos os registros por cursor. Não depende
+// de ordenação nem do teto de 10 mil da busca -- foi a busca ordenada que pulou
+// 10 mil contatos em silêncio, marcando a fonte como pronta.
+async function listar(objeto: string, token: string, nomes: string[], depois?: string) {
+  const q = new URLSearchParams({ limit: "100", properties: nomes.join(",") });
+  if (depois) q.set("after", depois);
+  const r = await hubspot(`/crm/v3/objects/${objeto}?${q.toString()}`, token);
+  return { linhas: r.results ?? [], depois: r.paging?.next?.after as string | undefined };
+}
+
 // A Search API não devolve associação. O contato de um negócio vem daqui, em
 // lote de até 100 — é o que permite `mind_espelho_ligar` amarrar negócio a
 // pessoa sem uma chamada por negócio.
@@ -142,6 +152,12 @@ Deno.serve(async (req: Request) => {
     // 1970 na primeira vez = carga inicial. Depois disso, só o que mudou.
     const marcaSalva = (abertura as { marca_dagua?: string })?.marca_dagua;
     let marca = marcaSalva ? new Date(marcaSalva).getTime() : 0;
+    // Enquanto `carga_completa_em` for nulo, esta fonte ainda está se enchendo:
+    // varredura por cursor. Depois disso, incremental por marca d'água.
+    const completa = Boolean((abertura as { carga_completa_em?: string })?.carga_completa_em);
+    let depois: string | undefined = completa
+      ? undefined
+      : ((abertura as { cursor?: string })?.cursor ?? undefined);
 
     let tipos: Map<string, string>;
     try {
@@ -155,7 +171,6 @@ Deno.serve(async (req: Request) => {
     }
     const nomes = [...tipos.keys()];
 
-    let depois: string | undefined;
     let lidos = 0;
     let gravados = 0;
     let paginas = 0;
@@ -171,21 +186,38 @@ Deno.serve(async (req: Request) => {
         ];
         if (pipeline) filtros.push({ propertyName: "pipeline", operator: "EQ", value: pipeline });
 
-        const busca = await hubspot(`/crm/v3/objects/${objeto}/search`, token, {
-          method: "POST",
-          body: JSON.stringify({
-            filterGroups: [{ filters: filtros }],
-            sorts: [{ propertyName: modificado, direction: "ASCENDING" }],
-            properties: nomes,
-            limit: PAGINA,
-            after: depois,
-          }),
-        });
+        let linhas: Array<{ id: string; properties: Record<string, unknown> }>;
+        let proximo: string | undefined;
 
-        const linhas = busca.results ?? [];
-        if (linhas.length === 0) break;
+        if (!completa) {
+          // Varredura completa. O filtro por pipeline não existe na listagem, então
+          // o que não é do pipeline certo é descartado aqui.
+          const pg = await listar(objeto, token, nomes, depois);
+          linhas = pipeline
+            ? pg.linhas.filter((l: { properties?: Record<string, unknown> }) =>
+                String(l.properties?.pipeline ?? "") === pipeline)
+            : pg.linhas;
+          proximo = pg.depois;
+          lidos += pg.linhas.length;
+          if (pg.linhas.length === 0) break;
+        } else {
+          const busca = await hubspot(`/crm/v3/objects/${objeto}/search`, token, {
+            method: "POST",
+            body: JSON.stringify({
+              filterGroups: [{ filters: filtros }],
+              sorts: [{ propertyName: modificado, direction: "ASCENDING" }],
+              properties: nomes,
+              limit: PAGINA,
+              after: depois,
+            }),
+          });
+          linhas = busca.results ?? [];
+          proximo = busca.paging?.next?.after;
+          lidos += linhas.length;
+          if (linhas.length === 0) break;
+        }
         paginas += 1;
-        lidos += linhas.length;
+        if (linhas.length === 0) { depois = proximo; if (!depois) break; continue; }
 
         const ids = linhas.map((l: { id: string }) => String(l.id));
         const assoc = objeto === "deals" ? await contatosDosNegocios(ids, token) : new Map();
@@ -220,12 +252,13 @@ Deno.serve(async (req: Request) => {
         const ultimo = linhas[linhas.length - 1]?.properties?.[modificado];
         if (ultimo) marca = new Date(ultimo).getTime();
 
-        depois = busca.paging?.next?.after;
+        depois = proximo;
         await db.rpc("mind_sync_marcar", {
           p_fonte: fonte,
-          p_marca: new Date(marca).toISOString(),
+          p_marca: completa ? new Date(marca).toISOString() : null,
           p_lidos: lidos,
           p_gravados: gravados,
+          p_cursor: depois ?? null,
         });
 
         // Sem `after` a consulta acabou. A marca d'água já andou, então a
@@ -239,10 +272,15 @@ Deno.serve(async (req: Request) => {
 
     if (!concluido) concluidoTudo = false;
 
+    // Sem cursor e sem erro depois de uma varredura = leu o último registro.
+    // Só aí a fonte deixa de ser "enchendo" e passa a confiar na marca d'água.
+    const varreuTudo = !completa && !erro && concluido && !depois;
     await db.rpc("mind_sync_marcar", {
       p_fonte: fonte,
       p_status: erro ? "erro" : concluido ? "ocioso" : "parcial",
       p_erro: erro,
+      p_marca: varreuTudo ? new Date().toISOString() : null,
+      p_completou: varreuTudo,
     });
 
     relatorio[fonte] = { lidos, gravados, paginas, concluido, erro };
