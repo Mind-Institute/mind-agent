@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-08-23T00:24:20.348149+00:00",
+  "scope": "application schemas; excludes Supabase/system schemas and extension-owned cron/net/pgbouncer objects",
+  "production_modified": false,
+  "schemas": [
+    "api",
+    "catalogo",
+    "comum",
+    "concierge",
+    "crm",
+    "dash",
+    "engagement",
+    "eventos",
+    "institute",
+    "intelligence",
+    "mind",
+    "platform",
+    "public",
+    "quarentena",
+    "summit",
+    "treble"
+  ],
+  "counts": {
+    "tables": 105,
+    "columns": 1031,
+    "constraints": 343,
+    "views": 19,
+    "functions": 209,
+    "triggers": 14,
+    "policies": 27
+  },
+  "fingerprints": {
+    "tables": "9c459702c4d5e0d5370921ec5bd98d84",
+    "columns": "b01f61161a78347ce0cfac08d56cdbf7",
+    "constraints": "c21a1bae664ed7dcd59b3b481cb72fca",
+    "views": "fc217eac862c0e30952ee4668cd63bd8",
+    "functions": "314c8baf7c08c3e4c1c9d11d642f315d",
+    "triggers": "a07c6143dcfedf2c91aa37069330b0b1",
+    "policies": "f870a6f78e6d6fff5f2f8aa8374e7575"
+  },
+  "phase1_current_objects": [
+    {"table":"catalogo.produto_componentes","rls":false},
+    {"table":"catalogo.produtos","rls":false},
+    {"table":"crm.consents","rls":true},
+    {"table":"crm.mapa_produtos","rls":true},
+    {"table":"crm.pessoa_produtos","rls":true},
+    {"table":"crm.pessoas","rls":true},
+    {"table":"crm.pessoas_interno","rls":true},
+    {"table":"engagement.identidade_fusoes","rls":true},
+    {"table":"engagement.identidades","rls":false},
+    {"table":"engagement.pessoa_perfil","rls":false}
+  ],
+  "notes": [
+    "This is a structural fingerprint and comparison baseline, not a business-data export.",
+    "Current-system content is reviewed just-in-time under docs/19_LEGACY_REUSE_AND_MIGRATION_POLICY.md.",
+    "The 99 applied migration history entries and the 71 formerly DB-only migrations are archived separately and remain the recovery source for structural SQL.",
+    "Re-run reproduce.sql before/after target changes to compare structural fingerprints."
+  ]
+}
