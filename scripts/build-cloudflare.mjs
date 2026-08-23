@@ -62,6 +62,11 @@ const DO_CHAT_OPCIONAIS = [
   /* Preserva as quebras de linha das respostas da IA. Carregado pelas
      duas páginas, então some das duas se não vier. */
   'chat-format.css',
+  /* Simulador do vendedor do WhatsApp: fala com a Edge Function de
+     verdade, do navegador. Precisa estar num domínio sem CSP restritiva
+     — por isso mora aqui e não num Artifact. Não carrega segredo: o
+     token do webhook é digitado por quem usa e fica no localStorage. */
+  'simulador.html',
 ];
 
 /* Nada com estes nomes é copiado, em nenhum nível. Rede de segurança

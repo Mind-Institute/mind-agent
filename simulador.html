@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador do Vendedor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#F5F6F5; --surface:#FFFFFF; --surface-2:#EFF2F1;
+    --ink:#14191B; --muted:#5B6669; --faint:#8A9497;
+    --line:#E0E5E3; --line-strong:#CBD3D1;
+    --accent:#0B6E77; --accent-soft:#E4F1F2; --accent-ink:#075158;
+    --warn:#8F5605; --warn-soft:#FBF0DC;
+    --danger:#9E3227; --danger-soft:#FBE7E4;
+    --ok:#2F6B41;
+    --radius:10px;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D1113; --surface:#161B1E; --surface-2:#1D2427;
+      --ink:#E7ECEA; --muted:#939EA1; --faint:#6E797C;
+      --line:#232B2E; --line-strong:#333D41;
+      --accent:#45BAC5; --accent-soft:#122E32; --accent-ink:#8FD9E0;
+      --warn:#DDA24A; --warn-soft:#2E2413;
+      --danger:#E2776C; --danger-soft:#2E1815;
+      --ok:#6FBF8A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1113; --surface:#161B1E; --surface-2:#1D2427;
+    --ink:#E7ECEA; --muted:#939EA1; --faint:#6E797C;
+    --line:#232B2E; --line-strong:#333D41;
+    --accent:#45BAC5; --accent-soft:#122E32; --accent-ink:#8FD9E0;
+    --warn:#DDA24A; --warn-soft:#2E2413;
+    --danger:#E2776C; --danger-soft:#2E1815;
+    --ok:#6FBF8A;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+  .app{max-width:1180px;margin:0 auto;padding:20px 20px 32px;display:flex;flex-direction:column;gap:16px;min-height:100%}
+
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  h1{font-size:18px;font-weight:600;margin:0;letter-spacing:-0.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+
+  /* ---- barra de configuracao ---- */
+  .config{padding:12px 14px;display:grid;gap:10px;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .field label{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--faint)}
+  .field input{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:6px;
+    padding:7px 9px;font-size:13.5px;font-family:var(--mono);min-width:0;width:100%}
+  .field input::placeholder{color:var(--faint)}
+
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    padding:0 14px 12px}
+  .btn{
+    background:var(--surface-2);border:1px solid var(--line-strong);color:var(--ink);
+    border-radius:6px;padding:7px 12px;font-size:13px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn-primary{background:var(--accent);border-color:var(--accent);
+    color:var(--surface)}
+  :root[data-theme="dark"] .btn-primary,
+  :root:not([data-theme="light"]) .btn-primary{color:#0D1113}
+  @media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn-primary{color:#fff}}
+  .btn-primary:hover{opacity:.9}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .hint{font-size:12.5px;color:var(--muted)}
+
+  /* ---- corpo ---- */
+  .body{display:grid;gap:16px;grid-template-columns:minmax(0,1fr) 370px;align-items:start}
+  @media (max-width:940px){.body{grid-template-columns:minmax(0,1fr)}}
+
+  .chat{display:flex;flex-direction:column;min-height:420px}
+  .thread{flex:1;overflow-y:auto;max-height:58vh;padding:16px;display:flex;
+    flex-direction:column;gap:10px}
+  @media (max-width:940px){.thread{max-height:none}}
+
+  .msg{max-width:78%;padding:9px 12px;border-radius:12px;white-space:pre-wrap;
+    word-wrap:break-word;font-size:14.5px}
+  .msg.lead{align-self:flex-end;background:var(--surface-2);
+    border:1px solid var(--line);border-bottom-right-radius:3px}
+  .msg.agente{align-self:flex-start;background:var(--accent-soft);
+    border:1px solid transparent;border-bottom-left-radius:3px}
+  .msg.sistema{align-self:center;background:transparent;color:var(--muted);
+    font-family:var(--mono);font-size:12px;text-align:center;max-width:92%}
+  .msg.erro{align-self:center;background:var(--danger-soft);color:var(--danger);
+    font-size:13px;max-width:92%}
+
+  .stamp{display:block;margin-top:5px;font-family:var(--mono);font-size:10.5px;
+    color:var(--faint);letter-spacing:.03em}
+
+  .typing{align-self:flex-start;display:flex;gap:4px;padding:11px 13px;
+    background:var(--accent-soft);border-radius:12px;border-bottom-left-radius:3px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--accent);
+    display:block;animation:blink 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}
+  .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){.typing i{animation:none;opacity:.6}}
+
+  .composer{border-top:1px solid var(--line);padding:10px;display:flex;gap:8px}
+  .composer textarea{
+    flex:1;resize:none;min-height:42px;max-height:140px;padding:10px 12px;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+    font-size:14.5px;font-family:var(--sans)}
+
+  /* ---- inspetor ---- */
+  .inspect{padding:14px;display:flex;flex-direction:column;gap:14px;
+    position:sticky;top:20px}
+  @media (max-width:940px){.inspect{position:static}}
+  .inspect h2{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--faint);margin:0;font-weight:500}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:var(--mono);font-size:11.5px;padding:3px 8px;border-radius:20px;
+    background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
+    white-space:nowrap}
+  .chip b{color:var(--ink);font-weight:500}
+  .chip.on{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+  .chip.good{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+
+  table.keys{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+  table.keys td{padding:5px 0;border-bottom:1px solid var(--line);
+    vertical-align:top;word-break:break-word}
+  table.keys td:first-child{color:var(--faint);white-space:nowrap;
+    padding-right:10px;width:1%}
+  table.keys tr:last-child td{border-bottom:0}
+
+  details.raw summary{font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    cursor:pointer;list-style:none}
+  details.raw summary::-webkit-details-marker{display:none}
+  details.raw summary::before{content:"▸ ";color:var(--faint)}
+  details.raw[open] summary::before{content:"▾ "}
+  pre{margin:8px 0 0;padding:10px;background:var(--surface-2);border-radius:6px;
+    font-family:var(--mono);font-size:11.5px;line-height:1.45;overflow-x:auto;
+    color:var(--muted)}
+
+  .empty{color:var(--faint);font-size:13px;font-style:italic}
+  .legend{font-size:12px;color:var(--muted);padding:0 2px}
+  .legend code{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);
+    padding:1px 4px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>Simulador do Vendedor</h1>
+    <span class="sub">fala com o <code style="font-family:var(--mono);font-size:12px">treble-inbound-agent</code> de verdade — mesmo prompt, mesmo banco, mesma resposta que o WhatsApp receberia</span>
+  </header>
+
+  <section class="panel">
+    <div class="config">
+      <div class="field">
+        <label for="token">Token do webhook</label>
+        <input id="token" type="password" placeholder="cole aqui" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="sessao">Sessão</label>
+        <input id="sessao" type="text">
+      </div>
+      <div class="field">
+        <label for="nome">Nome no WhatsApp</label>
+        <input id="nome" type="text" placeholder="Renata">
+      </div>
+      <div class="field">
+        <label for="fone">WhatsApp</label>
+        <input id="fone" type="text" placeholder="5511988887777">
+      </div>
+      <div class="field">
+        <label for="origem">Botão de origem</label>
+        <input id="origem" type="text" placeholder="whatsapp_flutuante">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="nova">Nova conversa</button>
+      <span class="hint" id="hint">O token fica só no seu navegador. Não sai daqui.</span>
+    </div>
+  </section>
+
+  <div class="body">
+
+    <section class="panel chat">
+      <div class="thread" id="thread" aria-live="polite">
+        <div class="msg sistema">Escreva como se fosse a pessoa chegando no WhatsApp.</div>
+      </div>
+      <form class="composer" id="form">
+        <textarea id="entrada" rows="1" placeholder="Oi! Quanto custa pra levar 12 pessoas do meu time?" required></textarea>
+        <button class="btn btn-primary" id="enviar" type="submit">Enviar</button>
+      </form>
+    </section>
+
+    <aside class="panel inspect">
+      <div>
+        <h2>O que o agente concluiu</h2>
+        <div class="chips" id="chips"><span class="empty">nada ainda</span></div>
+      </div>
+      <div>
+        <h2>O que o Treble receberia</h2>
+        <div id="keys"><span class="empty">nada ainda</span></div>
+      </div>
+      <details class="raw">
+        <summary>Resposta crua</summary>
+        <pre id="raw">—</pre>
+      </details>
+      <p class="legend">
+        <code>needs_human</code> aceso significa que o agente pediu socorro — hoje isso só marca a conversa no banco, ninguém é avisado.
+      </p>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var URL_BASE = "https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/treble-inbound-agent";
+  var LS = "mind.simulador.v1";
+
+  var el = {
+    token: document.getElementById("token"),
+    sessao: document.getElementById("sessao"),
+    nome: document.getElementById("nome"),
+    fone: document.getElementById("fone"),
+    origem: document.getElementById("origem"),
+    thread: document.getElementById("thread"),
+    form: document.getElementById("form"),
+    entrada: document.getElementById("entrada"),
+    enviar: document.getElementById("enviar"),
+    nova: document.getElementById("nova"),
+    chips: document.getElementById("chips"),
+    keys: document.getElementById("keys"),
+    raw: document.getElementById("raw"),
+    hint: document.getElementById("hint")
+  };
+
+  function novaSessao(){
+    var d = new Date();
+    var carimbo = d.toISOString().slice(0,10).replace(/-/g,"") + "-" +
+                  String(d.getHours()).padStart(2,"0") + String(d.getMinutes()).padStart(2,"0");
+    return "sim-" + carimbo + "-" + Math.random().toString(36).slice(2,6);
+  }
+
+  function ler(){
+    try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch(e){ return {}; }
+  }
+  function salvar(){
+    try {
+      localStorage.setItem(LS, JSON.stringify({
+        token: el.token.value, sessao: el.sessao.value, nome: el.nome.value,
+        fone: el.fone.value, origem: el.origem.value
+      }));
+    } catch(e){ /* navegador sem storage: segue sem lembrar */ }
+  }
+
+  var guardado = ler();
+  el.token.value  = guardado.token  || "";
+  el.sessao.value = guardado.sessao || novaSessao();
+  el.nome.value   = guardado.nome   || "Renata";
+  el.fone.value   = guardado.fone   || "5511988887777";
+  el.origem.value = guardado.origem || "whatsapp_flutuante";
+  ["token","sessao","nome","fone","origem"].forEach(function(k){
+    el[k].addEventListener("change", salvar);
+  });
+
+  function bolha(texto, classe, carimbo){
+    var d = document.createElement("div");
+    d.className = "msg " + classe;
+    d.textContent = texto;
+    if (carimbo){
+      var s = document.createElement("span");
+      s.className = "stamp";
+      s.textContent = carimbo;
+      d.appendChild(s);
+    }
+    el.thread.appendChild(d);
+    el.thread.scrollTop = el.thread.scrollHeight;
+    return d;
+  }
+
+  function digitando(){
+    var d = document.createElement("div");
+    d.className = "typing";
+    d.innerHTML = "<i></i><i></i><i></i>";
+    el.thread.appendChild(d);
+    el.thread.scrollTop = el.thread.scrollHeight;
+    return d;
+  }
+
+  function chip(rotulo, valor, tom){
+    var s = document.createElement("span");
+    s.className = "chip" + (tom ? " " + tom : "");
+    s.innerHTML = rotulo + " <b></b>";
+    s.querySelector("b").textContent = (valor === null || valor === undefined || valor === "")
+      ? "—" : String(valor);
+    return s;
+  }
+
+  function pintarEstado(state){
+    el.chips.textContent = "";
+    if (!state){ el.chips.innerHTML = '<span class="empty">nada ainda</span>'; return; }
+    var ordem = [
+      ["quem é","audience"], ["quer","intent"], ["etapa","stage"],
+      ["ingresso","ticket_interest"], ["objeção","objection"], ["desfecho","desfecho"]
+    ];
+    ordem.forEach(function(par){
+      el.chips.appendChild(chip(par[0], state[par[1]]));
+    });
+    el.chips.appendChild(chip("precisa de humano", state.needs_human ? "sim" : "não",
+      state.needs_human ? "on" : null));
+    el.chips.appendChild(chip("mandou checkout", state.checkout_sent ? "sim" : "não",
+      state.checkout_sent ? "good" : null));
+  }
+
+  function pintarKeys(keys){
+    el.keys.textContent = "";
+    if (!keys || !keys.length){ el.keys.innerHTML = '<span class="empty">nada ainda</span>'; return; }
+    var t = document.createElement("table");
+    t.className = "keys";
+    keys.forEach(function(k){
+      var tr = document.createElement("tr");
+      var td1 = document.createElement("td"); td1.textContent = k.key;
+      var td2 = document.createElement("td"); td2.textContent = k.value;
+      tr.appendChild(td1); tr.appendChild(td2); t.appendChild(tr);
+    });
+    el.keys.appendChild(t);
+  }
+
+  el.nova.addEventListener("click", function(){
+    el.sessao.value = novaSessao();
+    salvar();
+    el.thread.textContent = "";
+    bolha("Conversa nova: " + el.sessao.value, "sistema");
+    pintarEstado(null); pintarKeys(null); el.raw.textContent = "—";
+  });
+
+  el.entrada.addEventListener("keydown", function(e){
+    if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); el.form.requestSubmit(); }
+  });
+
+  el.form.addEventListener("submit", async function(e){
+    e.preventDefault();
+    var texto = el.entrada.value.trim();
+    if (!texto) return;
+
+    if (!el.token.value.trim()){
+      el.hint.textContent = "Falta o token do webhook — sem ele o Supabase recusa a chamada.";
+      el.token.focus();
+      return;
+    }
+
+    bolha(texto, "lead");
+    el.entrada.value = "";
+    el.enviar.disabled = true;
+    var pontos = digitando();
+    var t0 = performance.now();
+
+    try {
+      var resp = await fetch(URL_BASE + "?token=" + encodeURIComponent(el.token.value.trim()), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_external_id: el.sessao.value.trim(),
+          name: el.nome.value.trim() || null,
+          cellphone: el.fone.value.trim() || null,
+          origem: el.origem.value.trim() || null,
+          mensagem: texto
+        })
+      });
+
+      var ms = Math.round(performance.now() - t0);
+      var corpo;
+      try { corpo = await resp.json(); }
+      catch(err){ corpo = { erro_de_parse: await resp.text() }; }
+
+      pontos.remove();
+      el.raw.textContent = JSON.stringify(corpo, null, 2);
+
+      if (resp.status === 401){
+        bolha("Token recusado pelo Supabase (401). Confira o valor em treble.config.", "erro");
+      } else if (!resp.ok && resp.status !== 200){
+        bolha("O webhook respondeu " + resp.status + ".", "erro");
+      }
+
+      var keys = Array.isArray(corpo.user_session_keys) ? corpo.user_session_keys : [];
+      var fala = "";
+      keys.forEach(function(k){ if (k.key === "resposta_ia") fala = k.value; });
+
+      pintarKeys(keys);
+      pintarEstado(corpo.state || null);
+
+      var carimbo = ms + " ms";
+      if (corpo.request_id) carimbo += " · " + String(corpo.request_id).slice(0,8);
+      if (corpo.duplicado) carimbo += " · repetida (não gerou turno novo)";
+      if (corpo.guarded)   carimbo += " · guardrail de preço barrou";
+      if (corpo.ok === false) carimbo += " · o agente caiu";
+
+      if (fala) bolha(fala, "agente", carimbo);
+      else if (resp.ok) bolha("Respondeu sem texto. Veja a resposta crua.", "erro");
+
+    } catch(err){
+      pontos.remove();
+      bolha("Não consegui falar com o webhook: " + err.message +
+            "\\n\\nSe você abriu o arquivo direto do disco e o navegador bloqueou, sirva a pasta com um servidor local.", "erro");
+    } finally {
+      el.enviar.disabled = false;
+      el.entrada.focus();
+    }
+  });
+
+  bolha("Conversa: " + el.sessao.value, "sistema");
+})();
+</script>
+</body>
+</html>
