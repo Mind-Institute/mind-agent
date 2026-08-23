@@ -6,12 +6,20 @@
 // Guardrails: preço, checkout e lote vêm SOMENTE do contexto oficial;
 // sem regra comercial liberando, desconto não existe; a conta de grupo sai
 // pronta do banco (D-16); a atribuição viaja do site até o checkout (D-20);
-// e o calendário do produto decide se é hora de vender ou de atender (D-25).
+// e o calendario do produto decide se e hora de vender ou de atender (D-25).
+//
+// v0.8.2 — a conversa vira pessoa. Duas buscas antes de criar: pela chave que
+// veio (WhatsApp) e, depois de pedir o que falta, pela chave nova (e-mail).
+// O nome nunca decide identidade — apelido pontua menos que pessoa diferente —
+// então quando ele destoa o agente PERGUNTA, sem revelar dado de terceiro.
+// A segunda busca roda em TODO turno em que o lead diz algo sobre si, mesmo
+// com a conversa já ligada: é assim que o sobrenome entra e é assim que duas
+// fichas da mesma pessoa aparecem (precisa_fundir) em vez de conviverem.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "0.7.0";
+const VERSION = "0.8.2";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O prompt vive no banco (treble.prompts), composto por turno:
@@ -38,8 +46,30 @@ const RESPONSE_SCHEMA = {
       type: ["string", "null"],
       enum: ["compra_concluida", "checkout_enviado", "lead_qualificado", "handoff_humano", "ja_comprou", "descadastrado", "abandono", null],
     },
+    // Identidade: o que o lead informou SOBRE SI NESTE TURNO. Só o que ele
+    // disse com todas as letras — nada de deduzir nome a partir do contexto.
+    // As descriptions vão para o modelo; os comentários, não. O nome precisa
+    // vir INTEIRO porque nome+sobrenome+chave é o que deduplica a pessoa.
+    nome_informado: {
+      type: ["string", "null"], maxLength: 120,
+      description: "O nome que o lead disse sobre si mesmo NESTE turno, transcrito INTEIRO e exatamente como ele escreveu — nome e sobrenome juntos quando ele deu os dois (\"Sou a Renata Vasconcelos\" => \"Renata Vasconcelos\"; \"me chamo Bia\" => \"Bia\"). Nunca encurte, nunca corrija a grafia, nunca complete com o nome que veio do WhatsApp. Nome de outra pessoa (chefe, colega, quem vai usar o ingresso) não entra aqui. null se ele não disse o nome dele neste turno.",
+    },
+    email_informado: {
+      type: ["string", "null"], maxLength: 200,
+      description: "O e-mail que o lead deu NESTE turno, exatamente como escrito. null se não deu nenhum neste turno.",
+    },
+    // Resposta a "esse cadastro é seu?": true = é ela, false = é de outra
+    // pessoa, null = não foi perguntado ou não respondeu.
+    confirmou_ser_titular: {
+      type: ["boolean", "null"],
+      description: "Só preencha se você perguntou se o cadastro encontrado é dele. true = ele confirmou que é ele mesmo. false = ele disse que não é ele (usou o e-mail/dado de outra pessoa). null = não foi perguntado ou ele não respondeu.",
+    },
   },
-  required: ["answer", "audience", "intent", "ticket_interest", "objection", "needs_human", "checkout_sent", "stage", "desfecho"],
+  required: [
+    "answer", "audience", "intent", "ticket_interest", "objection",
+    "needs_human", "checkout_sent", "stage", "desfecho",
+    "nome_informado", "email_informado", "confirmou_ser_titular",
+  ],
 };
 
 const CORS = {
@@ -94,6 +124,8 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
@@ -133,28 +165,20 @@ Deno.serve(async (req: Request) => {
     "user_response", "response", "user_answer", "respuesta",
   ]).slice(0, 1200);
   const contactName = pick(body, ["name", "nome", "user_name", "first_name", "hubspot_firstname"]);
-  const phone = pick(body, ["cellphone", "celular", "phone"]);
+  const whatsapp = pick(body, ["cellphone", "celular", "phone", "whatsapp"]);
   // Origem = o botão pelo qual a pessoa entrou. Decide o utm_source (site),
-  // o campo oculto do HubSpot e a mensagem de abertura. O fluxo do Treble
-  // manda isso como variável de sessão vinda do link de entrada.
+  // o campo oculto do HubSpot e a mensagem de abertura.
   const origem = pick(body, ["origem", "origem_codigo", "origin", "botao", "utm_content", "entry_point"])
     .slice(0, 60);
   // O WhatsApp não tem query string: a UTM que trouxe a pessoa ao site viaja
   // como token curto dentro do texto pré-preenchido do wa.me ("[ref ab12cd34]").
-  // Lemos, guardamos na conversa e tiramos do texto — o lead não escreveu isso.
   let utmToken = pick(body, ["utm_token", "ref", "token_utm"]).slice(0, 8);
 
-  // Rede de segurança: o Treble entrega a resposta do lead dentro de
-  // user_session_keys, com o nome que o fluxo escolheu ao "salvar resposta".
-  // Se nenhum alias casou, usa a última chave textual que não seja controle.
   const CONTROLE = new Set([
     "needs_human", "intent", "audience", "checkout_sent", "resposta_ia",
     "country_code", "cellphone", "session_id", "conversation_id", "hubspot_firstname",
-    "origem", "origem_codigo", "utm_content",
+    "origem", "origem_codigo", "utm_content", "utm_token", "ref",
   ]);
-  // Não é fala de gente: identificadores internos do Treble (DS_5511...),
-  // números puros, hashes. Observado no teste real: "DS_5511918446162"
-  // chegou como se fosse mensagem e o agente respondeu ao nada.
   const pareceIdentificador = (v: string) =>
     /^[A-Z]{2,6}[_-]?\d{6,}$/i.test(v) || /^\+?\d[\d\s()-]{6,}$/.test(v) ||
     /^[0-9a-f]{16,}$/i.test(v);
@@ -179,7 +203,6 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!sessionId || !message) {
-    // Loga o formato recebido (só nomes de campos) para ajuste rápido.
     console.warn(JSON.stringify({
       request_id: requestId, event: "payload_nao_reconhecido",
       campos: Object.keys(body ?? {}),
@@ -194,9 +217,6 @@ Deno.serve(async (req: Request) => {
   console.info(JSON.stringify({
     request_id: requestId, event: "webhook_recebido",
     campos: Object.keys(body ?? {}),
-    session_keys: Array.isArray(body.user_session_keys)
-      ? (body.user_session_keys as Array<Record<string, unknown>>).map((e) => String(e?.key ?? ""))
-      : null,
   }));
 
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
@@ -206,16 +226,48 @@ Deno.serve(async (req: Request) => {
   const timeoutMs = Number(cfg.timeout_ms) > 0 ? Number(cfg.timeout_ms) : 8500;
 
   try {
-    const telefoneHash = phone ? await sha256(phone) : null;
+    const telefoneHash = whatsapp ? await sha256(whatsapp) : null;
     // start vem primeiro porque o contexto monta o checkout com a UTM da
-    // conversa: sem isso o link sai sem atribuição.
+    // conversa: sem isso o link sai sem atribuição. E é aqui que acontece a
+    // PRIMEIRA busca da pessoa, pela chave que veio.
     const { data: conv, error: convError } = await supabase.rpc("treble_agent_start", {
       p_session_external_id: sessionId,
-      p_contact: { nome: contactName || null, telefone: phone || null, telefone_hash: telefoneHash },
+      p_contact: { nome: contactName || null, whatsapp: whatsapp || null, telefone_hash: telefoneHash },
       p_origem: origem || null,
       p_utm_token: utmToken || null,
     });
     if (convError || !conv) throw new Error("conversa_falhou");
+
+    // Estado da identidade neste turno.
+    let idConhecida = conv.pessoa_encontrada === true;
+    let idPerfil = (conv.perfil ?? null) as Record<string, unknown> | null;
+    let idFalta: string[] = Array.isArray(conv.falta) ? conv.falta as string[] : [];
+    let idPergunta: Record<string, unknown> | null = null;
+
+    // SEGUNDA BUSCA: só quando o lead entrega uma chave nova. O e-mail é
+    // detectado por regex — determinístico, o modelo não pode alucinar um.
+    const emailNaMensagem = message.match(EMAIL_RE)?.[0] ?? null;
+    if (!idConhecida && emailNaMensagem) {
+      const { data: ident, error: identError } = await supabase.rpc("treble_agent_identificar", {
+        p_session_external_id: sessionId,
+        p_email: emailNaMensagem,
+        p_nome: contactName || conv.nome_contato || null,
+        p_sobrenome: null,
+        p_mesma_pessoa: null,
+      });
+      if (identError) {
+        console.error(JSON.stringify({ request_id: requestId, event: "identificar_falhou", detalhe: identError.message }));
+      } else if (ident?.precisa_perguntar) {
+        idPergunta = ident.pergunta ?? null;
+      } else if (ident?.pessoa_encontrada) {
+        idConhecida = true;
+        idPerfil = ident.perfil ?? null;
+        idFalta = Array.isArray(ident.falta) ? ident.falta : [];
+        console.info(JSON.stringify({
+          request_id: requestId, event: "pessoa_identificada", criou: ident.criou === true,
+        }));
+      }
+    }
 
     const [{ data: contexto, error: ctxError }, promptPre, { data: agenda }] = await Promise.all([
       supabase.rpc("treble_agent_context", {
@@ -254,8 +306,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // O playbook deste turno segue a audiência detectada no turno anterior
-    // (na primeira mensagem, "desconhecido" = modo descoberta).
     const audienciaAtual = typeof conv.audience === "string" && conv.audience ? conv.audience : "desconhecido";
     const { data: promptComposto } = audienciaAtual === "desconhecido"
       ? promptPre
@@ -269,6 +319,7 @@ Deno.serve(async (req: Request) => {
       ? Object.fromEntries(Object.entries(agenda as Record<string, unknown>)
           .filter(([k]) => ["sessions", "speakers", "locations", "exhibitors", "mind"].includes(k)))
       : {};
+
     const aiInput = {
       DADOS_OFICIAIS: contexto,
       AGENDA_E_PALESTRANTES: agendaSegura,
@@ -279,6 +330,19 @@ Deno.serve(async (req: Request) => {
         origem_codigo: conv.origem_codigo ?? origem ?? null,
         utm_de_origem: conv.utm ?? null,
         produto: conv.produto_codigo ?? null,
+      },
+      // Identidade. O agente pede o que falta com naturalidade, uma coisa por
+      // vez, e NUNCA pergunta o que já está preenchido aqui.
+      quem_esta_falando: {
+        ja_identificada: idConhecida,
+        perfil: idPerfil,
+        ainda_falta: idFalta,
+        pergunta_de_identidade: idPergunta,
+        como_agir: idPergunta
+          ? "Faça a pergunta_de_identidade com suas palavras, no seu tom, antes de seguir. Não cite nome, e-mail ou empresa de nenhum outro cadastro."
+          : idFalta.length > 0
+            ? "Peça UM item de ainda_falta quando a conversa permitir, sem parecer formulário. Nunca peça o que já está em perfil."
+            : "Você já sabe quem é. Não peça dado nenhum de cadastro.",
       },
       historico,
       mensagem_do_lead: redact(message),
@@ -316,6 +380,8 @@ Deno.serve(async (req: Request) => {
       answer: string; audience: string; intent: string; ticket_interest: string | null;
       objection: string | null; needs_human: boolean; checkout_sent: boolean;
       stage: string; desfecho: string | null;
+      nome_informado: string | null; email_informado: string | null;
+      confirmou_ser_titular: boolean | null;
     };
     const answer = String(turn.answer ?? "").trim().slice(0, 700);
     if (!answer) throw new Error("resposta_vazia");
@@ -324,11 +390,6 @@ Deno.serve(async (req: Request) => {
     const precosOficiais = new Set<string>(
       JSON.stringify({ contexto, agendaSegura }).match(/\d+(?:\.\d+)?/g) ?? [],
     );
-    // Total de grupo é multiplicação de preço oficial por quantidade — conta
-    // legítima, não preço inventado. Os valores unitários com desconto já vêm
-    // calculados do banco (precos_por_volume), então basta aceitar o múltiplo.
-    // Só campos que são preço de verdade viram base de multiplicação — a URL
-    // de checkout carrega uuid, e dígito de uuid não é preço.
     const camposDePreco = (obj: unknown, chaves: string[]): number[] => {
       const saida: number[] = [];
       const anda = (n: unknown) => {
@@ -363,6 +424,48 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Depois de responder: o que o lead informou sobre si neste turno vira
+    // identificação. Roda fora do caminho crítico da resposta — se falhar,
+    // a resposta já foi dada e a próxima mensagem tenta de novo.
+    const nomeDito = (turn.nome_informado ?? "").trim() || null;
+    const emailDito = (turn.email_informado ?? "").trim().match(EMAIL_RE)?.[0] ?? null;
+    // So CRIA com E-MAIL em maos: sem ele a segunda busca nao aconteceu, e
+    // criar a pessoa agora significaria duplicar a cliente antiga que so
+    // seria encontrada pelo e-mail. Nome sozinho nunca cria — quem garante
+    // isso e o banco, em treble_agent_identificar.
+    //
+    // Mas a chamada acontece mesmo com a pessoa ja ligada: e assim que o
+    // sobrenome entra. A busca de cima roda antes do modelo ler a mensagem,
+    // com o primeiro nome que veio do WhatsApp; so aqui existe "Renata
+    // Vasconcelos" inteiro. A funcao so preenche o que esta vazio (coalesce),
+    // nunca sobrescreve, e devolve precisa_fundir se o e-mail for de outra
+    // ficha — que e a segunda busca que a Adriana pediu, acontecendo sempre.
+    const chaveNova = emailDito ?? emailNaMensagem;
+    if (chaveNova || nomeDito || turn.confirmou_ser_titular !== null) {
+      const { data: ident2, error: err2 } = await supabase.rpc("treble_agent_identificar", {
+        p_session_external_id: sessionId,
+        p_email: chaveNova,
+        p_nome: nomeDito ?? contactName ?? conv.nome_contato ?? null,
+        p_sobrenome: null,
+        p_mesma_pessoa: turn.confirmou_ser_titular,
+      });
+      if (err2) {
+        console.error(JSON.stringify({ request_id: requestId, event: "identificar_pos_turno_falhou", detalhe: err2.message }));
+      } else if (ident2?.precisa_fundir) {
+        // Duas fichas para a mesma pessoa. Ninguem funde sozinho: fica
+        // registrado para uma pessoa decidir.
+        console.warn(JSON.stringify({
+          request_id: requestId, event: "identidade_precisa_fundir",
+          participante_id: ident2.participante_id, outro: ident2.outro_cadastro_id,
+        }));
+      } else if (ident2?.pessoa_encontrada) {
+        idConhecida = true;
+        console.info(JSON.stringify({
+          request_id: requestId, event: "pessoa_identificada_pos_turno", criou: ident2.criou === true,
+        }));
+      }
+    }
+
     const state = {
       audience: turn.audience,
       intent: turn.intent,
@@ -378,14 +481,15 @@ Deno.serve(async (req: Request) => {
       p_user_msg: message,
       p_answer: answer,
       p_state: state,
-      p_tool_calls: { model, request_id: requestId },
+      p_tool_calls: { model, request_id: requestId, version: VERSION },
     });
     if (saveError) console.error(JSON.stringify({ request_id: requestId, event: "save_falhou", detalhe: saveError.message }));
 
     console.info(JSON.stringify({
       request_id: requestId, status: 200, session: sessionId.slice(0, 8),
       audience: turn.audience, intent: turn.intent, needs_human: turn.needs_human,
-      desfecho: turn.desfecho, duration_ms: Date.now() - startedAt,
+      desfecho: turn.desfecho, identificada: idConhecida,
+      duration_ms: Date.now() - startedAt,
     }));
 
     return json(200, {
