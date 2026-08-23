@@ -253,6 +253,16 @@ Deno.serve(async (req: Request) => {
     });
     if (convError || !conv) throw new Error("conversa_falhou");
 
+    // Guarda o payload cru do PRIMEIRO turno. Enquanto o Treble não estiver
+    // ligado aqui, ninguém sabe o que ele manda de verdade — e supor isso já
+    // custou tempo. Grava uma vez por conversa, sem o token.
+    if (conv.conversation_id) {
+      await supabase.rpc("mind_conversa_payload", {
+        p_conversation_id: conv.conversation_id,
+        p_payload: body,
+      });
+    }
+
     // Estado da identidade neste turno.
     let idConhecida = conv.pessoa_encontrada === true;
     let idPessoa: string | null = (conv.participante_id ?? null) as string | null;
