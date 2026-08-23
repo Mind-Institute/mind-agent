@@ -19,7 +19,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Abaixo do limite da Edge Function, com folga para a última página terminar.
 // Quando estoura, salva onde parou e devolve concluido=false: o cron chama de
 // novo e continua de onde ficou. Carga grande vira várias corridas curtas.
-const ORCAMENTO_MS = 90_000;
+const ORCAMENTO_MS = 20_000;
 const PAGINA = 100; // teto da Search API do HubSpot
 
 type Fonte = "hubspot_contatos" | "hubspot_negocios" | "hubspot_negocios_historicos";
@@ -249,10 +249,17 @@ Deno.serve(async (req: Request) => {
 
         // A marca d'água só anda depois de gravar. Se cair no meio, a próxima
         // corrida relê a página — reler é idempotente, pular não seria.
+        const marcaAnterior = marca;
         const ultimo = linhas[linhas.length - 1]?.properties?.[modificado];
         if (ultimo) marca = new Date(ultimo).getTime();
 
-        depois = proximo;
+        // Na varredura o cursor manda. No incremental o filtro muda a cada
+        // página (a marca d'água andou), e um `after` da consulta anterior
+        // passaria a apontar para outro conjunto -- pulando 100 registros sem
+        // erro nenhum. Ali quem pagina é a própria marca d'água. O cursor só
+        // volta a ser usado no empate: 100+ registros com o mesmo horário de
+        // modificação, onde a marca não anda e sem `after` seria laço infinito.
+        depois = !completa || marca === marcaAnterior ? proximo : undefined;
         await db.rpc("mind_sync_marcar", {
           p_fonte: fonte,
           p_marca: completa ? new Date(marca).toISOString() : null,
@@ -261,9 +268,10 @@ Deno.serve(async (req: Request) => {
           p_cursor: depois ?? null,
         });
 
-        // Sem `after` a consulta acabou. A marca d'água já andou, então a
-        // próxima rodada começa depois do último que veio.
-        if (!depois) break;
+        // Varredura: sem `after` acabou. Incremental: página curta acabou --
+        // a marca d'água já andou, a próxima rodada começa do último que veio.
+        if (completa && linhas.length < PAGINA) break;
+        if (!completa && !depois) break;
       }
     } catch (e) {
       erro = e instanceof Error ? e.message : String(e);
