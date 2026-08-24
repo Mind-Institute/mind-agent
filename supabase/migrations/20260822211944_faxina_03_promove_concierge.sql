@@ -1,3 +1,5 @@
+drop table if exists public._faxina_check;
+
 -- Faxina passo 3: o concierge deixa de ser dono do dado.
 -- 15 tabelas de pessoa/conversa/feedback -> engagement
 -- 10 de inferencia e governanca          -> intelligence

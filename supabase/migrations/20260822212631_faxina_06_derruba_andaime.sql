@@ -79,5 +79,7 @@ begin
   end loop;
 end $$;
 
+drop table if exists public._faxina_check;
+
 comment on schema mind is
   'A EMPRESA Mind: posicionamento e politicas. O que e de produto mora na casa do produto (ver catalogo.produtos.schema_dados).';
