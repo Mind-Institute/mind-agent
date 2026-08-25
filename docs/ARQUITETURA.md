@@ -58,6 +58,17 @@ O vendedor vende Summit, Dash ou Institute com **o mesmo** playbook de vendas �
 - `concierge` — config/inteligência do agente embarcado no app do Summit (templates, ferramentas, flags).
 - `treble` — config dos agentes no WhatsApp (Treble).
 
+## Reconhecimento do lead — LEITURA, não cópia
+Na chegada, o "dossiê" do lead é **montado por uma função que LÊ** (estende `crm.buscar_pessoa`),
+**não** uma tabela nova. Nunca copiar histórico pra `pessoas`/`intelligence` (duplica e envelhece).
+Papéis: `pessoas.pessoas` = identidade; `crm.*` = histórico/deals (lido ao vivo); `intelligence.*`
+= o que o agente **aprende** (escrito depois); `engagement` = origem (`origens` catálogo +
+`utm_sessoes` evento do lead) + conversas.
+**Chave de join hoje = email** (só em `crm.contato_espelho`). **Furo atual:** `pessoa_id` é NULO
+em `contato_espelho`, `pipeline_summit_leads_captados` e `negocios_historicos`, e os deals não
+guardam email — então dá pra ler o lado-contato por email, mas puxar **deals por pessoa** exige o
+sync do HubSpot trazer email/associação de contato (pré-requisito).
+
 ## Schemas do sistema (do Supabase — não são design nosso, ignorar)
 `auth`, `storage`, `supabase_migrations` (histórico de migrations), `vault` (segredos),
 `net`/`pg_net`, `pgbouncer`, `realtime`, `cron`, `extensions`, `graphql`/`graphql_public`
