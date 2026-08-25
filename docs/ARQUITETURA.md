@@ -39,6 +39,10 @@ O vendedor vende Summit, Dash ou Institute com **o mesmo** playbook de vendas �
 - `intelligence` — o que sabemos do lead (sinais, intenções, dossiê, objetivos…). Teste/placeholder.
 - `engagement` — conversas/mensagens/sessões. Dados de teste. A **origem do lead na chegada**
   é salva aqui (`origens`, provisório — a confirmar). *(candidato a virar vizinho de/parte de `intelligence`.)*
+  A conversa do WhatsApp/Treble também mora aqui: `conversas` + `mensagens`, com a coluna
+  `agente` marcando de qual agente veio a info (hoje `treble-inbound-agent`; haverá outros).
+  O estado solto da venda (intent, objeção, needs_human, checkout, desfecho) fica em
+  `conversas.variables` (jsonb) — sem coluna nova por campo.
 
 **Verdades transversais**
 - `ecossistema` — universais: `palestrantes_especialistas` (13). *(catálogo e políticas devem vir pra cá.)*
