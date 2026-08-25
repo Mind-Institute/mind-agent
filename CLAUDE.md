@@ -151,3 +151,22 @@ Always defer to `docs/00_EXECUTION_CONTROL.md` for:
 - explicitly forbidden work.
 
 If this file and `00_EXECUTION_CONTROL.md` disagree on sequencing, stop and report the discrepancy rather than guessing.
+
+## Ordem das colunas
+
+Coluna tem ordem, e a ordem é para quem lê a tabela — não a ordem em que os
+campos foram pensados.
+
+Sempre nesta sequência:
+
+1. **Identidade** — `id`, chaves externas (`hubspot_id`, `pessoa_id`,
+   `produto_codigo`)
+2. **O que se olha todo dia** — nome, sobrenome, e-mail, telefone, empresa,
+   cargo; num negócio: nome, valor, estágio, dono
+3. **O resto do domínio**
+4. **Controle** — `propriedades` jsonb, `sincronizado_em`, `criado_em`,
+   `atualizado_em`
+
+Postgres não reordena coluna existente: é tabela nova, cópia, troca de nome. Vale
+o custo — tabela larga com as colunas úteis no fim é ilegível, e ninguém rola 150
+colunas para achar o e-mail.
