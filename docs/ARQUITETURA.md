@@ -77,7 +77,9 @@ e o "antes de criar tabela, pergunte" estão no `README_FIRST.md`.
 
 **Plataformas dos agentes**
 - `concierge` — config/inteligência do agente embarcado no app do Summit (templates, ferramentas, flags).
-- `treble` — config dos agentes no WhatsApp (Treble).
+- `treble` — config dos agentes no WhatsApp (Treble). Catálogo de fluxos em `treble.polls`;
+  status aberta/fechada por número em `treble.status_da_conversa`. Fluxo completo (janela de 24h
+  → HubSpot, pra não disparar em cima de conversa aberta): ver **`docs/TREBLE_STATUS_24H.md`**.
 
 ## Reconhecimento do lead — LEITURA, não cópia
 Na chegada, o "dossiê" do lead é **montado por uma função que LÊ** (estende `crm.buscar_pessoa`),
