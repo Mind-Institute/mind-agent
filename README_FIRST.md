@@ -17,9 +17,12 @@ banco, prompt ou schema. Isto vale mais que qualquer outro documento.
 
 1. **Nunca crie prompt ou conteúdo.** Onde entra prompt/conteúdo, deixe o espaço pronto e
    **vazio** pra Adriana preencher.
-2. **Nunca crie tabela nem preencha/popule uma linha sem autorização explícita dela.**
-   Pergunte primeiro. (Foi exatamente "sair preenchendo/criando" que encheu este sistema de
-   tabela inútil que ninguém entende — isso atrapalha, não ajuda.)
+2. **Antes de criar QUALQUER tabela: (a) cheque o que já existe, (b) pergunte à Adriana.**
+   E **nunca preencha/popule uma linha sem autorização explícita dela.** (Foi exatamente
+   "sair criando/preenchendo sem checar" que encheu este sistema de tabela duplicada e inútil
+   que ninguém entende — isso atrapalha, não ajuda. Ex.: já existiam playbooks e uma IA criou
+   uma tabela `agentes.playbooks` duplicada.)
+   **Exceção:** preenchimento de **teste** pode — desde que você **avise** a Adriana (ex.: uma pessoa/linha de teste).
 3. **Explique tudo que fizer**, de um jeito que ela entenda o próprio sistema. Nada opaco:
    ela tem que entender a engenharia do sistema dela.
 4. **A fonte da verdade é o banco real** (Supabase `mind-agent`, ref `ymnmotgglsrxmjmonwjz`),
@@ -48,6 +51,13 @@ banco, prompt ou schema. Isto vale mais que qualquer outro documento.
 - **Claude:** função que traz o contexto do produto Summit + encaixe do reconhecimento no
   turno de vendas + esqueleto do agente/edge function + n8n se precisar.
 - **Adriana:** prompt base, prompt de plataforma, e o playbook de vendas (conteúdo).
+
+## Onde as coisas já moram (NÃO recriar)
+- **Playbooks + prompt base + tom de voz** = linhas em **`agentes.prompts`** (por `chave`):
+  `playbook_router` (base/identidade), `playbook_summit_b2b`, `playbook_summit_b2c`,
+  `playbook_cliente_suporte`, `tom_de_voz`. **Não existe (nem crie) tabela `playbooks`.**
+- Config dos agentes por plataforma: `concierge.*` (app) e `treble.config` (WhatsApp).
+- **Origem do lead na chegada** → salva em `engagement.origens` (provisório; a confirmar se fica aqui ou vai pra outro lugar).
 
 ## Mapa do que existe hoje
 Ver `docs/ARQUITETURA.md` (o que é real × teste × placeholder por schema).

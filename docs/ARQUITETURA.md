@@ -37,12 +37,15 @@ O vendedor vende Summit, Dash ou Institute com **o mesmo** playbook de vendas �
 - `crm` — espelho do HubSpot. **REAL:** `contato_espelho` (11.587), `negocios_historicos`
   (7.092), `pipeline_summit_leads_captados` (2.675 = pipeline aberto), `mapa_produtos` (9).
 - `intelligence` — o que sabemos do lead (sinais, intenções, dossiê, objetivos…). Teste/placeholder.
-- `engagement` — conversas/mensagens/sessões. Dados de teste. *(candidato a virar vizinho de/parte de `intelligence`.)*
+- `engagement` — conversas/mensagens/sessões. Dados de teste. A **origem do lead na chegada**
+  é salva aqui (`origens`, provisório — a confirmar). *(candidato a virar vizinho de/parte de `intelligence`.)*
 
 **Verdades transversais**
 - `ecossistema` — universais: `palestrantes_especialistas` (13). *(catálogo e políticas devem vir pra cá.)*
-- `catalogo` — mapa vertical→produtos→pipeline: `produtos` (11), `vertical_dominios` (3). *(alvo: dentro de `ecossistema`.)*
-- `agentes` — `prompts` base (5) e `playbooks` (por função).
+- `catalogo` — mapa vertical→produtos→pipeline: `produtos` (11). *(alvo: dentro de `ecossistema`.)*
+- `agentes` — `prompts`: prompt base, playbooks e tom de voz, por `chave`
+  (`playbook_router`, `playbook_summit_b2b`, `playbook_summit_b2c`, `playbook_cliente_suporte`,
+  `tom_de_voz`). É AQUI que vivem os playbooks — não criar tabela separada.
 - `platform` — infra de LLM: providers/models/routes + integrações. Real, útil.
 
 **Verticais de produto** (produtos/ofertas + pipeline de cada frente)
