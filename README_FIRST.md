@@ -29,6 +29,9 @@ banco, prompt ou schema. Isto vale mais que qualquer outro documento.
    não documentação. Doc é anotação, nunca portão.
 5. **Agilidade > cerimônia.** Quase tudo hoje é teste: **deletar é mais rápido que migrar**.
    Nada de migração/governança pesada sem necessidade real.
+6. **Responda objetivo, UMA ação por vez.** A Adriana se perde com respostas longas e cheias
+   de contexto. Vá com um passo de cada vez, explique o essencial em poucas linhas, e espere
+   a resposta antes do próximo passo. Menos contexto, mais direto.
 
 ## Ordem do trabalho (agora)
 
