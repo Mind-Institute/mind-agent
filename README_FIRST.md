@@ -62,5 +62,33 @@ banco, prompt ou schema. Isto vale mais que qualquer outro documento.
 - Config dos agentes por plataforma: `concierge.*` (app) e `treble.config` (WhatsApp).
 - **Origem do lead na chegada** → salva em `engagement.origens` (provisório; a confirmar se fica aqui ou vai pra outro lugar).
 
+## Agente novo numa plataforma nova? A conversa e a inteligência JÁ TÊM CASA (não criar tabela apartada)
+
+O núcleo do Mind é **um só e compartilhado** entre todos os agentes (vendas, atendimento,
+concierge, e os que vierem). Só muda a **plataforma** (por onde a pessoa fala) e a **função**
+(o que o agente faz). Quando montar um agente numa plataforma nova (site, Instagram, e-mail,
+telefone…), siga isto — pra inteligência do Mind não se partir em ilhas:
+
+- **Config da plataforma** → um schema só de config daquela plataforma (como `treble` p/ WhatsApp,
+  `concierge` p/ o app): token, modelo, templates, flags. **Só config. Conversa NÃO mora aqui.**
+- **A conversa** (as mensagens trocadas) → **SEMPRE** `engagement.conversas` + `engagement.mensagens`,
+  com a coluna **`agente`** dizendo quem escreveu (`treble-inbound-agent`, etc.). Uma casa só pra
+  conversa de todos os agentes. **Nunca** `treble.messages`, `concierge.mensagens`, `plataformaX.conversas`.
+- **O que o agente APRENDE** com essas mensagens (sinal, intenção, objeção, dossiê da pessoa) →
+  **SEMPRE** `intelligence.*`, marcando de qual agente veio. **Nunca** uma tabela de inteligência
+  separada por plataforma.
+- **Quem a pessoa é** → `pessoas.pessoas` (uma identidade só). Os canais dela (WhatsApp, e-mail,
+  sessão) → `engagement.identidades`.
+
+**Por quê:** se cada plataforma tiver a sua própria tabela de conversa/inteligência, o vendedor
+do WhatsApp não enxerga o que o concierge do app já sabia — a inteligência do Mind vira ilha.
+Compartilhado é o **núcleo** (identidade, reconhecimento, engajamento, inteligência); por-plataforma
+é só a **config/o encaixe**. (Foi isso que quase aconteceu com o Treble: a conversa ia parar numa
+tabela `treble.*` à parte, longe de tudo. Voltou pra `engagement`.)
+
+**Antes de criar tabela, pergunte:** é conversa? já tem casa (`engagement`). É coisa aprendida
+sobre a pessoa? já tem casa (`intelligence`). Só a **config** da plataforma nova ganha lugar novo.
+Marque a origem com a coluna **`agente`** (e/ou um campo de origem) — **não** com uma tabela nova.
+
 ## Mapa do que existe hoje
 Ver `docs/ARQUITETURA.md` (o que é real × teste × placeholder por schema).

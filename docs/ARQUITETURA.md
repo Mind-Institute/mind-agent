@@ -16,7 +16,24 @@ app, `treble` p/ WhatsApp) **+** `playbook da função` (vendas / atendimento / 
 independentes) **+** `contexto do produto` buscado na hora.
 
 O vendedor vende Summit, Dash ou Institute com **o mesmo** playbook de vendas — muda só o
-**contexto do produto** que ele busca. Playbooks vivem em `agentes.playbooks`, por função.
+**contexto do produto** que ele busca. Playbooks vivem em `agentes.prompts` (por `chave`), por função.
+
+### Onde mora a conversa e a inteligência de QUALQUER agente (regra de plataforma)
+O núcleo é **um só e compartilhado** entre todos os agentes; muda só a **plataforma** (por onde
+a pessoa fala) e a **função**. Quando nasce um agente numa plataforma nova (site, Instagram,
+e-mail, telefone…), NÃO se cria um mundo à parte pra ele. A divisão é sempre esta:
+- **Config da plataforma** → schema só de config (como `treble` p/ WhatsApp, `concierge` p/ o app):
+  token, modelo, templates, flags. **Conversa não mora aqui.**
+- **A conversa** (mensagens trocadas) → **SEMPRE** `engagement.conversas` + `engagement.mensagens`,
+  com a coluna **`agente`** dizendo quem escreveu (ex.: `treble-inbound-agent`). Uma casa só pra
+  todos. **Nunca** `treble.messages`, `concierge.mensagens`, `plataformaX.conversas`.
+- **O que o agente APRENDE** com as mensagens (sinal, intenção, objeção, dossiê) → **SEMPRE**
+  `intelligence.*`, marcando de qual agente veio. **Nunca** inteligência apartada por plataforma.
+- **Quem a pessoa é** → `pessoas.pessoas` (identidade única); os canais dela → `engagement.identidades`.
+
+Motivo: se cada plataforma tiver a sua tabela de conversa/inteligência, o vendedor do WhatsApp
+não enxerga o que o concierge do app já sabia — a inteligência do Mind vira ilha. Detalhe completo
+e o "antes de criar tabela, pergunte" estão no `README_FIRST.md`.
 
 ### O que acontece quando um lead chega
 1. Identifica a pessoa e registra que ela chegou (e por onde) em `pessoas.pessoas`.
