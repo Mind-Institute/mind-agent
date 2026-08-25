@@ -64,10 +64,12 @@ Na chegada, o "dossiê" do lead é **montado por uma função que LÊ** (estende
 Papéis: `pessoas.pessoas` = identidade; `crm.*` = histórico/deals (lido ao vivo); `intelligence.*`
 = o que o agente **aprende** (escrito depois); `engagement` = origem (`origens` catálogo +
 `utm_sessoes` evento do lead) + conversas.
-**Chave de join hoje = email** (só em `crm.contato_espelho`). **Furo atual:** `pessoa_id` é NULO
-em `contato_espelho`, `pipeline_summit_leads_captados` e `negocios_historicos`, e os deals não
-guardam email — então dá pra ler o lado-contato por email, mas puxar **deals por pessoa** exige o
-sync do HubSpot trazer email/associação de contato (pré-requisito).
+**Chave de join = email** → `crm.contato_espelho.hubspot_id` → **`crm.negocio_contatos`** (view:
+relação deal↔contato derivada de `propriedades->_contatos`; 100% casa com o espelho) → os **deals
+da pessoa**. Já funciona pros 2 pipelines espelhados: `default` (histórico, `negocios_historicos`)
+e `917379159` (summit, `pipeline_summit_leads_captados`). `pessoa_id` segue NULO nesses espelhos
+(ligamos por hubspot_id/email, não por pessoa_id). Pipelines ainda NÃO espelhados no Hub precisam
+de sync (tabela por pipeline).
 
 ## Schemas do sistema (do Supabase — não são design nosso, ignorar)
 `auth`, `storage`, `supabase_migrations` (histórico de migrations), `vault` (segredos),
