@@ -185,6 +185,26 @@ e pela ponte, mantendo a assinatura que a edge `treble-status-hubspot` usa.
 ninguém mais é dono daquele valor. Para quem tem mais de um contato ele aponta para um deles de
 forma arbitrária — a verdade multi-contato está em `engagement.identidades` + `crm.contato_espelho`.
 
+## Schema `eduzz` — espelho do Blinket (bilheteria)  ⛔ *carga bloqueada por credencial*
+
+Mesmo padrão do espelho do HubSpot: colunas promovidas para o que a gente usa **+ `payload jsonb`
+com o registro cru**, para a carga nunca ficar presa a um palpite de formato — puxa primeiro,
+promove coluna depois de ver o dado real.
+
+`eduzz.eventos` · `eduzz.ingressos` (uma linha por participante da lista de presença, com
+telefone normalizado pelo mesmo `telefone_normalizar`) · `eduzz.marcadores` ·
+`eduzz.ingresso_marcadores` · `eduzz.sync_estado`.
+
+`eduzz.ingressos.pessoa_id` existe e fica **nulo**: quem resolve identidade é
+`mind_identidade_resolver`, nunca uma carga de terceiro.
+
+**O que trava:** `EDUZZ_API_KEY` existe nos secrets (64 caracteres, hex) mas **não é access token
+OAuth**. Diagnóstico: `api.eduzz.com/blinket/v1/events` existe e exige `Bearer` válido;
+`api2.eduzz.com/credential/generate_token` é a rota certa do formato legado e respondeu
+`#0002 Unauthorized - Invalid credentials` com `publickey=14449348` + a chave atual;
+`accounts.eduzz.com/oauth/token` devolve tela de login (fluxo de navegador, não máquina).
+Falta a **publickey** correta e o **e-mail da conta Eduzz**.
+
 ## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
 
 O que o CRM sabe sobre uma pessoa, para qualquer agente. **Só fatos**: sem score, sem ICP
