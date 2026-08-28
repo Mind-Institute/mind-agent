@@ -81,6 +81,54 @@ e o "antes de criar tabela, pergunte" estão no `README_FIRST.md`.
   status aberta/fechada por número em `treble.status_da_conversa`. Fluxo completo (janela de 24h
   → HubSpot, pra não disparar em cima de conversa aberta): ver **`docs/TREBLE_STATUS_24H.md`**.
 
+## Fundação universal dos agentes — todo canal entra pela mesma porta
+
+```
+ENTRADA → PERSISTIR INTERAÇÃO → RESOLVER IDENTIDADE → pessoas.pessoas
+                                   ↓ (etapa futura)
+                            AGENT_CONTEXT → ROUTER → cérebro
+```
+
+**Canal não define identidade. CRM não define identidade.** `pessoas.pessoas` é a pessoa
+canônica; `engagement.identidades` diz **como** a reconhecemos; `engagement.conversas` +
+`engagement.mensagens` preservam a interação. Treble, web e app são **adaptadores**.
+
+**A porta é uma só:** `public.mind_inbound(evento jsonb)`. O evento não tem nada de Treble:
+`canal` (único obrigatório), `sessao_externa`, `mensagem {conteudo, papel, id_externo, blocos}`,
+`identificadores {whatsapp, email, auth_user_id, hubspot_id, dispositivo}`, `nome`,
+`origem {origem_codigo, utm_token, produto_codigo}`. Nenhum canal precisa mandar tudo, e
+**ausência de HubSpot não é erro**.
+
+**A ordem é a garantia.** A mensagem é gravada logo depois de resolver a conversa — antes de
+identidade, IA, router, enriquecimento. A resolução de identidade roda dentro de um bloco de
+exceção próprio: se ela explodir, o que a pessoa disse **continua registrado** e a próxima
+entrada liga a mensagem órfã à pessoa. Antes disso o Treble só gravava no fim, junto com a
+resposta: timeout da OpenAI apagava a fala do lead do sistema.
+
+**Identidade = evidência determinística, com força.** `auth_user` (4) > `whatsapp` / `hubspot`
+(3) > `email` (2). Nome **nunca** identifica sozinho — só preenche buraco. Dispositivo é
+contexto do canal, não pessoa. Sem nenhum identificador determinístico não se cria pessoa.
+
+**Conflito não funde.** Identificadores da mesma entrada apontando para pessoas diferentes:
+escolhe a da evidência mais forte, registra o par em `engagement.identidade_fusoes`
+(`status='pendente'`) e **não vincula** os identificadores da outra — ninguém vê dado de
+terceiro. A fusão é decisão humana.
+
+**Identidade não é formulário.** `falta_obrigatorio`, `pedir_email` e `falta_desejavel` saíram do
+core. Regra: **use o que já sabemos antes de perguntar**. Só outro componente, mais tarde, pode
+decidir perguntar algo quando for necessário para resolver a necessidade atual.
+
+**As peças:** `mind_inbound` (contrato) · `mind_conversa_resolver` · `mind_mensagem_registrar`
+(idempotente) · `mind_identidade_resolver` · `mind_identificadores_normalizar` ·
+`mind_conversa_estado` (histórico/perfil — **não** é AGENT_CONTEXT) · `mind_turno_registrar`.
+Adaptadores: `treble_agent_start` (+ janela de 24h, que é do canal) e `mindagent_chat_start`
+(+ autenticação de sessão, que é do canal).
+
+**Chaves que deixaram de assumir um canal só:** `engagement.conversas` agora é
+`unique (canal, session_external_id)` — antes o id de sessão era único no sistema inteiro e dois
+canais colidiam. `engagement.mensagens` é `unique (conversa_id, client_msg_id)` — id externo não
+é globalmente único; a chave mínima que impede duplicar o **mesmo evento** é conversa + id.
+
 ## Reconhecimento do lead — LEITURA, não cópia
 Na chegada, o "dossiê" do lead é **montado por uma função que LÊ** (estende `crm.buscar_pessoa`),
 **não** uma tabela nova. Nunca copiar histórico pra `pessoas`/`intelligence` (duplica e envelhece).
