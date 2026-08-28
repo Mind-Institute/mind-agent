@@ -185,11 +185,17 @@
       <span class="guia-selo" id="guia-selo"></span>
       <h2 class="guia-titulo" id="guia-titulo"></h2>
       <p class="guia-texto" id="guia-texto"></p>
+      <!-- Bloco à parte para o que muda o comportamento de quem chega,
+           como a regra de reserva das arenas. -->
+      <p class="guia-aviso" id="guia-aviso" hidden></p>
     </div>
 
     <svg class="guia-seta" id="guia-seta" aria-hidden="true"></svg>
     <span class="guia-barra" id="guia-barra" aria-hidden="true"></span>
-    <button type="button" class="guia-fim" id="guia-fim" hidden>Ver o tour completo</button>
+    <div class="guia-saida" id="guia-saida" hidden>
+      <button type="button" class="guia-fim" id="guia-fim">Ver o tour completo</button>
+      <button type="button" class="guia-sair" id="guia-sair">Sair</button>
+    </div>
   </div>
 
 <script type="module" src="./app.js"></script>
