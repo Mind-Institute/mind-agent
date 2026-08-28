@@ -1425,6 +1425,7 @@ const guiaBarra = document.getElementById('guia-barra');
 const guiaPraticar = document.getElementById('guia-praticar');
 const guiaSaida = document.getElementById('guia-saida');
 const guiaAvance = document.getElementById('guia-avance');
+const guiaLado = document.getElementById('guia-lado');
 let guiaPasso = 0;
 
 /* ---- Relógio do passo ----
@@ -1459,6 +1460,7 @@ function tocarRelogio(ms) {
    que fazer. */
 function mostrarDica() {
   guiaAvance.hidden = guiaPasso >= GUIA.length - 1;
+  guiaLado.hidden = guiaAvance.hidden;   /* as marcas seguem o convite */
 }
 
 function pausarGuia() {
@@ -1593,6 +1595,7 @@ function guiaIrPara(n) {
   if (destino === guiaPasso) return;
   clearTimeout(guiaRelogio);
   guiaAvance.hidden = true;
+  guiaLado.hidden = true;
   guiaPausado = false;
   guiaCena.classList.add('sai');
   setTimeout(() => {

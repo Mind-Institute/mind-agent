@@ -1242,6 +1242,26 @@ body {
   .guia-avance .s { animation: none !important; }
 }
 
+/* Marcas das zonas de toque. Uma faixa que atravessa a tela e joga um
+   chevron em cada borda: a da esquerda volta, a da direita avança. Bem
+   apagadas — são um lembrete de que o toque funciona, não um botão. Não
+   recebem ponteiro: o gesto é lido no #guia, e interceptar aqui quebraria
+   a captura do deslize. */
+.guia-lado {
+  position: absolute; left: 0; right: 0; z-index: 3;
+  top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px;
+  pointer-events: none;
+}
+.guia-lado[hidden] { display: none; }
+.guia-lado i {
+  font-style: normal;
+  font-size: 26px; font-weight: 300; line-height: 1;
+  color: var(--texto-mudo);
+  opacity: .28;
+}
+
 /* Nome do primeiro fluxo, logo abaixo da trilha: deixa claro que este é o
    Tour rápido, e que existe um segundo, prático, no fim dele. */
 .guia-nome {
