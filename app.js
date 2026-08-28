@@ -1293,16 +1293,20 @@ const GUIA_SEGURAR = 220;
 const GUIA_ZONA_VOLTA = 0.3;
 /* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
 const GUIA_ARRASTO = 45;
-/* Silêncio com o convite na tela antes de a cena balançar. */
-const GUIA_CUTUCADA = 4500;
+/* Intervalo entre um balanço e o seguinte. */
+const GUIA_CUTUCADA = 4000;
+/* Último recurso: se nem os balanços tiraram a pessoa da tela, aparece a
+   dica escrita. Tarde de propósito — o gesto deve se explicar sozinho. */
+const GUIA_DICA_ESCRITA = 10000;
 
 const GUIA = [
-  { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false,
+  /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
+  { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false, dur: 11000,
     texto: 'Pergunte qualquer coisa sobre o evento: programação, palestrantes, salas e horários. Respondo na hora, com a informação oficial. E se me contar o que te interessa, sugiro conteúdo para você.',
     aviso: '<b>Eu ajudo, mas quem faz é você.</b> Não faço credenciamento, não reservo lugar e não monto sua agenda sozinho — mostro o caminho, você confirma no app.' },
-  { rotulo: 'Agenda', selo: 'A programação', x: 0.30,
-    texto: 'A grade inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder.',
-    aviso: '<b>Só a Arena Mind tem lugar para todo mundo.</b> Nas outras arenas a capacidade é limitada — reserve antes para garantir o seu.' },
+  { rotulo: 'Agenda', selo: 'A programação', x: 0.30, dur: 11000,
+    texto: 'A grade inteira dos dias 16 e 17. Toque no coração e a sessão vai para Minha Agenda.',
+    aviso: '<b>Salvar não é reservar.</b> Só a Arena Mind tem lugar para todo mundo; nas demais a vaga é limitada e a própria sessão avisa. Salve o que achar interessante — e abra a sessão para reservar o que decidir participar.' },
   { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
     texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
   { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
@@ -1333,12 +1337,17 @@ let guiaRestante = GUIA_DURACAO;
 let guiaDesde = 0;
 let guiaPausado = false;
 let guiaPronto = false;
+let guiaDica = null;
+
+/* Passo com texto mais longo respira mais; o resto usa o padrão. */
+function duracaoDoPasso() { return GUIA[guiaPasso].dur || GUIA_DURACAO; }
 
 function trilhaAtiva() { return document.querySelector('#guia-trilha i.atual span'); }
 
 function tocarRelogio(ms) {
   clearTimeout(guiaRelogio);
   clearTimeout(guiaCutucao);
+  clearTimeout(guiaDica);
   guiaRestante = ms;
   guiaDesde = Date.now();
   guiaPronto = false;
@@ -1350,14 +1359,16 @@ function tocarRelogio(ms) {
 function marcarPronto() {
   guiaPronto = true;
   if (guiaPasso >= GUIA.length - 1) return;   /* no último os botões já dizem o que fazer */
-  guiaAvance.hidden = false;
   agendarCutucao();
+  /* A dica escrita é o último recurso: entra só se os balanços não
+     resolverem. O gesto deve se explicar sozinho antes disso. */
+  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, GUIA_DICA_ESCRITA);
 }
 
 /* Silêncio longo demais com o convite na tela: a cena balança e volta,
    como quem diz "dá para seguir daqui". Insiste de tempos em tempos. */
 function agendarCutucao() {
-  clearTimeout(guiaCutucao);
+  clearTimeout(guiaCutucao);   /* o timer da dica escrita corre em paralelo, não se toca */
   guiaCutucao = setTimeout(() => {
     guiaCena.classList.remove('cutuca');
     void guiaCena.offsetWidth;
@@ -1440,7 +1451,7 @@ function pintarGuia(primeiro) {
 
   document.getElementById('guia-trilha').innerHTML = GUIA.map((_, i) =>
     '<i class="' + (i < guiaPasso ? 'ok' : i === guiaPasso ? 'atual' : '') + '"><span></span></i>').join('');
-  document.getElementById('guia-trilha').style.setProperty('--dur', GUIA_DURACAO + 'ms');
+  document.getElementById('guia-trilha').style.setProperty('--dur', duracaoDoPasso() + 'ms');
 
   document.getElementById('guia-selo').textContent = p.selo;
   /* O ponto final verde, como no site do Summit */
@@ -1474,6 +1485,7 @@ function guiaIrPara(n) {
   if (destino === guiaPasso) return;
   clearTimeout(guiaRelogio);
   clearTimeout(guiaCutucao);
+  clearTimeout(guiaDica);
   guiaCena.classList.remove('cutuca');
   guiaAvance.hidden = true;
   guiaPausado = false;
@@ -1481,7 +1493,7 @@ function guiaIrPara(n) {
   setTimeout(() => {
     guiaPasso = destino;
     pintarGuia();
-    tocarRelogio(GUIA_DURACAO);
+    tocarRelogio(duracaoDoPasso());
   }, 240);
 }
 
@@ -1490,12 +1502,13 @@ function abrirGuia() {
   guiaPausado = false;
   guia.hidden = false;
   pintarGuia(true);
-  tocarRelogio(GUIA_DURACAO);
+  tocarRelogio(duracaoDoPasso());
 }
 
 function fecharGuia() {
   clearTimeout(guiaRelogio);
   clearTimeout(guiaCutucao);
+  clearTimeout(guiaDica);
   guia.hidden = true;
   try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
 }
@@ -1518,6 +1531,9 @@ guia.addEventListener('pointerdown', (e) => {
   guiaX0 = e.clientX;
   guiaArrastou = false;
   guiaSegurou = false;
+  /* Prende o ponteiro: sem captura, o dedo que passa por cima de um filho
+     ou sai da borda leva os `pointermove` embora no meio do gesto. */
+  try { guia.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já solto */ }
   clearTimeout(guiaEspera);
   guiaEspera = setTimeout(() => { guiaSegurou = true; pausarGuia(); }, GUIA_SEGURAR);
 });
@@ -1548,7 +1564,11 @@ guia.addEventListener('pointerup', (e) => {
 /* Dedo que sai da tela ou gesto cancelado pelo sistema não pode deixar
    o guia parado para sempre. */
 ['pointercancel', 'pointerleave'].forEach((ev) =>
-  guia.addEventListener(ev, () => { clearTimeout(guiaEspera); retomarGuia(); }));
+  guia.addEventListener(ev, () => {
+    clearTimeout(guiaEspera);
+    guiaArrastou = false;   /* gesto abortado não pode virar deslize no próximo toque */
+    retomarGuia();
+  }));
 
 document.getElementById('guia-pular').addEventListener('click', fecharGuia);
 guiaFim.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });

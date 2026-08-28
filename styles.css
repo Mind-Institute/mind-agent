@@ -1002,6 +1002,11 @@ body {
   padding: max(18px, env(safe-area-inset-top)) 24px calc(150px + env(safe-area-inset-bottom));
   overflow: hidden;
   animation: guia-abre .45s ease;
+  /* Sem isto o navegador reivindica o arrasto horizontal para o gesto dele
+     (rolagem, voltar) e dispara `pointercancel` — o deslize nunca chegava ao
+     `pointerup`, e só o toque funcionava. */
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
 }
 .guia[hidden] { display: none; }
 @keyframes guia-abre { from { opacity: 0; } to { opacity: 1; } }
