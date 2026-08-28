@@ -1265,16 +1265,16 @@ carregarDados().then(() => {
 });
 
 /* ============================================================
-   GUIA DA BARRA — a seta que aponta para a toolbar do app
+   GUIA DA BARRA — tela cheia, passando sozinho
    ============================================================
    A barra de abas é do aplicativo do evento, não desta página: ela mora
    logo abaixo da nossa borda inferior. Não dá para destacar um elemento
-   que não está no nosso DOM, então a seta sai do cartão e aponta para
-   fora, na coluna do ícone.
+   fora do nosso DOM, então o guia faz por fora o que o app faz por
+   dentro — a seta aponta para a coluna do ícone e a barrinha de aba
+   selecionada é desenhada rente à borda, igual à que o app acende.
 
-   As posições são frações da largura — é assim que uma barra de cinco
-   abas se divide, e vale para qualquer largura de tela. Se o app mudar o
-   número de abas, é esta lista que muda.
+   As colunas são frações da largura: é como uma barra de cinco abas se
+   divide, em qualquer tela. Muda o número de abas, muda só esta lista.
 
    Aparece no primeiro acesso e pelo botão "Fazer tour do app". */
 
@@ -1282,44 +1282,50 @@ carregarDados().then(() => {
    viver sob o mesmo prefixo. */
 const GUIA_VISTO = 'mindagent:v1:' + CONFIG.eventSlug + ':guia-visto';
 
+/* Devagar de propósito: é para ler sem correr, não para despachar. */
+const GUIA_DURACAO = 7000;
+
 const GUIA = [
-  { rotulo: 'Mind Agent', x: 0.10,
-    texto: 'É onde você está agora. Eu monto seu roteiro dos dois dias, indico palestras e pessoas pelo que você me contar, e respondo dúvida de programação, sala, horário e credenciamento.' },
-  { rotulo: 'Agenda', x: 0.30,
-    texto: 'A programação inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder — é o que aparece na próxima aba.' },
-  { rotulo: 'Minha Agenda', x: 0.50,
-    texto: 'O que você salvou e reservou, em ordem de horário. É o seu roteiro do evento, já sem choque de horário.' },
-  { rotulo: 'Leitor de QR Code', x: 0.70,
+  { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10,
+    texto: 'Eu monto seu roteiro dos dois dias, indico palestras e pessoas pelo que você me contar, e respondo dúvida de programação, sala, horário e credenciamento.' },
+  { rotulo: 'Agenda', selo: 'A programação', x: 0.30,
+    texto: 'A grade inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder — é o que aparece na próxima aba.' },
+  { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
+    texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
+  { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
     texto: 'Sua credencial e sua câmera. Faça check-in nas sessões e troque contato com quem conhecer: escaneie o QR da pessoa e ela entra na sua rede.' },
-  { rotulo: 'Menu', x: 0.90,
-    texto: 'O resto do app: mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
+  { rotulo: 'Menu', selo: 'E o resto', x: 0.90,
+    texto: 'Mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
 ];
 
 const guia = document.getElementById('guia');
 const guiaSeta = document.getElementById('guia-seta');
-const guiaCartao = document.getElementById('guia-cartao');
+const guiaCena = document.getElementById('guia-cena');
+const guiaBarra = document.getElementById('guia-barra');
+const guiaFim = document.getElementById('guia-fim');
 let guiaPasso = 0;
+let guiaRelogio = null;
 
-/* A seta: uma curva do cartão até a coluna do ícone, desenhada com
-   bolinhas (traço zero + espaço, ponta redonda) e uma ponta cheia.
-   O ângulo da ponta vem da tangente da curva, senão ela aponta torto. */
+/* A seta: curva do texto até a coluna do ícone, desenhada com bolinhas
+   (traço zero + espaço, ponta redonda) e ponta cheia. O ângulo da ponta
+   vem da tangente da curva, senão ela aponta torto. */
 function desenharSeta() {
   const L = innerWidth, A = innerHeight;
   const alvo = GUIA[guiaPasso];
-  const r = guiaCartao.getBoundingClientRect();
+  const r = guiaCena.getBoundingClientRect();
 
-  const ax = alvo.x * L;              /* coluna do ícone */
-  const ay = A - 8;                   /* a borda de baixo: o ícone fica abaixo dela */
-  const px = Math.min(Math.max(ax, r.left + 26), r.right - 26);
-  const py = r.bottom + 6;            /* sai da base do cartão */
+  const ax = alvo.x * L;                                  /* coluna do ícone */
+  const ay = A - 12;                                      /* rente à borda: o ícone fica abaixo */
+  const px = Math.min(Math.max(ax, 40), L - 40);
+  const py = Math.min(r.bottom + 18, A - 150);
 
-  /* Controle deslocado para o lado do alvo: dá o gingado de desenho à mão
-     em vez de uma reta de régua. */
-  const cx = px + (ax - px) * 0.75 + (ax < px ? -34 : 34);
-  const cy = py + (ay - py) * 0.42;
+  /* Controle jogado para o lado: dá o gingado de desenho à mão em vez de
+     uma reta de régua. */
+  const cx = px + (ax - px) * 0.7 + (ax < px ? -30 : 30);
+  const cy = py + (ay - py) * 0.45;
 
   const ang = Math.atan2(ay - cy, ax - cx);
-  const P = 11, ABERT = 0.42;
+  const P = 10, ABERT = 0.44;
   const ponta = [
     [ax, ay],
     [ax - P * Math.cos(ang - ABERT), ay - P * Math.sin(ang - ABERT)],
@@ -1329,54 +1335,84 @@ function desenharSeta() {
   guiaSeta.setAttribute('viewBox', '0 0 ' + L + ' ' + A);
   guiaSeta.innerHTML =
     '<path class="trilha" d="M' + px.toFixed(1) + ' ' + py.toFixed(1) +
-      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + ax.toFixed(1) + ' ' + (ay - 14).toFixed(1) + '"/>' +
+      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + ax.toFixed(1) + ' ' + (ay - 13).toFixed(1) + '"/>' +
     '<polygon class="ponta" points="' + ponta + '"/>';
 
   guiaSeta.classList.remove('desenhando');
   void guiaSeta.offsetWidth;
   guiaSeta.classList.add('desenhando');
+
+  /* A barrinha da aba: mesma proporção que o app usa — pouco menos de um
+     quinto da tela, centrada na coluna. Ela desliza de um passo ao outro. */
+  const larguraBarra = L * 0.19;
+  guiaBarra.style.width = larguraBarra + 'px';
+  guiaBarra.style.left = (ax - larguraBarra / 2) + 'px';
 }
 
-function pintarGuia() {
+function pintarGuia(primeiro) {
   const p = GUIA[guiaPasso];
   const ultimo = guiaPasso === GUIA.length - 1;
-  document.getElementById('guia-passos').innerHTML = GUIA.map((_, i) =>
-    '<i class="' + (i < guiaPasso ? 'ok' : i === guiaPasso ? 'atual' : '') + '"></i>').join('');
-  document.getElementById('guia-titulo').textContent = p.rotulo;
+
+  document.getElementById('guia-trilha').innerHTML = GUIA.map((_, i) =>
+    '<i class="' + (i < guiaPasso ? 'ok' : i === guiaPasso ? 'atual' : '') + '"><span></span></i>').join('');
+  document.getElementById('guia-trilha').style.setProperty('--dur', GUIA_DURACAO + 'ms');
+
+  document.getElementById('guia-selo').textContent = p.selo;
+  /* O ponto final verde, como no site do Summit */
+  document.getElementById('guia-titulo').innerHTML =
+    p.rotulo.replace(/[<>&]/g, '') + '<em>.</em>';
   document.getElementById('guia-texto').textContent = p.texto;
-  document.getElementById('guia-proximo').textContent = ultimo ? 'Entendi' : 'Próximo';
-  document.getElementById('guia-pular').textContent = ultimo ? 'Ver o tour completo' : 'Pular';
-  document.getElementById('guia-pular').classList.toggle('guia-secundario', ultimo);
-  /* Síncrono de propósito: `getBoundingClientRect` já força o layout, e
-     `requestAnimationFrame` não dispara em aba que não está renderizando —
-     a seta ficava sem ser desenhada. */
+
+  guiaCena.classList.remove('sai');
+  guiaCena.classList.remove('mostra');
+  void guiaCena.offsetWidth;
+  guiaCena.classList.add('mostra');
+
   desenharSeta();
+
+  guiaFim.hidden = !ultimo;
+  if (primeiro) guiaBarra.style.transition = 'none';
+  if (primeiro) requestAnimationFrame(() => { guiaBarra.style.transition = ''; });
+}
+
+/* Passa sozinho. A cena sai antes de a próxima entrar, para a troca não
+   ser um corte seco. */
+function agendarProximo() {
+  clearTimeout(guiaRelogio);
+  guiaRelogio = setTimeout(() => {
+    if (guiaPasso >= GUIA.length - 1) return;   /* o último fica, esperando decisão */
+    guiaCena.classList.add('sai');
+    setTimeout(() => { guiaPasso++; pintarGuia(); agendarProximo(); }, 280);
+  }, GUIA_DURACAO);
 }
 
 function abrirGuia() {
   guiaPasso = 0;
   guia.hidden = false;
-  pintarGuia();
+  pintarGuia(true);
+  agendarProximo();
 }
 
 function fecharGuia() {
+  clearTimeout(guiaRelogio);
   guia.hidden = true;
   try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
 }
 
-document.getElementById('guia-proximo').addEventListener('click', () => {
-  if (guiaPasso < GUIA.length - 1) { guiaPasso++; pintarGuia(); return; }
-  fecharGuia();
+/* Tocar em qualquer lugar adianta — quem lê rápido não fica esperando. */
+guia.addEventListener('click', (e) => {
+  if (e.target.closest('#guia-pular') || e.target.closest('#guia-fim')) return;
+  if (guiaPasso >= GUIA.length - 1) return;
+  clearTimeout(guiaRelogio);
+  guiaCena.classList.add('sai');
+  setTimeout(() => { guiaPasso++; pintarGuia(); agendarProximo(); }, 200);
 });
-document.getElementById('guia-pular').addEventListener('click', () => {
-  const ultimo = guiaPasso === GUIA.length - 1;
-  fecharGuia();
-  if (ultimo) abrirTourCompleto();
-});
+
+document.getElementById('guia-pular').addEventListener('click', fecharGuia);
+guiaFim.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });
 addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
 
-/* O botão da home passa a abrir o guia; o tour completo fica a um toque
-   dele, no último passo. */
+/* O botão da home abre o guia; o tour completo fica no último passo. */
 document.getElementById('abrir-tour').addEventListener('click', abrirGuia);
 
 /* Primeiro acesso: espera o splash sair para não competir com ele. */
