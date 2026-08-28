@@ -1296,7 +1296,8 @@ const GUIA = [
   { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false,
     texto: 'Eu monto seu roteiro dos dois dias, indico palestras e pessoas pelo que você me contar, e respondo dúvida de programação, sala, horário e credenciamento.' },
   { rotulo: 'Agenda', selo: 'A programação', x: 0.30,
-    texto: 'A grade inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder. Só a Arena Mind tem lugar para todo mundo — nas outras arenas a capacidade é limitada, e é preciso reservar antes para participar.' },
+    texto: 'A grade inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder.',
+    aviso: '<b>Só a Arena Mind tem lugar para todo mundo.</b> Nas outras arenas a capacidade é limitada — reserve antes para garantir o seu.' },
   { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
     texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
   { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
@@ -1310,6 +1311,7 @@ const guiaSeta = document.getElementById('guia-seta');
 const guiaCena = document.getElementById('guia-cena');
 const guiaBarra = document.getElementById('guia-barra');
 const guiaFim = document.getElementById('guia-fim');
+const guiaSaida = document.getElementById('guia-saida');
 let guiaPasso = 0;
 
 /* ---- Relógio do avanço automático ----
@@ -1412,6 +1414,12 @@ function pintarGuia(primeiro) {
     p.rotulo.replace(/[<>&]/g, '') + '<em>.</em>';
   document.getElementById('guia-texto').textContent = p.texto;
 
+  /* O aviso é o único texto do guia que aceita marcação, e ela vem daqui
+     de dentro — nunca de dado externo. */
+  const elAviso = document.getElementById('guia-aviso');
+  elAviso.innerHTML = p.aviso || '';
+  elAviso.hidden = !p.aviso;
+
   guiaCena.classList.remove('sai', 'mostra');
   void guiaCena.offsetWidth;
   guiaCena.classList.add('mostra');
@@ -1422,7 +1430,7 @@ function pintarGuia(primeiro) {
   desenharSeta();
   if (primeiro) setTimeout(() => { guiaBarra.style.transition = ''; }, 30);
 
-  guiaFim.hidden = !ultimo;
+  guiaSaida.hidden = !ultimo;
 }
 
 /* Troca de passo com a cena saindo antes de a próxima entrar — a troca
@@ -1460,7 +1468,7 @@ let guiaSegurou = false;
 let guiaEspera = null;
 
 function dosBotoes(e) {
-  return !!(e.target.closest('#guia-pular') || e.target.closest('#guia-fim'));
+  return !!(e.target.closest('#guia-pular') || e.target.closest('#guia-saida'));
 }
 
 guia.addEventListener('pointerdown', (e) => {
@@ -1485,6 +1493,7 @@ guia.addEventListener('pointerup', (e) => {
 
 document.getElementById('guia-pular').addEventListener('click', fecharGuia);
 guiaFim.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });
+document.getElementById('guia-sair').addEventListener('click', fecharGuia);
 addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
 
 /* O botão da home abre o guia; o tour completo fica no último passo. */
