@@ -171,6 +171,23 @@
     </div>
   </div>
 
+  <!-- ============ GUIA DA BARRA: aponta para a toolbar do app ============
+       A barra de abas é do aplicativo do evento, não desta página: ela fica
+       logo abaixo da nossa borda inferior. Por isso a seta aponta para fora,
+       na coluna de cada ícone, em vez de destacar um elemento daqui. -->
+  <div class="guia" id="guia" hidden>
+    <svg class="guia-seta" id="guia-seta" aria-hidden="true"></svg>
+    <div class="guia-cartao" id="guia-cartao" role="dialog" aria-live="polite" aria-labelledby="guia-titulo">
+      <span class="guia-passos" id="guia-passos"></span>
+      <h3 id="guia-titulo"></h3>
+      <p id="guia-texto"></p>
+      <div class="guia-acoes">
+        <button type="button" class="guia-pular" id="guia-pular">Pular</button>
+        <button type="button" class="guia-proximo" id="guia-proximo">Próximo</button>
+      </div>
+    </div>
+  </div>
+
 <script type="module" src="./app.js"></script>
 </body>
 </html>

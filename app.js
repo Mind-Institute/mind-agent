@@ -6,7 +6,7 @@
    só desenha e reage.
 */
 
-import { PARTICIPANTE, capturarIdentidade } from './config.js';
+import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -565,14 +565,17 @@ document.getElementById('fechar-missoes').addEventListener('click', () => missoe
 document.getElementById('sair-tour').addEventListener('click', () => { missoesFundo.classList.remove('aberto'); abrirVista('home'); });
 
 /* Abrir / fechar o tour */
-document.getElementById('abrir-tour').addEventListener('click', () => {
+/* O tour completo — as telas do app com as sete missões. Deixou de ser o
+   primeiro contato: quem chega vê antes o guia da barra (final do arquivo),
+   e chega aqui pelo botão de lá ou por `?tutorial=`. */
+function abrirTourCompleto() {
   telaAtual = 'agenda'; pilha = []; feitas = new Set();
   Object.keys(marcas).forEach((k) => delete marcas[k]);
   document.getElementById('fim-fundo').classList.remove('aberto');
   abrirVista('tour');
   medirFone();
   pintar('troca');
-});
+}
 document.getElementById('fechar-tour').addEventListener('click', () => abrirVista('home'));
 document.getElementById('btn-concluir').addEventListener('click', () => {
   parent.postMessage({ tipo: 'mindagent:tour-concluido' }, '*');
@@ -1260,3 +1263,130 @@ carregarDados().then(() => {
     'Esta página não guarda conteúdo dentro do código — ela lê da camada de dados, ' +
     'e a leitura falhou (' + e.message + '). Recarregue em um instante.</p>';
 });
+
+/* ============================================================
+   GUIA DA BARRA — a seta que aponta para a toolbar do app
+   ============================================================
+   A barra de abas é do aplicativo do evento, não desta página: ela mora
+   logo abaixo da nossa borda inferior. Não dá para destacar um elemento
+   que não está no nosso DOM, então a seta sai do cartão e aponta para
+   fora, na coluna do ícone.
+
+   As posições são frações da largura — é assim que uma barra de cinco
+   abas se divide, e vale para qualquer largura de tela. Se o app mudar o
+   número de abas, é esta lista que muda.
+
+   Aparece no primeiro acesso e pelo botão "Fazer tour do app". */
+
+/* Mesma convenção de chave do chat-service, para tudo desta pessoa
+   viver sob o mesmo prefixo. */
+const GUIA_VISTO = 'mindagent:v1:' + CONFIG.eventSlug + ':guia-visto';
+
+const GUIA = [
+  { rotulo: 'Mind Agent', x: 0.10,
+    texto: 'É onde você está agora. Eu monto seu roteiro dos dois dias, indico palestras e pessoas pelo que você me contar, e respondo dúvida de programação, sala, horário e credenciamento.' },
+  { rotulo: 'Agenda', x: 0.30,
+    texto: 'A programação inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder — é o que aparece na próxima aba.' },
+  { rotulo: 'Minha Agenda', x: 0.50,
+    texto: 'O que você salvou e reservou, em ordem de horário. É o seu roteiro do evento, já sem choque de horário.' },
+  { rotulo: 'Leitor de QR Code', x: 0.70,
+    texto: 'Sua credencial e sua câmera. Faça check-in nas sessões e troque contato com quem conhecer: escaneie o QR da pessoa e ela entra na sua rede.' },
+  { rotulo: 'Menu', x: 0.90,
+    texto: 'O resto do app: mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
+];
+
+const guia = document.getElementById('guia');
+const guiaSeta = document.getElementById('guia-seta');
+const guiaCartao = document.getElementById('guia-cartao');
+let guiaPasso = 0;
+
+/* A seta: uma curva do cartão até a coluna do ícone, desenhada com
+   bolinhas (traço zero + espaço, ponta redonda) e uma ponta cheia.
+   O ângulo da ponta vem da tangente da curva, senão ela aponta torto. */
+function desenharSeta() {
+  const L = innerWidth, A = innerHeight;
+  const alvo = GUIA[guiaPasso];
+  const r = guiaCartao.getBoundingClientRect();
+
+  const ax = alvo.x * L;              /* coluna do ícone */
+  const ay = A - 8;                   /* a borda de baixo: o ícone fica abaixo dela */
+  const px = Math.min(Math.max(ax, r.left + 26), r.right - 26);
+  const py = r.bottom + 6;            /* sai da base do cartão */
+
+  /* Controle deslocado para o lado do alvo: dá o gingado de desenho à mão
+     em vez de uma reta de régua. */
+  const cx = px + (ax - px) * 0.75 + (ax < px ? -34 : 34);
+  const cy = py + (ay - py) * 0.42;
+
+  const ang = Math.atan2(ay - cy, ax - cx);
+  const P = 11, ABERT = 0.42;
+  const ponta = [
+    [ax, ay],
+    [ax - P * Math.cos(ang - ABERT), ay - P * Math.sin(ang - ABERT)],
+    [ax - P * Math.cos(ang + ABERT), ay - P * Math.sin(ang + ABERT)],
+  ].map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+
+  guiaSeta.setAttribute('viewBox', '0 0 ' + L + ' ' + A);
+  guiaSeta.innerHTML =
+    '<path class="trilha" d="M' + px.toFixed(1) + ' ' + py.toFixed(1) +
+      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + ax.toFixed(1) + ' ' + (ay - 14).toFixed(1) + '"/>' +
+    '<polygon class="ponta" points="' + ponta + '"/>';
+
+  guiaSeta.classList.remove('desenhando');
+  void guiaSeta.offsetWidth;
+  guiaSeta.classList.add('desenhando');
+}
+
+function pintarGuia() {
+  const p = GUIA[guiaPasso];
+  const ultimo = guiaPasso === GUIA.length - 1;
+  document.getElementById('guia-passos').innerHTML = GUIA.map((_, i) =>
+    '<i class="' + (i < guiaPasso ? 'ok' : i === guiaPasso ? 'atual' : '') + '"></i>').join('');
+  document.getElementById('guia-titulo').textContent = p.rotulo;
+  document.getElementById('guia-texto').textContent = p.texto;
+  document.getElementById('guia-proximo').textContent = ultimo ? 'Entendi' : 'Próximo';
+  document.getElementById('guia-pular').textContent = ultimo ? 'Ver o tour completo' : 'Pular';
+  document.getElementById('guia-pular').classList.toggle('guia-secundario', ultimo);
+  /* Síncrono de propósito: `getBoundingClientRect` já força o layout, e
+     `requestAnimationFrame` não dispara em aba que não está renderizando —
+     a seta ficava sem ser desenhada. */
+  desenharSeta();
+}
+
+function abrirGuia() {
+  guiaPasso = 0;
+  guia.hidden = false;
+  pintarGuia();
+}
+
+function fecharGuia() {
+  guia.hidden = true;
+  try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
+}
+
+document.getElementById('guia-proximo').addEventListener('click', () => {
+  if (guiaPasso < GUIA.length - 1) { guiaPasso++; pintarGuia(); return; }
+  fecharGuia();
+});
+document.getElementById('guia-pular').addEventListener('click', () => {
+  const ultimo = guiaPasso === GUIA.length - 1;
+  fecharGuia();
+  if (ultimo) abrirTourCompleto();
+});
+addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
+
+/* O botão da home passa a abrir o guia; o tour completo fica a um toque
+   dele, no último passo. */
+document.getElementById('abrir-tour').addEventListener('click', abrirGuia);
+
+/* Primeiro acesso: espera o splash sair para não competir com ele. */
+(function guiaNoPrimeiroAcesso() {
+  let visto = false;
+  try { visto = !!localStorage.getItem(GUIA_VISTO); } catch (e) { visto = false; }
+  if (visto) return;
+  const tentar = () => {
+    if (document.getElementById('splash')) return setTimeout(tentar, 400);
+    if (guia.hidden && vistas.home.classList.contains('ativa')) abrirGuia();
+  };
+  setTimeout(tentar, 600);
+})();

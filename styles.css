@@ -983,3 +983,114 @@ body {
   font-size: 13px; line-height: 1.55; color: var(--texto-mudo);
 }
 .erro-dados b { color: var(--coral); display: block; margin-bottom: 6px; }
+
+/* ============================================================
+   GUIA DA BARRA — a seta que aponta para a toolbar do app
+   ============================================================
+   A barra de abas (Mind Agent · Agenda · Minha agenda · QR Code ·
+   Menu) pertence ao aplicativo do evento, não a esta página: ela
+   fica logo abaixo da nossa borda inferior. Não dá para destacar
+   um elemento que não está no nosso DOM — então a seta sai do
+   cartão e aponta para fora, na coluna do ícone. As posições são
+   frações da largura (10%, 30%, 50%, 70%, 90%), que é como uma
+   barra de cinco abas se divide. */
+.guia {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 14px calc(112px + env(safe-area-inset-bottom));
+  background: rgba(8, 8, 12, .82);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: guia-entra .28s ease;
+}
+.guia[hidden] { display: none; }
+@keyframes guia-entra { from { opacity: 0; } to { opacity: 1; } }
+
+/* A seta ocupa a tela inteira: o traçado é calculado em pixels do
+   viewport, do cartão até a borda de baixo. */
+.guia-seta {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.guia-seta .trilha {
+  fill: none;
+  stroke: var(--verde);
+  stroke-width: 5;
+  stroke-linecap: round;
+  /* traço zero + espaço = bolinha redonda, o pontilhado desenhado à mão */
+  stroke-dasharray: 0 15;
+  filter: drop-shadow(0 0 6px rgba(104, 238, 149, .35));
+}
+.guia-seta .ponta {
+  fill: var(--verde);
+  filter: drop-shadow(0 0 6px rgba(104, 238, 149, .35));
+}
+/* Os pontos surgem do cartão em direção ao ícone */
+.guia-seta.desenhando .trilha {
+  animation: guia-risca .55s ease forwards;
+}
+.guia-seta.desenhando .ponta {
+  opacity: 0;
+  animation: guia-ponta .25s .5s ease forwards;
+}
+@keyframes guia-risca {
+  from { stroke-dasharray: 0 15; stroke-dashoffset: 220; }
+  to   { stroke-dasharray: 0 15; stroke-dashoffset: 0; }
+}
+@keyframes guia-ponta { to { opacity: 1; } }
+
+.guia-cartao {
+  position: relative;
+  width: 100%; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-card);
+  padding: 20px;
+  animation: guia-sobe .3s ease;
+}
+@keyframes guia-sobe { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+.guia-passos { display: flex; gap: 5px; }
+.guia-passos i {
+  width: 18px; height: 3px; border-radius: 2px;
+  background: rgba(255, 255, 255, .18);
+  transition: background .2s ease;
+}
+.guia-passos i.ok    { background: rgba(104, 238, 149, .45); }
+.guia-passos i.atual { background: var(--verde); }
+
+.guia-cartao h3 {
+  margin-top: 14px;
+  font-size: 20px; font-weight: 900; letter-spacing: -.01em;
+}
+.guia-cartao p {
+  margin-top: 8px;
+  font-size: 14.5px; line-height: 1.5; color: var(--texto-suave);
+}
+
+.guia-acoes { margin-top: 18px; display: flex; align-items: center; gap: 10px; }
+.guia-acoes button {
+  appearance: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 700;
+  border-radius: var(--raio-pill);
+  min-height: 44px;
+}
+.guia-pular {
+  background: none; border: 0;
+  color: var(--texto-mudo);
+  padding: 0 6px;
+}
+.guia-proximo {
+  margin-left: auto;
+  background: var(--verde); border: 0;
+  color: var(--surface-deep);
+  padding: 0 24px;
+}
+.guia-secundario {
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--texto-suave);
+  padding: 0 16px;
+}
