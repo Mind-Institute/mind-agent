@@ -46,9 +46,13 @@ const FALA = [
   cursor.className = 'splash-cursor';
   alvo.appendChild(cursor);
 
+  /* Quanto tempo a frase inteira fica legível antes de a tela sair. Conta
+     a partir da última letra; a saída ainda leva os .5s do fade. */
+  const LEITURA = 4000;
+
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
     letras.forEach((g) => g.classList.add('on'));
-    setTimeout(fecharSplash, 1400);
+    setTimeout(fecharSplash, LEITURA);
     return;
   }
   const PASSO = 26, ATRASO = 900;
@@ -56,7 +60,7 @@ const FALA = [
     g.classList.add('on');
     g.after(cursor);              /* o cursor anda junto, não fica no fim do texto todo */
   }, ATRASO + i * PASSO));
-  setTimeout(fecharSplash, ATRASO + letras.length * PASSO + 900);
+  setTimeout(fecharSplash, ATRASO + letras.length * PASSO + LEITURA);
 })();
 
 /* ---------- Navegação entre vistas ---------- */
