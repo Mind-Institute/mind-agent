@@ -297,12 +297,14 @@ A origem do ingresso está classificada em **dois lugares, com palavras diferent
 |---|---|---|
 | | Pago · Cortesia · **Patrocínio** | Pago · Cortesia · **Convidado institucional** · **Staff** |
 
-E a cobertura ainda não fecha:
-- juntando `eduzz.vendas.id_do_produto` → `produto_catalogo.eduzz_product_id`: **1.078 Pago ·
-  178 Cortesia · 47 Patrocínio**, mas **1.904 vendas sem mapeamento**;
-- no credenciamento, **213 de 1.028 participantes estão com `ticket_type = "SEM MAPA"`**.
+Qual vocabulário vale é decisão de negócio — não invento.
 
-Qual vocabulário vale, e o que fazer com o que não está mapeado, é decisão de negócio — não invento.
+**A cobertura parcial é esperada, não é defeito.** Juntando `eduzz.vendas.id_do_produto` →
+`produto_catalogo.eduzz_product_id` casam **1.078 Pago · 178 Cortesia · 47 Patrocínio**, e
+**1.904 vendas ficam sem mapeamento**; no credenciamento, **213 de 1.028 participantes** estão
+com `ticket_type = "SEM MAPA"`. A Adriana confirmou (28/08) que **está certo e ela vai completar
+o mapeamento depois** — é conteúdo pendente, não bug de encanamento. Conforme ela mapeia na
+origem, o espelho pega sozinho no ciclo seguinte. **Não "conserte" isso por conta própria.**
 
 ## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
 

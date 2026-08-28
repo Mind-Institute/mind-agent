@@ -264,21 +264,28 @@ classificada em **dois lugares, com palavras diferentes**:
 | `credenciamento_summit_2026.participantes` | `ticket_origin` | Pago (992) · Cortesia (27) · **Convidado institucional (8)** · **Staff (1)** |
 | | `ticket_type` | Mind (360) · VIP (298) · **SEM MAPA (213)** · Prime (157) |
 
-**Os três buracos, medidos:**
-1. **Dois vocabulários pra mesma coisa.** Catálogo diz `Patrocínio`; credenciamento diz
-   `Convidado institucional` e `Staff`. Qual vale?
-2. **1.904 vendas sem mapeamento** — juntando `eduzz.vendas.id_do_produto` →
-   `produto_catalogo.eduzz_product_id`, casam 1.078 Pago + 178 Cortesia + 47 Patrocínio.
-3. **213 participantes com `SEM MAPA`** — produto ainda não mapeado em
-   `credenciamento_produtos_mapa` na origem (33 linhas, só `Pago`/`Cortesia`, `empresa_patrocinadora`
-   100% vazia).
+### Mapeamento incompleto — ✅ esperado, **pendência da Adriana** (28/08)
 
-**As perguntas que só a Adriana responde:**
-1. Qual vocabulário é o oficial? *(Sugestão: o do catálogo, porque classifica o **produto** e não
-   a pessoa — vale pra todo mundo que comprar aquele SKU. É chute meu, não fato.)*
+Ela confirmou: **está tudo certo, vai completar depois.** Não é bug nem buraco de encanamento —
+é trabalho de conteúdo que ainda não foi feito. Fica registrado só pra ninguém "consertar" por
+conta própria nem se assustar com o número:
+
+- **1.904 vendas sem mapeamento** — juntando `eduzz.vendas.id_do_produto` →
+  `produto_catalogo.eduzz_product_id`, casam 1.078 Pago + 178 Cortesia + 47 Patrocínio.
+- **213 participantes com `ticket_type = "SEM MAPA"`** — produto ainda não mapeado em
+  `credenciamento_produtos_mapa` na origem (33 linhas, só `Pago`/`Cortesia`,
+  `empresa_patrocinadora` 100% vazia).
+
+Conforme ela for mapeando no `mind-hubpost` e no projeto Vendas, o espelho pega sozinho no
+próximo ciclo — **não precisa fazer nada aqui.** Pra reconferir a cobertura a qualquer momento,
+a consulta está em `docs/RETOMAR_AMANHA.md`.
+
+**O que continua em aberto de verdade — as perguntas que só a Adriana responde:**
+1. **Qual vocabulário é o oficial?** Catálogo diz `Patrocínio`; credenciamento diz
+   `Convidado institucional` e `Staff`. *(Sugestão: o do catálogo, porque classifica o **produto**
+   e não a pessoa — vale pra todo mundo que comprar aquele SKU. É chute meu, não fato.)*
 2. `tipo_de_venda = Direta` (12 produtos): venda fora da Eduzz? Onde é registrada hoje?
 3. Patrocínio: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
-4. As 1.904 vendas sem mapeamento — histórico velho que dá pra ignorar, ou precisam ser mapeadas?
 
 **Tabelas do projeto Vendas ainda NÃO espelhadas** (não foram pedidas; ficam registradas pra não
 redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) · `ingressos_gerados` (~1.071) ·

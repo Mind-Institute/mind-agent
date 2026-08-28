@@ -116,26 +116,27 @@ ser inventado. O trabalho é **reconciliar e completar**, não criar do zero.
 | | `ticket_type` | Mind (360) · VIP (298) · **SEM MAPA (213)** · Prime (157) |
 | | `sponsor_company` | preenchido em 13 participantes |
 
-### Os três buracos, medidos
+### Mapeamento incompleto — ✅ está certo, é pendência sua
 
-1. **Dois vocabulários pra mesma coisa.** O catálogo diz `Patrocínio`; o credenciamento diz
-   `Convidado institucional` e `Staff`. Qual vale?
-2. **1.904 vendas sem mapeamento.** Juntando `eduzz.vendas.id_do_produto` →
-   `produto_catalogo.eduzz_product_id`, casam 1.078 Pago + 178 Cortesia + 47 Patrocínio, e
-   **1.904 ficam de fora**. São SKUs antigos, ou mapeamento faltando?
-3. **213 participantes com `SEM MAPA`.** Produto que ainda não entrou em
-   `credenciamento_produtos_mapa` (na origem, 33 linhas — só `Pago`/`Cortesia`, sem `Patrocínio`,
-   e `empresa_patrocinadora` 100% vazia).
+Você já confirmou: **está tudo certo, vai fazer depois.** Não é bug, é conteúdo que ainda não foi
+mapeado. Registrado aqui só pra ninguém "consertar" por conta própria nem se assustar com o número:
 
-### As perguntas que só você responde
+- **1.904 vendas sem mapeamento** (casam 1.078 Pago + 178 Cortesia + 47 Patrocínio)
+- **213 participantes com `ticket_type = "SEM MAPA"`**
 
-1. Qual vocabulário é o oficial — o do catálogo ou o do credenciamento? (Sugestão minha: o do
-   catálogo, porque classifica o **produto** e não a pessoa, então vale pra todo mundo que comprar
-   aquele SKU. Mas é chute meu, não fato.)
+Conforme você for mapeando no `mind-hubpost` e no projeto Vendas, **o espelho pega sozinho no
+próximo ciclo** — não tem nada a fazer deste lado. A consulta pra reconferir a cobertura está lá
+embaixo, em "Comandos que você pode precisar".
+
+### O que continua em aberto de verdade — só você responde
+
+1. **Qual vocabulário é o oficial** — o do catálogo (`Patrocínio`) ou o do credenciamento
+   (`Convidado institucional`, `Staff`)? *(Sugestão minha: o do catálogo, porque classifica o
+   **produto** e não a pessoa, então vale pra todo mundo que comprar aquele SKU. Mas é chute meu,
+   não fato.)*
 2. `tipo_de_venda = Direta` (12 produtos): venda fora da Eduzz (PIX/boleto/contrato)? Onde ela é
    registrada hoje?
 3. Patrocínio: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
-4. As 1.904 vendas sem mapeamento — dá pra ignorar (histórico velho) ou precisam ser mapeadas?
 
 **Outras tabelas do projeto Vendas que ainda NÃO espelhei** (não foram pedidas; digo que existem
 pra não redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) ·
