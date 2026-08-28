@@ -786,7 +786,7 @@ const ICONES = {
 
 const INTENCOES = [
   { id: 'agenda',    titulo: 'Montar minha agenda',
-    dica: 'Eu monto um roteiro dos dois dias sem choque de horário' },
+    dica: 'Eu sugiro um roteiro dos dois dias sem choque de horário' },
   { id: 'palestras', titulo: 'Escolher palestras',
     dica: 'Vejo a grade inteira e trago o que fala do seu problema' },
   { id: 'pessoas',   titulo: 'Conhecer pessoas',
@@ -1291,6 +1291,10 @@ const GUIA_DURACAO = 7000;
 const GUIA_SEGURAR = 220;
 /* Faixa da esquerda que volta um passo — o resto avança. */
 const GUIA_ZONA_VOLTA = 0.3;
+/* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
+const GUIA_ARRASTO = 45;
+/* Silêncio com o convite na tela antes de a cena balançar. */
+const GUIA_CUTUCADA = 4500;
 
 const GUIA = [
   { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false,
@@ -1313,28 +1317,57 @@ const guiaCena = document.getElementById('guia-cena');
 const guiaBarra = document.getElementById('guia-barra');
 const guiaFim = document.getElementById('guia-fim');
 const guiaSaida = document.getElementById('guia-saida');
+const guiaAvance = document.getElementById('guia-avance');
 let guiaPasso = 0;
 
-/* ---- Relógio do avanço automático ----
+/* ---- Relógio do passo ----
+   A barra de cima continua enchendo, mas ela não avança mais nada: quando
+   termina, o guia apenas diz que dá para seguir e espera. Quem decide o
+   ritmo é quem lê.
+
    Guarda o que falta em vez de só um timer: sem isso, segurar e soltar
    reiniciaria o passo do zero. */
 let guiaRelogio = null;
+let guiaCutucao = null;
 let guiaRestante = GUIA_DURACAO;
 let guiaDesde = 0;
 let guiaPausado = false;
+let guiaPronto = false;
 
 function trilhaAtiva() { return document.querySelector('#guia-trilha i.atual span'); }
 
 function tocarRelogio(ms) {
   clearTimeout(guiaRelogio);
+  clearTimeout(guiaCutucao);
   guiaRestante = ms;
   guiaDesde = Date.now();
-  if (guiaPasso >= GUIA.length - 1) return;   /* o último fica, esperando decisão */
-  guiaRelogio = setTimeout(() => guiaIrPara(guiaPasso + 1), ms);
+  guiaPronto = false;
+  guiaAvance.hidden = true;
+  guiaRelogio = setTimeout(marcarPronto, ms);
+}
+
+/* Barra cheia: aparece o convite e começa a insistência. */
+function marcarPronto() {
+  guiaPronto = true;
+  if (guiaPasso >= GUIA.length - 1) return;   /* no último os botões já dizem o que fazer */
+  guiaAvance.hidden = false;
+  agendarCutucao();
+}
+
+/* Silêncio longo demais com o convite na tela: a cena balança e volta,
+   como quem diz "dá para seguir daqui". Insiste de tempos em tempos. */
+function agendarCutucao() {
+  clearTimeout(guiaCutucao);
+  guiaCutucao = setTimeout(() => {
+    guiaCena.classList.remove('cutuca');
+    void guiaCena.offsetWidth;
+    guiaCena.classList.add('cutuca');
+    agendarCutucao();
+  }, GUIA_CUTUCADA);
 }
 
 function pausarGuia() {
-  if (guiaPausado || guiaPasso >= GUIA.length - 1) return;
+  if (guiaPausado || guiaPronto) return;   /* barra cheia: não há o que pausar */
   guiaPausado = true;
   clearTimeout(guiaRelogio);
   guiaRestante = Math.max(guiaRestante - (Date.now() - guiaDesde), 300);
@@ -1440,6 +1473,9 @@ function guiaIrPara(n) {
   const destino = Math.min(Math.max(n, 0), GUIA.length - 1);
   if (destino === guiaPasso) return;
   clearTimeout(guiaRelogio);
+  clearTimeout(guiaCutucao);
+  guiaCena.classList.remove('cutuca');
+  guiaAvance.hidden = true;
   guiaPausado = false;
   guiaCena.classList.add('sai');
   setTimeout(() => {
@@ -1459,14 +1495,19 @@ function abrirGuia() {
 
 function fecharGuia() {
   clearTimeout(guiaRelogio);
+  clearTimeout(guiaCutucao);
   guia.hidden = true;
   try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
 }
 
-/* ---- Navegação de stories ----
-   Toque à esquerda volta, à direita avança, segurar pausa. */
+/* ---- Navegação ----
+   Deslizar para o lado anda; toque à esquerda volta, à direita avança;
+   segurar pausa a barra. O deslize existe porque a dica na tela promete
+   ele — afordância que não funciona é pior que dica nenhuma. */
 let guiaSegurou = false;
 let guiaEspera = null;
+let guiaArrastou = false;
+let guiaX0 = 0;
 
 function dosBotoes(e) {
   return !!(e.target.closest('#guia-pular') || e.target.closest('#guia-saida'));
@@ -1474,14 +1515,31 @@ function dosBotoes(e) {
 
 guia.addEventListener('pointerdown', (e) => {
   if (dosBotoes(e)) return;
+  guiaX0 = e.clientX;
+  guiaArrastou = false;
   guiaSegurou = false;
   clearTimeout(guiaEspera);
   guiaEspera = setTimeout(() => { guiaSegurou = true; pausarGuia(); }, GUIA_SEGURAR);
 });
 
+/* Assim que o dedo anda de lado, deixa de ser toque ou apoio: é gesto. */
+guia.addEventListener('pointermove', (e) => {
+  if (guiaArrastou || !e.buttons && e.pointerType === 'mouse') return;
+  if (Math.abs(e.clientX - guiaX0) <= 12) return;
+  guiaArrastou = true;
+  clearTimeout(guiaEspera);
+  if (guiaSegurou) { retomarGuia(); guiaSegurou = false; }
+});
+
 guia.addEventListener('pointerup', (e) => {
   if (dosBotoes(e)) return;
   clearTimeout(guiaEspera);
+  const dx = e.clientX - guiaX0;
+  if (guiaArrastou) {
+    /* Deslize curto demais não conta: evita virar passo por tremida de dedo. */
+    if (Math.abs(dx) >= GUIA_ARRASTO) guiaIrPara(guiaPasso + (dx < 0 ? 1 : -1));
+    return;
+  }
   if (guiaSegurou) { retomarGuia(); return; }
   if (e.clientX < innerWidth * GUIA_ZONA_VOLTA) guiaIrPara(guiaPasso - 1);
   else guiaIrPara(guiaPasso + 1);
