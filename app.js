@@ -1413,13 +1413,34 @@ function desenharSeta() {
 
   const ax = alvo.x * L;                                  /* coluna do ícone */
   const ay = A - 12;                                      /* rente à borda: o ícone fica abaixo */
-  const px = Math.min(Math.max(ax, 40), L - 40);
+
+  /* A seta sai do lado OPOSTO ao ícone. Ancorada em cima do alvo, ela
+     virava a mesma linha quase vertical em todos os passos, só mudando de
+     lugar. Saindo do outro lado, ela ganha percurso: as duas primeiras
+     varrem para a esquerda, as três últimas para a direita.
+
+     Só o sentido não bastava — dava duas curvas espelhadas repetidas cinco
+     vezes. `recuo` (o quanto ela anda de lado antes de virar) e `mergulho`
+     (quando ela começa a descer) mudam por passo, então cada tela tem o
+     seu traço. É desenho à mão: se as cinco fossem iguais, não seria. */
+  const TRACO = [
+    { recuo: 0.46, mergulho: 0.15 },
+    { recuo: 0.32, mergulho: 0.30 },
+    { recuo: 0.52, mergulho: 0.13 },
+    { recuo: 0.30, mergulho: 0.28 },
+    { recuo: 0.44, mergulho: 0.19 },
+  ][guiaPasso] || { recuo: 0.42, mergulho: 0.20 };
+
+  const px = ax < L / 2
+    ? Math.min(ax + L * TRACO.recuo, L - 40)
+    : Math.max(ax - L * TRACO.recuo, 40);
   const py = Math.min(r.bottom + 18, A - 150);
 
-  /* Controle jogado para o lado: dá o gingado de desenho à mão em vez de
-     uma reta de régua. */
-  const cx = px + (ax - px) * 0.7 + (ax < px ? -30 : 30);
-  const cy = py + (ay - py) * 0.45;
+  /* Controle perto do alvo na horizontal e perto da origem na vertical:
+     a curva anda de lado primeiro e só então mergulha no ícone, em vez de
+     descer em diagonal de régua. */
+  const cx = px + (ax - px) * 0.85;
+  const cy = py + (ay - py) * TRACO.mergulho;
 
   /* Onde o tracejado realmente termina. A ponta tem de sair DAQUI, não do
      alvo: antes o ângulo vinha da direção até (ax, ay) e a ponta ficava
