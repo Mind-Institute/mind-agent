@@ -184,7 +184,7 @@ const TELAS = {
       { id: 'coracao', x: 86.5, y: 61.5, w: 13, h: 5, faz: 'favoritar', missao: 'm1',
         dica: 'Toque no <b>coração</b> para salvar esta sessão em Minha Agenda.',
         brinde: 'Salva em Minha Agenda 💚' },
-      { id: 'card', x: 50, y: 71, w: 92, h: 28, vai: 'detalhe', modo: 'push',
+      { id: 'card', x: 41, y: 71, w: 74, h: 28, vai: 'detalhe', modo: 'push',
         dica: 'Agora toque na <b>sessão</b> para abrir os detalhes.' },
     ],
   },
@@ -216,6 +216,8 @@ const TELAS = {
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
+      { id: 'sessao', x: 50, y: 36.9, w: 92, h: 30.7,
+        brinde: 'A sessão que você reservou. No dia, o check-in é aqui dentro.' },
     ],
   },
   'qrcode': {
@@ -236,7 +238,6 @@ const TELAS = {
   },
   'menu': {
     img: 'menu', aba: 'menu', rotulo: 'Menu',
-    serve: 'O resto do app: mapa, rede, palestrantes, avisos, chat e o leitor de QR Code.',
     alvos: [
       { id: 'perfil', x: 31, y: 13.7, w: 32, h: 6, brinde: 'Em Editar Perfil você põe foto e cargo.' },
       { id: 'qrmini', x: 90.7, y: 13.9, w: 13, h: 6.5, vai: 'qrcode', modo: 'troca' },
@@ -254,7 +255,7 @@ const TELAS = {
     serve: 'Arenas, lounges, estandes e banheiros do São Paulo Expo — com filtro por tipo de espaço.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
-      { id: 'filtroArenas', x: 33.3, y: 38.3, w: 19, h: 4.5, faz: 'filtrar', missao: 'm5',
+      { id: 'filtroArenas', x: 33.8, y: 41.3, w: 18.5, h: 4.5, faz: 'filtrar', missao: 'm5',
         dica: 'Use os filtros para encontrar arenas, estandes e lounges. Toque em <b>Arenas</b>.',
         brinde: 'Só as arenas. A Arena Mind é a maior — fica à esquerda.' },
       { id: 'comousar', x: 17, y: 93, w: 30, h: 6, folha: 'comousar' },
@@ -485,6 +486,20 @@ function travar(v) {
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* Solta a trava quando o deslize acaba de verdade, não num número fixo.
+   Com `espera(260)` sobrava uma fresta: o slide dura 320ms, e nela o
+   toque caía onde o alvo ainda não tinha chegado. O teto de 600ms existe
+   para aba em segundo plano, onde a animação fica congelada e `finished`
+   nunca resolveria. */
+function fimDaEntrada() {
+  const animacoes = conteudo.getAnimations ? conteudo.getAnimations() : [];
+  if (!animacoes.length) return espera(DURACAO_TROCA);
+  return Promise.race([
+    Promise.all(animacoes.map((a) => a.finished.catch(() => {}))),
+    espera(600),
+  ]);
+}
+
 /* --- desenha a tela atual --- */
 function pintar(modo) {
   const tela = TELAS[telaAtual];
@@ -507,7 +522,7 @@ function pintar(modo) {
     b.setAttribute('aria-label', (a.dica || a.brinde || a.id).replace(/<[^>]+>/g, ''));
     if (dica && dica.alvo === a.id) {
       b.classList.add('dica');
-      if (a.w > 40 || a.h > 12) b.classList.add('largo');
+      if (a.w > 40 || a.h > 12 || a.w / a.h > 3) b.classList.add('largo');
     }
     b.addEventListener('click', (e) => { e.stopPropagation(); tocar(a); });
     conteudo.appendChild(b);
@@ -532,7 +547,8 @@ function pintar(modo) {
   });
 
   /* para que serve esta tela — sempre visível */
-  rotulo.innerHTML = '<b>' + tela.rotulo + '</b><span>' + tela.serve + '</span>';
+  rotulo.hidden = !tela.serve;
+  rotulo.innerHTML = tela.serve ? '<b>' + tela.rotulo + '</b><span>' + tela.serve + '</span>' : '';
 
   /* balão azul: só a próxima ação */
   const alvoDica = dica && dica.alvo ? (tela.alvos || []).find((a) => a.id === dica.alvo) : null;
@@ -577,7 +593,7 @@ async function trocarTela(destino, modo) {
     const m = missaoAtual();
     if (m && m.tela === destino && !m.alvo) concluirMissao(m.id);
     pintar(modo);
-    await espera(DURACAO_TROCA);
+    await fimDaEntrada();
   } finally {
     travar(false);
   }
