@@ -1171,14 +1171,16 @@ body {
   font: inherit; font-size: 15px; font-weight: 700;
   min-height: 50px;
 }
+/* Sair é o que a maioria quer no fim do guia; o tour completo é o extra.
+   Por isso o preenchido é o Sair, e não o contrário. */
 .guia-fim {
-  border: 0;
-  background: var(--verde); color: var(--surface-deep);
-}
-.guia-sair {
   background: none;
   border: 1px solid var(--hairline);
   color: var(--texto-suave);
+}
+.guia-sair {
+  border: 0;
+  background: var(--verde); color: var(--surface-deep);
 }
 @keyframes guia-surge { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
