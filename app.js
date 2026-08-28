@@ -1293,9 +1293,6 @@ const GUIA_SEGURAR = 220;
 const GUIA_ZONA_VOLTA = 0.3;
 /* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
 const GUIA_ARRASTO = 45;
-/* Tempo de tela até o convite aparecer. Igual em todo passo: ele não
-   anuncia fim de tempo, anuncia que existe um gesto. */
-const GUIA_DICA = 8000;
 
 const GUIA = [
   /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
@@ -1334,7 +1331,6 @@ let guiaRestante = GUIA_DURACAO;
 let guiaDesde = 0;
 let guiaPausado = false;
 let guiaPronto = false;
-let guiaDica = null;
 
 /* Passo com texto mais longo respira mais; o resto usa o padrão. */
 function duracaoDoPasso() { return GUIA[guiaPasso].dur || GUIA_DURACAO; }
@@ -1349,15 +1345,12 @@ function tocarRelogio(ms) {
   guiaRelogio = setTimeout(() => { guiaPronto = true; }, ms);
 }
 
-/* O convite entra depois de alguns segundos de tela, sempre os mesmos,
-   independente do tamanho da barra: ele não anuncia que o tempo acabou,
-   anuncia que existe um gesto. Some no último passo, onde os botões já
-   dizem o que fazer. */
-function agendarDica() {
-  clearTimeout(guiaDica);
-  guiaAvance.hidden = true;
-  if (guiaPasso >= GUIA.length - 1) return;
-  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, GUIA_DICA);
+/* O convite fica na tela desde o começo do passo. Ele não anuncia que o
+   tempo acabou — anuncia que existe um gesto, e isso vale desde o
+   primeiro instante. Some no último passo, onde os botões já dizem o
+   que fazer. */
+function mostrarDica() {
+  guiaAvance.hidden = guiaPasso >= GUIA.length - 1;
 }
 
 function pausarGuia() {
@@ -1489,7 +1482,6 @@ function guiaIrPara(n) {
   const destino = Math.min(Math.max(n, 0), GUIA.length - 1);
   if (destino === guiaPasso) return;
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaDica);
   guiaAvance.hidden = true;
   guiaPausado = false;
   guiaCena.classList.add('sai');
@@ -1497,7 +1489,7 @@ function guiaIrPara(n) {
     guiaPasso = destino;
     pintarGuia();
     tocarRelogio(duracaoDoPasso());
-    agendarDica();
+    mostrarDica();
   }, 240);
 }
 
@@ -1507,12 +1499,11 @@ function abrirGuia() {
   guia.hidden = false;
   pintarGuia(true);
   tocarRelogio(duracaoDoPasso());
-  agendarDica();
+  mostrarDica();
 }
 
 function fecharGuia() {
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaDica);
   guia.hidden = true;
   try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
 }
