@@ -160,6 +160,12 @@ escreve `crm.contato_espelho.pessoa_id`. Ela parte dos identificadores que a pes
 `engagement.identidades` e procura contatos por `hubspot_id`, e-mail normalizado e telefone
 (pelos últimos 10 dígitos — a convenção já indexada do espelho, `idx_ce_phone10`/`idx_ce_wa10`).
 
+**Telefone compartilhado não decide identidade.** `hubspot_id` e e-mail exato são evidência forte;
+telefone só vale quando aquele número aponta para **um único** contato no espelho. Número
+corporativo/central que aparece em vários contatos não vincula ninguém — vira pendência
+`suspeita_sobre_merge`. O achado que obrigou essa regra: uma "pessoa" tinha acumulado **41
+contatos, com 41 nomes e 41 e-mails diferentes**, todos com o mesmo número.
+
 Para cada contato encontrado: mesma pessoa → nada; sem dono → vincula; **de outra pessoa →
 não sobrescreve, não funde**, registra pendência em `engagement.identidade_fusoes` e nem sequer
 registra a identidade `hubspot` (isso moveria identificador). O `hubspot_id` do contato entra
@@ -178,6 +184,26 @@ e pela ponte, mantendo a assinatura que a edge `treble-status-hubspot` usa.
 `pessoas.pessoas.hubspot_id` continua **atalho legado**: preenchido só quando está vazio e
 ninguém mais é dono daquele valor. Para quem tem mais de um contato ele aponta para um deles de
 forma arbitrária — a verdade multi-contato está em `engagement.identidades` + `crm.contato_espelho`.
+
+## Fila de resolução — `engagement.identidade_fusoes`
+
+Sem tabela nova. A que já existia virou a fila mínima de problemas de identidade/CRM.
+
+**Três tipos:** `conflito_identidade` (evidências apontando para pessoas diferentes numa
+conversa) · `contato_crm_de_outra_pessoa` (o contato do espelho já tem outro dono) ·
+`suspeita_sobre_merge` (uma pessoa Mind colada a vários contatos por telefone compartilhado —
+aqui `participante_origem` é nulo, porque ainda não existe uma segunda pessoa identificada).
+
+**Idempotência por dois índices parciais:** por par+tipo quando há duas pessoas, por pessoa+tipo
+quando não há. Enquanto uma pendência está `pendente`, a mesma não empilha. Resolver libera o
+índice — se o problema voltar, ele reaparece na fila, que é o comportamento certo.
+
+**Um escritor só:** `mind_conflito_registrar(pessoa, tipo, motivo, outra?, evidencia?)`. O
+resolvedor de identidade e a ponte CRM usam o mesmo — não há dois formatos de gravação.
+
+**Acesso:** `mind_pendencias_listar(status, tipo, limite, offset)` (a tabela tem RLS sem policy,
+então sem essa função SECURITY DEFINER a fila é invisível) e `mind_pendencia_resolver(id,
+'fundido'|'descartado')`, que só grava a decisão e `resolvido_em`. **Não executa merge.**
 
 ## Reconhecimento do lead — LEITURA, não cópia
 Na chegada, o "dossiê" do lead é **montado por uma função que LÊ** (estende `crm.buscar_pessoa`),
