@@ -1293,6 +1293,9 @@ const GUIA_SEGURAR = 220;
 const GUIA_ZONA_VOLTA = 0.3;
 /* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
 const GUIA_ARRASTO = 45;
+/* Quando o guia começa a insistir, contado do início do passo. Igual em
+   todas as telas, mesmo nas de barra mais curta. */
+const GUIA_PRIMEIRO_BALANCO = 15000;
 /* Intervalo entre um balanço e o seguinte. */
 const GUIA_CUTUCADA = 4000;
 /* Último recurso: se nem os balanços tiraram a pessoa da tela, aparece a
@@ -1359,22 +1362,28 @@ function tocarRelogio(ms) {
 function marcarPronto() {
   guiaPronto = true;
   if (guiaPasso >= GUIA.length - 1) return;   /* no último os botões já dizem o que fazer */
-  agendarCutucao();
+  /* O primeiro balanço cai sempre aos 15s do passo, em qualquer tela. A
+     barra pode ser mais curta onde o texto é curto — o que não muda é o
+     tempo até o guia começar a insistir. */
+  const ate15 = Math.max(GUIA_PRIMEIRO_BALANCO - duracaoDoPasso(), 800);
+  guiaCutucao = setTimeout(() => { balancar(); agendarCutucao(); }, ate15);
+
   /* A dica escrita é o último recurso: entra só se os balanços não
      resolverem. O gesto deve se explicar sozinho antes disso. */
-  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, GUIA_DICA_ESCRITA);
+  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, ate15 + GUIA_DICA_ESCRITA);
+}
+
+function balancar() {
+  guiaCena.classList.remove('cutuca');
+  void guiaCena.offsetWidth;
+  guiaCena.classList.add('cutuca');
 }
 
 /* Silêncio longo demais com o convite na tela: a cena balança e volta,
    como quem diz "dá para seguir daqui". Insiste de tempos em tempos. */
 function agendarCutucao() {
   clearTimeout(guiaCutucao);   /* o timer da dica escrita corre em paralelo, não se toca */
-  guiaCutucao = setTimeout(() => {
-    guiaCena.classList.remove('cutuca');
-    void guiaCena.offsetWidth;
-    guiaCena.classList.add('cutuca');
-    agendarCutucao();
-  }, GUIA_CUTUCADA);
+  guiaCutucao = setTimeout(() => { balancar(); agendarCutucao(); }, GUIA_CUTUCADA);
 }
 
 function pausarGuia() {
@@ -1412,18 +1421,29 @@ function desenharSeta() {
   const cx = px + (ax - px) * 0.7 + (ax < px ? -30 : 30);
   const cy = py + (ay - py) * 0.45;
 
-  const ang = Math.atan2(ay - cy, ax - cx);
+  /* Onde o tracejado realmente termina. A ponta tem de sair DAQUI, não do
+     alvo: antes o ângulo vinha da direção até (ax, ay) e a ponta ficava
+     13px abaixo na vertical, enquanto a curva chega inclinada — dava a
+     impressão de ponta torta e solta do tracejado.
+
+     Numa Bézier quadrática a tangente no fim é `P2 - P1`, ou seja, do
+     ponto de controle para o ponto final. */
+  const fimX = ax, fimY = ay - 13;
+  const ang = Math.atan2(fimY - cy, fimX - cx);
   const P = 10, ABERT = 0.44;
+  /* A ponta continua a curva, no mesmo rumo, em vez de descer reto. */
+  const pontaX = fimX + Math.cos(ang) * 12;
+  const pontaY = fimY + Math.sin(ang) * 12;
   const ponta = [
-    [ax, ay],
-    [ax - P * Math.cos(ang - ABERT), ay - P * Math.sin(ang - ABERT)],
-    [ax - P * Math.cos(ang + ABERT), ay - P * Math.sin(ang + ABERT)],
+    [pontaX, pontaY],
+    [pontaX - P * Math.cos(ang - ABERT), pontaY - P * Math.sin(ang - ABERT)],
+    [pontaX - P * Math.cos(ang + ABERT), pontaY - P * Math.sin(ang + ABERT)],
   ].map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
 
   guiaSeta.setAttribute('viewBox', '0 0 ' + L + ' ' + A);
   guiaSeta.innerHTML =
     '<path class="trilha" d="M' + px.toFixed(1) + ' ' + py.toFixed(1) +
-      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + ax.toFixed(1) + ' ' + (ay - 13).toFixed(1) + '"/>' +
+      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + fimX.toFixed(1) + ' ' + fimY.toFixed(1) + '"/>' +
     '<polygon class="ponta" points="' + ponta + '"/>';
 
   guiaSeta.classList.remove('desenhando');
