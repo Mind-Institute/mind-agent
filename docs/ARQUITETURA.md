@@ -150,6 +150,35 @@ E-mail, WhatsApp, auth e HubSpot passam exclusivamente por `mind_identidade_reso
 canais colidiam. `engagement.mensagens` é `unique (conversa_id, client_msg_id)` — id externo não
 é globalmente único; a chave mínima que impede duplicar o **mesmo evento** é conversa + id.
 
+## Ponte Pessoa Mind ↔ CRM/HubSpot
+
+Uma pessoa do Mind pode ter **vários** contatos no HubSpot. A ponte liga todos e não escolhe
+nenhum como principal — isso é decisão de outra etapa.
+
+**Um caminho só: `public.mind_crm_vincular_pessoa(pessoa_id)`.** É a única função do banco que
+escreve `crm.contato_espelho.pessoa_id`. Ela parte dos identificadores que a pessoa já tem em
+`engagement.identidades` e procura contatos por `hubspot_id`, e-mail normalizado e telefone
+(pelos últimos 10 dígitos — a convenção já indexada do espelho, `idx_ce_phone10`/`idx_ce_wa10`).
+
+Para cada contato encontrado: mesma pessoa → nada; sem dono → vincula; **de outra pessoa →
+não sobrescreve, não funde**, registra pendência em `engagement.identidade_fusoes` e nem sequer
+registra a identidade `hubspot` (isso moveria identificador). O `hubspot_id` do contato entra
+como identidade pela porta única, ancorado na pessoa.
+
+**Roda sozinha** no fim do `mind_inbound`, mas só quando há evidência nova (pessoa criada ou
+identificador novo) — não varre o espelho a cada mensagem de conversa já resolvida. Isolada num
+bloco de exceção: o CRM nunca derruba a ingestão.
+
+**Os dois caminhos paralelos que existiam foram desligados.** `mind_espelho_ligar` casava
+`pessoas.email`/`pessoas.whatsapp` por conta própria — lendo a *projeção* em vez das identidades;
+agora delega (a parte de negócios e produtos ficou intacta). `pessoa_vincular_hubspot` escrevia
+`pessoas.hubspot_id` direto, sem identidade e sem tocar no espelho; agora passa pelo resolvedor
+e pela ponte, mantendo a assinatura que a edge `treble-status-hubspot` usa.
+
+`pessoas.pessoas.hubspot_id` continua **atalho legado**: preenchido só quando está vazio e
+ninguém mais é dono daquele valor. Para quem tem mais de um contato ele aponta para um deles de
+forma arbitrária — a verdade multi-contato está em `engagement.identidades` + `crm.contato_espelho`.
+
 ## Reconhecimento do lead — LEITURA, não cópia
 Na chegada, o "dossiê" do lead é **montado por uma função que LÊ** (estende `crm.buscar_pessoa`),
 **não** uma tabela nova. Nunca copiar histórico pra `pessoas`/`intelligence` (duplica e envelhece).
