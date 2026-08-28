@@ -1220,19 +1220,8 @@ body {
   font-size: 18px; font-weight: 900; line-height: 1;
   animation: guia-respira 1.8s ease-in-out infinite;
 }
-.guia-avance .s:last-child { animation-delay: .9s; }
 @keyframes guia-respira { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 
-/* O empurrãozinho: passou tempo demais parado, a cena balança e volta.
-   É o "ei, dá para seguir daqui" sem escrever mais uma frase na tela. */
-.guia-cena.cutuca { animation: guia-cutuca .6s ease; }
-@keyframes guia-cutuca {
-  0%, 100% { transform: translateX(0); }
-  22%      { transform: translateX(-14px); }
-  55%      { transform: translateX(7px); }
-  80%      { transform: translateX(-3px); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .guia-avance .s, .guia-cena.cutuca { animation: none !important; }
+  .guia-avance .s { animation: none !important; }
 }

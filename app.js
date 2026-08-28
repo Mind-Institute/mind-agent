@@ -1293,14 +1293,9 @@ const GUIA_SEGURAR = 220;
 const GUIA_ZONA_VOLTA = 0.3;
 /* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
 const GUIA_ARRASTO = 45;
-/* Quando o guia começa a insistir, contado do início do passo. Igual em
-   todas as telas, mesmo nas de barra mais curta. */
-const GUIA_PRIMEIRO_BALANCO = 15000;
-/* Intervalo entre um balanço e o seguinte. */
-const GUIA_CUTUCADA = 4000;
-/* Último recurso: se nem os balanços tiraram a pessoa da tela, aparece a
-   dica escrita. Tarde de propósito — o gesto deve se explicar sozinho. */
-const GUIA_DICA_ESCRITA = 10000;
+/* Tempo de tela até o convite aparecer. Igual em todo passo: ele não
+   anuncia fim de tempo, anuncia que existe um gesto. */
+const GUIA_DICA = 8000;
 
 const GUIA = [
   /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
@@ -1335,7 +1330,6 @@ let guiaPasso = 0;
    Guarda o que falta em vez de só um timer: sem isso, segurar e soltar
    reiniciaria o passo do zero. */
 let guiaRelogio = null;
-let guiaCutucao = null;
 let guiaRestante = GUIA_DURACAO;
 let guiaDesde = 0;
 let guiaPausado = false;
@@ -1349,41 +1343,21 @@ function trilhaAtiva() { return document.querySelector('#guia-trilha i.atual spa
 
 function tocarRelogio(ms) {
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaCutucao);
-  clearTimeout(guiaDica);
   guiaRestante = ms;
   guiaDesde = Date.now();
   guiaPronto = false;
+  guiaRelogio = setTimeout(() => { guiaPronto = true; }, ms);
+}
+
+/* O convite entra depois de alguns segundos de tela, sempre os mesmos,
+   independente do tamanho da barra: ele não anuncia que o tempo acabou,
+   anuncia que existe um gesto. Some no último passo, onde os botões já
+   dizem o que fazer. */
+function agendarDica() {
+  clearTimeout(guiaDica);
   guiaAvance.hidden = true;
-  guiaRelogio = setTimeout(marcarPronto, ms);
-}
-
-/* Barra cheia: aparece o convite e começa a insistência. */
-function marcarPronto() {
-  guiaPronto = true;
-  if (guiaPasso >= GUIA.length - 1) return;   /* no último os botões já dizem o que fazer */
-  /* O primeiro balanço cai sempre aos 15s do passo, em qualquer tela. A
-     barra pode ser mais curta onde o texto é curto — o que não muda é o
-     tempo até o guia começar a insistir. */
-  const ate15 = Math.max(GUIA_PRIMEIRO_BALANCO - duracaoDoPasso(), 800);
-  guiaCutucao = setTimeout(() => { balancar(); agendarCutucao(); }, ate15);
-
-  /* A dica escrita é o último recurso: entra só se os balanços não
-     resolverem. O gesto deve se explicar sozinho antes disso. */
-  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, ate15 + GUIA_DICA_ESCRITA);
-}
-
-function balancar() {
-  guiaCena.classList.remove('cutuca');
-  void guiaCena.offsetWidth;
-  guiaCena.classList.add('cutuca');
-}
-
-/* Silêncio longo demais com o convite na tela: a cena balança e volta,
-   como quem diz "dá para seguir daqui". Insiste de tempos em tempos. */
-function agendarCutucao() {
-  clearTimeout(guiaCutucao);   /* o timer da dica escrita corre em paralelo, não se toca */
-  guiaCutucao = setTimeout(() => { balancar(); agendarCutucao(); }, GUIA_CUTUCADA);
+  if (guiaPasso >= GUIA.length - 1) return;
+  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, GUIA_DICA);
 }
 
 function pausarGuia() {
@@ -1414,33 +1388,11 @@ function desenharSeta() {
   const ax = alvo.x * L;                                  /* coluna do ícone */
   const ay = A - 12;                                      /* rente à borda: o ícone fica abaixo */
 
-  /* A seta sai do lado OPOSTO ao ícone. Ancorada em cima do alvo, ela
-     virava a mesma linha quase vertical em todos os passos, só mudando de
-     lugar. Saindo do outro lado, ela ganha percurso: as duas primeiras
-     varrem para a esquerda, as três últimas para a direita.
-
-     Só o sentido não bastava — dava duas curvas espelhadas repetidas cinco
-     vezes. `recuo` (o quanto ela anda de lado antes de virar) e `mergulho`
-     (quando ela começa a descer) mudam por passo, então cada tela tem o
-     seu traço. É desenho à mão: se as cinco fossem iguais, não seria. */
-  const TRACO = [
-    { recuo: 0.46, mergulho: 0.15 },
-    { recuo: 0.32, mergulho: 0.30 },
-    { recuo: 0.52, mergulho: 0.13 },
-    { recuo: 0.30, mergulho: 0.28 },
-    { recuo: 0.44, mergulho: 0.19 },
-  ][guiaPasso] || { recuo: 0.42, mergulho: 0.20 };
-
-  const px = ax < L / 2
-    ? Math.min(ax + L * TRACO.recuo, L - 40)
-    : Math.max(ax - L * TRACO.recuo, 40);
+  /* A seta sempre nasce no meio da tela e deságua no ícone. A variação
+     entre os passos vem daí sozinha — a distância até cada coluna é
+     diferente — em vez de números escolhidos a dedo. */
+  const px = L / 2;
   const py = Math.min(r.bottom + 18, A - 150);
-
-  /* Controle perto do alvo na horizontal e perto da origem na vertical:
-     a curva anda de lado primeiro e só então mergulha no ícone, em vez de
-     descer em diagonal de régua. */
-  const cx = px + (ax - px) * 0.85;
-  const cy = py + (ay - py) * TRACO.mergulho;
 
   /* Onde o tracejado realmente termina. A ponta tem de sair DAQUI, não do
      alvo: antes o ângulo vinha da direção até (ax, ay) e a ponta ficava
@@ -1450,6 +1402,18 @@ function desenharSeta() {
      Numa Bézier quadrática a tangente no fim é `P2 - P1`, ou seja, do
      ponto de controle para o ponto final. */
   const fimX = ax, fimY = ay - 13;
+
+  /* Controle perto do alvo na horizontal e perto da origem na vertical: a
+     curva anda de lado primeiro e só então mergulha no ícone, em vez de
+     descer em diagonal de régua.
+
+     Quando o alvo está no próprio meio não há lado para onde ir e o traço
+     sairia uma reta; uma barriga leve mantém a cara de desenho à mão. */
+  const desvio = fimX - px;
+  const barriga = Math.abs(desvio) < 40 ? 34 : 0;
+  const cx = px + desvio * 0.85 + barriga;
+  const cy = py + (fimY - py) * 0.22;
+
   const ang = Math.atan2(fimY - cy, fimX - cx);
   const P = 10, ABERT = 0.44;
   /* A ponta continua a curva, no mesmo rumo, em vez de descer reto. */
@@ -1525,9 +1489,7 @@ function guiaIrPara(n) {
   const destino = Math.min(Math.max(n, 0), GUIA.length - 1);
   if (destino === guiaPasso) return;
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaCutucao);
   clearTimeout(guiaDica);
-  guiaCena.classList.remove('cutuca');
   guiaAvance.hidden = true;
   guiaPausado = false;
   guiaCena.classList.add('sai');
@@ -1535,6 +1497,7 @@ function guiaIrPara(n) {
     guiaPasso = destino;
     pintarGuia();
     tocarRelogio(duracaoDoPasso());
+    agendarDica();
   }, 240);
 }
 
@@ -1544,11 +1507,11 @@ function abrirGuia() {
   guia.hidden = false;
   pintarGuia(true);
   tocarRelogio(duracaoDoPasso());
+  agendarDica();
 }
 
 function fecharGuia() {
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaCutucao);
   clearTimeout(guiaDica);
   guia.hidden = true;
   try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
