@@ -147,12 +147,15 @@ const ICO = {
   menu:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
 };
 
+/* `rotulo` é o que cabe embaixo do ícone em 360px — "Mind Age…" e
+   "Minha age…" ficavam truncados e quase idênticos. `nome` é o rótulo
+   inteiro, que vai para o leitor de tela e para o balão da próxima ação. */
 const ABAS = [
-  { id: 'agente', rotulo: 'Mind Age…', ico: ICO.agente, folha: 'agente' },
-  { id: 'agenda', rotulo: 'Agenda', ico: ICO.agenda, vai: 'agenda' },
-  { id: 'minha',  rotulo: 'Minha age…', ico: ICO.minha, vai: 'minha-agenda' },
-  { id: 'qr',     rotulo: 'QR Code', ico: ICO.qr, vai: 'qrcode' },
-  { id: 'menu',   rotulo: 'Menu', ico: ICO.menu, vai: 'menu' },
+  { id: 'agente', rotulo: 'Mind',     nome: 'Mind Agent',   ico: ICO.agente, folha: 'agente' },
+  { id: 'agenda', rotulo: 'Agenda',   nome: 'Agenda',       ico: ICO.agenda, vai: 'agenda' },
+  { id: 'minha',  rotulo: 'Minha',    nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
+  { id: 'qr',     rotulo: 'QR Code',  nome: 'QR Code',      ico: ICO.qr,     vai: 'qrcode' },
+  { id: 'menu',   rotulo: 'Menu',     nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
 ];
 
 /* Popups do app, refeitos em HTML */
@@ -163,116 +166,107 @@ const FOLHAS = {
       ['Sua reserva foi confirmada', 'Da mensuração ao PGR · Sala Workshop 2 · 11:30'],
     ], botao: 'Fechar' },
   contato: { titulo: 'Solicitação enviada', texto: 'Quando a pessoa aceitar, ela entra em Contatos. Enquanto isso fica em Pendentes.', botao: 'Entendi' },
-  comousar: { titulo: 'Como usar o mapa', texto: 'Use os filtros para ver só arenas, estandes ou lounges. Toque num espaço para ver o que acontece nele.', botao: 'Entendi' },
+  comousar: { titulo: 'Como usar o mapa', texto: 'Use os filtros para ver só arenas, estandes ou lounges. Toque num espaço para ver o que acontece nele. O evento é no São Paulo Expo, em São Paulo.', botao: 'Entendi' },
   logout: { titulo: 'É só uma demonstração', texto: 'Aqui você sairia da sua conta. Neste tour, ninguém sai de lugar nenhum. 🙂', botao: 'Voltar ao tour' },
-  reservado: { titulo: 'Lugar reservado!', texto: 'Faça o check-in até o início da sessão para garantir sua vaga. A reserva é exclusiva por horário.', botao: 'Combinado' },
+  reservado: { titulo: 'Lugar reservado!', texto: 'No dia da sessão, faça o check-in aqui mesmo, na página dela, até o horário de início. A reserva é exclusiva por horário.', botao: 'Combinado' },
 };
 
-/* As telas do app. x/y/w/h em % da foto. `serve` explica para que a tela
-   existe e fica sempre visível no alto. */
+/* As telas do app. x/y/w/h em % da foto — remedidos sobre as capturas
+   novas (agosto/2026), que trocaram a ordem do Menu e o layout da Agenda.
+   `serve` explica para que a tela existe e fica sempre visível no alto. */
 const TELAS = {
   'agenda': {
     img: 'agenda', aba: 'agenda', rotulo: 'Agenda',
     serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
     alvos: [
-      { id: 'topo', x: 88, y: 2.2, w: 22, h: 4.5, brinde: 'Filtre por trilha, arena ou só os seus favoritos.' },
-      { id: 'card1', x: 50, y: 19.9, w: 92, h: 26, brinde: 'Cada card é uma sessão. Toque para abrir.' },
-      { id: 'card', x: 50, y: 56.8, w: 92, h: 29, vai: 'detalhe', modo: 'push',
+      { id: 'topo', x: 88, y: 4.6, w: 20, h: 4.5, brinde: 'Filtre por trilha, arena ou só os seus favoritos.' },
+      { id: 'card1', x: 50, y: 19.6, w: 92, h: 13, brinde: 'Cada card é uma sessão. Toque para abrir.' },
+      { id: 'coracao', x: 86.5, y: 61.5, w: 13, h: 5, faz: 'favoritar', missao: 'm1',
+        dica: 'Toque no <b>coração</b> para salvar esta sessão em Minha Agenda.',
+        brinde: 'Salva em Minha Agenda 💚' },
+      { id: 'card', x: 50, y: 71, w: 92, h: 28, vai: 'detalhe', modo: 'push',
         dica: 'Agora toque na <b>sessão</b> para abrir os detalhes.' },
-      { id: 'coracao', x: 88.6, y: 46, w: 14, h: 5.5, faz: 'favoritar', missao: 'm1',
-        dica: 'Toque no <b>coração</b> para salvar esta sessão na sua agenda.',
-        brinde: 'Salvo em Minha agenda 💚' },
     ],
   },
   'detalhe': {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
     serve: 'A página da sessão: descrição, horário, local, palestrantes e a reserva, quando a vaga é limitada.',
     alvos: [
-      { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true },
-      { id: 'calendario', x: 44, y: 67, w: 70, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'coracao', x: 88.6, y: 72, w: 14, h: 5, faz: 'favoritar', missao: 'm1', brinde: 'Salvo em Minha agenda 💚' },
-      { id: 'reservar', x: 49.8, y: 85.9, w: 90, h: 6, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
-        folha: 'reservado', dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
+      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
+      { id: 'coracao', x: 90.3, y: 53.9, w: 12, h: 4.5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
+      { id: 'reservar', x: 49.9, y: 67.1, w: 88.6, h: 5.5, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
+        folha: 'reservado', obrigatoria: true,
+        dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
     ],
   },
   'confirmada': {
     img: 'confirmada', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão reservada',
-    serve: 'Sua vaga está garantida. Faça o check-in até o início da sessão para não perder o lugar.',
+    serve: 'Sua vaga está garantida. Faça o check-in aqui mesmo, no dia da sessão.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true },
-      { id: 'coracao', x: 88.6, y: 68.9, w: 14, h: 5, faz: 'favoritar', missao: 'm1', brinde: 'Salvo em Minha agenda 💚' },
+      { id: 'coracao', x: 88.6, y: 68.9, w: 14, h: 5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
       { id: 'aviso', x: 50, y: 81.5, w: 90, h: 10, brinde: 'O check-in é feito aqui mesmo, no dia da sessão.' },
       { id: 'cancelar', x: 49.8, y: 95.6, w: 90, h: 6, brinde: 'Aqui você cancelaria — deixa reservado. 🙂' },
     ],
   },
   'minha-agenda': {
-    img: 'minha-agenda', aba: 'minha', rotulo: 'Minha agenda',
-    serve: 'O que você salvou e reservou, em ordem de horário. A sessão reservada agora aparece aqui.',
+    img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
+    serve: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.',
     alvos: [
-      { id: 'nova', x: 78, y: 2.2, w: 34, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
-      { id: 'chip16', x: 11.2, y: 20.2, w: 15, h: 10, brinde: 'Você já está no dia 16.' },
-      { id: 'chip17', x: 30.3, y: 20.2, w: 15, h: 10, vai: 'minha-agenda-17', modo: 'troca',
-        dica: 'Toque em <b>17 Set</b> para ver o outro dia.' },
-      { id: 'card', x: 50, y: 49.6, w: 92, h: 32, vai: 'confirmada', modo: 'push',
-        brinde: 'É a sessão que você acabou de reservar.' },
-      { id: 'card2', x: 50, y: 87, w: 92, h: 24, brinde: 'Sessões salvas no coração também entram aqui.' },
-    ],
-  },
-  'minha-agenda-17': {
-    img: 'minha-agenda-17', aba: 'minha', rotulo: 'Minha agenda · dia 17',
-    serve: 'O filtro de dia troca a lista sem perder nada: cada dia mostra o que você salvou para ele.',
-    alvos: [
-      { id: 'chip16', x: 11.2, y: 20.2, w: 15, h: 10, vai: 'minha-agenda', modo: 'troca',
-        brinde: 'E volta para o dia 16.' },
-      { id: 'card', x: 50, y: 49.6, w: 92, h: 32, brinde: 'Coração cheio: sessão salva por você.' },
+      { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
+      { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
     ],
   },
   'qrcode': {
     img: 'qrcode', aba: 'qr', rotulo: 'QR Code',
-    serve: 'Sua credencial de entrada e seu cartão de visita: quem escaneia seu código vê o seu perfil.',
+    serve: 'Sua credencial e seu cartão de visita: quem escaneia seu código vê o seu perfil.',
     alvos: [
-      { id: 'escanear', x: 49.8, y: 95.1, w: 90, h: 6, vai: 'scanner', modo: 'push',
-        dica: 'Toque em <b>Escanear Qr Code</b> para ler o código de alguém.' },
+      { id: 'meucodigo', x: 50, y: 40, w: 70, h: 26, brinde: 'Este é o seu código. Apresente quando pedirem.' },
+      { id: 'escanear', x: 49.8, y: 95.5, w: 90, h: 5, vai: 'scanner', modo: 'push', missao: 'm4',
+        dica: 'Toque em <b>Escanear Qr Code</b> para adicionar uma pessoa à sua rede.' },
     ],
   },
   'scanner': {
     img: 'scanner', aba: 'qr', volta: 'qrcode', rotulo: 'Leitor de QR',
     serve: 'Aponte para o QR Code de outra pessoa: o contato entra direto na sua rede.',
     alvos: [
-      { id: 'meuqr', x: 49.8, y: 95.1, w: 90, h: 6, volta: true, dica: 'Toque em <b>Meu Qr Code</b> para voltar.' },
+      { id: 'meuqr', x: 49.8, y: 95.5, w: 90, h: 5, volta: true, dica: 'Toque em <b>Meu Qr Code</b> para voltar.' },
     ],
   },
   'menu': {
     img: 'menu', aba: 'menu', rotulo: 'Menu',
-    serve: 'O resto do app: rede, palestrantes, avisos, chat, QR Code e o mapa do evento.',
+    serve: 'O resto do app: mapa, rede, palestrantes, avisos, chat e o leitor de QR Code.',
     alvos: [
-      { id: 'perfil', x: 30, y: 11.5, w: 56, h: 7, brinde: 'Em Editar Perfil você põe foto e cargo.' },
-      { id: 'qrmini', x: 89, y: 11.5, w: 14, h: 7, vai: 'qrcode', modo: 'troca' },
-      { id: 'rede', x: 25, y: 25.6, w: 42, h: 11, vai: 'rede', modo: 'push', dica: 'Abra a <b>Área de network</b>.' },
-      { id: 'palestrantes', x: 75, y: 25.6, w: 42, h: 11, vai: 'palestrantes', modo: 'push', dica: 'Abra <b>Palestrantes</b>.' },
-      { id: 'notificacoes', x: 25, y: 39, w: 42, h: 11, folha: 'notificacoes' },
-      { id: 'chat', x: 75, y: 39, w: 42, h: 11, vai: 'chat', modo: 'push', dica: 'Abra o <b>Chat</b> — é onde eu fico.' },
-      { id: 'qrtile', x: 25, y: 52.3, w: 42, h: 11, vai: 'qrcode', modo: 'troca' },
-      { id: 'mapa', x: 75, y: 52.3, w: 42, h: 11, vai: 'mapa', modo: 'push', dica: 'Abra o <b>Mapa do evento</b>.' },
-      { id: 'logout', x: 50, y: 90.6, w: 90, h: 5, folha: 'logout' },
+      { id: 'perfil', x: 31, y: 13.7, w: 32, h: 6, brinde: 'Em Editar Perfil você põe foto e cargo.' },
+      { id: 'qrmini', x: 90.7, y: 13.9, w: 13, h: 6.5, vai: 'qrcode', modo: 'troca' },
+      { id: 'mapa', x: 25.9, y: 28.2, w: 44.4, h: 10.9, vai: 'mapa', modo: 'push', dica: 'Abra o <b>Mapa do evento</b>.' },
+      { id: 'rede', x: 74.1, y: 28.2, w: 44.4, h: 10.9, vai: 'rede', modo: 'push', dica: 'Abra a <b>Área de Networking</b>.' },
+      { id: 'palestrantes', x: 25.9, y: 41.1, w: 44.4, h: 10.9, vai: 'palestrantes', modo: 'push', dica: 'Abra <b>Palestrantes</b>.' },
+      { id: 'notificacoes', x: 74.1, y: 41.1, w: 44.4, h: 10.9, folha: 'notificacoes' },
+      { id: 'chat', x: 25.9, y: 54.1, w: 44.4, h: 10.9, vai: 'chat', modo: 'push', dica: 'Abra o <b>Chat</b> — é onde eu fico.' },
+      { id: 'qrtile', x: 74.1, y: 54.1, w: 44.4, h: 10.9, vai: 'qrcode', modo: 'troca' },
+      { id: 'logout', x: 50, y: 93.3, w: 92, h: 5, folha: 'logout' },
     ],
   },
   'mapa': {
     img: 'mapa', aba: 'menu', volta: 'menu', rotulo: 'Mapa do evento',
-    serve: 'Arenas, lounges, estandes e banheiros do Pavilhão 3 — com filtro por tipo de espaço.',
+    serve: 'Arenas, lounges, estandes e banheiros do São Paulo Expo — com filtro por tipo de espaço.',
     alvos: [
-      { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
-      { id: 'filtros', x: 50, y: 38.3, w: 92, h: 6, brinde: 'Filtre por arenas, estandes ou lounges.' },
+      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
+      { id: 'filtroArenas', x: 33.3, y: 38.3, w: 19, h: 4.5, faz: 'filtrar', missao: 'm5',
+        dica: 'Use os filtros para encontrar arenas, estandes e lounges. Toque em <b>Arenas</b>.',
+        brinde: 'Só as arenas. A Arena Mind é a maior — fica à esquerda.' },
       { id: 'comousar', x: 17, y: 93, w: 30, h: 6, folha: 'comousar' },
     ],
   },
   'rede': {
-    img: 'rede', aba: 'menu', volta: 'menu', rotulo: 'Área de network',
+    img: 'rede', aba: 'menu', volta: 'menu', rotulo: 'Área de Networking',
     serve: 'Quem está no evento. Envie convite, acompanhe contatos aceitos e pedidos pendentes.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'abas', x: 50, y: 8.4, w: 70, h: 5, brinde: 'Contatos aceitos e convites pendentes.' },
-      { id: 'add1', x: 81.4, y: 27.1, w: 24, h: 6, faz: 'contato', missao: 'm6', folha: 'contato',
+      { id: 'add1', x: 81.4, y: 27.1, w: 24, h: 6, faz: 'contato', missao: 'm6', folha: 'contato', obrigatoria: true,
         dica: 'Toque em <b>Adicionar</b> para enviar um convite de contato.' },
     ],
   },
@@ -280,9 +274,9 @@ const TELAS = {
     img: 'palestrantes', aba: 'menu', volta: 'menu', rotulo: 'Palestrantes',
     serve: 'Todos os nomes do Summit, com bio e sessões. O coração salva quem você quer ver.',
     alvos: [
-      { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
-      { id: 'busca', x: 50, y: 9, w: 88, h: 6, brinde: 'Busque pelo nome de quem você quer ver.' },
-      { id: 'fav1', x: 88.6, y: 18.7, w: 14, h: 6, faz: 'favoritar', brinde: 'Palestrante salvo 💚' },
+      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
+      { id: 'busca', x: 50, y: 11.5, w: 88, h: 5, brinde: 'Busque pelo nome de quem você quer ver.' },
+      { id: 'fav1', x: 89.7, y: 20.5, w: 12, h: 5, faz: 'favoritar', brinde: 'Palestrante salvo 💚' },
     ],
   },
   'chat': {
@@ -315,10 +309,10 @@ const ROTA = {
 const MISSOES = [
   { id: 'm1', txt: 'Salvar uma sessão na sua agenda', tela: 'agenda', alvo: 'coracao' },
   { id: 'm2', txt: 'Reservar seu lugar na sessão', tela: 'detalhe', alvo: 'reservar' },
-  { id: 'm3', txt: 'Ver a sua agenda pessoal', tela: 'minha-agenda' },
-  { id: 'm4', txt: 'Abrir o seu QR Code', tela: 'qrcode' },
-  { id: 'm5', txt: 'Ver o mapa do evento', tela: 'mapa' },
-  { id: 'm6', txt: 'Adicionar um contato', tela: 'rede', alvo: 'add1' },
+  { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
+  { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
+  { id: 'm5', txt: 'Encontrar espaços no mapa', tela: 'mapa', alvo: 'filtroArenas' },
+  { id: 'm6', txt: 'Adicionar um contato à sua rede', tela: 'rede', alvo: 'add1' },
   { id: 'm7', txt: 'Falar com o Mind Agent no Chat', tela: 'chat' },
 ];
 
@@ -360,6 +354,7 @@ ABAS.forEach((aba) => {
   b.type = 'button';
   b.dataset.aba = aba.id;
   b.innerHTML = aba.ico + '<span>' + aba.rotulo + '</span>';
+  b.setAttribute('aria-label', aba.nome);   /* o rótulo é curto por espaço; o nome inteiro fica aqui */
   b.addEventListener('click', () => {
     if (aba.folha) { abrirFolha(aba.folha); return; }
     if (TELAS[telaAtual].aba === aba.id && !TELAS[telaAtual].volta) { avisar('Você já está aqui.'); return; }
@@ -376,18 +371,60 @@ function avisar(txt) {
   timerBrinde = setTimeout(() => brinde.classList.remove('on'), 2600);
 }
 
-function abrirFolha(nome) {
+/* `aoConfirmar` existe para o modal obrigatório: a missão só avança
+   depois que a pessoa leu e fechou. Enquanto ele está aberto, o modal
+   também prende o foco e devolve para quem o abriu. */
+let focoAntesDaFolha = null;
+let folhaObrigatoria = null;
+
+function abrirFolha(nome, aoConfirmar) {
   const f = FOLHAS[nome];
   if (!f) return;
+  folhaObrigatoria = aoConfirmar || null;
+  focoAntesDaFolha = document.activeElement;
+  folhaEl.setAttribute('role', 'dialog');
+  folhaEl.setAttribute('aria-modal', 'true');
+  folhaEl.setAttribute('aria-labelledby', 'folha-titulo');
   folhaEl.innerHTML =
-    '<h3>' + f.titulo + '</h3>' +
+    '<h3 id="folha-titulo">' + f.titulo + '</h3>' +
     (f.texto ? '<p>' + f.texto + '</p>' : '') +
     (f.itens ? '<ul>' + f.itens.map((i) => '<li><b>' + i[0] + '</b>' + i[1] + '</li>').join('') + '</ul>' : '') +
     '<button type="button">' + f.botao + '</button>';
-  folhaEl.querySelector('button').addEventListener('click', () => folhaFundo.classList.remove('aberta'));
+  const botao = folhaEl.querySelector('button');
+  botao.addEventListener('click', fecharFolha);
   folhaFundo.classList.add('aberta');
+  botao.focus();
 }
-folhaFundo.addEventListener('click', (e) => { if (e.target === folhaFundo) folhaFundo.classList.remove('aberta'); });
+
+function fecharFolha() {
+  folhaFundo.classList.remove('aberta');
+  const confirmar = folhaObrigatoria;
+  folhaObrigatoria = null;
+  if (confirmar) {
+    confirmar();
+    /* A missão só avançou agora; sem repintar, o anel azul ficaria no alvo
+       que a pessoa acabou de usar em vez de apontar o próximo. */
+    pintar();
+  }
+  if (focoAntesDaFolha && focoAntesDaFolha.isConnected) focoAntesDaFolha.focus();
+  focoAntesDaFolha = null;
+}
+
+/* Modal obrigatório não sai por toque no fundo nem por Esc: ele existe
+   justamente para ser lido antes de a próxima instrução aparecer. */
+folhaFundo.addEventListener('click', (e) => {
+  if (e.target === folhaFundo && !folhaObrigatoria) fecharFolha();
+});
+folhaFundo.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !folhaObrigatoria) { e.preventDefault(); fecharFolha(); }
+  if (e.key !== 'Tab') return;
+  /* prende o foco dentro do modal */
+  const focaveis = folhaEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (!focaveis.length) return;
+  const primeiro = focaveis[0], ultimo = focaveis[focaveis.length - 1];
+  if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+  else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+});
 
 /* --- qual é a próxima ação? --- */
 function missaoAtual() { return MISSOES.find((m) => !feitas.has(m.id)); }
@@ -406,6 +443,47 @@ function calcularDica() {
   }
   return null;
 }
+
+/* --- pré-carga: nenhuma etapa começa sem os pixels na mão ---
+   Guarda a promessa de cada imagem decodificada. Enquanto a primeira não
+   chega, o palco mostra o estado de carregamento em vez de um quadro
+   vazio. */
+const IMAGENS = new Map();
+
+function prontaTela(nome) {
+  if (!IMAGENS.has(nome)) {
+    IMAGENS.set(nome, new Promise((resolve) => {
+      const im = new Image();
+      let feito = false;
+      const pronto = () => { if (!feito) { feito = true; resolve(im); } };
+      im.onload = pronto;
+      im.onerror = pronto;            /* falhou? segue: melhor sem foto que travado */
+      im.src = TOUR_IMG_SRC(nome);
+      if (im.complete) pronto();
+      /* Rede ruim não pode prender o tour. Sem este limite, uma imagem que
+         não chega deixa a etapa travada para sempre. */
+      setTimeout(pronto, 3000);
+    }));
+  }
+  return IMAGENS.get(nome);
+}
+
+function precarregarTour() {
+  return Promise.all(Object.values(TELAS).map((t) => prontaTela(t.img)));
+}
+
+/* Uma transição de cada vez, e sem toque enquanto ela corre: é o que
+   impede toque duplo e acerto em hotspot da etapa anterior. */
+let emTransicao = false;
+const DURACAO_TROCA = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 260;
+
+function travar(v) {
+  emTransicao = v;
+  frame.classList.toggle('travado', v);
+  fnav.classList.toggle('travado', v);
+}
+
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* --- desenha a tela atual --- */
 function pintar(modo) {
@@ -444,10 +522,10 @@ function pintar(modo) {
     el.className = 'marca ' + tipo;
     el.style.left = alvo.x + '%';
     el.style.top = alvo.y + '%';
-    if (tipo === 'pendente') { el.style.width = alvo.w + '%'; el.style.height = (alvo.h * 0.86) + '%'; }
+    if (tipo === 'pendente' || tipo === 'escolhido') { el.style.width = alvo.w + '%'; el.style.height = (alvo.h * 0.86) + '%'; }
     if (tipo === 'coracao') {
       el.innerHTML = '<svg viewBox="0 0 24 24" fill="#68ee95"><path d="M12 21s-7.5-4.8-9.5-9A5.4 5.4 0 0 1 12 6.4 5.4 5.4 0 0 1 21.5 12c-2 4.2-9.5 9-9.5 9z"/></svg>';
-    } else {
+    } else if (tipo === 'pendente') {
       el.textContent = 'Pendente';
     }
     conteudo.appendChild(el);
@@ -462,7 +540,7 @@ function pintar(modo) {
     balao.hidden = false;
     balao.className = 'balao acao base';
     balao.innerHTML = '<span class="rot">Próxima ação</span>Toque na aba <b>' +
-      ABAS.find((x) => x.id === dica.aba).rotulo.replace('…', '') + '</b>, aqui embaixo.';
+      ABAS.find((x) => x.id === dica.aba).nome + '</b>, aqui embaixo.';
   } else if (alvoDica && alvoDica.dica) {
     balao.hidden = false;
     /* nunca em cima do alvo: alvo embaixo → balão logo abaixo do rótulo */
@@ -486,36 +564,64 @@ function pintar(modo) {
   atualizarMissao();
 }
 
+/* Troca atômica: carrega o asset, trava o toque, muda imagem, rótulo,
+   progresso, instrução e hotspots JUNTOS, anima, e só então libera. */
+async function trocarTela(destino, modo) {
+  if (emTransicao || !TELAS[destino]) return;
+  travar(true);
+  try {
+    await prontaTela(TELAS[destino].img);
+    telaAtual = destino;
+    folhaFundo.classList.remove('aberta');
+    /* chegar na tela já cumpre missões que só pedem visita */
+    const m = missaoAtual();
+    if (m && m.tela === destino && !m.alvo) concluirMissao(m.id);
+    pintar(modo);
+    await espera(DURACAO_TROCA);
+  } finally {
+    travar(false);
+  }
+}
+
 function irPara(tela, modo) {
-  if (!TELAS[tela]) return;
+  if (!TELAS[tela]) return Promise.resolve();
   if (modo === 'push') pilha.push(telaAtual);
-  telaAtual = tela;
-  folhaFundo.classList.remove('aberta');
-  /* chegar na tela já cumpre missões que só pedem visita */
-  const m = missaoAtual();
-  if (m && m.tela === tela && !m.alvo) concluirMissao(m.id);
-  pintar(modo || 'troca');
+  return trocarTela(tela, modo || 'troca');
 }
 
 function voltar() {
   const anterior = pilha.pop() || TELAS[telaAtual].volta || 'menu';
-  telaAtual = anterior;
-  pintar('pop');
+  return trocarTela(anterior, 'pop');
 }
 
-function tocar(a) {
-  if (a.faz === 'favoritar') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
-  if (a.faz === 'favoritar-pal') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
+async function tocar(a) {
+  if (emTransicao) return;                       /* nada de toque duplo */
+  if (a.faz === 'favoritar' || a.faz === 'favoritar-pal') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
   if (a.faz === 'contato') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'pendente'; }
-  if (a.missao) concluirMissao(a.missao);
-  if (a.brinde) avisar(a.brinde);
-  if (a.volta) { voltar(); return; }
+  if (a.faz === 'filtrar') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'escolhido'; }
+
+  /* Missão com modal obrigatório só conclui quando a pessoa confirmar:
+     senão a instrução já era da etapa seguinte enquanto o "Lugar
+     reservado" ainda nem tinha aparecido. */
+  const concluir = () => { if (a.missao) concluirMissao(a.missao); };
+
+  if (a.volta) { await voltar(); return; }
+
   if (a.vai) {
-    irPara(a.vai, a.modo || 'troca');
-    if (a.folha) setTimeout(() => abrirFolha(a.folha), 420);
+    await irPara(a.vai, a.modo || 'troca');
+    if (a.folha) {
+      abrirFolha(a.folha, a.obrigatoria ? concluir : null);
+      if (!a.obrigatoria) concluir();
+    } else concluir();
+    if (a.brinde) avisar(a.brinde);
     return;
   }
-  if (a.folha) { abrirFolha(a.folha); }
+
+  if (a.folha) {
+    abrirFolha(a.folha, a.obrigatoria ? concluir : null);
+    if (!a.obrigatoria) concluir();
+  } else concluir();
+  if (a.brinde) avisar(a.brinde);
   pintar();
 }
 
@@ -587,8 +693,9 @@ document.getElementById('tour-para-chat').addEventListener('click', () => {
   abrirVista('chat');
 });
 
-/* pré-carrega as telas para a navegação não piscar */
-Object.values(TELAS).forEach((t) => { const i = new Image(); i.src = TOUR_IMG_SRC(t.img); });
+/* Pré-carrega assim que o módulo sobe: quando alguém abrir o tour, as
+   telas já estão decodificadas e nenhuma etapa começa em branco. */
+precarregarTour();
 
 /* ---------- Chat conectado ao Mind Agent ---------- */
 const mensagens = document.getElementById('mensagens');
@@ -1298,14 +1405,15 @@ const GUIA = [
   /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
   { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false, dur: 11000,
     texto: 'Pergunte qualquer coisa sobre o evento: programação, palestrantes, salas e horários. Respondo na hora, com a informação oficial. E se me contar o que te interessa, sugiro conteúdo para você.',
-    aviso: '<b>Eu ajudo, mas quem faz é você.</b> Não faço credenciamento, não reservo lugar e não monto sua agenda sozinho — mostro o caminho, você confirma no app.' },
+    tom: 'neutro',
+    aviso: 'Eu mostro o caminho e uso as informações oficiais do evento. Quando uma ação exigir confirmação — como reservar uma vaga — você conclui no próprio app.' },
   { rotulo: 'Agenda', selo: 'A programação', x: 0.30, dur: 11000,
     texto: 'A grade inteira dos dias 16 e 17. Toque no coração e a sessão vai para Minha Agenda.',
-    aviso: '<b>Salvar não é reservar.</b> Só a Arena Mind tem lugar para todo mundo; nas demais a vaga é limitada e a própria sessão avisa. Salve o que achar interessante — e abra a sessão para reservar o que decidir participar.' },
+    aviso: '<b>Salvar organiza sua agenda. Reservar garante sua vaga</b> nas sessões com capacidade limitada — a própria sessão avisa quando precisa.' },
   { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
     texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
   { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
-    texto: 'Sua credencial e sua câmera. Faça check-in nas sessões e troque contato com quem conhecer: escaneie o QR da pessoa e ela entra na sua rede.' },
+    texto: 'Sua credencial e sua câmera. Apresente seu QR Code quando solicitado e escaneie o código de outras pessoas para adicioná-las à sua rede.' },
   { rotulo: 'Menu', selo: 'E o resto', x: 0.90,
     texto: 'Mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
 ];
@@ -1314,7 +1422,7 @@ const guia = document.getElementById('guia');
 const guiaSeta = document.getElementById('guia-seta');
 const guiaCena = document.getElementById('guia-cena');
 const guiaBarra = document.getElementById('guia-barra');
-const guiaFim = document.getElementById('guia-fim');
+const guiaPraticar = document.getElementById('guia-praticar');
 const guiaSaida = document.getElementById('guia-saida');
 const guiaAvance = document.getElementById('guia-avance');
 let guiaPasso = 0;
@@ -1462,6 +1570,8 @@ function pintarGuia(primeiro) {
   const elAviso = document.getElementById('guia-aviso');
   elAviso.innerHTML = p.aviso || '';
   elAviso.hidden = !p.aviso;
+  /* Informação usa o tom neutro; alerta de comportamento fica no coral. */
+  elAviso.classList.toggle('neutro', p.tom === 'neutro');
 
   guiaCena.classList.remove('sai', 'mostra');
   void guiaCena.offsetWidth;
@@ -1566,8 +1676,9 @@ guia.addEventListener('pointerup', (e) => {
   }));
 
 document.getElementById('guia-pular').addEventListener('click', fecharGuia);
-guiaFim.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });
-document.getElementById('guia-sair').addEventListener('click', fecharGuia);
+/* Uma saída abre a experiência prática, a outra encerra o onboarding. */
+guiaPraticar.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });
+document.getElementById('guia-ir').addEventListener('click', fecharGuia);
 addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
 
 /* O botão da home abre o guia; o tour completo fica no último passo. */

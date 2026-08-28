@@ -507,6 +507,16 @@ body {
   border-radius: 10px;
   z-index: 2;
 }
+/* Área de toque de no mínimo 44x44, sem mexer no anel visual: o alvo
+   pequeno (coração, filtros) ganha um extensor invisível centrado nele,
+   em vez de crescer e passar por cima do elemento destacado. */
+.alvo::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+}
 .alvo:focus-visible { outline: 2px solid var(--acao); outline-offset: 2px; }
 .alvo.dica::after {
   content: '';
@@ -1178,14 +1188,20 @@ body {
 }
 /* Sair é o que a maioria quer no fim do guia; o tour completo é o extra.
    Por isso o preenchido é o Sair, e não o contrário. */
-.guia-fim {
+/* A prática é o convite principal; ir direto ao agente é a saída calma. */
+.guia-praticar {
+  border: 0;
+  background: var(--verde); color: var(--surface-deep);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 8px 16px;
+}
+.guia-praticar span {
+  font-size: 11.5px; font-weight: 600; opacity: .72;
+}
+.guia-ir {
   background: none;
   border: 1px solid var(--hairline);
   color: var(--texto-suave);
-}
-.guia-sair {
-  border: 0;
-  background: var(--verde); color: var(--surface-deep);
 }
 @keyframes guia-surge { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
@@ -1224,4 +1240,49 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .guia-avance .s { animation: none !important; }
+}
+
+/* Nome do primeiro fluxo, logo abaixo da trilha: deixa claro que este é o
+   Tour rápido, e que existe um segundo, prático, no fim dele. */
+.guia-nome {
+  position: relative; z-index: 2;
+  margin-top: 10px; flex: none;
+  font-size: 12px; font-weight: 900;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--verde);
+}
+.guia-nome span {
+  display: block; margin-top: 3px;
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: .02em; text-transform: none;
+  color: var(--texto-mudo);
+}
+
+/* Aviso em tom neutro: para o que é informação, não alerta. O coral fica
+   reservado ao que muda o comportamento (capacidade limitada, reserva). */
+.guia-aviso.neutro {
+  border-left-color: var(--hairline);
+  background: rgba(255, 255, 255, .045);
+  color: var(--texto-suave);
+}
+.guia-aviso.neutro b { color: var(--texto); }
+
+/* Durante a troca de etapa nada aceita toque: é o que impede o toque duplo
+   e o acerto num hotspot da etapa que já saiu. */
+.frame.travado, .fnav.travado { pointer-events: none; }
+.frame.travado .alvo { opacity: .35; }
+
+/* Marca do filtro escolhido no mapa — a ação prática da missão do mapa. */
+.marca.escolhido {
+  border: 2px solid var(--verde);
+  border-radius: var(--raio-pill);
+  background: rgba(104, 238, 149, .16);
+  box-shadow: 0 0 10px rgba(104, 238, 149, .4);
+}
+
+/* Foco visível: navegação por teclado precisa saber onde está. */
+.alvo:focus-visible, .fnav button:focus-visible, .guia button:focus-visible,
+.folha button:focus-visible, .fim-cartao button:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
 }
