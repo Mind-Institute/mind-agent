@@ -96,13 +96,35 @@ document.getElementById('btn-perfil').addEventListener('click', () => abrirVista
 
 /* Campo da home → chat */
 const campoHome = document.getElementById('campo-home');
+
+/* Tocar na barra já abre a conversa. Sem isto, quem volta para a home só
+   reencontra o histórico mandando outra mensagem — a conversa existe, mas
+   fica invisível.
+
+   Trocar de vista e mover o foco acontecem no MESMO evento, de propósito:
+   no celular, focar outro campo fora do gesto do usuário fecha o teclado. */
+function abrirConversa() {
+  if (vistas.chat.classList.contains('ativa')) return;
+  const rascunho = campoHome.value;
+  campoHome.value = '';
+  abrirVista('chat');
+  if (rascunho) campoChat.value = rascunho;
+  campoChat.focus();
+  /* Voltar para a conversa é voltar para o fim dela, não para onde parou
+     a rolagem. */
+  mensagens.scrollTop = mensagens.scrollHeight;
+}
+
+campoHome.addEventListener('focus', abrirConversa);
+
+/* Continua valendo para quem digitar e mandar sem passar pelo foco —
+   autofill, teclado físico, automação. */
 document.getElementById('form-home').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = campoHome.value.trim();
-  if (!v) return;
   campoHome.value = '';
-  abrirVista('chat');
-  setTimeout(() => perguntar(v), 200);
+  abrirConversa();
+  if (v) setTimeout(() => perguntar(v), 200);
 });
 document.getElementById('btn-mic').addEventListener('click', () => campoHome.focus());
 
