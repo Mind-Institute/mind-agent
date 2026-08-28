@@ -30,6 +30,51 @@ pro inválido. **3.432 números corrigidos**; era a causa das recusas do HubSpot
 
 ---
 
+## 2. Silence Engine: ligar ACT ao envio da mensagem  ⭐ PRIORIDADE
+
+**Status:** o motor está no ar e decidindo; **falta a camada de execução**.
+
+O `silence-reavaliar` acorda a oportunidade, decide `ACT | WAIT | ESCALATE | DORMANT | STOP` e
+escreve `message_brief` (o que a mensagem precisa fazer). **Nenhuma mensagem é enviada** — foi
+decisão explícita da Adriana nesta etapa. Consequências enquanto isso durar:
+
+- `followup_count` **nunca sobe** (de propósito: contar tentativa sem falar com ninguém queimaria
+  as 3 retomadas do playbook em silêncio). Logo `DORMANT por followup_exhausted` nunca acontece
+  na prática ainda;
+- toda decisão `ACT` vira só um registro em `last_decision` — a fila de "eu teria falado agora"
+  se acumula lá;
+- a mesma conversa é reavaliada de novo a cada ciclo da matriz (custo de IA baixo, mas real).
+
+Quando a camada de envio existir, ela chama
+`silence_registrar_decisao(conversa, decisao, p_followup_enviado := true)` — é esse `true` que
+faz o contador subir e o relógio pular pra régua de pós-follow-up.
+
+**Observado na 1ª rodada real:** uma oportunidade recebeu `DORMANT` com motivo
+`followup_exhausted` tendo `followup_count = 0` — nada foi esgotado, nenhuma retomada tinha sido
+feita. `DORMANT` tira a conversa da fila de vez (só volta por evento), então errar aqui perde a
+oportunidade em silêncio. **Não travei isso no código** porque quem decide *o quê* é a IA (sua
+regra). Se quiser, é uma linha: recusar `followup_exhausted` quando `followup_count = 0`.
+
+---
+
+## 2b. `analise_vendas_summit` usa "stopped" com outro sentido  ⚠️ decisão da Adriana
+
+**Status:** achado ao ligar o motor. **Não corrigi** — é conteúdo de prompt, é seu.
+
+O Silence Playbook reserva `STOPPED` pra opt-out, recusa inequívoca, impossibilidade real
+(seção 22). Já o `analise_vendas_summit` está devolvendo `continuation_status = "stopped"`
+com o sentido de "a conversa acabou".
+
+Como a precedência manda não agendar nada pra quem está `STOPPED`, o efeito é direto:
+**13 das 39 oportunidades nunca entram na fila de retomada** — inclusive uma com `purchase_intent
+= high`, `commercial_priority = urgent` e compromisso em aberto ("retorno da gerência").
+
+Correção provável: uma linha no prompt do analisador dizendo que `stopped` só vale pros casos da
+seção 22, e que conversa que simplesmente terminou com ponto aberto é `silence`. **Me fala se
+pode e eu ajusto.**
+
+---
+
 ## 3. Prompts de análise que faltam
 
 **Status:** conteúdo é da Adriana. Slots criados e vazios em `agentes.prompts`.
@@ -107,6 +152,11 @@ Já corrigidas (eram o caminho do contexto do agente): `public.treble_agent_cont
 Isso provavelmente derruba o app do Summit (as `api.*`), o painel admin (`mind_admin_*`) e a busca
 do chat do site. **Vale conferir o que dessas ainda é usado** — talvez várias sejam lixo de
 migração e devam ser apagadas em vez de corrigidas.
+
+**Confirmado quebrando em produção AGORA:** o cron `mindagent-sync-precos` (job 1, a cada 30 min)
+devolve `500 {"ok":false,"error":"rpc_falhou"}` em **toda** execução — bate em
+`public.mindagent_sync_offers`, que está na lista das 19. Ou seja: a sincronização de preços não
+roda desde a renomeação dos schemas.
 
 Mapa de equivalência: `summit.events/sessions/offers/commercial_rules` → `summit_2026.*` ·
 `summit.conhecimento` → `summit_2026.knowledge_documents` · `comum.speakers` →

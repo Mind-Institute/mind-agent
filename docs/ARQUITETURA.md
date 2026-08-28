@@ -94,6 +94,53 @@ e `917379159` (summit, `pipeline_summit_leads_captados`). `pessoa_id` segue NULO
 (ligamos por hubspot_id/email, não por pessoa_id). Pipelines ainda NÃO espelhados no Hub precisam
 de sync (tabela por pipeline).
 
+## Silence Re-evaluation Engine — quem manda no relógio
+
+Duas coisas diferentes que costumam ser confundidas: **REVIEW ≠ FOLLOW-UP.** Review é o sistema
+acordar a oportunidade e *olhar* pra ela. Follow-up é falar com a pessoa. Toda review olha; nem
+toda review fala.
+
+**A divisão de trabalho:** a IA lê o estado comercial e decide *o quê*
+(`ACT | WAIT | ESCALATE | DORMANT | STOP`). O **código** decide *quando* — a IA nunca escolhe
+timestamp, e `NEXT_REVIEW_AT` nem aparece no schema de saída dela.
+
+**Onde mora:** `intelligence.continuidade_comercial` (1 linha por conversa; PK `conversa_id`).
+Guarda `continuation_status`, `next_review_at`, `next_review_policy`, `followup_count`,
+`last_followup_at`, `last_decision` (decisão + cálculo, pra auditar) e `processing_until` (lock).
+
+**Configuração do relógio:** `intelligence.config` chave `silence_timing_v1` — a matriz da seção 7
+do playbook (1ª revisão: critical 30min · very_high 90 · high 180 · medium 360 · low 1440;
+depois de follow-up, uma lista por chave; estourou a lista → `DORMANT`). Mudar o ritmo é mudar
+esse JSON — não é mexer em código nem em prompt.
+
+**Precedência (nesta ordem, e ela existe pra proteger a pessoa):**
+1. compra (no CRM ou declarada), opt-out, `STOP`/`STOPPED` → não agenda nada;
+2. `DORMANT` → sai da fila, só volta por evento;
+3. `ESCALATE` com dono humano → pausa (o humano assumiu);
+4. **sem open loop real → não agenda.** Silêncio sozinho não autoriza follow-up;
+5. compromisso com data real → o compromisso manda;
+6. senão, matriz determinística ancorada no **último evento da conversa** (nunca em `now()`).
+
+**Duas travas que só existem porque o teste real mostrou que precisavam:**
+- **Piso temporal.** Sem ele, conversa parada há dias reagendava sempre no passado e era
+  reavaliada em loop a cada rodada do cron. Numa reavaliação o próximo passo é sempre no futuro,
+  usando o mesmo intervalo da matriz.
+- **Compromisso só com data real.** Quando o lead falou vago ("acho que respondem essa semana"),
+  a reavaliação chutou 27/08 numa rodada e 31/08 na outra — a IA escolhendo o relógio pela porta
+  dos fundos. Data de compromisso só vale se veio do analisador, que lê o que a pessoa
+  efetivamente disse. Compromisso sem data é open loop, e quem manda nele é a matriz.
+
+**As peças:** `silence_calcular_next_review` (o relógio, não grava nada) ·
+`silence_sync_from_analysis` (chamada pelo `analise_gravar`, monta o estado) ·
+`silence_claim_pendentes` (`FOR UPDATE SKIP LOCKED` + lock de 10 min) · `silence_registrar_decisao`
+· `silence_compra_summit_2026` (`purchased`/`not_purchased`/**`unknown`** — na dúvida, `unknown`) ·
+edge `silence-reavaliar` + cron a cada 5 min.
+
+**Hoje ela NÃO envia mensagem** — decisão da Adriana. `ACT` vira registro, e por isso
+`followup_count` não sobe: contar tentativa sem falar com ninguém queimaria as 3 retomadas do
+playbook em silêncio. Quando a camada de envio existir, ela passa
+`p_followup_enviado := true`. Ver **BACKLOG item 2**.
+
 ## Schemas do sistema (do Supabase — não são design nosso, ignorar)
 `auth`, `storage`, `supabase_migrations` (histórico de migrations), `vault` (segredos),
 `net`/`pg_net`, `pgbouncer`, `realtime`, `cron`, `extensions`, `graphql`/`graphql_public`
