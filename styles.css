@@ -1002,6 +1002,11 @@ body {
   padding: max(18px, env(safe-area-inset-top)) 24px calc(150px + env(safe-area-inset-bottom));
   overflow: hidden;
   animation: guia-abre .45s ease;
+  /* Sem isto o navegador reivindica o arrasto horizontal para o gesto dele
+     (rolagem, voltar) e dispara `pointercancel` — o deslize nunca chegava ao
+     `pointerup`, e só o toque funcionava. */
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
 }
 .guia[hidden] { display: none; }
 @keyframes guia-abre { from { opacity: 0; } to { opacity: 1; } }
@@ -1190,4 +1195,44 @@ body {
   .guia-cena > * { transition-duration: 0s !important; transition-delay: 0s !important; }
   .guia-trilha i.atual span { animation: none; width: 100%; }
   .guia-barra { transition: none; }
+}
+
+/* ---- Convite para avançar ----
+   A barra de cima deixou de avançar sozinha: quando ela enche, quem manda
+   é a pessoa. Este é o sinal de que dá para seguir — e o gesto que ele
+   anuncia funciona de verdade, deslize e toque. */
+.guia-avance {
+  position: absolute; left: 0; right: 0; z-index: 3;
+  /* Acima de onde a seta nasce (150px do rodapé). A 96px ela caía no meio
+     do traçado e os pontos atravessavam o texto. O conteúdo mais alto
+     termina bem antes disso, então sobra folga nos dois lados. */
+  bottom: calc(162px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 12.5px; font-weight: 700;
+  letter-spacing: .09em;
+  color: var(--texto-mudo);
+  pointer-events: none;
+  animation: guia-surge .4s ease both;
+}
+.guia-avance[hidden] { display: none; }
+.guia-avance .s {
+  color: var(--verde);
+  font-size: 18px; font-weight: 900; line-height: 1;
+  animation: guia-respira 1.8s ease-in-out infinite;
+}
+.guia-avance .s:last-child { animation-delay: .9s; }
+@keyframes guia-respira { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+
+/* O empurrãozinho: passou tempo demais parado, a cena balança e volta.
+   É o "ei, dá para seguir daqui" sem escrever mais uma frase na tela. */
+.guia-cena.cutuca { animation: guia-cutuca .6s ease; }
+@keyframes guia-cutuca {
+  0%, 100% { transform: translateX(0); }
+  22%      { transform: translateX(-14px); }
+  55%      { transform: translateX(7px); }
+  80%      { transform: translateX(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guia-avance .s, .guia-cena.cutuca { animation: none !important; }
 }
