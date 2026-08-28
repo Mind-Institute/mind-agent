@@ -8,48 +8,25 @@ falta uma peça. Item sai daqui quando vira código no ar — ou quando a gente 
 
 ---
 
-## 1. Quem diz "já comprei" e não está no HubSpot
+## ✅ RESOLVIDOS (ficam registrados como referência)
 
-**Status:** aguardando decisão da Adriana. Sem prioridade definida.
-
-Quando a pessoa clica **"Já comprei meu ingresso"** no WhatsApp, a regra em produção é:
-
+**Exclusão de disparo do Summit** — no ar. Quem clica **"Já comprei meu ingresso"** ou faz
+**opt-out** ("sair"/"Descadastrar") é excluído:
 - `summit__participacao_anual` tem **2026** → não escreve nada (já está na lista de compradores);
-- não tem → escreve `status_summit_2026 = "Não engajou"` (a outra lista de exclusão de disparo).
-- **Trava absoluta:** `summit__participacao_anual` **nunca** é escrito pelo sistema. Só compra real
-  marca aquele campo.
+- não tem → escreve `status_summit_2026 = "Não engajou"`.
+- **Trava absoluta:** `summit__participacao_anual` **nunca** é escrito. Só compra real marca aquele
+  campo. Quem não tem `hubspot_id` tem o **contato criado no HubSpot pelo telefone** (busca antes,
+  pra não duplicar) e aí é excluído. **40 contatos** processados.
 
-**O buraco:** das 11 conversas com essa CTA, **9 pessoas não têm `hubspot_id`**. Elas existem em
-`pessoas.pessoas` (ligadas pelo telefone), mas o telefone não casa com nenhum contato do HubSpot.
-Sem id, não há onde escrever — então **essas 9 continuam recebendo disparo mesmo tendo dito que
-já compraram**.
+**CTAs comerciais** — mapeadas em `engagement.origens` (todas produto `mind-summit-2026`):
+`Quero saber mais` → `summit_exit_popup` · `Garantir meu ingresso` → `summit_garantir_ingresso` ·
+`Informação sobre o evento` → `summit_info_evento` · `Ver condições` → `delegacoes_condicoes_wpp`
+(reusou a origem que já existia; **se essa CTA não for de delegações, é só avisar que eu troco**).
 
-**Perguntar à Adriana:** o que fazer quando a pessoa declara que vai ao Summit e não achamos
-`participacao_anual 2026`?
-- mandar um e-mail (pra quem? avisando o quê?);
-- conferir no sistema de **credenciamento** dela (fonte de verdade alternativa que o banco não vê);
-- criar o contato no HubSpot pelo telefone;
-- pedir o e-mail dentro da conversa, pra casar por e-mail;
-- não fazer nada e aceitar a perda.
-
----
-
-## 2. CTAs comerciais sem origem mapeada
-
-**Status:** aguardando decisão da Adriana.
-
-Só `"Quero saber mais"` está mapeada (→ `summit_exit_popup`, produto `mind-summit-2026`). As demais
-CTAs reais que aparecem em `conversas.variables` seguem sem origem:
-
-| CTA | conversas | é entrada comercial? |
-|---|---|---|
-| Ver condições | 3 | provável Summit — confirmar |
-| Garantir meu ingresso | 3 | provável Summit — confirmar |
-| Informação sobre o evento | 2 | provável Summit — confirmar |
-| Descadastrar / Encerrar conversa | 4 | opt-out, **não** é origem |
-
-Sem origem, o classificador pode ler essas conversas como ambíguas (foi exatamente o que acontecia
-com "Quero saber mais" antes do contexto de origem).
+**Entrada de telefone** — normalização canônica `public.telefone_normalizar()` + gatilhos em
+`pessoas.pessoas`, `engagement.conversas` e `treble.status_da_conversa`. Conserta o 9 do celular
+(regra determinística: 8 dígitos começando em 6-9 = celular sem o 9), prepende DDI, devolve NULL
+pro inválido. **3.432 números corrigidos**; era a causa das recusas do HubSpot.
 
 ---
 
@@ -70,51 +47,41 @@ e não acha prompt ativo (nem o fallback):
 
 ---
 
-## 4. Opt-out ("SAIR") sem tratamento
+## 4. Ranking ponderado — DECIDIDO: não volta por enquanto
 
-**Status:** não decidido.
+**Status:** decidido (Adriana concordou). Nada a fazer.
 
-Conversas cujo conteúdo é só `SAIR`/`Sair` hoje viram classificação normal (atendimento/concierge).
-Deveriam provavelmente **excluir a pessoa de disparo** — mesmo mecanismo do item 1, mas por motivo
-diferente (opt-out explícito, não compra). Não implementado.
-
----
-
-## 5. Ranking do lead não está sendo calculado
-
-**Status:** decisão de modelagem já tomada; cálculo não existe.
-
-A fórmula acordada (pesos da Adriana) era: **conversa 40 · histórico de compra 30 · fit de empresa 30**,
-com componente desconhecido virando neutro e o peso renormalizando; `lead_ruim` → descartar.
-
-Na migração pro modelo canônico (1 linha por conversa × analisador, com `dados` jsonb), o
-`ranking_conversa` foi removido — o estado comercial passou a ser o JSON do analisador. Hoje a
-priorização vem do que o LLM devolve (`commercial_priority`, `purchase_intent`, `conversion_risk`),
-**não** da fórmula ponderada com histórico de compra e porte de empresa.
-
-**A decidir:** a fórmula volta como função sobre `dados` + CRM, ou a taxonomia do analisador basta?
+A fórmula (conversa 40 · histórico 30 · fit de empresa 30) **não** volta agora. A priorização fica
+com a taxonomia que o analisador devolve: `commercial_priority`, `purchase_intent`,
+`conversion_risk`. Revisitar só se/quando o porte de empresa existir.
 
 ---
 
-## 6. Porte da empresa (fit) — enriquecimento externo
+## 5. Porte da empresa (fit) via Lusha — DECIDIDO: não precisa agora
 
-**Status:** não construído. Depende do item 5.
-
-O HubSpot não tem porte de empresa garantido. A ideia era buscar via **Lusha** (MCP disponível) pelo
-domínio do e-mail e guardar em `pessoas`. Gasta crédito → rodar só pra lead morno+.
-Enquanto não existir, o componente "fit de empresa" fica neutro no ranking.
+**Status:** decidido (Adriana). Fora de escopo até segunda ordem.
 
 ---
 
-## 7. Write-back da análise pro HubSpot
+## 6. Lead no HubSpot: criar, atualizar propriedades e mover o estágio  ⭐ PRIORIDADE
 
-**Status:** não construído.
+**Status:** decidido que **vale a pena**; falta construir.
 
-O write-back que existe hoje cobre: status da conversa (24h) em Lead/Contato e
-`status_summit_2026`. **Não** leva pro HubSpot o resultado da análise (estado comercial,
-prioridade, próximo movimento, âncora de follow-up).
+Regra da Adriana: quando existe **oportunidade comercial**, o **card do lead tem que estar sempre
+atualizado**. Isso significa três coisas, não uma:
 
-Falta decidir **quais propriedades** do HubSpot recebem isso (e criá-las lá).
+1. **Criar o lead** no pipeline se a pessoa ainda não tiver card;
+2. **Atualizar as propriedades** do lead com o que a análise aprendeu;
+3. **Mover o estágio** do lead no pipeline (`hs_pipeline_stage`).
+
+Propriedades de LEAD já mapeadas no HubSpot: `hs_lead_name`, `hs_lead_label` (status),
+`hs_lead_type`, `hs_pipeline`, `hs_pipeline_stage`, `status_conversa` (a que já usamos),
+`hs_lead_is_open`. Existe também uma de **observações** (a Adriana citou) — usar pro que **não
+couber** em propriedade estruturada, ex.: `followup_anchor`, `conversation_summary`.
+
+A fazer: mapear estado comercial da análise (`buyer_state`) → estágio do pipeline de leads;
+escolher quais campos do `dados` viram propriedade; criar o card quando faltar; write-back
+idempotente com trava (mesmo padrão de `crm.status_summit_hs`).
 
 ---
 
@@ -133,13 +100,30 @@ tem texto), e os vazios são disparos de campanha sem conversa. Correção é ~1
 
 ---
 
-## 9. Devolver "lead ruim" pro tráfego
+## 9. Devolver "lead ruim" pro tráfego — investigado: **já existe casa no HubSpot**
 
-**Status:** desenhado, não construído.
+**Status:** investigado (a pedido da Adriana). Não precisa criar propriedade nova.
 
-A ideia: quando a análise marcar `lead_ruim` (sobretudo **sem perfil** — veio do tráfego mas não
-tem perfil de comprar um Mind), cruzar com a origem/UTM do contato (`utm_source`, `utm_campaign`,
-`hs_analytics_source`, que **já existem** no espelho: 1.015 contatos com `utm_source`) e devolver
-isso pro time de tráfego — pra ele saber **qual campanha traz lead sem perfil**.
+O HubSpot **já tem** o vocabulário pra isso. Valores reais, conferidos na conta:
 
-Falta: decidir o canal (propriedade no HubSpot? relatório? lista?) e construir.
+- **`motivo_do_lead__perdido`** (contato) — opções: Data do evento · Local do evento ·
+  Valor do evento · **`Perfil desqualificado`** ← *é exatamente o "lead ruim / sem perfil"* ·
+  Não retornou o contato · Descadastrar · Optou por encerrar conversa.
+- **`icp`** — 6 perfis Mind: CHRO/VP de Pessoas · CEO/C-Suite · Gestor/Middle Manager ·
+  People Leader/BP · Executivo Sênior · Consultor/Coach/Psicólogo.
+- **`icp_confianca`** — número 0 a 10 (confiança da classificação).
+- **`etapa_do_lead__atualizar`** — Novo lead · Lead em contato · Lead qualificado (rótulo
+  "Comprou ingresso") · Em negociação · Lead perdido. **É a que a Treble já escreve hoje**
+  (`hubspot_etapa_do_lead__atualizar = "Lead em contato"` aparece em `conversas.variables`).
+- **`origem_do_lead`** — existe, mas com **uma opção só** (`eduzz`). Praticamente não usada.
+
+**Então o desenho fica:** análise marca `lead_ruim` com motivo `sem_perfil` →
+`motivo_do_lead__perdido = "Perfil desqualificado"`; a IA também pode preencher `icp` +
+`icp_confianca`. O cruzamento com campanha usa a UTM que já está no espelho (1.015 contatos com
+`utm_source`) — o tráfego lê isso por relatório/lista, sem propriedade nova.
+
+**Lacuna do espelho:** `icp_confianca`, `origem_do_lead` e `etapa_do_lead__atualizar` **não estão**
+em `crm.contato_espelho`. Pra ler/escrever com segurança, o sync precisa trazer as três.
+
+**A decidir com a Adriana:** a IA pode escrever `motivo_do_lead__perdido` e `icp`, ou isso fica
+como sugestão pra revisão humana?
