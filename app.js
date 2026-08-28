@@ -1293,14 +1293,9 @@ const GUIA_SEGURAR = 220;
 const GUIA_ZONA_VOLTA = 0.3;
 /* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
 const GUIA_ARRASTO = 45;
-/* Quando o guia começa a insistir, contado do início do passo. Igual em
-   todas as telas, mesmo nas de barra mais curta. */
-const GUIA_PRIMEIRO_BALANCO = 15000;
-/* Intervalo entre um balanço e o seguinte. */
-const GUIA_CUTUCADA = 4000;
-/* Último recurso: se nem os balanços tiraram a pessoa da tela, aparece a
-   dica escrita. Tarde de propósito — o gesto deve se explicar sozinho. */
-const GUIA_DICA_ESCRITA = 10000;
+/* Tempo de tela até o convite aparecer. Igual em todo passo: ele não
+   anuncia fim de tempo, anuncia que existe um gesto. */
+const GUIA_DICA = 8000;
 
 const GUIA = [
   /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
@@ -1335,7 +1330,6 @@ let guiaPasso = 0;
    Guarda o que falta em vez de só um timer: sem isso, segurar e soltar
    reiniciaria o passo do zero. */
 let guiaRelogio = null;
-let guiaCutucao = null;
 let guiaRestante = GUIA_DURACAO;
 let guiaDesde = 0;
 let guiaPausado = false;
@@ -1349,41 +1343,21 @@ function trilhaAtiva() { return document.querySelector('#guia-trilha i.atual spa
 
 function tocarRelogio(ms) {
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaCutucao);
-  clearTimeout(guiaDica);
   guiaRestante = ms;
   guiaDesde = Date.now();
   guiaPronto = false;
+  guiaRelogio = setTimeout(() => { guiaPronto = true; }, ms);
+}
+
+/* O convite entra depois de alguns segundos de tela, sempre os mesmos,
+   independente do tamanho da barra: ele não anuncia que o tempo acabou,
+   anuncia que existe um gesto. Some no último passo, onde os botões já
+   dizem o que fazer. */
+function agendarDica() {
+  clearTimeout(guiaDica);
   guiaAvance.hidden = true;
-  guiaRelogio = setTimeout(marcarPronto, ms);
-}
-
-/* Barra cheia: aparece o convite e começa a insistência. */
-function marcarPronto() {
-  guiaPronto = true;
-  if (guiaPasso >= GUIA.length - 1) return;   /* no último os botões já dizem o que fazer */
-  /* O primeiro balanço cai sempre aos 15s do passo, em qualquer tela. A
-     barra pode ser mais curta onde o texto é curto — o que não muda é o
-     tempo até o guia começar a insistir. */
-  const ate15 = Math.max(GUIA_PRIMEIRO_BALANCO - duracaoDoPasso(), 800);
-  guiaCutucao = setTimeout(() => { balancar(); agendarCutucao(); }, ate15);
-
-  /* A dica escrita é o último recurso: entra só se os balanços não
-     resolverem. O gesto deve se explicar sozinho antes disso. */
-  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, ate15 + GUIA_DICA_ESCRITA);
-}
-
-function balancar() {
-  guiaCena.classList.remove('cutuca');
-  void guiaCena.offsetWidth;
-  guiaCena.classList.add('cutuca');
-}
-
-/* Silêncio longo demais com o convite na tela: a cena balança e volta,
-   como quem diz "dá para seguir daqui". Insiste de tempos em tempos. */
-function agendarCutucao() {
-  clearTimeout(guiaCutucao);   /* o timer da dica escrita corre em paralelo, não se toca */
-  guiaCutucao = setTimeout(() => { balancar(); agendarCutucao(); }, GUIA_CUTUCADA);
+  if (guiaPasso >= GUIA.length - 1) return;
+  guiaDica = setTimeout(() => { guiaAvance.hidden = false; }, GUIA_DICA);
 }
 
 function pausarGuia() {
@@ -1515,9 +1489,7 @@ function guiaIrPara(n) {
   const destino = Math.min(Math.max(n, 0), GUIA.length - 1);
   if (destino === guiaPasso) return;
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaCutucao);
   clearTimeout(guiaDica);
-  guiaCena.classList.remove('cutuca');
   guiaAvance.hidden = true;
   guiaPausado = false;
   guiaCena.classList.add('sai');
@@ -1525,6 +1497,7 @@ function guiaIrPara(n) {
     guiaPasso = destino;
     pintarGuia();
     tocarRelogio(duracaoDoPasso());
+    agendarDica();
   }, 240);
 }
 
@@ -1534,11 +1507,11 @@ function abrirGuia() {
   guia.hidden = false;
   pintarGuia(true);
   tocarRelogio(duracaoDoPasso());
+  agendarDica();
 }
 
 function fecharGuia() {
   clearTimeout(guiaRelogio);
-  clearTimeout(guiaCutucao);
   clearTimeout(guiaDica);
   guia.hidden = true;
   try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
