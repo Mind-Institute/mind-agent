@@ -185,6 +185,25 @@ e pela ponte, mantendo a assinatura que a edge `treble-status-hubspot` usa.
 ninguém mais é dono daquele valor. Para quem tem mais de um contato ele aponta para um deles de
 forma arbitrária — a verdade multi-contato está em `engagement.identidades` + `crm.contato_espelho`.
 
+## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
+
+O que o CRM sabe sobre uma pessoa, para qualquer agente. **Só fatos**: sem score, sem ICP
+inferido, sem decisão comercial. Deals, compras e pagamentos são Passo 5.
+
+**Chega pelos contatos assim, e só assim:** `pessoa_id` → `engagement.identidades (canal='hubspot')`
+→ `crm.contato_espelho.hubspot_id`. **Nunca por `pessoas.hubspot_id`** — a projeção legada diverge
+da identidade em 70 pessoas e aponta para contato inexistente em 20.
+
+Devolve `contatos[]` no plural, cada um com seu `hubspot_id` junto, para se saber de qual contato
+veio cada fato. Nada de escolher um "principal". Campo vazio não aparece (`jsonb_strip_nulls`), e
+as colunas permanentemente vazias do espelho (`produto_de_interesse`, `intent_signals`,
+`hs_buying_role`, todas as de formação/certificação do Instituto) ficam de fora.
+
+**`meta` é operacional:** quantos contatos, se há pendência de identidade aberta, o status do sync
+em `crm.sync_estado` — e também `espelho_ultimo_sincronizado_em`, porque `sync_estado` está
+travado em "rodando" desde 24/08 enquanto o espelho **é sincronizado todo dia**. Sem os dois, o
+agente leria frescor errado.
+
 ## Fila de resolução — `engagement.identidade_fusoes`
 
 Sem tabela nova. A que já existia virou a fila mínima de problemas de identidade/CRM.
