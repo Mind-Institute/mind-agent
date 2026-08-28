@@ -233,6 +233,77 @@ de uma compra.
 permutações de publickey/apikey, inclusive trocadas. Se um dia se quiser puxar direto daqui,
 o caminho é **criar um app OAuth na Eduzz**, não descobrir a chave certa.
 
+## Espelhos — o encanamento (9 fontes, 2 projetos de origem)
+
+O mesmo mecanismo serve todos os espelhos vindos de outros Supabase da casa. **Nenhum deles é
+dono do dado; todos são leitura.**
+
+```
+projeto de origem                          aqui
+─────────────────                          ────
+mind-summit-vendas-dashboard
+  ingressos_espelho          → blinket              → eduzz.ingressos            3.220
+  eduzz_vendas_historico     → vendas               → eduzz.vendas               3.207
+  credenciamento_participantes → cred_participantes → credenciamento_summit_2026.participantes    1.028
+  credenciamento_yazo_envio_fila → cred_yazo_fila   → credenciamento_summit_2026.yazo_envio_fila  4.026
+  credenciamento_yazo_espelho → cred_yazo_espelho   → credenciamento_summit_2026.yazo_espelho       378
+  credenciamento_yazo_sync_state → cred_yazo_sync_state → …yazo_sync_state                            1
+mind-hubpost
+  eduzz_produtos             → produtos             → eduzz.produtos               290
+  produto_catalogo           → produto_catalogo     → eduzz.produto_catalogo       169
+  hubspot_stage_config       → hubspot_stage_config → eduzz.hubspot_stage_config    21
+```
+
+| peça | onde | o que faz |
+|---|---|---|
+| `public.espelho_para_mind(segredo, fonte, offset, limite)` | **em cada origem** | única porta. `SECURITY DEFINER`, **só leitura**, segredo próprio no Vault de lá |
+| `public.espelho_estado` | aqui | uma linha por fonte: origem, destino, status, contagens, erro |
+| `public.espelho_gravar` / `espelho_config` / `espelho_estado_set` | aqui | encanamento do lote |
+| edge `eduzz-espelho-sync` + cron job 14 (`:20`,`:50`) | aqui | orquestra as 9, pagina de 500 |
+
+O encanamento **não tem mais o prefixo `eduzz_`**: ele já serve dois schemas. Pelo mesmo motivo
+a tabela de estado saiu de `eduzz.sync_estado` para `public.espelho_estado` — senão daqui a um mês
+alguém abre o schema da Eduzz e encontra credenciamento lá dentro.
+
+Todas as tabelas espelhadas têm **RLS ligado e nenhuma policy**: ninguém lê por RLS. Os schemas já
+estão revogados de `anon`/`authenticated`; isso é a segunda tranca. O `service_role` passa por cima,
+então o sync não sente.
+
+**`credenciamento_summit_2026.participantes.password` não é espelhada.** O corte é feito na
+própria porta da origem (`to_jsonb(t) - 'password'`), então o valor nem cruza a rede. O agente não
+precisa de senha de credenciamento pra nada, e copiar credencial pra um segundo banco só aumenta
+superfície.
+
+### `eduzz.produto_catalogo` — onde mora "pago, cortesia ou patrocínio"
+
+É o mapeamento SKU da Eduzz → linguagem do Mind → funil do HubSpot, mantido no `mind-hubpost`.
+Tabela **viva**: cresce conforme produto novo é mapeado.
+
+- `tipo_de_acesso` — **Pago** (92) · **Cortesia** (38) · **Patrocínio** (17)
+- `tipo_de_venda` — **Eduzz** (102) · **Não é venda** (55) · **Direta** (12)
+- `motivo_concessao` — Convidado (21) · Parceria (9) · Palestrante (2) · Imprensa (1)
+- `origem_do_acesso` — `Mind` (29) ou o nome do patrocinador (Beiersdorf, Vale, Natura, Heineken…)
+- `modalidade_comercial` — Individual (130) · Business (17)
+
+Não se confunde com `catalogo.produtos` (11 linhas), que é o catálogo **conceitual** do Mind
+(Summit / Institute / Dash). Um SKU da Eduzz vira linha em `eduzz.produto_catalogo`; um produto
+do Mind vira linha em `catalogo.produtos`. Granularidades diferentes, donos diferentes.
+
+### Dois vocabulários para a mesma coisa  ⚠️ *decisão da Adriana*
+
+A origem do ingresso está classificada em **dois lugares, com palavras diferentes**:
+
+| | `eduzz.produto_catalogo.tipo_de_acesso` | `credenciamento_summit_2026.participantes.ticket_origin` |
+|---|---|---|
+| | Pago · Cortesia · **Patrocínio** | Pago · Cortesia · **Convidado institucional** · **Staff** |
+
+E a cobertura ainda não fecha:
+- juntando `eduzz.vendas.id_do_produto` → `produto_catalogo.eduzz_product_id`: **1.078 Pago ·
+  178 Cortesia · 47 Patrocínio**, mas **1.904 vendas sem mapeamento**;
+- no credenciamento, **213 de 1.028 participantes estão com `ticket_type = "SEM MAPA"`**.
+
+Qual vocabulário vale, e o que fazer com o que não está mapeado, é decisão de negócio — não invento.
+
 ## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
 
 O que o CRM sabe sobre uma pessoa, para qualquer agente. **Só fatos**: sem score, sem ICP

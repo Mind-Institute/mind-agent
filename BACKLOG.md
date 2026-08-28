@@ -23,16 +23,32 @@ falta uma peça. Item sai daqui quando vira código no ar — ou quando a gente 
 `Informação sobre o evento` → `summit_info_evento` · `Ver condições` → `delegacoes_condicoes_wpp`
 (reusou a origem que já existia; **se essa CTA não for de delegações, é só avisar que eu troco**).
 
-**Espelho Eduzz (bilheteria + vendas)** — no ar (28/08). `3.202 ingressos + 3.192 vendas`,
-carga completa em 5,4 s, cron job 14 (`:20` e `:50`). **Este projeto não fala com a Eduzz:**
-quem fala é o Supabase `mind-summit-vendas-dashboard`, que tem os tokens e já sincroniza sozinho —
-o mind-agent espelha o espelho, por uma porta só de leitura (`espelho_para_mind`, protegida por
-segredo no Vault de lá). A `EDUZZ_API_KEY` guardada aqui **não abre nada**: não existe app OAuth
-pra conta 14449348 (`/oauth/token` → `App not found`). Pra puxar direto daqui um dia, tem que
-**criar um app OAuth na Eduzz** — não adianta procurar a chave certa. `pessoa_id` é **junção**
-(views `eduzz.v_ingressos` / `v_vendas`), não coluna, pra ressincronização não apagar a ligação.
+**Espelhos de outros Supabase da casa** — no ar (28/08). **9 fontes, 2 projetos de origem**,
+carga completa em ~5 s, cron job 14 (`:20` e `:50`):
+
+| origem | fontes | destino |
+|---|---|---|
+| `mind-summit-vendas-dashboard` | blinket (3.220) · vendas (3.207) | `eduzz.*` |
+| | cred_participantes (1.028) · yazo_fila (4.026) · yazo_espelho (378) · yazo_sync_state (1) | `credenciamento_summit_2026.*` |
+| `mind-hubpost` | produtos (290) · produto_catalogo (169) · hubspot_stage_config (21) | `eduzz.*` |
+
+**Este projeto não fala com a Eduzz nem com a Yazo:** quem fala são os projetos de origem, que já
+sincronizam sozinhos. O mind-agent espelha o espelho, por uma porta só de leitura
+(`espelho_para_mind`, `SECURITY DEFINER`, segredo próprio no Vault de cada origem). A
+`EDUZZ_API_KEY` guardada aqui **não abre nada**: não existe app OAuth pra conta 14449348
+(`/oauth/token` → `App not found`). Pra puxar direto daqui um dia, tem que **criar um app OAuth na
+Eduzz** — não adianta procurar a chave certa.
+
+`pessoa_id` é **junção**, não coluna (views `eduzz.v_ingressos` / `v_vendas` /
+`credenciamento_summit_2026.v_participantes`), pra ressincronização não apagar a ligação.
 **1.352 pessoas já têm ingresso ligado.** Histórico de vendas confirmado **completo** contra a
 própria Eduzz (`totalItems: 3185` para 2019–2026).
+
+Duas decisões de encanamento que valem registro: o prefixo `eduzz_` saiu das funções e a tabela de
+estado saiu de `eduzz.sync_estado` para **`public.espelho_estado`** — o mecanismo já serve dois
+schemas, e deixar credenciamento dentro do schema da Eduzz confundiria quem chegasse depois. E a
+coluna **`password`** do credenciamento **não é espelhada**: o corte é feito na porta da origem,
+então o valor nem cruza a rede. Todas as tabelas espelhadas com **RLS ligado e zero policy**.
 
 **Entrada de telefone** — normalização canônica `public.telefone_normalizar()` + gatilhos em
 `pessoas.pessoas`, `engagement.conversas` e `treble.status_da_conversa`. Conserta o 9 do celular
@@ -231,37 +247,42 @@ como sugestão pra revisão humana?
 
 ---
 
-## 11. Ingresso que NÃO vem de venda Eduzz: venda direta, cortesia e patrocínio  ⭐ PRÓXIMO
+## 11. Ingresso que NÃO vem de venda Eduzz: reconciliar os dois vocabulários  ⭐ PRÓXIMO
 
-**Status:** terreno levantado (28/08), **decisões pendentes com a Adriana**. Nada construído.
+**Status:** o vocabulário **já existe** (28/08) — não precisa ser criado. Falta reconciliar e
+completar. **Decisões de negócio pendentes com a Adriana.**
 
-O espelho da Eduzz cobre quem **comprou pela Eduzz**. Fora dele existem ingressos de
-**venda direta, cortesia e patrocínio** — que não nascem de fatura e por isso não têm origem
-marcada em lugar nenhum.
+Com o catálogo do `mind-hubpost` e o credenciamento espelhados, a origem do ingresso está
+classificada em **dois lugares, com palavras diferentes**:
 
-**O que já existe no projeto Vendas** (não começar do zero):
-
-| tabela | linhas | o que é |
+| onde | campo | valores |
 |---|---|---|
-| `credenciamento_produtos_mapa` | 33 | `produto_cru`/`lote_cru` → `categoria`, `lote_limpo`, **`origem`**, `empresa_patrocinadora` |
-| `cortesia_requisicoes` | — | nome, e-mail, whatsapp, cpf, empresa, tipo, motivo, `entidade`, quem pediu, `emitido_em` |
-| `receita_participantes` | ~120 | participantes de uma receita (`receita_id`), com `ingresso_uuid` |
-| `ingressos_gerados` | ~1.071 | ingressos gerados, com `arquivado_em` / `cancelado_em` |
-| `espelho_lotes_map` | 67 | `lote_uuid` → produto |
+| `eduzz.produto_catalogo` | `tipo_de_acesso` | Pago (92) · Cortesia (38) · **Patrocínio (17)** |
+| | `tipo_de_venda` | Eduzz (102) · **Direta (12)** · Não é venda (55) |
+| | `motivo_concessao` | Convidado (21) · Parceria (9) · Palestrante (2) · Imprensa (1) |
+| | `origem_do_acesso` | `Mind` (29) ou o patrocinador nominal (Beiersdorf, Vale, Natura…) |
+| `credenciamento_summit_2026.participantes` | `ticket_origin` | Pago (992) · Cortesia (27) · **Convidado institucional (8)** · **Staff (1)** |
+| | `ticket_type` | Mind (360) · VIP (298) · **SEM MAPA (213)** · Prime (157) |
 
-**O buraco, medido:** `credenciamento_produtos_mapa.origem` só tem **`Pago`** e **`Cortesia`**,
-em 3 categorias (Mind / Prime / VIP). **Não existe `Venda direta` nem `Patrocínio`**, e
-`empresa_patrocinadora` está **100% vazia**.
+**Os três buracos, medidos:**
+1. **Dois vocabulários pra mesma coisa.** Catálogo diz `Patrocínio`; credenciamento diz
+   `Convidado institucional` e `Staff`. Qual vale?
+2. **1.904 vendas sem mapeamento** — juntando `eduzz.vendas.id_do_produto` →
+   `produto_catalogo.eduzz_product_id`, casam 1.078 Pago + 178 Cortesia + 47 Patrocínio.
+3. **213 participantes com `SEM MAPA`** — produto ainda não mapeado em
+   `credenciamento_produtos_mapa` na origem (33 linhas, só `Pago`/`Cortesia`, `empresa_patrocinadora`
+   100% vazia).
 
-**A pergunta que decide o desenho inteiro:** um ingresso de cortesia/patrocínio/venda direta
-**aparece no Blinket** ou não?
-- **Se aparece** → ele já está no espelho, só sem origem marcada. O trabalho é **classificar**.
-- **Se não aparece** → precisa **nascer** do nosso lado. Trabalho totalmente diferente.
+**As perguntas que só a Adriana responde:**
+1. Qual vocabulário é o oficial? *(Sugestão: o do catálogo, porque classifica o **produto** e não
+   a pessoa — vale pra todo mundo que comprar aquele SKU. É chute meu, não fato.)*
+2. `tipo_de_venda = Direta` (12 produtos): venda fora da Eduzz? Onde é registrada hoje?
+3. Patrocínio: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
+4. As 1.904 vendas sem mapeamento — histórico velho que dá pra ignorar, ou precisam ser mapeadas?
 
-**Outras decisões (são de negócio, não invento):**
-1. "Venda direta" é venda fora da Eduzz (PIX/boleto/contrato) ou venda Eduzz de produto que não é
-   ingresso? Onde é registrada hoje — planilha, `receita_participantes`, ou nada?
-2. Patrocínio: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
-3. `cortesia_requisicoes` é a fonte real e atual, ou virou histórico?
+**Tabelas do projeto Vendas ainda NÃO espelhadas** (não foram pedidas; ficam registradas pra não
+redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) · `ingressos_gerados` (~1.071) ·
+`espelho_lotes_map` (67) · `credenciamento_produtos_mapa` (33 — **já tem porta de leitura aberta**,
+fonte `cred_produtos_mapa`; é uma linha pra espelhar).
 
 Passo a passo de retomada em `docs/RETOMAR_AMANHA.md`.

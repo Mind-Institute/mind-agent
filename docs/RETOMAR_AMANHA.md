@@ -100,33 +100,48 @@ vendas está completo.** O que *não* está completo é a bilheteria — é o pa
 
 ## Passo de amanhã — ingresso que NÃO vem de venda Eduzz
 
-**O problema, nas suas palavras:** existem ingressos de **venda direta, cortesia e patrocínio**.
-Eles não nascem de uma fatura Eduzz, então não aparecem no caminho normal.
+**Boa notícia: a pergunta que eu tinha deixado aqui já está respondida.** Com o catálogo do
+`mind-hubpost` e o credenciamento espelhados, o vocabulário de origem **já existe** — não precisa
+ser inventado. O trabalho é **reconciliar e completar**, não criar do zero.
 
-**O que eu já levantei do terreno (no projeto Vendas), pra não começar do zero:**
+### O que já existe
 
-| tabela | linhas | o que é |
+| onde | campo | valores reais |
 |---|---|---|
-| `credenciamento_produtos_mapa` | 33 | mapeia `produto_cru`/`lote_cru` → `categoria`, `lote_limpo`, **`origem`**, `empresa_patrocinadora` |
-| `cortesia_requisicoes` | — | pedidos de cortesia: nome, e-mail, whatsapp, cpf, empresa, tipo, motivo, **`entidade`**, quem pediu, quando foi emitido |
-| `receita_participantes` | ~120 | participantes amarrados a uma receita (`receita_id`), com `ingresso_uuid` |
-| `ingressos_gerados` | ~1.071 | ingressos gerados, com `arquivado_em` / `cancelado_em` |
-| `espelho_lotes_map` | 67 | `lote_uuid` → produto |
+| `eduzz.produto_catalogo` | `tipo_de_acesso` | Pago (92) · Cortesia (38) · **Patrocínio (17)** |
+| | `tipo_de_venda` | Eduzz (102) · **Direta (12)** · Não é venda (55) |
+| | `motivo_concessao` | Convidado (21) · Parceria (9) · Palestrante (2) · Imprensa (1) |
+| | `origem_do_acesso` | `Mind` (29) ou o patrocinador nominal (Beiersdorf, Vale, Natura…) |
+| `credenciamento_summit_2026.participantes` | `ticket_origin` | Pago (992) · Cortesia (27) · **Convidado institucional (8)** · **Staff (1)** |
+| | `ticket_type` | Mind (360) · VIP (298) · **SEM MAPA (213)** · Prime (157) |
+| | `sponsor_company` | preenchido em 13 participantes |
 
-**O buraco concreto, medido:** hoje `credenciamento_produtos_mapa.origem` só tem dois valores —
-**`Pago`** e **`Cortesia`** — em 3 categorias (Mind / Prime / VIP). Não existe `Venda direta`
-nem `Patrocínio`, e `empresa_patrocinadora` está **100% vazia**.
+### Os três buracos, medidos
 
-**As perguntas que só você responde (não invento):**
-1. **Venda direta** é venda fora da Eduzz (PIX/boleto/contrato) ou venda Eduzz de um produto
-   que não é ingresso? Onde ela é registrada hoje — planilha, `receita_participantes`, ou nada?
-2. **Patrocínio**: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
-3. **Cortesia**: `cortesia_requisicoes` é a fonte real e atual, ou virou histórico?
-4. Um ingresso desses **aparece no Blinket** (e portanto já está no espelho, só sem origem
-   marcada) ou **não existe lá** e precisa nascer no nosso lado?
+1. **Dois vocabulários pra mesma coisa.** O catálogo diz `Patrocínio`; o credenciamento diz
+   `Convidado institucional` e `Staff`. Qual vale?
+2. **1.904 vendas sem mapeamento.** Juntando `eduzz.vendas.id_do_produto` →
+   `produto_catalogo.eduzz_product_id`, casam 1.078 Pago + 178 Cortesia + 47 Patrocínio, e
+   **1.904 ficam de fora**. São SKUs antigos, ou mapeamento faltando?
+3. **213 participantes com `SEM MAPA`.** Produto que ainda não entrou em
+   `credenciamento_produtos_mapa` (na origem, 33 linhas — só `Pago`/`Cortesia`, sem `Patrocínio`,
+   e `empresa_patrocinadora` 100% vazia).
 
-A resposta de (4) decide tudo: se aparece no Blinket, o trabalho é **classificar origem**;
-se não aparece, é **cadastrar ingresso** — coisas muito diferentes.
+### As perguntas que só você responde
+
+1. Qual vocabulário é o oficial — o do catálogo ou o do credenciamento? (Sugestão minha: o do
+   catálogo, porque classifica o **produto** e não a pessoa, então vale pra todo mundo que comprar
+   aquele SKU. Mas é chute meu, não fato.)
+2. `tipo_de_venda = Direta` (12 produtos): venda fora da Eduzz (PIX/boleto/contrato)? Onde ela é
+   registrada hoje?
+3. Patrocínio: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
+4. As 1.904 vendas sem mapeamento — dá pra ignorar (histórico velho) ou precisam ser mapeadas?
+
+**Outras tabelas do projeto Vendas que ainda NÃO espelhei** (não foram pedidas; digo que existem
+pra não redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) ·
+`ingressos_gerados` (~1.071) · `espelho_lotes_map` (67) · `credenciamento_produtos_mapa` (33).
+Essa última **já tem porta de leitura aberta** (fonte `cred_produtos_mapa`) — é só pedir que eu
+espelho, é uma linha.
 
 ---
 
@@ -161,12 +176,32 @@ select net.http_post(
   headers := '{"Content-Type":"application/json"}'::jsonb,
   timeout_milliseconds := 250000);
 
--- como está o espelho
-select * from eduzz.sync_estado;
+-- como estão os espelhos (9 fontes, 2 projetos de origem)
+select fonte, projeto_origem, destino, status, registros_gravados, erro, concluido_em
+  from public.espelho_estado order by projeto_origem, fonte;
+
+-- só uma fonte
+select net.http_post(
+  url := 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/eduzz-espelho-sync?token='
+         || (select valor from intelligence.config where chave='analise_token'),
+  body := '{"fonte":"cred_participantes"}'::jsonb,
+  headers := '{"Content-Type":"application/json"}'::jsonb,
+  timeout_milliseconds := 250000);
 
 -- o que uma pessoa comprou
 select evento_titulo, nome_do_lote, status, pessoa_criterio
   from eduzz.v_ingressos where pessoa_id = '<uuid>';
+
+-- essa pessoa está credenciada?
+select name, ticket_type, ticket_origin, sponsor_company, status, pessoa_criterio
+  from credenciamento_summit_2026.v_participantes where pessoa_id = '<uuid>';
+
+-- de onde veio cada venda (pago / cortesia / patrocínio)
+select coalesce(pc.tipo_de_acesso, 'SEM MAPEAMENTO') as acesso,
+       pc.tipo_de_venda, pc.origem_do_acesso, count(*)
+  from eduzz.vendas v
+  left join eduzz.produto_catalogo pc on pc.eduzz_product_id = v.id_do_produto
+ group by 1,2,3 order by 4 desc;
 
 -- fila de identidade pra resolver
 select * from mind_pendencias_listar(null, 'pendente', 20, 0);
