@@ -94,7 +94,13 @@ e `917379159` (summit, `pipeline_summit_leads_captados`). `pessoa_id` segue NULO
 (ligamos por hubspot_id/email, não por pessoa_id). Pipelines ainda NÃO espelhados no Hub precisam
 de sync (tabela por pipeline).
 
-## Silence Re-evaluation Engine — quem manda no relógio
+## Silence Re-evaluation Engine — quem manda no relógio  ⏸️ *pausado em 28/08*
+
+> **Estado:** construído e testado, mas o cron `silence_reavaliar` (job 13) está **desligado** —
+> ninguém acorda ninguém. O `silence_sync_from_analysis` segue ligado (só mantém o estado em dia,
+> sem IA). Religa com `select cron.alter_job(13, active := true);`.
+> As decisões pendentes estão em **BACKLOG item 2**.
+
 
 Duas coisas diferentes que costumam ser confundidas: **REVIEW ≠ FOLLOW-UP.** Review é o sistema
 acordar a oportunidade e *olhar* pra ela. Follow-up é falar com a pessoa. Toda review olha; nem

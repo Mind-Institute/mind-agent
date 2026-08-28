@@ -30,48 +30,58 @@ pro inválido. **3.432 números corrigidos**; era a causa das recusas do HubSpot
 
 ---
 
-## 2. Silence Engine: ligar ACT ao envio da mensagem  ⭐ PRIORIDADE
+## 2. Silence Engine — ⏸️ PAUSADO (28/08). O que precisa ser definido pra retomar
 
-**Status:** o motor está no ar e decidindo; **falta a camada de execução**.
+**Como está agora:** o motor está construído, testado (19 casos) e rodou de verdade em 14
+oportunidades. O **cron `silence_reavaliar` (job 13) está DESLIGADO** — ninguém acorda ninguém,
+zero chamada de IA, zero custo. Nada foi apagado.
 
-O `silence-reavaliar` acorda a oportunidade, decide `ACT | WAIT | ESCALATE | DORMANT | STOP` e
-escreve `message_brief` (o que a mensagem precisa fazer). **Nenhuma mensagem é enviada** — foi
-decisão explícita da Adriana nesta etapa. Consequências enquanto isso durar:
+**O que continua ligado de propósito:** o `analise_gravar` segue chamando
+`silence_sync_from_analysis`. Isso só mantém o **estado** (status, próxima revisão) em dia
+conforme novas conversas são analisadas — não usa IA, não decide, não fala com ninguém. Assim,
+quando religar, a fila já está verdadeira em vez de desatualizada.
 
-- `followup_count` **nunca sobe** (de propósito: contar tentativa sem falar com ninguém queimaria
-  as 3 retomadas do playbook em silêncio). Logo `DORMANT por followup_exhausted` nunca acontece
-  na prática ainda;
-- toda decisão `ACT` vira só um registro em `last_decision` — a fila de "eu teria falado agora"
-  se acumula lá;
-- a mesma conversa é reavaliada de novo a cada ciclo da matriz (custo de IA baixo, mas real).
+**Pra religar:** `select cron.alter_job(13, active := true);` — uma linha, volta do mesmo ponto.
 
-Quando a camada de envio existir, ela chama
-`silence_registrar_decisao(conversa, decisao, p_followup_enviado := true)` — é esse `true` que
-faz o contador subir e o relógio pular pra régua de pós-follow-up.
+### As 3 decisões que travam a continuidade (são suas, não minhas)
 
-**Observado na 1ª rodada real:** uma oportunidade recebeu `DORMANT` com motivo
-`followup_exhausted` tendo `followup_count = 0` — nada foi esgotado, nenhuma retomada tinha sido
-feita. `DORMANT` tira a conversa da fila de vez (só volta por evento), então errar aqui perde a
-oportunidade em silêncio. **Não travei isso no código** porque quem decide *o quê* é a IA (sua
-regra). Se quiser, é uma linha: recusar `followup_exhausted` quando `followup_count = 0`.
-
----
-
-## 2b. `analise_vendas_summit` usa "stopped" com outro sentido  ⚠️ decisão da Adriana
-
-**Status:** achado ao ligar o motor. **Não corrigi** — é conteúdo de prompt, é seu.
-
+**D1 — `analise_vendas_summit` usa "stopped" com outro sentido.**
 O Silence Playbook reserva `STOPPED` pra opt-out, recusa inequívoca, impossibilidade real
-(seção 22). Já o `analise_vendas_summit` está devolvendo `continuation_status = "stopped"`
-com o sentido de "a conversa acabou".
+(seção 22). O analisador está devolvendo `continuation_status = "stopped"` com o sentido de
+"a conversa acabou". Como a precedência manda não agendar nada pra quem está `STOPPED`,
+**13 das 39 oportunidades nunca entram na fila** — inclusive uma com `purchase_intent = high`,
+`commercial_priority = urgent` e compromisso em aberto ("retorno da gerência").
+*Correção provável:* uma linha no seu prompt dizendo que `stopped` só vale pros casos da seção 22,
+e que conversa que terminou com ponto aberto é `silence`. **É conteúdo, é seu — preciso do ok.**
 
-Como a precedência manda não agendar nada pra quem está `STOPPED`, o efeito é direto:
-**13 das 39 oportunidades nunca entram na fila de retomada** — inclusive uma com `purchase_intent
-= high`, `commercial_priority = urgent` e compromisso em aberto ("retorno da gerência").
+**D2 — `DORMANT` com zero retomadas feitas.**
+Na 1ª rodada real, uma oportunidade recebeu `DORMANT` com motivo `followup_exhausted` tendo
+`followup_count = 0`. Nada foi esgotado. `DORMANT` tira a conversa da fila de vez (só volta por
+evento), então errar aí perde a venda em silêncio. **Não travei no código** porque quem decide
+*o quê* é a IA — sua regra. *Se você quiser:* recusar `followup_exhausted` quando o contador
+está em 0. É uma linha.
 
-Correção provável: uma linha no prompt do analisador dizendo que `stopped` só vale pros casos da
-seção 22, e que conversa que simplesmente terminou com ponto aberto é `silence`. **Me fala se
-pode e eu ajusto.**
+**D3 — quem envia a mensagem, e sob qual autorização.**
+Hoje `ACT` vira só registro em `last_decision` — tem **10 ACTs parados** esperando. Falta decidir:
+- a mensagem sai automática ou passa por aprovação humana antes?
+- sai por qual caminho — Treble (HSM/janela de 24h) ou outro?
+- quem gera o texto final a partir do `message_brief` (Agent + Mind Voice)?
+- qual janela de horário é permitida (o playbook prevê deslocar a execução, não a lógica).
+
+Quando existir, essa camada chama
+`silence_registrar_decisao(conversa, decisao, p_followup_enviado := true)`. É esse `true` que faz
+o `followup_count` subir e o relógio pular pra régua de pós-follow-up. **Enquanto ele for `false`,
+`DORMANT por followup_exhausted` nunca acontece de verdade** — o contador nunca sai de 0.
+
+### O que NÃO precisa ser decidido (já resolvido, só pra não redescobrir)
+- Ritmo de reavaliação: está em `intelligence.config → silence_timing_v1`. Mudar o ritmo é mudar
+  esse JSON — não é código nem prompt.
+- Compromisso com data: só vale data que o **analisador** extraiu do que a pessoa disse. A
+  reavaliação não cria data (chutou 27/08 numa rodada e 31/08 na outra pro mesmo "acho que
+  respondem essa semana"). Já barrou 2 casos.
+- Loop de reavaliação no passado: resolvido com piso temporal.
+- Compra: `purchase_confirmed_crm` (prova no banco) é distinto de `purchase_declared` (a pessoa
+  disse na conversa). Ambos param o outreach; só o primeiro é prova. **Nada escreve no HubSpot.**
 
 ---
 
