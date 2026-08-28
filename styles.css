@@ -77,13 +77,13 @@ body {
 .splash-halo {
   position: absolute; left: 50%; top: 50%;
   width: 150%; aspect-ratio: 1; transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(104,238,149,.26) 0%, rgba(104,238,149,.07) 34%, transparent 58%);
+  background: radial-gradient(circle, rgba(255,112,87,.26) 0%, rgba(255,112,87,.07) 34%, transparent 58%);
   opacity: 0; animation: halo-entra 1.5s .15s ease forwards;
   pointer-events: none;
 }
 .splash-simbolo {
   width: 41%; max-width: 190px; height: auto; display: block;
-  fill: var(--verde);
+  fill: var(--coral);
   opacity: 0; transform: scale(.72);
   animation: simbolo-entra 1.05s cubic-bezier(.16,1,.3,1) forwards;
 }
@@ -96,10 +96,10 @@ body {
 }
 .splash-fala .g { opacity: 0; }
 .splash-fala .g.on { opacity: 1; }
-.splash-fala b { color: var(--verde); font-weight: 500; }
+.splash-fala b { color: var(--coral); font-weight: 500; }
 .splash-cursor {
   display: inline-block; width: 2px; height: 1.05em;
-  background: var(--verde); vertical-align: -.16em; margin-left: 1px;
+  background: var(--coral); vertical-align: -.16em; margin-left: 1px;
   animation: pisca 1s steps(2, start) infinite;
 }
 @keyframes pisca { 50% { opacity: 0; } }
@@ -109,7 +109,7 @@ body {
   color: rgba(255,255,255,.34);
   opacity: 0; animation: simbolo-entra .8s 2.6s ease forwards;
 }
-.splash-selo b { color: rgba(104,238,149,.72); font-weight: 700; }
+.splash-selo b { color: rgba(255,112,87,.72); font-weight: 700; }
 .splash-pular {
   position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px;
   appearance: none; cursor: pointer;
@@ -983,166 +983,3 @@ body {
   font-size: 13px; line-height: 1.55; color: var(--texto-mudo);
 }
 .erro-dados b { color: var(--coral); display: block; margin-bottom: 6px; }
-
-/* ============================================================
-   GUIA DA BARRA — tela cheia, no desenho do Mind
-   ============================================================
-   A barra de abas pertence ao aplicativo do evento, não a esta
-   página: ela fica logo abaixo da nossa borda inferior. Então o
-   guia faz duas coisas que o app faria por dentro — a seta aponta
-   para fora, na coluna do ícone, e a barrinha de aba selecionada
-   é desenhada rente à borda, igual à que o app acende.
-
-   A arte segue o site do Summit: preto, tipografia enorme em caixa
-   alta, verde como acento e o ponto final depois da palavra. */
-.guia {
-  position: fixed; inset: 0; z-index: 40;
-  background: #06060a;
-  display: flex; flex-direction: column;
-  padding: max(18px, env(safe-area-inset-top)) 24px calc(150px + env(safe-area-inset-bottom));
-  overflow: hidden;
-  animation: guia-abre .45s ease;
-}
-.guia[hidden] { display: none; }
-@keyframes guia-abre { from { opacity: 0; } to { opacity: 1; } }
-
-/* Brilho atrás do texto, na cor do passo. Camada própria: borrar o
-   texto é o que deixaria a tipografia sem fio. */
-.guia-brilho {
-  position: absolute; left: 50%; top: 34%;
-  width: 130%; aspect-ratio: 1; transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(104,238,149,.13) 0%, rgba(104,238,149,.04) 38%, transparent 62%);
-  pointer-events: none;
-  transition: opacity .6s ease;
-}
-
-/* Trilha de progresso: um segmento por aba, o atual enchendo sozinho */
-.guia-trilha {
-  position: relative; z-index: 2;
-  display: flex; gap: 5px; flex: none;
-}
-.guia-trilha i {
-  flex: 1; height: 2px; border-radius: 2px;
-  background: rgba(255, 255, 255, .13);
-  overflow: hidden;
-}
-.guia-trilha i span {
-  display: block; height: 100%; width: 0;
-  background: var(--verde);
-  border-radius: 2px;
-}
-.guia-trilha i.ok span { width: 100%; }
-.guia-trilha i.atual span { animation: guia-enche var(--dur, 7s) linear forwards; }
-@keyframes guia-enche { from { width: 0; } to { width: 100%; } }
-
-.guia-pular {
-  position: absolute; top: max(14px, env(safe-area-inset-top)); right: 20px;
-  z-index: 3;
-  appearance: none; cursor: pointer; border: 0; background: none;
-  color: var(--texto-mudo);
-  font: inherit; font-size: 13px; font-weight: 700;
-  padding: 10px 4px;
-}
-
-/* ---- A cena ---- */
-.guia-cena {
-  position: relative; z-index: 2;
-  flex: 1; min-height: 0;
-  display: flex; flex-direction: column; justify-content: center;
-  padding-bottom: 8px;
-}
-
-/* Pílula do site: contorno verde, micro-texto espaçado */
-.guia-selo {
-  align-self: flex-start;
-  border: 1px solid rgba(104, 238, 149, .45);
-  border-radius: var(--raio-pill);
-  color: var(--verde);
-  font-size: 10.5px; font-weight: 900;
-  letter-spacing: .16em; text-transform: uppercase;
-  padding: 6px 13px;
-}
-
-.guia-titulo {
-  margin-top: 20px;
-  font-size: clamp(38px, 13vw, 58px);
-  font-weight: 900; text-transform: uppercase;
-  letter-spacing: -.035em; line-height: .9;
-}
-/* O ponto final verde, como no site */
-.guia-titulo em { font-style: normal; color: var(--verde); }
-
-.guia-texto {
-  margin-top: 20px; max-width: 30em;
-  font-size: 16px; line-height: 1.55;
-  color: var(--texto-suave);
-}
-
-/* Entradas escalonadas: o selo, o título e o texto surgem em sequência */
-.guia-cena > * { opacity: 0; transform: translateY(14px); }
-.guia-cena.mostra > * { animation: guia-sobe .55s cubic-bezier(.16,1,.3,1) forwards; }
-.guia-cena.mostra .guia-selo   { animation-delay: .05s; }
-.guia-cena.mostra .guia-titulo { animation-delay: .16s; }
-.guia-cena.mostra .guia-texto  { animation-delay: .3s; }
-@keyframes guia-sobe { to { opacity: 1; transform: none; } }
-/* Saída: some junto, mais rápido do que entrou */
-.guia-cena.sai > * { animation: guia-desce .28s ease forwards; }
-@keyframes guia-desce { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-10px); } }
-
-/* ---- A seta pontilhada ---- */
-.guia-seta {
-  position: absolute; inset: 0; z-index: 2;
-  width: 100%; height: 100%;
-  pointer-events: none; overflow: visible;
-}
-.guia-seta .trilha {
-  fill: none;
-  stroke: var(--verde);
-  stroke-width: 4.5;
-  stroke-linecap: round;
-  /* traço zero + espaço = bolinha redonda, o pontilhado desenhado à mão */
-  stroke-dasharray: 0 14;
-  filter: drop-shadow(0 0 5px rgba(104, 238, 149, .4));
-}
-.guia-seta .ponta {
-  fill: var(--verde);
-  filter: drop-shadow(0 0 5px rgba(104, 238, 149, .4));
-}
-.guia-seta.desenhando .trilha { animation: guia-risca .7s .35s ease both; }
-.guia-seta.desenhando .ponta  { animation: guia-ponta .3s .95s ease both; }
-@keyframes guia-risca {
-  from { stroke-dashoffset: 260; opacity: .2; }
-  to   { stroke-dashoffset: 0;   opacity: 1; }
-}
-@keyframes guia-ponta { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
-
-/* ---- A barrinha da aba selecionada ----
-   O app acende uma barra fina no topo da aba ativa. Como a barra dele
-   fica abaixo da nossa borda, desenhamos a nossa rente ao fim da tela,
-   na mesma coluna. */
-.guia-barra {
-  position: absolute; bottom: 0; z-index: 2;
-  height: 3px; border-radius: 3px 3px 0 0;
-  background: var(--verde);
-  box-shadow: 0 0 14px rgba(104, 238, 149, .65);
-  transition: left .6s cubic-bezier(.16,1,.3,1), width .4s ease, opacity .3s ease;
-}
-
-.guia-fim {
-  position: absolute; left: 24px; right: 24px; z-index: 3;
-  bottom: calc(96px + env(safe-area-inset-bottom));
-  appearance: none; cursor: pointer; border: 0;
-  background: var(--verde); color: var(--surface-deep);
-  border-radius: var(--raio-pill);
-  font: inherit; font-size: 15px; font-weight: 700;
-  min-height: 52px;
-  animation: guia-sobe .5s ease both;
-}
-.guia-fim[hidden] { display: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .guia, .guia-cena > *, .guia-seta .trilha, .guia-seta .ponta, .guia-fim { animation: none !important; }
-  .guia-cena > * { opacity: 1; transform: none; }
-  .guia-trilha i.atual span { animation: none; width: 100%; }
-  .guia-barra { transition: none; }
-}
