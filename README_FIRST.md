@@ -44,8 +44,8 @@ banco, prompt ou schema. Isto vale mais que qualquer outro documento.
    Dash quando tiver dado). O vendedor é um só e sabe vender qualquer vertical buscando o
    contexto do produto que está na mesa.
 3. **Reconhecimento na chegada** (já existe): identifica a pessoa (`pessoas.pessoas`), deriva a
-   vertical, e puxa histórico (`crm.contato_espelho` + `crm.negocios_historicos`) e pipeline
-   aberto (`crm.pipeline_summit_leads_captados`).
+   vertical, e puxa histórico (`crm.contato_espelho` + `crm.vendas_historicas_mind_summit`) e pipeline
+   aberto (`crm.pipeline_de_vendas_summit`).
 4. **Faxina** de `engagement`/`intelligence` **DEPOIS** de construir (mantém o que os agentes
    de fato usarem), nunca antes.
 5. **HubSpot write-back por ÚLTIMO** (idempotente, com trava).

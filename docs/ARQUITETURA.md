@@ -40,8 +40,8 @@ e o "antes de criar tabela, pergunte" estão no `README_FIRST.md`.
 2. Deriva a **vertical** de onde veio: `intelligence.vertical_da_entrada(site, url)`
    (site do chat ou domínio do `first_url`) → grava em `intelligence.sinais_comerciais.vertical`.
 3. Junta o que já se sabe dela, antes de responder:
-   - histórico de vida no Mind → `crm.contato_espelho` + `crm.negocios_historicos`;
-   - deal **aberto** agora → `crm.pipeline_summit_leads_captados` (e pipelines futuros por vertical).
+   - histórico de vida no Mind → `crm.contato_espelho` + `crm.vendas_historicas_mind_summit`;
+   - deal **aberto** agora → `crm.pipeline_de_vendas_summit` (e pipelines futuros por vertical).
 4. Atua com o playbook da função; se for venda, ao fechar atualiza o card do pipeline /
    cria caso e reflete no HubSpot.
 5. Destila **inteligência** sobre a pessoa (`intelligence`) e registra o **engajamento**
@@ -51,8 +51,10 @@ e o "antes de criar tabela, pergunte" estão no `README_FIRST.md`.
 
 **Núcleo do lead**
 - `pessoas` — identidade canônica (1 linha = teste).
-- `crm` — espelho do HubSpot. **REAL:** `contato_espelho` (11.587), `negocios_historicos`
-  (7.092), `pipeline_summit_leads_captados` (2.675 = pipeline aberto), `mapa_produtos` (9).
+- `crm` — espelho do HubSpot, **uma tabela por pipeline, com o nome do pipeline**. **REAL:**
+  `contato_espelho` (11.829), `vendas_historicas_mind_summit` (7.092),
+  `pipeline_de_vendas_summit` (2.675 = pipeline aberto), `pipeline_leads_inbound` (1.661),
+  `empenho_summit_2026` (22), `mapa_produtos` (9).
 - `intelligence` — o que sabemos do lead (sinais, intenções, dossiê, objetivos…). Teste/placeholder.
 - `engagement` — conversas/mensagens/sessões. Dados de teste. A **origem do lead na chegada**
   é salva aqui (`origens`, provisório — a confirmar). *(candidato a virar vizinho de/parte de `intelligence`.)*
@@ -306,6 +308,54 @@ com `ticket_type = "SEM MAPA"`. A Adriana confirmou (28/08) que **está certo e 
 o mapeamento depois** — é conteúdo pendente, não bug de encanamento. Conforme ela mapeia na
 origem, o espelho pega sozinho no ciclo seguinte. **Não "conserte" isso por conta própria.**
 
+## Espelho do HubSpot — uma tabela por pipeline, com o nome do pipeline
+
+Mora em **`crm`**. Não existe schema `hubspot` — um segundo schema pro mesmo CRM seria uma
+segunda casa pra mesma coisa.
+
+**As tabelas se chamam como o pipeline se chama no HubSpot.** Antes não era assim, e o nome
+mentia: `pipeline_de_vendas_summit` guardava **negócios**, não leads — o que fez parecer
+que ela e a `pipeline_leads_inbound` eram a mesma coisa. Não são: uma é objeto **Deal**, a outra
+é objeto **Lead**, pipelines diferentes.
+
+| fonte | objeto | pipeline no HubSpot | tabela | linhas |
+|---|---|---|---|---|
+| `hubspot_contatos` | Contact | — | `crm.contato_espelho` | 11.829 |
+| `hubspot_negocios` | **Deal** | `917379159` — "Pipeline de vendas - Summit" | `crm.pipeline_de_vendas_summit` | 2.675 |
+| `hubspot_negocios_historicos` | **Deal** | `default` — "Vendas Históricas Mind Summit" | `crm.vendas_historicas_mind_summit` | 7.092 |
+| `hubspot_negocios_empenho_2026` | **Deal** | `t_0793…` — "Empenho Summit 2026" | `crm.empenho_summit_2026` | 22 |
+| `hubspot_leads_inbound` | **Lead** | `918902366` — "Pipeline leads Inbound" | `crm.pipeline_leads_inbound` | 1.661 |
+
+O rótulo **literal** do HubSpot (com acento, espaço e hífen) vive em
+`crm.sync_estado.pipeline_nome` — o nome da tabela é só um identificador Postgres derivado dele.
+
+**Pipeline novo = três linhas, nenhuma lógica.** O encanamento é orientado a dados
+(`crm.sync_estado` carrega `tabela_destino` e `chave_destino`, e `mind_espelho_gravar` monta o
+upsert sozinho): uma linha em `crm.sync_estado`, uma na config de `platform.integracoes`, e uma
+no mapa `FONTES` da edge `hubspot-sync`.
+
+### Empenho Summit 2026 — a compra pública
+
+Negócio institucional que não passa pelo carrinho: SSP Brasília (R$ 60 mil), SEPLAG/MG, Unesp,
+TCU, Petrobras, Polícia Federal. Por isso vive em pipeline próprio.
+
+Dois estágios dele interessam ao passo dos ingressos que não nascem de venda Eduzz:
+**"Gerar Ingresso (vendedor cadastra na Eduzz)"** → **"Ingresso Gerado (após webhook Eduzz)"**.
+Ou seja: o ingresso de empenho **é** cadastrado na Eduzz, à mão, depois que o empenho é conferido.
+
+### Dois consertos no sync (28/08)
+
+**O status era mentira.** O CHECK de `crm.sync_estado.status` aceitava só
+`ocioso | rodando | concluido | erro`, mas a edge grava **`parcial`** quando a fonte não termina
+dentro do orçamento. A RPC estourava, a edge não checava o retorno, e o status ficava preso em
+`rodando` pra sempre — desde 24/08 parecia sync quebrado quando na verdade os dados entravam
+todo dia. Agora `parcial` é valor válido, e uma falha na marcação final aparece no relatório em
+vez de sumir.
+
+**O orçamento era global.** Os 20 s eram medidos desde o início da requisição, então a primeira
+fonte comia tudo e as seguintes saíam sem ler quase nada. Agora o teto é folgado (120 s, sob os
+150 s do `net.http_post` que dispara) e **cada fonte tem sua fatia**, medida do início dela.
+
 ## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
 
 O que o CRM sabe sobre uma pessoa, para qualquer agente. **Só fatos**: sem score, sem ICP
@@ -353,10 +403,9 @@ Papéis: `pessoas.pessoas` = identidade; `crm.*` = histórico/deals (lido ao viv
 `utm_sessoes` evento do lead) + conversas.
 **Chave de join = email** → `crm.contato_espelho.hubspot_id` → **`crm.negocio_contatos`** (view:
 relação deal↔contato derivada de `propriedades->_contatos`; 100% casa com o espelho) → os **deals
-da pessoa**. Já funciona pros 2 pipelines espelhados: `default` (histórico, `negocios_historicos`)
-e `917379159` (summit, `pipeline_summit_leads_captados`). `pessoa_id` segue NULO nesses espelhos
-(ligamos por hubspot_id/email, não por pessoa_id). Pipelines ainda NÃO espelhados no Hub precisam
-de sync (tabela por pipeline).
+da pessoa**. Funciona pros quatro pipelines espelhados — ver a tabela em *Espelho do HubSpot*.
+Pipeline novo é **três linhas de configuração**, não código: `crm.sync_estado` +
+`platform.integracoes` + o mapa `FONTES` da edge.
 
 ## Silence Re-evaluation Engine — quem manda no relógio  ⏸️ *pausado em 28/08*
 
