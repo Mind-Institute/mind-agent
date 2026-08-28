@@ -124,6 +124,27 @@ decidir perguntar algo quando for necessário para resolver a necessidade atual.
 Adaptadores: `treble_agent_start` (+ janela de 24h, que é do canal) e `mindagent_chat_start`
 (+ autenticação de sessão, que é do canal).
 
+**O core não é público.** `create function` no Postgres dá EXECUTE a PUBLIC por padrão, e no
+Supabase PUBLIC alcança `anon`/`authenticated` via PostgREST — qualquer um com a chave anon
+poderia criar pessoa, gravar mensagem e **ler perfil alheio** em `mind_conversa_estado`. Todas as
+funções do core foram revogadas de PUBLIC/anon/authenticated e concedidas só a
+`postgres, service_role`. Os adaptadores são edge functions com service role; o site só chama a
+edge `mindagent-bootstrap`, nunca RPC direto.
+
+**E-mail citado não é identidade.** Achar um e-mail no texto não é evidência de que ele seja da
+pessoa — "manda também pra minha colega ana@empresa.com" é o contraexemplo. Só
+`email_informado` (semântica: *o lead disse que este e-mail é dele*) vira candidato a
+identificador. E como o e-mail não vai em texto claro para a OpenAI, ele viaja **mascarado**
+como `[email_1]`, `[email_2]`: o modelo devolve o rótulo do que é dele, e o adaptador resolve o
+valor deste lado. A regex só extrai e valida depois que a semântica já está estabelecida.
+
+**A conversa identificada é âncora.** Se `conversas.participante_id` já está preenchido, uma
+entrada posterior **nunca** devolve outra pessoa. Evidência nova ou enriquece a pessoa ligada, ou
+vira conflito pendente. Nunca troca `participante_id`, nunca move identificador.
+
+**`mind_pessoa_completar` não tem autoridade de identidade** — só sobrenome, empresa e cargo.
+E-mail, WhatsApp, auth e HubSpot passam exclusivamente por `mind_identidade_resolver`.
+
 **Chaves que deixaram de assumir um canal só:** `engagement.conversas` agora é
 `unique (canal, session_external_id)` — antes o id de sessão era único no sistema inteiro e dois
 canais colidiam. `engagement.mensagens` é `unique (conversa_id, client_msg_id)` — id externo não
