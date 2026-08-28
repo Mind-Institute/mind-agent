@@ -65,7 +65,9 @@ e o "antes de criar tabela, pergunte" estão no `README_FIRST.md`.
 
 **Verdades transversais**
 - `ecossistema` — universais: `palestrantes_especialistas` (13). *(catálogo e políticas devem vir pra cá.)*
-- `catalogo` — mapa vertical→produtos→pipeline: `produtos` (11). *(alvo: dentro de `ecossistema`.)*
+- `catalogo` — mapa vertical→produtos→pipelines: `produtos` (11). Tambem e o **registry comercial**:
+  `pipelines_hubspot text[]` diz em quais pipelines de Deal do HubSpot cada produto e negociado
+  hoje. *(alvo: dentro de `ecossistema`.)*
 - `agentes` — `prompts`: prompt base, playbooks e tom de voz, por `chave`
   (`playbook_router`, `playbook_summit_b2b`, `playbook_summit_b2c`, `playbook_cliente_suporte`,
   `tom_de_voz`). É AQUI que vivem os playbooks — não criar tabela separada.
@@ -355,6 +357,57 @@ vez de sumir.
 **O orçamento era global.** Os 20 s eram medidos desde o início da requisição, então a primeira
 fonte comia tudo e as seguintes saíam sem ler quase nada. Agora o teto é folgado (120 s, sob os
 150 s do `net.http_post` que dispara) e **cada fonte tem sua fatia**, medida do início dela.
+
+## Realidade comercial universal — `public.mind_crm_comercial(pessoa_id)`  *(Passo 5A)*
+
+Responde: **"o que comercialmente já sabemos sobre esta pessoa no HubSpot agora?"** Pertence à
+Mind Intelligence, não ao vendedor do Summit. Serve qualquer agente futuro.
+
+> **PLAYBOOK DECIDE COMO PENSAR. INTELLIGENCE INFORMA O QUE É VERDADE AGORA.**
+
+Não escolhe estratégia, não pontua, não recomenda oferta, não decide rota, não cria Lead, não
+escreve no HubSpot. Só coleta e normaliza fato.
+
+**O contato é a fonte da verdade** do histórico consolidado (o que comprou, de que participou,
+categoria, tipo de entrada). Os deals históricos **não** reconstroem esse histórico — servem só
+para fato transacional (carrinho, fatura aberta, pendência, refund, valores, datas, cupom).
+
+**`crm.mapa_produtos` enriquece, nunca filtra.** A ordem é: ler a realidade do contato primeiro,
+depois anexar `produto_codigo` quando houver mapping. Propriedade sem mapping **não some** —
+aparece em `contato_consolidado` com `produto_codigo` nulo, e `meta.evidencias_sem_mapping` conta
+quantas foram. Numa pessoa de teste isso preservou 6 fatos, incluindo
+`summit__categoria_do_ingresso`, que não tem mapping nenhum.
+
+**Como descobre pipeline sem hardcode** — a divisão de papéis é o que elimina o `if summit → tabela A`:
+
+```
+catalogo.produtos.pipelines_hubspot   → QUAL produto usa QUAL pipeline (semântica)
+crm.sync_estado.pipeline_id           → ONDE aquele pipeline está espelhado (operação)
+        ↓
+   tabela_destino → leitura via SQL dinâmico, identificador sempre vindo de
+   crm.sync_estado e quotado com %I
+```
+
+Pipeline autorizado no catálogo mas sem linha em `crm.sync_estado` **não é silenciado**: sai em
+`meta.pipelines_sem_espelho`.
+
+**Identidade:** `pessoa_id` → `engagement.identidades (canal='hubspot')` → contato. **Nunca** por
+`pessoas.hubspot_id`, `crm.contato_espelho.pessoa_id` ou `deal.pessoa_id` — foi por esse caminho
+legado que veio o overmerge por telefone corporativo compartilhado. Pessoa com mais de um contato
+mantém os dois, com proveniência por evidência; sem merge automático.
+
+**Carrinho superado.** Um sinal transacional não convertido só é oportunidade **atual** se o
+consolidado do contato não mostrar que a pessoa depois adquiriu aquele mesmo produto. Carrinho
+Summit 2026 + `summit__participacao_anual` contendo 2026 → fica como fato histórico em
+`superados`, com `superado_por_conversao: true`. Sem a participação → vai para `relevantes`.
+
+**Refund é preservado sempre**, mesmo quando o contato ainda mostra o produto — há refunds que
+ainda não atualizam as propriedades consolidadas, e ignorá-los esconderia a verdade.
+
+Contrato: `{ ok, pessoa_id, contato_consolidado[], produtos[], lead_atual[], negociacoes[],
+sinais_transacionais{relevantes,superados,refunds}, meta{contatos_hubspot_considerados,
+sem_contato_hubspot, fontes_lidas, pipelines_sem_espelho, evidencias_sem_mapping, sync} }`.
+Dois Leads ou duas negociações legítimas voltam os dois — o coletor não escolhe vencedor.
 
 ## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
 
