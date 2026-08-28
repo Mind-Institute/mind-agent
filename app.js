@@ -1294,7 +1294,8 @@ const GUIA_ZONA_VOLTA = 0.3;
 
 const GUIA = [
   { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false,
-    texto: 'Eu monto seu roteiro dos dois dias, indico palestras e pessoas pelo que você me contar, e respondo dúvida de programação, sala, horário e credenciamento.' },
+    texto: 'Pergunte qualquer coisa sobre o evento: programação, palestrantes, salas e horários. Respondo na hora, com a informação oficial. E se me contar o que te interessa, sugiro conteúdo para você.',
+    aviso: '<b>Eu ajudo, mas quem faz é você.</b> Não faço credenciamento, não reservo lugar e não monto sua agenda sozinho — mostro o caminho, você confirma no app.' },
   { rotulo: 'Agenda', selo: 'A programação', x: 0.30,
     texto: 'A grade inteira dos dias 16 e 17. Toque no coração para salvar o que não quer perder.',
     aviso: '<b>Só a Arena Mind tem lugar para todo mundo.</b> Nas outras arenas a capacidade é limitada — reserve antes para garantir o seu.' },
