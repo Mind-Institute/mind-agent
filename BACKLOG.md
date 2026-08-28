@@ -85,7 +85,37 @@ idempotente com trava (mesmo padrão de `crm.status_summit_hs`).
 
 ---
 
-## 8. Texto dos templates (HSM) vem vazio
+## 8. 19 funções ainda apontam pros schemas antigos (`summit.*` / `comum.*`)  ⚠️
+
+**Status:** achado ao consertar o contexto do agente. **Não corrigido** (fora do escopo do pedido).
+
+Os schemas foram renomeados (`summit` → `summit_2026`, `comum` → `ecossistema`), mas **21 funções**
+continuaram apontando pros nomes velhos. Elas **quebram ao serem chamadas** — não é aviso, é erro
+de "relation does not exist".
+
+Já corrigidas (eram o caminho do contexto do agente): `public.treble_agent_context_base`,
+`public.mind_virada_de_lote`.
+
+**Ainda quebradas (19):**
+`api.changed_since` · `api.event` · `api.knowledge` · `api.me` · `api.mindagent_bootstrap` ·
+`api.my_agenda` · `api.sessions` · `api.speakers` · `api.treble_event_bundle` ·
+`api.treble_find_location` · `api.treble_route` · `concierge.resumo_do_dia` ·
+`public.mind_admin_dashboard_counts` · `public.mind_admin_mutate_resource` ·
+`public.mind_admin_read_resource` · `public.mind_conteudo` · `public.mind_materiais_para` ·
+`public.mind_precos_por_volume` · `public.mindagent_chat_search` · `public.mindagent_sync_offers`
+
+Isso provavelmente derruba o app do Summit (as `api.*`), o painel admin (`mind_admin_*`) e a busca
+do chat do site. **Vale conferir o que dessas ainda é usado** — talvez várias sejam lixo de
+migração e devam ser apagadas em vez de corrigidas.
+
+Mapa de equivalência: `summit.events/sessions/offers/commercial_rules` → `summit_2026.*` ·
+`summit.conhecimento` → `summit_2026.knowledge_documents` · `comum.speakers` →
+`ecossistema.palestrantes_especialistas` (`cargo_curto`, `instituicao`; **sem** `destaque`) ·
+`comum.taxonomy` → **não existe mais**.
+
+---
+
+## 9. Texto dos templates (HSM) vem vazio
 
 **Status:** conhecido, não corrigido.
 
@@ -100,7 +130,7 @@ tem texto), e os vazios são disparos de campanha sem conversa. Correção é ~1
 
 ---
 
-## 9. Devolver "lead ruim" pro tráfego — investigado: **já existe casa no HubSpot**
+## 10. Devolver "lead ruim" pro tráfego — investigado: **já existe casa no HubSpot**
 
 **Status:** investigado (a pedido da Adriana). Não precisa criar propriedade nova.
 
