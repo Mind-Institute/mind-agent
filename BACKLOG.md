@@ -23,6 +23,17 @@ falta uma peça. Item sai daqui quando vira código no ar — ou quando a gente 
 `Informação sobre o evento` → `summit_info_evento` · `Ver condições` → `delegacoes_condicoes_wpp`
 (reusou a origem que já existia; **se essa CTA não for de delegações, é só avisar que eu troco**).
 
+**Espelho Eduzz (bilheteria + vendas)** — no ar (28/08). `3.202 ingressos + 3.192 vendas`,
+carga completa em 5,4 s, cron job 14 (`:20` e `:50`). **Este projeto não fala com a Eduzz:**
+quem fala é o Supabase `mind-summit-vendas-dashboard`, que tem os tokens e já sincroniza sozinho —
+o mind-agent espelha o espelho, por uma porta só de leitura (`espelho_para_mind`, protegida por
+segredo no Vault de lá). A `EDUZZ_API_KEY` guardada aqui **não abre nada**: não existe app OAuth
+pra conta 14449348 (`/oauth/token` → `App not found`). Pra puxar direto daqui um dia, tem que
+**criar um app OAuth na Eduzz** — não adianta procurar a chave certa. `pessoa_id` é **junção**
+(views `eduzz.v_ingressos` / `v_vendas`), não coluna, pra ressincronização não apagar a ligação.
+**1.352 pessoas já têm ingresso ligado.** Histórico de vendas confirmado **completo** contra a
+própria Eduzz (`totalItems: 3185` para 2019–2026).
+
 **Entrada de telefone** — normalização canônica `public.telefone_normalizar()` + gatilhos em
 `pessoas.pessoas`, `engagement.conversas` e `treble.status_da_conversa`. Conserta o 9 do celular
 (regra determinística: 8 dígitos começando em 6-9 = celular sem o 9), prepende DDI, devolve NULL
@@ -217,3 +228,40 @@ em `crm.contato_espelho`. Pra ler/escrever com segurança, o sync precisa trazer
 
 **A decidir com a Adriana:** a IA pode escrever `motivo_do_lead__perdido` e `icp`, ou isso fica
 como sugestão pra revisão humana?
+
+---
+
+## 11. Ingresso que NÃO vem de venda Eduzz: venda direta, cortesia e patrocínio  ⭐ PRÓXIMO
+
+**Status:** terreno levantado (28/08), **decisões pendentes com a Adriana**. Nada construído.
+
+O espelho da Eduzz cobre quem **comprou pela Eduzz**. Fora dele existem ingressos de
+**venda direta, cortesia e patrocínio** — que não nascem de fatura e por isso não têm origem
+marcada em lugar nenhum.
+
+**O que já existe no projeto Vendas** (não começar do zero):
+
+| tabela | linhas | o que é |
+|---|---|---|
+| `credenciamento_produtos_mapa` | 33 | `produto_cru`/`lote_cru` → `categoria`, `lote_limpo`, **`origem`**, `empresa_patrocinadora` |
+| `cortesia_requisicoes` | — | nome, e-mail, whatsapp, cpf, empresa, tipo, motivo, `entidade`, quem pediu, `emitido_em` |
+| `receita_participantes` | ~120 | participantes de uma receita (`receita_id`), com `ingresso_uuid` |
+| `ingressos_gerados` | ~1.071 | ingressos gerados, com `arquivado_em` / `cancelado_em` |
+| `espelho_lotes_map` | 67 | `lote_uuid` → produto |
+
+**O buraco, medido:** `credenciamento_produtos_mapa.origem` só tem **`Pago`** e **`Cortesia`**,
+em 3 categorias (Mind / Prime / VIP). **Não existe `Venda direta` nem `Patrocínio`**, e
+`empresa_patrocinadora` está **100% vazia**.
+
+**A pergunta que decide o desenho inteiro:** um ingresso de cortesia/patrocínio/venda direta
+**aparece no Blinket** ou não?
+- **Se aparece** → ele já está no espelho, só sem origem marcada. O trabalho é **classificar**.
+- **Se não aparece** → precisa **nascer** do nosso lado. Trabalho totalmente diferente.
+
+**Outras decisões (são de negócio, não invento):**
+1. "Venda direta" é venda fora da Eduzz (PIX/boleto/contrato) ou venda Eduzz de produto que não é
+   ingresso? Onde é registrada hoje — planilha, `receita_participantes`, ou nada?
+2. Patrocínio: o patrocinador ganha N ingressos por contrato? Quem nomeia as pessoas, e quando?
+3. `cortesia_requisicoes` é a fonte real e atual, ou virou histórico?
+
+Passo a passo de retomada em `docs/RETOMAR_AMANHA.md`.

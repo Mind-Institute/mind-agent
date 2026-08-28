@@ -185,25 +185,53 @@ e pela ponte, mantendo a assinatura que a edge `treble-status-hubspot` usa.
 ninguém mais é dono daquele valor. Para quem tem mais de um contato ele aponta para um deles de
 forma arbitrária — a verdade multi-contato está em `engagement.identidades` + `crm.contato_espelho`.
 
-## Schema `eduzz` — espelho do Blinket (bilheteria)  ⛔ *carga bloqueada por credencial*
+## Schema `eduzz` — espelho da bilheteria e das vendas  ✅ *carregado*
 
-Mesmo padrão do espelho do HubSpot: colunas promovidas para o que a gente usa **+ `payload jsonb`
-com o registro cru**, para a carga nunca ficar presa a um palpite de formato — puxa primeiro,
-promove coluna depois de ver o dado real.
+**Quem fala com a Eduzz não é este projeto.** É o Supabase `mind-summit-vendas-dashboard`
+(`tkludhksqcnhhpgqyfqq`): ele tem dois tokens válidos no Vault dele (`eduzz_api_token` para o
+Blinket, `eduzz_access_token` para as vendas) e já sincroniza sozinho — Blinket de 30 em 30 min
+(`espelho_blinket_fire`/`_load`), vendas de 15 em 15 (`pull_eduzz_sales`).
 
-`eduzz.eventos` · `eduzz.ingressos` (uma linha por participante da lista de presença, com
-telefone normalizado pelo mesmo `telefone_normalizar`) · `eduzz.marcadores` ·
-`eduzz.ingresso_marcadores` · `eduzz.sync_estado`.
+O mind-agent **espelha o espelho**. Uma credencial, um sync. Montar uma segunda puxada aqui
+seria uma segunda credencial e uma segunda coisa pra quebrar, buscando exatamente o mesmo dado.
 
-`eduzz.ingressos.pessoa_id` existe e fica **nulo**: quem resolve identidade é
-`mind_identidade_resolver`, nunca uma carga de terceiro.
+```
+Eduzz ──token──> projeto Vendas ──espelho_para_mind()──> mind-agent (schema eduzz)
+                 (dono do sync)     leitura, com segredo      (só lê)
+```
 
-**O que trava:** `EDUZZ_API_KEY` existe nos secrets (64 caracteres, hex) mas **não é access token
-OAuth**. Diagnóstico: `api.eduzz.com/blinket/v1/events` existe e exige `Bearer` válido;
-`api2.eduzz.com/credential/generate_token` é a rota certa do formato legado e respondeu
-`#0002 Unauthorized - Invalid credentials` com `publickey=14449348` + a chave atual;
-`accounts.eduzz.com/oauth/token` devolve tela de login (fluxo de navegador, não máquina).
-Falta a **publickey** correta e o **e-mail da conta Eduzz**.
+| peça | onde | o que faz |
+|---|---|---|
+| `public.espelho_para_mind(segredo, fonte, offset, limite)` | **no Vendas** | única porta. `SECURITY DEFINER`, **só leitura**, protegida por segredo no Vault de lá |
+| `eduzz.ingressos` · `eduzz.vendas` | aqui | cópia crua da origem, sem coluna local |
+| `eduzz.v_ingressos` · `eduzz.v_vendas` | aqui | as mesmas linhas **+ `pessoa_id` resolvido por junção** |
+| `eduzz_espelho_gravar` / `_config` / `_estado` | aqui | encanamento do lote |
+| edge `eduzz-espelho-sync` + cron job 14 (`:20`,`:50`) | aqui | orquestra, pagina de 500 |
+
+**Carga completa: 3.202 ingressos + 3.192 vendas, em 5,4 s.**
+
+**`pessoa_id` não é coluna, é junção.** Se fosse coluna, toda ressincronização apagaria a ligação
+ou exigiria um passo extra pra refazê-la. Na view a resposta é sempre a atual e custa nada
+(indexado). A regra do Passo 3 vale igual: **e-mail do cadastro do ingresso é evidência forte;
+telefone só conta quando aponta para UMA pessoa** — `pessoa_criterio` diz qual dos dois casou.
+Nem a view nem o sync escrevem identidade: essa porta continua sendo só `mind_identidade_resolver`.
+
+| | linhas | por e-mail | por telefone único | sem pessoa |
+|---|---|---|---|---|
+| `v_ingressos` | 3.202 | 1.083 | 507 | 1.612 |
+| `v_vendas` | 3.192 | 1.150 | 589 | 1.453 |
+
+**1.352 pessoas do Mind já têm ingresso ligado.** Os "sem pessoa" são compradores que nunca
+falaram com a gente em nenhum canal — e ficam sem pessoa mesmo. Não se inventa gente a partir
+de uma compra.
+
+**Por que a chave daqui não serve (fechado, não é palpite):** `EDUZZ_API_KEY` existe nos secrets
+(64 caracteres, hex) e não abre nada sozinha. O `accounts-api.eduzz.com/oauth/token` só aceita
+**form-encoded** (JSON devolve 500) e, em form-encoded com `client_id=14449348`, responde
+**`404 App not found`** — não existe app OAuth para essa conta. O formato legado
+(`api2.eduzz.com/credential/generate_token`) devolve `#0002 Invalid credentials` em todas as
+permutações de publickey/apikey, inclusive trocadas. Se um dia se quiser puxar direto daqui,
+o caminho é **criar um app OAuth na Eduzz**, não descobrir a chave certa.
 
 ## Coletor factual de CRM — `public.mind_crm_fatos(pessoa_id)`
 
