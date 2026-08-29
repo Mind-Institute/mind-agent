@@ -16,14 +16,18 @@ Se algum documento divergir do banco, **o banco vence**.
 
 ## Estado atual
 
-Passos **1 a 9 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
+Passos **1 a 10 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
 resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor factual
 de Engagement · normalização de áudio · normalização determinística da pessoa · AGENT_CONTEXT
-universal · contrato do AGENT_CONTEXT coberto por teste.
+universal · contrato do AGENT_CONTEXT coberto por teste · Router universal.
 
-**Próximo passo: 10 — Router universal.**
+O **Router** decide qual das seis competências assume a necessidade atual e está deliberadamente
+**fora do runtime**: existe, é chamável e está coberto por teste, mas nada em produção depende
+dele ainda — ligá-lo ao turno ao vivo é do Passo 11.
 
-Router, Kit da rota, Decisioning e memória universal seguem como arquitetura congelada, ainda não
+**Próximo passo: 11 — Registry de rotas + capability gate.**
+
+Kit da rota, Decisioning e memória universal seguem como arquitetura congelada, ainda não
 implementados.
 
 ```bash

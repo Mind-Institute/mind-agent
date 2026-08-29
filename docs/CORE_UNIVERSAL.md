@@ -592,16 +592,112 @@ coletores. O que fica travado:
 
 ---
 
-## 10. Router — roadmap
+## 10. Router universal  ✅ *fechado (Passo 10)*
 
-**Não implementado.** Taxonomia de rotas congelada:
+**O Router responde a uma pergunta só: qual competência assume a necessidade atual.**
+Não é classificador de assunto, não é detector de produto, não é filtro de canal. Ele nomeia a
+rota — e quem executa a rota é outro componente.
 
+### As seis rotas
+
+| rota | competência |
+|---|---|
+| `summit_b2c` | comprar ingresso para si — decisão individual |
+| `summit_b2b` | levar time, grupo ou delegação — decisão de empresa |
+| `institute` | formação/curso do Mind Institute |
+| `dash` | produto Dash — assinatura, acesso, uso |
+| `cliente_suporte` | já é cliente e tem um problema com o que comprou |
+| `concierge_summit` | já tem ingresso e quer viver o evento — agenda, local, logística |
+
+`cliente_suporte` é **transversal e prevalece**: quem já comprou e está com problema é
+atendimento, não venda, independente do produto envolvido.
+
+**`ja_comprou` e `desconhecido` não são rotas.** Já ter comprado é um fato sobre a pessoa, não uma
+competência — quem já comprou pode estar comprando de novo (`summit_b2b`), pedindo suporte
+(`cliente_suporte`) ou querendo viver o evento (`concierge_summit`). E não saber ainda qual é a
+necessidade não é uma competência: é a ausência de decisão, que o contrato representa como
+`rota = null` + `precisa_esclarecer = true`.
+
+### A necessidade atual decide; o histórico informa
+
+`origem_codigo`, `produto_codigo` e `entry_action` são **evidência**, não autoridade. Uma pessoa
+que entrou por uma campanha de delegações e escreveu "meu ingresso não chegou" é
+`cliente_suporte`, não `summit_b2b` — a campanha explica de onde ela veio, não o que ela precisa
+agora. O mesmo vale para o CRM: cargo de diretoria e empresa grande no espelho não transformam
+"quero comprar meu ingresso" em B2B.
+
+### Quando o Router roda
+
+**Só quando a rota ainda não está determinada.** Se o contexto de entrada já fecha a rota, não há
+o que decidir e a chamada é desperdício. **Identidade e contexto vêm antes do Router, sempre** — o
+Router não resolve pessoa, não monta contexto e não lê o banco por conta própria: ele consome o
+`AGENT_CONTEXT` do Passo 8 e mais nada.
+
+O pré-roteamento determinístico — a parte que resolve a rota sem IA a partir da entrada — é do
+**Passo 11**, junto com o Registry. Neste passo ele não existe.
+
+### `router` — Edge Function
+
+`POST /router?token=<intelligence.config.analise_token>` com `{ "conversa_id": "<uuid>" }`.
+Mesmo padrão de auth e de config do `analisar-conversa`: token em `intelligence.config`, prompt em
+`agentes.prompts`, OpenAI Responses API com `json_schema` strict e `store:false`.
+
+```jsonc
+{ "ok": true, "conversa_id": "…",
+  "rota": "summit_b2b" | null,
+  "precisa_esclarecer": false,
+  "candidatas": [] }
 ```
-summit_b2c · summit_b2b · institute · dash · cliente_suporte · concierge_summit
-```
 
-O Router **só decide quando a rota não veio determinada** pelo contexto de entrada.
-**Identidade e contexto vêm antes do Router**, sempre.
+Quatro invariantes, garantidas no servidor e não confiadas ao modelo:
+
+- `rota` ∈ **exatamente** as seis rotas, ou `null`. O `enum` do schema fecha a taxonomia.
+- `precisa_esclarecer` é `rota is null` — não é um campo independente que possa contradizer a rota.
+- rota escolhida ⇒ `candidatas = []`. Candidatas só existem quando não houve decisão.
+- `ok` e `conversa_id` são preenchidos pela Edge, não pelo modelo: o id já é conhecido com
+  certeza, e pedir para o modelo repetir um uuid só cria espaço para ele errar.
+
+**Sem fala do lead, não chama IA.** Conversa sem nenhuma mensagem `papel='lead'` devolve
+`rota=null`, `precisa_esclarecer=false`, `candidatas=[]` — não há necessidade atual para rotear, e
+isso não é ambiguidade. A entrada do modelo é a **última fala do lead** como necessidade atual,
+mais o `AGENT_CONTEXT` inteiro como evidência.
+
+Os três contratos de erro do `mind_agent_context` são espelhados tal como são —
+`sem_conversa` · `conversa_nao_encontrada` · `conversa_sem_pessoa` — em HTTP 200 com `ok:false`.
+
+O prompt vive em `agentes.prompts['router_universal']` (ativo, v1), escrito pela Adriana. **Nenhuma
+regra de roteamento está codificada na Edge Function** — a Edge é encanamento; a competência é do
+prompt.
+
+### Deliberadamente desconectado do runtime
+
+O Router **não está integrado ao Treble**. `treble-inbound-agent`, `treble_agent_prompt` e
+`mind_turno_registrar` não foram tocados; a rota **não é persistida** e `engagement.conversas` não
+mudou. O Router existe, é chamável e está coberto por teste — e nada em produção depende dele.
+Isso é escolha, não pendência: ligar o Router ao turno ao vivo depende do Registry (Passo 11) e do
+contrato de ação (Passo 14).
+
+**Capability não altera rota.** Se a competência certa é `dash`, a rota é `dash` mesmo que ainda
+não exista nada capaz de atender — o que se faz com uma rota sem capacidade é o **capability gate
+do Passo 11**. Handoff é o **Passo 14**.
+
+### Blocker conhecido para a integração
+
+A latência do transporte da Treble (§8, Passo 6B) continua aberta: nos testes reais, a resposta
+devolvida em ~4,4 s chegou ao WhatsApp e a de ~5,96 s não. **Uma chamada de Router no caminho do
+turno ao vivo soma latência a um caminho que já falha perto de 6 s.** Registrado aqui como
+restrição para o Passo 11 — não se resolve neste passo, e o Passo 10 não a agrava justamente por
+não estar no caminho do turno.
+
+### Testes
+
+14 testes contra a Edge ao vivo, com fixtures isoladas criadas e removidas (resíduo verificado em
+zero). Cobrem as seis rotas; a prevalência de `cliente_suporte` sobre a origem da campanha e sobre
+"já comprou"; `origem_codigo`/`entry_action` como evidência e não autoridade; CRM de empresa
+grande que **não** transforma compra individual em B2B; ambiguidade real (`rota=null`,
+`precisa_esclarecer=true`, seis candidatas); conversa sem fala do lead; e uma varredura final das
+14 respostas confirmando taxonomia fechada, invariantes e formato exato do contrato — nenhuma rota
+fora da taxonomia, nenhuma invariante quebrada, nenhuma resposta fora do formato.
 
 ---
 
@@ -619,8 +715,8 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 7 | **Normalização determinística da pessoa** | ✅ **fechado** |
 | 8 | **AGENT_CONTEXT universal** | ✅ **fechado** |
 | 9 | **Testes de contrato do AGENT_CONTEXT** | ✅ **fechado** |
-| 10 | Router universal | ⏭️ **PRÓXIMO** |
-| 11 | Registry de rotas + capability gate | |
+| 10 | **Router universal** | ✅ **fechado** |
+| 11 | Registry de rotas + capability gate | ⏭️ **PRÓXIMO** |
 | 12 | Separação Base / Router / Kit Loader | |
 | 13 | Finalizar cérebro de vendas Summit | |
 | 14 | Contrato universal de ação + handoff | |
