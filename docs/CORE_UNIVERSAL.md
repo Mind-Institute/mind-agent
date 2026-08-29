@@ -121,6 +121,46 @@ liga a mensagem órfã. Conversa já identificada é **âncora**: ganha de qualq
 Algumas tabelas de CRM têm uma coluna `pessoa_id` de origem histórica. **Ela não é caminho
 canônico de leitura e não deve ser propagada para tabelas novas.** Ver §13.
 
+### `public.mind_pessoa_fatos(p_pessoa_id uuid) → jsonb`  *(Passo 7)*
+
+Responde: **"quem é esta pessoa, em fatos?"** — e nada além disso.
+
+Lê `pessoas.pessoas`, `engagement.identidades`, `engagement.identidade_fusoes` e
+`crm.contato_espelho`. Sem LLM, sem inferência, sem score. Devolve `perfil` (primeiro nome,
+sobrenome, empresa, cargo), `identificadores`, `conflitos_perfil` e `meta`.
+
+**O caminho para o CRM é um só:**
+
+```
+pessoa_id → engagement.identidades (canal='hubspot') → identificador → crm.contato_espelho.hubspot_id
+```
+
+`pessoas.pessoas.hubspot_id` e `crm.contato_espelho.pessoa_id` são legado e **não** são caminho
+de leitura. Uma identidade `hubspot` sem espelho correspondente não é silenciada nem inventada:
+vira `meta.identidades_hubspot_sem_espelho`, e nunca um conflito de perfil.
+
+**Divergência não elege vencedor.** Para cada campo, os valores não vazios de `pessoas.pessoas` e
+de todos os contatos CRM ligados canonicamente são comparados com **trim, espaços consecutivos e
+case** — só isso, nada de acento, similaridade ou semântica. Então:
+
+| valores distintos | resultado |
+|---|---|
+| 0 | `perfil[campo] = null` |
+| 1 | `perfil[campo]` = esse valor |
+| 2 ou mais | `perfil[campo] = null` **e** o campo entra em `conflitos_perfil` |
+
+No conflito, cada valor carrega a proveniência — `{"tipo":"pessoa"}` ou
+`{"tipo":"crm","hubspot_id":…}`. Dois contatos que trazem o mesmo valor aparecem como **um**
+valor com **duas** fontes. Nenhum `updated_at` desempata: esses timestamps são da linha, não do
+campo, e usá-los seria inventar precedência.
+
+`meta.pendencia_identidade` reporta fusões em aberto para a pessoa. É **fato, não efeito**: não
+remove dado, não troca `pessoa_id`, não funde e não desempata perfil.
+
+**Fato da pessoa ≠ estado da oportunidade.** Empresa e cargo são fatos sobre a pessoa e moram
+aqui. B2B/B2C classifica a **negociação atual**, muda de uma conversa para outra e **não** pertence
+a esta função — nem ICP, tier, produtos, compras, intenção, estágio, score ou recomendação.
+
 ---
 
 ## 4. CRM / HubSpot
@@ -508,8 +548,8 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 5 | Compras + contexto comercial | ✅ **5A fechado** |
 | 6 | Coletor factual de Engagement | ✅ **fechado** |
 | 6B | **Normalização de áudio** | ✅ **fechado** |
-| 7 | Normalização determinística da realidade | |
-| 8 | Construção do AGENT_CONTEXT universal | |
+| 7 | **Normalização determinística da pessoa** | ✅ **fechado** |
+| 8 | Construção do AGENT_CONTEXT universal | ⏭️ **PRÓXIMO** |
 | 9 | Testes de contrato do AGENT_CONTEXT | |
 | 10 | Router universal | |
 | 11 | Registry de rotas + capability gate | |
