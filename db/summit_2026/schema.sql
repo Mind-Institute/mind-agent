@@ -138,10 +138,13 @@ create table if not exists summit_2026.experiencias (
 );
 
 -- -----------------------------------------------------------------------------
--- ingressos — [SYNC] identidade do tier. SEM preço/%-vendido/datas (esses são LIVE).
+-- ingressos — [SYNC] identidade do tier. SEM preço/%-vendido/datas/CHECKOUT: tudo isso
+-- vive junto na CAMADA COMERCIAL (espelho de mind-summit-propostas):
+--   • ticket_categories.checkout_url + slug  → o link de cada tier
+--   • lote_precos / lotes                    → preço por lote + datas
+--   • pricing_tiers                          → descontos de delegação (min_ingressos → off%)
+-- `categoria_preco` = chave p/ casar com `ticket_categories.slug` (o agente pega link/preço lá).
 -- Responde: "diferença entre ingressos" (junto com ingresso_inclusoes).
--- `categoria_preco` = chave p/ casar com a fonte de preço (ticket_categories /
--- product_category_map em mind-summit-propostas).
 -- -----------------------------------------------------------------------------
 create table if not exists summit_2026.ingressos (
   id               text primary key,                          -- mind | vip | prime
@@ -151,8 +154,7 @@ create table if not exists summit_2026.ingressos (
   simbolo          text,
   accent           text,
   para_quem        text,                                      -- persona resumida (RH/Gestor/Liderança…)
-  checkout_url     text,                                      -- link Eduzz
-  categoria_preco  text,                                      -- chave -> fonte de preço LIVE
+  categoria_preco  text,                                      -- chave -> ticket_categories.slug (checkout/preço/desconto vivem lá)
   ordem            integer not null default 0,
   origem           text not null default 'site-git',
   commit_sha       text,
