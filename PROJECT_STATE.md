@@ -3,8 +3,9 @@
 > **Documento obrigatório de entrada no projeto.**
 > Este arquivo preserva as decisões congeladas, a ordem de trabalho e o checkpoint atual para que uma nova IA ou desenvolvedor consiga continuar o projeto sem depender de conversa anterior.
 >
-> **Versão do checkpoint: v2 — 29/08/2026.**
-> v2 formaliza a mudança de prioridade feita no Passo 12: completar toda a Intelligence do Summit **não bloqueia** o go-live do vendedor. A investigação já feita fica preservada no `BACKLOG.md`; o caminho crítico passa a ser Kit Loader mínimo → vendas Summit → runtime completo → Treble E2E.
+> **Versão do checkpoint: v3 — 29/08/2026.**
+> v2 formaliza a mudança de prioridade feita no Passo 12: completar toda a Intelligence do Summit **não bloqueia** o go-live do vendedor. A investigação já feita fica preservada no `BACKLOG.md`; o caminho crítico passa a ser Kit Loader mínimo → vendas Summit → runtime completo → Treble E2E. **Essa decisão continua vigente — v3 não a substitui.**
+> v3 acrescenta e formaliza o **modo de execução assistida/autônoma** entre Adriana, ChatGPT, Claude Code e GitHub (§2B). É uma decisão sobre como o trabalho é conduzido; não altera arquitetura, runtime nem a ordem do roadmap.
 
 ---
 
@@ -80,6 +81,28 @@ Critério operacional:
 Testar o que mudou e regressões diretamente afetadas. Suíte completa só quando a mudança for estrutural ou explicitamente pedida.
 
 Não criar abstrações, hardening ou proteções para riscos hipotéticos distantes.
+
+---
+
+## 2B. Modo operacional de execução — decisão congelada (v3)
+
+Papéis:
+
+- **Adriana** = dona das decisões de produto/negócio e das ações manuais que só ela pode executar.
+- **ChatGPT** = arquiteto/orquestrador/reviewer: mantém ordem, decide escopo técnico, instrui Claude, verifica sistema real, revisa mudanças e mantém documentação.
+- **Claude Code** = executor técnico: investiga e implementa apenas o escopo explicitamente delegado, sempre em branch `claude/...`; não decide ampliar escopo.
+- **GitHub** = memória compartilhada + barramento de trabalho entre ChatGPT e Claude.
+
+Regras:
+
+- Claude nunca escreve diretamente em `main`; implementação passa por branch/PR e revisão.
+- Descoberta lateral fora do escopo: não corrigir; registrar/relatar para backlog.
+- Investigação e desenho técnico podem ocorrer autonomamente entre ChatGPT e Claude.
+- Código reversível pode seguir Claude → branch/PR → revisão do ChatGPT → testes afetados → documentação → merge.
+- Alterações de dados, identidade, segurança/RLS/auth/secrets, preço/desconto/regra comercial, outbound/disparo, source of truth, mudança material de comportamento do produto ou operação irreversível exigem gate explícito da Adriana antes da execução perigosa.
+- Claude via GitHub não recebe credenciais de produção nem autorização de deploy. Produção continua separada e controlada.
+- Se uma implementação depender de decisão de produto/negócio não congelada, parar e devolver a pergunta em vez de escolher.
+- O ritual INVESTIGAR → DECIDIR → IMPLEMENTAR → TESTAR → DOCUMENTAR → FECHAR continua valendo; a automação só remove Adriana do papel de mensageira.
 
 ---
 
@@ -592,6 +615,7 @@ Este índice é deliberadamente curto. Quando uma nova decisão for aprovada com
 - LLM retrieval planner decide o que buscar, não a verdade;
 - Source Registry: conteúdo novo automático na fonte registrada; fonte nova pending + aprovação;
 - handoff por necessidade, não por horário;
-- roadmap e ordem operacional.
+- roadmap e ordem operacional;
+- modo operacional de execução Adriana / ChatGPT / Claude Code / GitHub (§2B).
 
 Se alguma dessas decisões mudar, **nova versão deste documento**.
