@@ -565,6 +565,31 @@ escreve. As duas são normalizadas, com prioridade `hubspot_opcao_selecionada_tr
 
 Erros, sem exception: `sem_conversa` · `conversa_nao_encontrada` · `conversa_sem_pessoa`.
 
+### Contrato coberto por teste  *(Passo 9)*
+
+**`tests/mind_agent_context_contract.sql`** — arquivo reexecutável, autocontido, que roda inteiro
+dentro de uma transação e termina em `ROLLBACK`. Não cria extensão, schema, tabela, função
+permanente, migration nem CI; não deixa fixture; não altera nada. Roda com
+`psql "$DATABASE_URL" -f tests/mind_agent_context_contract.sql` e aborta com uma exception que
+nomeia o contrato quebrado.
+
+Ele testa o contrato **observável** — nunca reimplementa a função para comparar duas cópias da
+mesma lógica. Quando precisa de referência, compara com `engagement.conversas` e com os quatro
+coletores. O que fica travado:
+
+- **âncora da conversa** — `pessoa_id` é sempre o `participante_id` da conversa pedida;
+- **passthrough dos coletores** — `person`, `crm` e `commercial` idênticos, JSON a JSON;
+- **`entry`** — conjunto exato de chaves, `origem` reduzida a `site`/`botao_rotulo`/`descricao`, e
+  a `entry_action` nos dois formatos de `variables` com a precedência fechada;
+- **partição atual × histórico** — `conversation` + `conversas_anteriores` reproduzem exatamente
+  as conversas do coletor, sem perda, sem duplicata e na mesma ordem; as somas fecham com o
+  `resumo`;
+- **ausência de Decisioning, Kit e Memory** — verificada pela estrutura do JSON, nunca por busca
+  textual, para que uma palavra escrita por uma pessoa numa mensagem não vire falso positivo;
+- **determinismo** e os **três contratos de erro**;
+- **propriedades da função** — `STABLE`, `SECURITY DEFINER`, `search_path` explícito e `EXECUTE`
+  fechado para `public`/`anon`/`authenticated`.
+
 ---
 
 ## 10. Router — roadmap
@@ -593,8 +618,8 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 6B | **Normalização de áudio** | ✅ **fechado** |
 | 7 | **Normalização determinística da pessoa** | ✅ **fechado** |
 | 8 | **AGENT_CONTEXT universal** | ✅ **fechado** |
-| 9 | Testes de contrato do AGENT_CONTEXT | ⏭️ **PRÓXIMO** |
-| 10 | Router universal | |
+| 9 | **Testes de contrato do AGENT_CONTEXT** | ✅ **fechado** |
+| 10 | Router universal | ⏭️ **PRÓXIMO** |
 | 11 | Registry de rotas + capability gate | |
 | 12 | Separação Base / Router / Kit Loader | |
 | 13 | Finalizar cérebro de vendas Summit | |

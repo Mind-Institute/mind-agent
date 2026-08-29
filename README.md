@@ -16,15 +16,19 @@ Se algum documento divergir do banco, **o banco vence**.
 
 ## Estado atual
 
-Passos **1 a 8 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
+Passos **1 a 9 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
 resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor factual
 de Engagement · normalização de áudio · normalização determinística da pessoa · AGENT_CONTEXT
-universal.
+universal · contrato do AGENT_CONTEXT coberto por teste.
 
-**Próximo passo: 9 — testes de contrato do AGENT_CONTEXT.**
+**Próximo passo: 10 — Router universal.**
 
 Router, Kit da rota, Decisioning e memória universal seguem como arquitetura congelada, ainda não
 implementados.
+
+```bash
+psql "$DATABASE_URL" -f tests/mind_agent_context_contract.sql   # contrato do AGENT_CONTEXT
+```
 
 ## O que mais vive aqui
 
