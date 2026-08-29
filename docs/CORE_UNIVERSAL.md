@@ -51,8 +51,10 @@ QUALQUER ENTRADA
 ```
 
 **O runtime completo ainda NÃO está implementado.** Hoje existem, de ponta a ponta, a
-**ingestão**, a **identidade** e os **coletores factuais**. AGENT_CONTEXT, Router, Decisioning e
-memória universal são arquitetura congelada, não código — ver §9, §10 e §11.
+**ingestão**, a **identidade** e os **coletores factuais**; o **AGENT_CONTEXT** (§9), o **Router**
+(§10) e o **Capability Gate** (§10B) existem e estão cobertos por teste, mas deliberadamente fora
+do runtime — nada em produção depende deles ainda. Kit Loader, Decisioning e memória universal
+seguem como arquitetura congelada, não código.
 
 ---
 
@@ -725,6 +727,124 @@ candidatas não vazia · rota decidida com `candidatas=[]` · conversa sem fala 
 
 ---
 
+## 10B. Capability Gate  ✅ *fechado (Passo 11)*
+
+**O Router decide a rota correta. O Capability Gate decide se o runtime atual consegue
+executá-la.** São perguntas diferentes, e a resposta de uma não altera a outra: uma rota certa
+continua certa mesmo quando não existe nada capaz de atendê-la.
+
+```
+public.mind_rota_capacidade(p_rota text, p_canal text) → jsonb
+```
+
+Determinística. `STABLE`, `SECURITY DEFINER`, `search_path` explícito, `EXECUTE` só para
+`postgres` e `service_role`. Sem LLM, sem escrita, sem Edge Function. **Não decide rota** — recebe
+a rota já decidida.
+
+```jsonc
+{ "ok": true, "rota": "…", "canal": "…",
+  "pode_executar": true,
+  "needs_human": false,
+  "reason": null }
+```
+
+Rota fora das seis canônicas devolve `{"ok": false, "motivo": "rota_invalida"}`; canal fora dos
+dois vivos, `{"ok": false, "motivo": "canal_invalido"}`. Não há alias: `web` não é canal.
+
+### Registry sem tabela nova
+
+O mapa rota → playbook é a **convenção de nome** `playbook_<rota>` em `agentes.prompts`, e a
+coluna `ativo` já é o interruptor. Não se criou tabela de registry porque a convenção já faz o
+papel — e **a ausência da linha significa exatamente `missing_playbook`**. Por isso também não
+existem playbooks vazios: um placeholder inativo não acrescenta informação nenhuma ao que o vazio
+já diz. Quando o conteúdo existir, a linha nasce.
+
+Um playbook só conta como disponível quando **existe, está ativo e tem conteúdo**. Um playbook
+vazio não ensina nada.
+
+### Estado atual
+
+| rota | playbook | kit | `whatsapp` | `mindagent-web` |
+|---|---|---|---|---|
+| `summit_b2c` | ✅ `playbook_summit_b2c` | ✅ | ✅ | — |
+| `summit_b2b` | ✅ `playbook_summit_b2b` | ❌ | ✅ | — |
+| `cliente_suporte` | ✅ `playbook_cliente_suporte` | ❌ | ✅ | — |
+| `concierge_summit` | ❌ | ✅ | — | ✅ |
+| `institute` | ❌ | ❌ | — | — |
+| `dash` | ❌ | ❌ | — | — |
+
+**Kit é capacidade acessível ao runtime atual — não existência do dado na base.** Um fato que o
+loader vivo não entrega não está no kit: ele é Intelligence que existe, e nada além disso. O Gate
+responde *"o runtime atual consegue executar esta rota autonomamente?"*, nunca *"existe em algum
+lugar do banco informação suficiente para um dia executá-la?"*.
+
+**Estado transitório.** Hoje não existe Kit Loader: o que cada canal carrega está fixo dentro do
+próprio executor. `treble_agent_context` ignora os cinco parâmetros que recebe e devolve sempre
+evento + ofertas do `summit_2026`; o `mindagent-chat` traz o próprio prompt como constante no
+código. Por isso a matriz de kit está escrita **no corpo da função**, e o **Passo 12B — Kit Loader
+universal** a substitui pelo loader canônico. Não se criou tabela para atravessar esse intervalo.
+
+O que sustenta cada célula:
+
+- `summit_b2c` — ofertas ativas e públicas com preço, condições e checkout em `summit_2026.offers`,
+  entregues pelo `treble_agent_context` — que é exatamente o que o playbook precisa.
+- `concierge_summit` — `sessions`, `locations`, `speakers`, `exhibitors` e `event_rules` do
+  `summit_2026`, alcançáveis por `mindagent_chat_search`, que o próprio canal chama. É o kit mais
+  rico de todos, e a rota ainda assim não executa: falta o playbook.
+- `summit_b2b` — **não tem.** Os fatos comerciais B2B existem em `summit_2026`:
+  `commercial_rules.desconto_por_volume` está ativo, com tiers. Mas o `treble-inbound-agent` monta
+  `DADOS_OFICIAIS` a partir do `treble_agent_context`, e essa função **não entrega
+  `commercial_rules` nem `precos_por_volume`** — enquanto o `playbook_summit_b2b` ativo depende
+  explicitamente do bloco `precos_por_volume` dentro de `DADOS_OFICIAIS`. O dado existe; o kit não
+  chega ao agente. Corrigir isso é o Passo 12B, não este.
+- `cliente_suporte` — **não tem**. Não há base de política de suporte, não há consulta de pedido
+  exposta ao agente, e o destino `suporte.chamado` aponta para um schema que não existe. O próprio
+  playbook manda escalar o que não consegue resolver.
+
+**Produto vendável não é Kit.** `catalogo.produtos.ativo` e `vende` dizem se há algo a vender, não
+se a rota tem com que trabalhar. São conceitos distintos e o gate não os confunde — o catálogo
+segue consultável quando for factual e relevante, mas não define `missing_kit` sozinho.
+
+**Canal.** A matriz responde *"este runtime executa esta rota autonomamente?"* — nunca *"este canal
+alcança um humano"*, que é pergunta do Passo 14. `whatsapp` é o `treble-inbound-agent`, que compõe
+playbook por `treble_agent_prompt` e cuja pilha inteira é venda; `mindagent-web` é o
+`mindagent-chat`, concierge de Summit por construção, com instruções fixas no código dizendo
+explicitamente que ele não vende, não compra e não altera dados. Dois canais canônicos vivos, e a
+matriz fica legível dentro da função. Se aparecer um terceiro canal real, ou a necessidade concreta
+de editar capability sem deploy, revisitamos — não se antecipa isso.
+
+### `pode_executar`, `needs_human` e os reasons
+
+`pode_executar` é `reason is null`. Nada além disso.
+
+**`needs_human` é necessidade, não mecanismo.** Significa *"esta necessidade não pode ser concluída
+autonomamente e requer intervenção humana"*. **Não** significa *"existe humano disponível para
+transferência ao vivo neste canal"* — e por isso vale também em `mindagent-web`, onde não há
+ninguém do outro lado. Como essa intervenção acontece — transferência no WhatsApp, e-mail e
+dispatch no Dash, outro mecanismo no app — é o **Passo 14**.
+
+Três reasons canônicos, com **precedência fechada**:
+
+```
+missing_playbook  >  missing_kit  >  canal_incompativel
+```
+
+Um único `reason`, nunca uma lista. A ordem vai do que falta mais fundo para o que falta mais na
+ponta — e o primeiro é o único que uma pessoa destrava escrevendo um texto.
+
+### Pré-roteamento determinístico — ainda não
+
+A regra arquitetural continua valendo: **se a aplicação já souber a rota, pula o Router e chama o
+Capability Gate; se não souber, Router e depois o Gate.** O que não existe é o pré-roteamento por
+entrada — e não existe porque **hoje não há sinal autoritativo no runtime vivo que o justifique**:
+`origem_codigo` está presente em **zero** conversas do agente vivo (as 58 conversas com origem são
+todas do fluxo legado `treble`), e `audiencia_sugerida` é sugestão, com taxonomia que não é a das
+rotas — nada no sistema roteia por ela. Origem e `entry_action` são histórico e evidência, não
+autoridade sobre a necessidade atual. Quando surgir uma entrada realmente autoritativa, o
+short-circuit entra na orquestração — e nunca pulando o Gate.
+
+---
+
 ## 11. Roadmap vigente
 
 | # | passo | estado |
@@ -740,8 +860,9 @@ candidatas não vazia · rota decidida com `candidatas=[]` · conversa sem fala 
 | 8 | **AGENT_CONTEXT universal** | ✅ **fechado** |
 | 9 | **Testes de contrato do AGENT_CONTEXT** | ✅ **fechado** |
 | 10 | **Router universal** | ✅ **fechado** |
-| 11 | Registry de rotas + capability gate | ⏭️ **PRÓXIMO** |
-| 12 | Separação Base / Router / Kit Loader | |
+| 11 | **Registry de rotas + capability gate** | ✅ **fechado** |
+| 12A | **Auditoria e reforma de Product Intelligence / Knowledge** | ⏭️ **PRÓXIMO** |
+| 12B | Kit Loader universal | |
 | 13 | Finalizar cérebro de vendas Summit | |
 | 14 | Contrato universal de ação + handoff/escalation | |
 | 15 | Análise pós-turno + memória universal | |
@@ -749,6 +870,40 @@ candidatas não vazia · rota decidida com `candidatas=[]` · conversa sem fala 
 | 16 | Continuidade / Silence | |
 | 17 | E2E vendas Summit via Treble | |
 | 18 | Hardening, documentação e travas Core Universal | |
+
+### 12A e 12B — o que eram um passo só
+
+O antigo **12 — Separação Base / Router / Kit Loader** virou dois, porque construir o loader antes
+de saber o que ele carrega seria encanar uma fonte que ninguém auditou.
+
+**12A — Auditoria e reforma de Product Intelligence / Knowledge.** Usa o Summit como primeiro
+sistema real e investiga: fontes autoritativas por conceito · a estrutura atual de `summit_2026` ·
+conteúdo espalhado por outros schemas e funções · duplicações e legado · freshness e origem dos
+dados · conhecimento estruturado versus long-tail/RAG · `knowledge_documents` e `knowledge_chunks`
+— inclusive **por que `knowledge_chunks` está vazio** · estruturas duplicadas entre `summit_2026`,
+eventos, Dash e Institute · funções de retrieval existentes, quebradas ou legadas · e a qualidade
+real do retrieval.
+
+Princípio fechado:
+
+> **ESTRUTURADO AUTORITATIVO PRIMEIRO. RAG PARA LONG-TAIL.**
+
+Preço, checkout, desconto, horário, inclusão e disponibilidade **não podem depender de vetor**.
+
+E uma regra que o Passo 11 já tornou concreta: **não basta a informação existir — é preciso provar
+que o agente a encontra quando precisa.** A auditoria do 12A usa perguntas reais para verificar se
+a informação existe, se a fonte correta é recuperada, se veio informação suficiente, se algo
+decisivo se perdeu e se veio ruído que atrapalha.
+
+**12B — Kit Loader universal.** Só então:
+
+```
+ROTA + NECESSIDADE ATUAL + AGENT_CONTEXT  →  KIT DA ROTA
+```
+
+contendo, conceitualmente, **playbook + Product Intelligence relevante + Knowledge recuperado para
+aquele turno + tools**. O contexto de produto é **recomposto a cada turno** a partir das fontes
+atuais — nunca persistido como um bloco gigante estático dentro da conversa.
 
 **Backlog:** 19 permissões legadas · 20 secrets hygiene · 21 exposed surface audit ·
 23 front-end/inbox de pendências.
