@@ -210,16 +210,30 @@ create table if not exists summit_2026.posicionamento (
 );
 
 -- -----------------------------------------------------------------------------
--- recursos — [curado] links canônicos + DESCRIÇÃO do que são (insumo, não comando).
--- Responde: "link da calculadora / PDF / mapa (e o que é)".
+-- recursos — [AUTORADO/curado] catálogo de ENTREGÁVEIS que o agente PODE entregar
+-- (calculadora, vídeo, arte, esquema, PDF, link). INSUMO para o agente DECIDIR
+-- se/quando entregar: o que faz, o que inclui, vantagem × desvantagem, quando
+-- ajuda × quando atrapalha. Nunca uma ordem de entregar.
+-- Responde: "tem arte/vídeo/calculadora sobre X pra entregar? e quando vale?".
 -- -----------------------------------------------------------------------------
 create table if not exists summit_2026.recursos (
-  id            uuid primary key default gen_random_uuid(),
-  chave         text not null unique,   -- 'calculadora_delegacao' | 'programacao_pdf' | 'mapa' | 'checkout_vip' ...
-  titulo        text not null,
-  url           text not null,
-  descricao     text not null,          -- o que é / para que serve (p/ o agente entender e decidir usar)
-  atualizado_em timestamptz not null default now()
+  id               uuid primary key default gen_random_uuid(),
+  chave            text not null unique,        -- 'calculadora_delegacao' | 'video_masterclasses' | 'arte_diferenca_ingressos' | 'programacao_pdf' | 'mapa' ...
+  tipo             text not null,               -- calculadora | video | arte | esquema | pdf | link | imagem
+  titulo           text not null,
+  assunto          text[] not null default '{}',        -- sobre o que é (tags livres)
+  ancoras          jsonb  not null default '{}'::jsonb,  -- {ingresso?, experiencia?, sessao_id?, tema?}
+  o_que_faz        text,                        -- o que exatamente entrega/mostra
+  o_que_inclui     text,
+  vantagens        text,
+  desvantagens     text,
+  quando_ajuda     text,                        -- situações/intenções em que entregar ajuda
+  quando_atrapalha text,                        -- quando atrapalha / melhor não entregar
+  url              text,                        -- link OU referência ao asset
+  formato_entrega  text,                        -- link | arquivo | imagem_inline | midia_whatsapp
+  tier_escopo      text[] not null default '{}',
+  ativo            boolean not null default true,
+  atualizado_em    timestamptz not null default now()
 );
 
 -- =============================================================================
