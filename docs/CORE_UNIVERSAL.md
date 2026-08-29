@@ -712,15 +712,19 @@ embora "diferença VIP" casasse. Trocar por `websearch_to_tsquery` não resolver
 consultas ele produz exatamente a mesma conjunção. A consulta canônica é
 `to_tsvector(pergunta)` com os lexemas unidos por `|`, e o ranking é `ts_rank_cd`.
 
-**Corte de relevância: `0.1 × least(2, nº de lexemas da pergunta)`.** Não é constante arbitrária —
-`ts_rank_cd` rende cerca de 0,1 por lexema coberto, então a regra diz *"o registro precisa cobrir
-mais de um termo da pergunta, salvo quando a pergunta tem um termo só"*. É o que separa um acerto
-real de uma palavra solta: derruba a sessão que casava apenas por "existir" numa pergunta sem
-sentido, e preserva "Maslach" perguntado sozinho.
+**Corte de relevância: `0.1 × least(2, nº de lexemas da pergunta)`, calibrado empiricamente.**
+`ts_rank_cd` pontua por **frequência de ocorrências**, e **não garante cobertura de lexemas
+distintos**: um registro pode alcançar o corte repetindo o mesmo termo. O piso foi ajustado contra
+as perguntas reais para cortar acertos fracos — derruba a sessão que casava apenas por "existir"
+numa pergunta sem sentido, e preserva "Maslach" perguntado sozinho. É um filtro de relevância, não
+uma garantia de cobertura.
 
-**Ofertas usam corte 0,1.** São três linhas públicas de texto curto; exigir dois lexemas ali seria
-exigência que o próprio registro não tem como satisfazer. Nomear o produto — "VIP", "Prime",
-"Mind" — é o sinal. Elas deixaram de depender de uma regex de palavras-gatilho, que devolvia vazio
+**Falsos positivos pontuais continuam possíveis, e isso é conhecido.** Em "precisa de reserva", o
+documento "Prime Lounge" entra no bloco `mind` porque "reservado" aparece duas vezes no corpo —
+duas ocorrências do mesmo lexema, não dois termos da pergunta. Não foi eliminado nesta mudança.
+
+**Ofertas usam corte 0,1.** São três linhas públicas de texto curto, onde um piso mais alto
+excluiria acertos legítimos. Nomear o produto — "VIP", "Prime", "Mind" — é o sinal. Elas deixaram de depender de uma regex de palavras-gatilho, que devolvia vazio
 para "quanto custa o VIP" porque "custa" não estava na lista.
 
 **Palestrante casa por identidade, não por prosa** — nome, cargo e instituição. O bio é texto longo
@@ -738,6 +742,9 @@ convivem com a busca ranqueada em vez de serem o único caminho.
 **O que isso passou a resolver:** diferença entre tiers · preço de um tier nomeado sem palavra-chave
 de preço · sessões que exigem reserva · e, mantidos, FAQ de tradução e estacionamento, localização e
 palestrante por nome. Das 16 perguntas reais da auditoria, 11 encontram algo — eram 6.
+
+Em "precisa de reserva" a precisão é **100% no bloco `sessions`** — 8 de 8 exigem reserva de fato.
+No resultado inteiro não é: o bloco `mind` traz um documento a mais, pelo motivo acima.
 
 **`commercial_rules` continua fora deste caminho.** "Desconto para 10 pessoas" segue sem resposta
 aqui, deliberadamente: trazer essa fonte mudaria o contrato que o `treble-inbound-agent` filtra em
