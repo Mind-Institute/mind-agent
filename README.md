@@ -16,13 +16,14 @@ Se algum documento divergir do banco, **o banco vence**.
 
 ## Estado atual
 
-Passos **1 a 7 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
+Passos **1 a 8 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
 resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor factual
-de Engagement · normalização de áudio · normalização determinística da pessoa.
+de Engagement · normalização de áudio · normalização determinística da pessoa · AGENT_CONTEXT
+universal.
 
-**Próximo passo: 8 — construção do AGENT_CONTEXT universal.**
+**Próximo passo: 9 — testes de contrato do AGENT_CONTEXT.**
 
-AGENT_CONTEXT, Router, Decisioning e memória universal são arquitetura congelada, ainda não
+Router, Kit da rota, Decisioning e memória universal seguem como arquitetura congelada, ainda não
 implementados.
 
 ## O que mais vive aqui
