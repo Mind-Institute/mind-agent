@@ -622,3 +622,47 @@ Não refazer descoberta. Retomar a partir destes pontos, conforme necessidade re
 
 **Prioridade atual que justificou o adiamento:** construir o sistema extensível → Kit comercial
 mínimo do Summit → Decisioning de vendas → Agent → handoff → Treble E2E → vendedor funcionando.
+
+---
+
+## 13. Infra de deploy GitHub — descoberta 29/08/2026
+
+**Status:** fato verificado, **já incorporado ao contrato operacional v4** (`PROJECT_STATE.md` §2B).
+**Não é uma frente para redesenhar agora. Não reinvestigar esses fatos do zero.**
+
+**Por que apareceu:** o checkpoint v3 afirmava `Produção continua separada e controlada.` O sistema
+real contradiz literalmente essa frase.
+
+### O que foi provado
+
+- **Cloudflare Git integration está ativa.** Ao abrir PR, o Cloudflare Workers criou preview da
+  branch automaticamente.
+- **Merge em `main` gerou build de produção.** O commit de merge recebeu o check
+  `Workers Builds: mind-agent`, com `details_url` no ambiente `production` e **Version ID novo**.
+- A descrição do próprio GitHub App da Cloudflare, no check, declara que ele **faz deploy
+  automaticamente quando uma PR é mergeada**.
+- **Supabase GitHub integration está ativa.** O próprio check do GitHub App do Supabase declara que
+  ele **roda migrations automaticamente quando PRs são mergeadas** e **cria preview DBs para novas
+  PRs**.
+- `Supabase.list_branches` do projeto `ymnmotgglsrxmjmonwjz` mostrou a branch default `main` com
+  `git_branch = main`.
+
+### Consequência já registrada
+
+Isso virou o contrato canônico **MERGE EM `main` É BOUNDARY DE DEPLOY** em `PROJECT_STATE.md` §2B
+(checkpoint v4): revisão/teste antes do merge; gate explícito da Adriana antes do merge nas
+mudanças sensíveis; verificação pós-deploy só do efeito diretamente afetado.
+
+### Pendência futura — somente se quisermos mudar esse modelo
+
+Hoje a trava é **operacional** (regra em `PROJECT_STATE.md`), não física. Se um dia quisermos travas
+físicas, avaliar:
+
+- branch protection / ruleset em `main` (required reviews, required checks, restrição de quem
+  mergeia);
+- configurações das próprias integrações Cloudflare e Supabase (o que dispara preview, o que dispara
+  produção, quais paths).
+
+**Gatilho para retomar:** quando o modelo operacional deixar de bastar — por exemplo, mais gente
+mergeando, incidente de deploy indevido, ou necessidade de separar ambiente de produção de fato.
+Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco é só memória.
