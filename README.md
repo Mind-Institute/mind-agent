@@ -16,18 +16,21 @@ Se algum documento divergir do banco, **o banco vence**.
 
 ## Estado atual
 
-Passos **1 a 10 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
+Passos **1 a 11 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
 resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor factual
 de Engagement · normalização de áudio · normalização determinística da pessoa · AGENT_CONTEXT
-universal · contrato do AGENT_CONTEXT coberto por teste · Router universal.
+universal · contrato do AGENT_CONTEXT coberto por teste · Router universal · Capability Gate.
 
-O **Router** decide qual das seis competências assume a necessidade atual e está deliberadamente
-**fora do runtime**: existe, é chamável e está coberto por teste, mas nada em produção depende
-dele ainda — ligá-lo ao turno ao vivo é do Passo 11.
+O **Router** decide qual das seis competências assume a necessidade atual; o **Capability Gate**
+diz se o canal atual consegue executá-la. Os dois estão deliberadamente **fora do runtime**:
+existem, são chamáveis e estão cobertos por teste, mas nada em produção depende deles ainda.
 
-**Próximo passo: 11 — Registry de rotas + capability gate.**
+O Registry não ganhou tabela — o mapa rota → playbook é a convenção `playbook_<rota>` em
+`agentes.prompts`, e a ausência da linha já significa `missing_playbook`.
 
-Kit da rota, Decisioning e memória universal seguem como arquitetura congelada, ainda não
+**Próximo passo: 12 — Separação Base / Router / Kit Loader.**
+
+Kit Loader, Decisioning e memória universal seguem como arquitetura congelada, ainda não
 implementados.
 
 ```bash
