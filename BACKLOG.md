@@ -278,7 +278,7 @@ conta própria nem se assustar com o número:
 
 Conforme ela for mapeando no `mind-hubpost` e no projeto Vendas, o espelho pega sozinho no
 próximo ciclo — **não precisa fazer nada aqui.** Pra reconferir a cobertura a qualquer momento,
-a consulta está em `docs/RETOMAR_AMANHA.md`.
+a consulta está em `docs/CORE_UNIVERSAL.md`, §15.
 
 **O que continua em aberto de verdade — as perguntas que só a Adriana responde:**
 1. **Qual vocabulário é o oficial?** Catálogo diz `Patrocínio`; credenciamento diz
@@ -292,4 +292,4 @@ redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) · `ingre
 `espelho_lotes_map` (67) · `credenciamento_produtos_mapa` (33 — **já tem porta de leitura aberta**,
 fonte `cred_produtos_mapa`; é uma linha pra espelhar).
 
-Passo a passo de retomada em `docs/RETOMAR_AMANHA.md`.
+Contexto do sistema em `docs/CORE_UNIVERSAL.md`.
