@@ -50,14 +50,19 @@ Coletor factual não decide, não pontua, não recomenda e não escreve.
 - **Adriana é dona do conteúdo e da verdade de negócio:** prompts, playbooks, preço, lote,
   produto, mapeamentos, posicionamento.
 
-**Nunca crie prompt ou conteúdo.** Onde entra prompt, deixe o espaço pronto e **vazio**.
+**Não invente prompt, playbook ou conteúdo de negócio.** Quando o conteúdo tiver sido fornecido ou explicitamente aprovado, implemente-o fielmente. Se depender de conteúdo ainda não definido, não invente para preencher o espaço — deixe-o pronto e vazio.
 
-**Antes de criar qualquer tabela:** (a) veja o que já existe, (b) pergunte. Conversa já tem casa
-(`engagement`), coisa aprendida sobre a pessoa já tem casa (`intelligence`), identidade já tem
-casa (`pessoas` + `engagement.identidades`). Só a **config** de uma plataforma nova ganha lugar
-novo.
+**Antes de criar qualquer tabela, investigue o que já existe.** Se a criação não estiver
+explicitamente autorizada ou depender de uma decisão material ainda aberta, pergunte. Se a
+tarefa já autorizou a mudança e a investigação confirmou a necessidade, implemente a menor
+estrutura correta.
 
-**Nunca popule linha sem autorização** — exceto dado de teste, avisando.
+Conversa já tem casa (`engagement`), coisa aprendida sobre a pessoa já tem casa
+(`intelligence`), identidade já tem casa (`pessoas` + `engagement.identidades`). Só a **config**
+de uma plataforma nova ganha lugar novo.
+
+**Não popule dado de negócio sem autorização.** Isso não impede seed, backfill ou carga que a
+própria tarefa tenha mandado fazer — nesses casos, execute e relate. Dado de teste pode, avisando.
 
 ## Como responder
 
