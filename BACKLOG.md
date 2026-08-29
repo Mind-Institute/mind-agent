@@ -147,7 +147,9 @@ com a taxonomia que o analisador devolve: `commercial_priority`, `purchase_inten
 
 ## 6. Lead no HubSpot: criar, atualizar propriedades e mover o estágio  ⭐ PRIORIDADE
 
-**Status:** decidido que **vale a pena**; falta construir.
+**Status:** decidido que **vale a pena**; falta construir. **Promovido para o Passo 15B do roadmap**
+(`Write-back + dispatch operacional pós-turno`, ver `docs/CORE_UNIVERSAL.md` §11) — deixou de ser
+backlog. O detalhe abaixo continua valendo como levantamento para quando o 15B for construído.
 
 Regra da Adriana: quando existe **oportunidade comercial**, o **card do lead tem que estar sempre
 atualizado**. Isso significa três coisas, não uma:
@@ -164,6 +166,10 @@ couber** em propriedade estruturada, ex.: `followup_anchor`, `conversation_summa
 A fazer: mapear estado comercial da análise (`buyer_state`) → estágio do pipeline de leads;
 escolher quais campos do `dados` viram propriedade; criar o card quando faltar; write-back
 idempotente com trava (mesmo padrão de `crm.status_summit_hs`).
+
+Uma regra que o 15B acrescenta: quando o produto **não tiver pipeline apropriado**, não se inventa
+pipeline — persiste-se a inteligência e faz-se **dispatch para os responsáveis do produto**
+(e-mail, follow-up, o que a operação daquele produto usar).
 
 ---
 
