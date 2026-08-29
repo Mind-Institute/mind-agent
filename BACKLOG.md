@@ -805,10 +805,6 @@ valor inventado e cai em `needs_human` — cada negociação de preço vira tran
   o Gate passa a subestimar `summit_b2b`. Correção natural: o Gate consultar o Registry.
 - **Prompt `base`** — decidir se cria a chave ou se remove a referência de `treble_agent_prompt`.
 - **Modelo divergente** entre `treble.config` e `intelligence.config`.
-- **8 funções legadas** apontando para `comum.speakers`.
-- **FAQ comercial inexistente** — as 5 FAQs são logísticas (chegar/estacionar, tradução,
-  masterclass, Mind×VIP, assento). Não há FAQ de parcelamento, reembolso, nota fiscal ou troca de
-  titularidade. Conteúdo da Adriana, não encanamento.
 - **FAQ comercial inexistente** — as 5 FAQs são logísticas (chegar/estacionar, tradução,
   masterclass, Mind×VIP, assento). Não há FAQ de parcelamento, reembolso, nota fiscal ou troca de
   titularidade. Conteúdo da Adriana, não encanamento.
