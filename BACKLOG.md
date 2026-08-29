@@ -299,3 +299,283 @@ redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) · `ingre
 fonte `cred_produtos_mapa`; é uma linha pra espelhar).
 
 Contexto do sistema em `docs/CORE_UNIVERSAL.md`.
+
+---
+
+## 12. Intelligence / Product Intelligence — ⏸️ DEFERIDO PARA NÃO BLOQUEAR O VENDEDOR (29/08)
+
+**Por que está no backlog:** a investigação foi feita e trouxe decisões e dados úteis, mas completar
+Ecossistema, palestrantes, taxonomia, conteúdo editorial, concierge e auditoria agora atrasaria o
+go-live do agente comercial. **Não reinvestigar do zero quando retomarmos.** Este bloco é o checkpoint.
+
+**Checkpoint técnico:** investigação posterior ao merge da PR #16; `main` naquele ponto =
+`cd551c802570e5358e6bcb55d702c539ba0fe28b`.
+
+### 12.1 Decisões canônicas já fechadas
+
+- **ECOSSISTEMA = Intelligence perene, curada e reutilizável do Mind** entre Summit, Institute,
+  Dash e futuros produtos/agentes.
+- **PRODUCT INTELLIGENCE = verdade específica e atual de cada produto/evento.**
+- **KNOWLEDGE = conteúdo explicativo / long-tail.**
+- **OFFER / COMMERCIAL CURRENT REALITY = preço, lote, checkout, regra comercial atual.**
+- **PLAYBOOK = como pensar.**
+- **AGENT_CONTEXT = pessoa, CRM, engagement e realidade da pessoa/conversa.**
+- `ecossistema.palestrantes_especialistas` é **LOCAL_AUTHORITATIVE**, não mirror do Summit.
+  A Adriana está deliberadamente curando e inserindo essa tabela diretamente no banco.
+- Participação no Summit e dossiê do especialista são conceitos diferentes:
+  `summit_2026.session_speakers` diz **quem participa de qual sessão**; `ecossistema` diz **quem é
+  a pessoa e qual a inteligência perene sobre ela**.
+- Autoria manual não é erro quando o Mind é deliberadamente a autoridade. O risco é conteúdo sem
+  proveniência, fato mutável duplicando source externa, geração automática sem revisão, ou conteúdo
+  antigo ainda ativo.
+- **Não criar linhas vazias de especialista para “completar cobertura”.** Ausência hoje é
+  `CURADORIA_ECOSSISTEMA_PENDENTE`, não mirror quebrado.
+
+### 12.2 Estado real do schema `ecossistema` — já investigado
+
+Hoje `ecossistema` tem **uma tabela de dados**:
+
+- `palestrantes_especialistas`: **31 linhas**;
+- `palestrantes_especialistas_id_seq`;
+- `slugify(text)`;
+- trigger function `palestrantes_slug_bi()`;
+- trigger `trg_palestrantes_slug` BEFORE INSERT/UPDATE;
+- PK `id`, unique `slug`, unique `lower(btrim(nome))`;
+- única FK externa: `summit_2026.session_speakers.speaker_id → ecossistema.palestrantes_especialistas.id ON DELETE SET NULL`;
+- leitores encontrados: `public.mindagent_chat_search` e `public.treble_agent_context_base`;
+- **nenhum writer automático**: nenhuma function, Edge, job ou cron escreve na tabela;
+- grants só a `postgres`; escrita administrativa direta é coerente com a curadoria atual.
+
+Não existe hoje tabela de conceitos, construtos, fundamentos científicos ou outra Intelligence
+perene dentro de `ecossistema`. **Não criar essas tabelas antecipadamente.**
+
+### 12.3 Proveniência dos 31 registros — evidência já levantada
+
+O que a investigação prova:
+
+- migration criou/evoluiu o schema, mas **não existe INSERT/UPDATE de conteúdo em migration**;
+- nenhum script versionado, Edge Function, function, job ou cron escreve os 31 registros;
+- os 31 `criado_em` são distintos ao longo de ~23h, compatíveis com inserção um a um;
+- só **2/31** têm `atualizado_em > criado_em`;
+- no Drive existe **`Prompt inteligencia palestrantes`**, criado em 24/08, cujo formato obrigatório
+  corresponde às colunas da tabela; o primeiro registro nasceu 12 segundos depois da criação do doc;
+- o prompt exige pesquisar **um palestrante por vez**, verificar fontes/DOIs e não preencher lacunas
+  por inferência;
+- o conteúdo segue majoritariamente essa especificação: `A prova:` 25/31; `Por que isso importa:`
+  24/31; abertura obrigatória de aprendizado 27/31; 5 seções ICP 29/31; `fontes_gerais` com URL 30/31;
+- o escape `Não localizado em fonte confiável` aparece **0/31**.
+
+O que NÃO está provado tecnicamente: quem/qual ferramenta executou a pesquisa. Não registrar
+“foi IA” ou “foi humano” como fato sem log. A autoridade da tabela decorre da decisão explícita da
+Adriana de que ela está curando e inserindo essa Intelligence.
+
+**Registro incompleto conhecido:** Ivana Moreira (id 29): vazios em
+`relevancia_para_os_icps`, `principais_livros`, `principais_papers`,
+`limites_e_cuidados_cientificos`, `fontes_gerais`.
+
+### 12.4 Natureza dos campos de `palestrantes_especialistas`
+
+- **Identidade/fato:** `nome`, `aliases`, `cargo_curto`, `instituicao`.
+- **Derivado/técnico:** `id`, `slug`, `criado_em`, `atualizado_em`.
+- **Editorial/científico/estratégico Mind:** `quem_e`, `formacao_e_posicao`,
+  `principais_contribuicoes`, `conceitos_chave_explicados`, `por_que_o_conteudo_e_importante`,
+  `o_que_posso_esperar_ouvir_e_aprender`, `dores_e_problemas_que_ajuda_a_compreender`,
+  `relevancia_para_os_icps_do_mind`, `limites_e_cuidados_cientificos`.
+- **Referência/evidência:** `principais_livros`, `principais_papers`, `fontes_gerais`.
+
+Cobertura levantada: `nome`, `cargo_curto`, `instituicao`, `quem_e`, `formacao_e_posicao`,
+`principais_contribuicoes`, `conceitos_chave_explicados`, `por_que_o_conteudo_e_importante`,
+`o_que_posso_esperar_ouvir_e_aprender`, `dores_e_problemas_que_ajuda_a_compreender` = 31/31;
+`aliases` = 8/31; `relevancia_para_os_icps_do_mind` = 29/31; referências/fontes principais = 30/31.
+
+**Não existe hoje proveniência por linha/campo** além de timestamps. Isso fica para a auditoria;
+não adicionar coluna agora só por antecipação.
+
+### 12.5 Line-up Summit × Ecossistema — não refazer esta comparação
+
+A investigação corrigiu a premissa antiga:
+
+- `speakers.json` é representação do line-up e autoridade **da grafia**, não SOURCE do dossiê;
+- `design/README.md` declara a referência mobile congelada como fonte de verdade de conteúdo/copy;
+- `programacao.json` declara a planilha `programacaomindsummit2026.xlsx` como origem;
+- o dossiê do especialista **não descende** de `speakers.json`/programação.
+
+Cobertura já medida:
+
+- `speakers.json`: **54 nomes**;
+- nomes reais citados na programação: **56**;
+- já curados no Ecossistema: **30**;
+- `CURADORIA_ECOSSISTEMA_PENDENTE`: **24** vs `speakers.json`, **26** vs programação;
+- 1 especialista do Ecossistema fora do line-up atual: **Márcio Atalla** — saiu do evento; permanecer
+  no Ecossistema é **correto**, não anomalia.
+
+Variantes de nome já consideradas inequívocas:
+
+- Arthur Guerra → Arthur Guerra de Andrade (id 10);
+- Cirlene Zimmermann → Cirlene Luiza Zimmermann (id 13);
+- Daniel de Barros → Daniel Martins de Barros (id 15);
+- Igor Menezes → Igor Gomes Menezes (id 23);
+- Reinaldo Costa → Reinaldo Xisto Vieira Costa (id 30; alias já explícito).
+
+Casos ambíguos conhecidos: **Sibelle Pedral** e **Virginie Leite**. A referência congelada contém
+registro malformado e o site atual interpreta papéis de forma diferente. Não resolver por fuzzy.
+
+### 12.6 `session_speakers` — números preservados para retomar sem nova investigação
+
+Estado investigado:
+
+- **61 vínculos** totais;
+- **9 resolvidos** com `speaker_id`;
+- **52 pendentes**;
+- **31 vínculos são resolvíveis hoje** porque a pessoa já está curada no Ecossistema;
+- portanto existem **+22 vínculos líquidos** que podem ser feitos sem criar conteúdo;
+- esses 31 vínculos fariam **18 dossiês curados** hoje invisíveis passarem a aparecer no retrieval Summit;
+- **16 vínculos** dependem apenas da conclusão da curadoria de **13 pessoas**;
+- **14 vínculos** têm outro problema de identidade/relação/programação.
+
+As 13 pessoas que travam os 16 vínculos:
+`Denise Salvador`, `Irene Reis`, `Maryana com Y`, `Mauro Muller`, `Michelle Schneider`,
+`Oscar de Bos`, `Paul Goldsmith`, `Paula Benevides`, `Renata Rivetti`, `Sibelle Pedral`,
+`Tamara Myles`, `Veruska Galvão`, `Yuri Trafane`.
+
+Os 14 casos restantes estão ligados a divergências da programação. Sessões já apontadas:
+
+- `A virada da diversidade` (16/09 12:30): banco 2 vínculos; programação 4 nomes;
+- `A nova era da alta performance` (16/09 12:30): banco 2; programação 1;
+- `Mulheres que abrem caminho` (17/09 12:30): banco 1; programação 2;
+- `Alta performance começa por dentro` (16/09 17:20): banco 3; título divergente;
+- `Lançamento livro Carla Tieppo` (17/09 13:30): banco 1; site `Autógrafos Carla Tieppo`;
+- `Sessão especial` (17/09 16:40): 2; fonte malformada;
+- `Mind Talks` (17/09 17:20): 2; papéis discordam;
+- `Sessão especial` (17/09 16:00): 1; sem correspondência.
+
+Também já foi medido: **8 sessões do banco não existem no site e 10 entradas do site não existem
+no banco**. O antigo `palestrante_id` UUID é irrecuperável: tabela-alvo foi apagada, temp de import
+foi dropada e o namespace UUID v5 não foi preservado.
+
+**Quando retomar:** a menor mudança de relação já identificada é resolver explicitamente os +22
+vínculos cujo especialista já existe, sem fuzzy e sem criar dossiê. Isso ficou adiado apenas porque
+não é caminho crítico do vendedor agora.
+
+### 12.7 Taxonomia/conceitos perenes — investigação já feita, implementação adiada
+
+Foi descoberto que uma camada de conceitos **já existiu e foi apagada**:
+
+- `mind.taxonomy` → depois `comum.taxonomy`;
+- 10 temas conhecidos: `seguranca_psicologica`, `dados_bem_estar`, `regulacao`,
+  `lideranca_humana`, `cultura`, `saude_mental`, `performance`, `diversidade`, `felicidade`,
+  `futuro_trabalho`;
+- `comum.taxonomy` foi apagada fora de migration;
+- evidência sobrevive em `dados/summit.json.temas` e
+  `archive/pre-architecture/missing-migrations/20260820205324_...sql`.
+
+Efeitos vivos já observados:
+
+- `summit_2026.sessions.trilhas`: **0/67**;
+- `summit_2026.sessions.topicos_aprendizado`: **0/67** na investigação mais recente;
+- `treble_agent_context_base.visao_geral.trilhas`: `[]`;
+- `treble_agent_context_base.visao_geral.publico_e_dores`: `'[]'::jsonb` hardcoded com comentário
+  de que `comum.taxonomy` não existe mais.
+
+**Não reconstruir agora.** Quando houver necessidade real, decidir a casa perene correta dentro de
+Ecossistema e reutilizar o que a investigação já encontrou.
+
+### 12.8 Contradição conhecida no retrieval de especialistas
+
+`public.mindagent_chat_search` hoje filtra especialista por
+`exists(session_speakers.speaker_id = pt.id)`. Isso faz a Intelligence perene depender de
+participação no Summit.
+
+Efeito medido na investigação: **3/31 dossiês alcançáveis e 28/31 invisíveis** naquele estado.
+Um especialista do Institute sem sessão no Summit seria invisível por construção.
+
+Isso contradiz a decisão canônica de Ecossistema compartilhado. **Não corrigir isoladamente agora**;
+revisitar quando o Kit Loader/retrieval for legitimamente tocado, porque o contexto da rota deve
+decidir quais fontes perenes são relevantes — não um gate implícito de participação no Summit.
+
+Dívida documental separada já conhecida: comentário inline dentro de `mindagent_chat_search`
+ainda descreve incorretamente `ts_rank_cd` como cobertura de termos. Corrigir na próxima alteração
+legítima da função ou no fechamento da etapa, não reaplicar SQL só por comentário.
+
+### 12.9 Legado ainda ligado a `comum.speakers`
+
+A investigação mais recente encontrou **8 funções** ainda lendo a tabela apagada
+`comum.speakers`:
+
+`api.speakers` · `api.sessions` · `api.mindagent_bootstrap` · `api.treble_event_bundle` ·
+`api.changed_since` · `mind_admin_read_resource` · `mind_admin_mutate_resource` ·
+`mind_admin_dashboard_counts`.
+
+Não corrigir em massa. Quando retomar, classificar consumidor real vs legado e corrigir/apagar
+proporcionalmente. Este achado é mais recente e específico para speaker do que o inventário histórico
+da seção 8 acima.
+
+### 12.10 Riscos de proveniência/conteúdo já identificados — auditoria adiada, não esquecida
+
+Não é auditoria de mérito ainda; é mapa de risco para o retorno:
+
+- `cargo_curto` e `instituicao` são fatos mutáveis; hoje não há data de consulta nem origem por linha;
+- 1/31 sem `fontes_gerais` (Ivana Moreira);
+- alguns registros fogem parcialmente do protocolo editorial (`A prova`, `Por que isso importa`,
+  abertura e seções de ICP);
+- o escape `Não localizado em fonte confiável` aparece 0/31 e deve ser auditado, não interpretado;
+- só 2/31 mostram revisão posterior via timestamp;
+- não existe campo de revisor/data de consulta/versão;
+- geração automática sem revisão **não foi comprovada nem descartada**;
+- conteúdo antigo/legado ainda ativo deve ser procurado;
+- fatos operacionais mutáveis hardcoded são risco maior do que autoria manual deliberada.
+
+**Gate de fechamento da Intelligence/Product Intelligence:** antes de considerar essa camada
+confiável/completa, fazer auditoria guiada de:
+
+1. todos os fatos hardcoded relevantes;
+2. conflitos entre sources/mirrors/textos ativos;
+3. proveniência do conteúdo ativo;
+4. conteúdo ruim/inventado/sem fonte;
+5. conteúdo desatualizado;
+6. lacunas reais do que o agente deveria saber.
+
+Essa auditoria será conduzida em linguagem de negócio, conceito por conceito; não exigir que a
+Adriana navegue tabela por tabela. **Não bloqueia o primeiro go-live comercial.**
+
+### 12.11 Source Registry / Intelligence Management — decisão congelada, partes futuras no backlog
+
+Comportamento aprovado:
+
+- **novo conteúdo numa fonte já registrada** → fica disponível ao Kit Loader sem mudança de código
+  do agente;
+- **nova fonte/tabela** → nunca é autoativada;
+- quando possível, o sistema poderá fazer **auto-discovery**, criar uma pendência e usar IA para
+  propor classificação;
+- humano aprova, ajusta ou ignora;
+- só depois a fonte entra no **Source Registry** e passa a poder ser consumida pelo Kit Loader.
+
+Fluxo futuro aprovado:
+
+`AUTO-DISCOVERY → pending → proposta de classificação → aprovação humana → Source Registry → Kit Loader`.
+
+**Não construir agora** o frontend nem o cron/autodiscovery completo. O futuro frontend deve ser
+uma **Inbox da Intelligence**, não uma tela técnica: mostrar o que apareceu, o conceito provável,
+produto/scope, natureza (SOURCE/MIRROR/LOCAL_AUTHORITATIVE/DERIVED), autoridade e permitir
+`APROVAR / AJUSTAR / IGNORAR`.
+
+O `Source Registry + Kit Loader mínimo` que destrava o vendedor é **trabalho corrente do roadmap,
+não item adiado deste backlog**. O que fica aqui é a automação/UX posterior.
+
+### 12.12 Critério de retorno — ordem sugerida quando o vendedor já estiver funcionando
+
+Não refazer descoberta. Retomar a partir destes pontos, conforme necessidade real:
+
+1. corrigir/reconciliar Product Intelligence que realmente afete produto em uso;
+2. reparar +22 `session_speakers` determinísticos quando isso trouxer valor;
+3. continuar a curadoria do Ecossistema no ritmo da Adriana — sem geração automática de dossiês;
+4. resolver os 14 casos de programação divergente somente contra a source atual;
+5. decidir se/como reconstruir conceitos/taxonomia perene quando houver consumidor real;
+6. corrigir o gate de retrieval do Ecossistema dentro do Kit Loader, não como exceção Summit;
+7. classificar/remover legado `comum.speakers`;
+8. construir auto-discovery + Intelligence Inbox quando a operação já justificar;
+9. executar a auditoria final de hardcodes, proveniência, conflitos e lacunas antes de declarar a
+   Intelligence completa/confiável.
+
+**Prioridade atual que justificou o adiamento:** construir o sistema extensível → Kit comercial
+mínimo do Summit → Decisioning de vendas → Agent → handoff → Treble E2E → vendedor funcionando.
