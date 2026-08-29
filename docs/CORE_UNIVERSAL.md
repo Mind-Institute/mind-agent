@@ -592,16 +592,136 @@ coletores. O que fica travado:
 
 ---
 
-## 10. Router — roadmap
+## 10. Router universal  ✅ *fechado (Passo 10)*
 
-**Não implementado.** Taxonomia de rotas congelada:
+**O Router responde a uma pergunta só: qual competência assume a necessidade atual.**
+Não é classificador de assunto, não é detector de produto, não é filtro de canal. Ele nomeia a
+rota — e quem executa a rota é outro componente.
 
+### As seis rotas
+
+| rota | competência |
+|---|---|
+| `summit_b2c` | comprar ingresso para si — decisão individual |
+| `summit_b2b` | levar time, grupo ou delegação — decisão de empresa |
+| `institute` | formação/curso do Mind Institute |
+| `dash` | produto Dash — assinatura, acesso, uso |
+| `cliente_suporte` | resolver um problema operacional |
+| `concierge_summit` | viver o Summit — agenda, local, logística, conteúdo |
+
+**`cliente_suporte` é problema operacional, transversal ao produto.** Erro de pagamento,
+reembolso, acesso, ingresso que não chegou, troca de titularidade, problema técnico, reclamação,
+exceção fora da política. Prevalece sobre a venda: quem tem um problema operacional é atendimento,
+qualquer que seja o produto envolvido. **Compra prévia não é requisito** — quem nunca comprou pode
+ter um erro de pagamento tentando comprar, e isso é suporte do mesmo jeito.
+
+**`concierge_summit` é a experiência de participação no Summit.** Programação, horários, agenda,
+localização, onde ir, workshops e masterclasses, conteúdo, orientação durante o evento. **Ter
+comprado, sozinho, não determina a rota** — quem comprou pode estar pedindo suporte, comprando de
+novo ou perguntando de outro produto; o que manda é a necessidade atual.
+
+**`ja_comprou` e `desconhecido` não são rotas.** Já ter comprado é um fato sobre a pessoa, não uma
+competência — quem já comprou pode estar comprando de novo (`summit_b2b`), pedindo suporte
+(`cliente_suporte`) ou perguntando da programação (`concierge_summit`). E não saber ainda qual é a
+necessidade não é uma competência: é a ausência de decisão, que o contrato representa como
+`rota = null` + `precisa_esclarecer = true` **com pelo menos uma candidata**.
+
+### A necessidade atual decide; o histórico informa
+
+`origem_codigo`, `produto_codigo` e `entry_action` são **evidência**, não autoridade. Uma pessoa
+que entrou por uma campanha de delegações e escreveu "meu ingresso não chegou" é
+`cliente_suporte`, não `summit_b2b` — a campanha explica de onde ela veio, não o que ela precisa
+agora. O mesmo vale para o CRM: cargo de diretoria e empresa grande no espelho não transformam
+"quero comprar meu ingresso" em B2B.
+
+### Quando o Router roda
+
+**Só quando a rota ainda não está determinada.** Se o contexto de entrada já fecha a rota, não há
+o que decidir e a chamada é desperdício. **Identidade e contexto vêm antes do Router, sempre** — o
+Router não resolve pessoa, não monta contexto e não lê o banco por conta própria: ele consome o
+`AGENT_CONTEXT` do Passo 8 e mais nada.
+
+O pré-roteamento determinístico — a parte que resolve a rota sem IA a partir da entrada — é do
+**Passo 11**, junto com o Registry. Neste passo ele não existe.
+
+### `router` — Edge Function
+
+`POST /router?token=<intelligence.config.analise_token>` com `{ "conversa_id": "<uuid>" }`.
+Mesmo padrão de auth e de config do `analisar-conversa`: token em `intelligence.config`, prompt em
+`agentes.prompts`, OpenAI Responses API com `json_schema` strict e `store:false`.
+
+```jsonc
+{ "ok": true, "conversa_id": "…",
+  "rota": "summit_b2b" | null,
+  "precisa_esclarecer": false,
+  "candidatas": [] }
 ```
-summit_b2c · summit_b2b · institute · dash · cliente_suporte · concierge_summit
-```
 
-O Router **só decide quando a rota não veio determinada** pelo contexto de entrada.
-**Identidade e contexto vêm antes do Router**, sempre.
+Invariantes garantidas no servidor e não confiadas ao modelo:
+
+- `rota` ∈ **exatamente** as seis rotas, ou `null`. O `enum` do schema fecha a taxonomia.
+- `precisa_esclarecer` é `rota is null` — não é um campo independente que possa contradizer a rota.
+- rota escolhida ⇒ `candidatas = []`. Candidatas só existem quando não houve decisão.
+- **`rota = null` com `precisa_esclarecer = true` exige pelo menos uma candidata canônica.**
+- `ok` e `conversa_id` são preenchidos pela Edge, não pelo modelo: o id já é conhecido com
+  certeza, e pedir para o modelo repetir um uuid só cria espaço para ele errar.
+
+**Contrato de clarify.** Pedir esclarecimento sem dizer entre o que é uma saída vazia disfarçada de
+decisão — quem consome não teria o que perguntar. Se, depois da sanitização, `rota = null` e
+`candidatas = []`, a saída do modelo está inválida e a Edge devolve `saida_invalida`.
+
+**O servidor não inventa candidata.** Escolher quais rotas continuam plausíveis é competência do
+prompt; a Edge forjar essa lista seria roteamento escondido no encanamento. Por isso a saída é
+rejeitada em vez de completada. A regra também está escrita no prompt, explicitamente.
+
+**Sem fala do lead, não chama IA** — e essa é a **única** saída legítima com `rota=null` e
+`candidatas=[]`. Conversa sem nenhuma mensagem `papel='lead'` devolve `rota=null`,
+`precisa_esclarecer=false`, `candidatas=[]`: não há necessidade atual para rotear, e isso não é
+ambiguidade. A entrada do modelo é a **última fala do lead** como necessidade atual, mais o
+`AGENT_CONTEXT` inteiro como evidência.
+
+Os três contratos de erro do `mind_agent_context` são espelhados tal como são —
+`sem_conversa` · `conversa_nao_encontrada` · `conversa_sem_pessoa` — em HTTP 200 com `ok:false`.
+
+O prompt vive em `agentes.prompts['router_universal']` (ativo, v2), escrito pela Adriana. **Nenhuma
+regra de roteamento está codificada na Edge Function** — a Edge é encanamento; a competência é do
+prompt.
+
+### Deliberadamente desconectado do runtime
+
+O Router **não está integrado ao Treble**. `treble-inbound-agent`, `treble_agent_prompt` e
+`mind_turno_registrar` não foram tocados; a rota **não é persistida** e `engagement.conversas` não
+mudou. O Router existe, é chamável e está coberto por teste — e nada em produção depende dele.
+Isso é escolha, não pendência: ligar o Router ao turno ao vivo depende do Registry (Passo 11) e do
+contrato de ação (Passo 14).
+
+**Capability não altera rota.** Se a competência certa é `dash`, a rota é `dash` mesmo que ainda
+não exista nada capaz de atender — o que se faz com uma rota sem capacidade é o **capability gate
+do Passo 11**. Handoff é o **Passo 14**.
+
+### Blocker conhecido para a integração
+
+A confiabilidade do transporte da Treble (§8, Passo 6B) continua aberta. **O que se sabe são dois
+turnos observados:** um de ~4,43 s chegou ao WhatsApp, um de ~5,96 s não foi emitido. Isso
+demonstra um problema real de confiabilidade/latência, mas **não prova limiar universal** — não há
+threshold medido, e duas observações não fundamentam um. Somar uma chamada de Router a um caminho
+cuja confiabilidade ainda não foi entendida misturaria dois problemas. Registrado aqui como
+restrição para o Passo 11 — não se resolve neste passo, e o Passo 10 não a agrava justamente por
+não estar no caminho do turno.
+
+### Testes
+
+14 testes contra a Edge ao vivo, com fixtures isoladas criadas e removidas (resíduo verificado em
+zero). Cobrem as seis rotas; a prevalência de `cliente_suporte` sobre a origem da campanha e sobre
+"já comprou"; `origem_codigo`/`entry_action` como evidência e não autoridade; CRM de empresa
+grande que **não** transforma compra individual em B2B; ambiguidade real (`rota=null`,
+`precisa_esclarecer=true`, candidatas não vazia); conversa sem fala do lead; e uma varredura final
+das respostas confirmando taxonomia fechada, invariantes e formato exato do contrato — nenhuma rota
+fora da taxonomia, nenhuma invariante quebrada, nenhuma resposta fora do formato.
+
+O **contrato de clarify** tem os três casos que o delimitam cobertos: ambiguidade real com
+candidatas não vazia · rota decidida com `candidatas=[]` · conversa sem fala do lead com
+`rota=null`, `precisa_esclarecer=false` e `candidatas=[]`.
 
 ---
 
@@ -619,22 +739,33 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 7 | **Normalização determinística da pessoa** | ✅ **fechado** |
 | 8 | **AGENT_CONTEXT universal** | ✅ **fechado** |
 | 9 | **Testes de contrato do AGENT_CONTEXT** | ✅ **fechado** |
-| 10 | Router universal | ⏭️ **PRÓXIMO** |
-| 11 | Registry de rotas + capability gate | |
+| 10 | **Router universal** | ✅ **fechado** |
+| 11 | Registry de rotas + capability gate | ⏭️ **PRÓXIMO** |
 | 12 | Separação Base / Router / Kit Loader | |
 | 13 | Finalizar cérebro de vendas Summit | |
-| 14 | Contrato universal de ação + handoff | |
+| 14 | Contrato universal de ação + handoff/escalation | |
 | 15 | Análise pós-turno + memória universal | |
-| 16 | Continuidade / Silence integrada ao runtime | |
+| 15B | **Write-back + dispatch operacional pós-turno** | |
+| 16 | Continuidade / Silence | |
 | 17 | E2E vendas Summit via Treble | |
 | 18 | Hardening, documentação e travas Core Universal | |
 
 **Backlog:** 19 permissões legadas · 20 secrets hygiene · 21 exposed surface audit ·
-22 write-back universal Mind Intelligence → HubSpot · 23 front-end/inbox de pendências.
+23 front-end/inbox de pendências.
 
-O **Passo 22** inclui, no futuro: atualizar propriedades relevantes do contato, atualizar Lead
-existente, criar Lead quando devido, e **centralizar o write-back** para que cada agente não
-implemente a própria integração. Nada disso agora.
+O **Passo 15B** — promovido do backlog, porque write-back não é higiene, é o que fecha o ciclo da
+inteligência — cobre, no futuro:
+
+- atualizar o **Contact**;
+- atualizar **Lead existente**;
+- **criar Lead** quando houver oportunidade e pipeline aplicável;
+- atualizar / mover o **estado do Lead**;
+- quando o produto **não tiver pipeline apropriado, não inventar pipeline**: persistir a
+  inteligência e fazer **dispatch para os responsáveis do produto** — e-mail, follow-up, o que a
+  operação daquele produto usar.
+
+E centralizar tudo isso, para que cada agente não implemente a própria integração. Nada disso
+agora.
 
 Decisões de negócio ainda abertas e dívida conhecida ficam em `BACKLOG.md`.
 
