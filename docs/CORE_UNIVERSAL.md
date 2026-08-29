@@ -345,19 +345,81 @@ Estado real hoje:
 
 | tabela | linhas | o que é |
 |---|---|---|
-| `engagement.conversas` | 6.747 | contêiner de conversa/sessão por canal — **pode conter várias mensagens** (hoje: média 1,10, máximo 94, 329 com mais de uma) |
-| `engagement.mensagens` | 7.420 | papéis observados: `lead`, `agente` |
+| `engagement.conversas` | 6.747 | contêiner de conversa/sessão por canal — **pode conter várias mensagens** (máximo observado: 94) |
+| `engagement.mensagens` | 7.464 | papéis canônicos: `lead`, `agente`, `sistema` |
 | `engagement.identidades` | 7.684 | como reconhecemos a pessoa |
 | `engagement.identidade_fusoes` | 263 | fila de pendências |
 | `engagement.origens` · `utm_sessoes` | — | origem do lead na chegada |
 
-**Engagement inclui interação humana e de IA.** Mensagem humana é **first-class data**, não
-um caso especial. A coluna `agente` em `engagement.mensagens` diz quem escreveu.
+**Engagement inclui interação humana e de IA.** Mensagem humana é **first-class data**, não um
+caso especial. A coluna `agente` fica em `engagement.conversas` e diz por qual runtime a conversa
+passou (`treble`, …) — é proveniência operacional, não autoria.
 
 O estado solto da venda (intent, objeção, needs_human, checkout, desfecho) fica em
 `engagement.conversas.variables` (jsonb) — sem coluna nova por campo.
 
-> O **coletor factual de Engagement é o Passo 6 e ainda NÃO existe.**
+### O histórico é PESSOA-WIDE, não conversa-escopo
+
+`participante_id` é o nome legado da coluna em `conversas` e `mensagens`, mas tem **FK real para
+`pessoas.pessoas`** (verificado: zero órfãos). É o `pessoa_id` canônico. Não se cria uma coluna
+`pessoa_id` duplicada.
+
+1.926 das 2.939 pessoas com histórico têm **mais de uma conversa** (máximo: 10 conversas,
+110 mensagens). Qualquer coletor preso à conversa atual perde a maior parte da história — por
+isso o coletor atravessa todas as conversas da pessoa.
+
+### Normalização do Treble — text, HSM e mídia
+
+`public.treble_sessao_encerrada_gravar(jsonb)` é o adapter do WhatsApp. Ele normaliza:
+
+| tipo no payload | `conteudo` | `blocos` |
+|---|---|---|
+| `text` | `text.message` | — |
+| `hsm` | `hsm.message` | `{"tipo":"hsm"}` |
+| `image`·`audio`·`document`·`video` | `caption`, quando houver | `{"tipo":…, "url":…}` |
+
+**`papel='agente'` significa LADO MIND da conversa, não "IA".** O payload do Treble só traz
+`sender: user|company` — não existe nele metadado que distinga humano, bot ou IA, e não se
+inventa autoria. O coletor devolve isso explicitamente em
+`meta.autoria_individual_treble_disponivel: false`.
+
+**Idempotência:** nenhuma mensagem do Treble tem `id` no payload, então a chave é a posição no
+array — `client_msg_id = 'treble-close:<ordinal>'`. Vale porque cada `session_external_id` tem no
+máximo um `session.close`. A verificação de "já capturada ao vivo" ignora linhas `treble-close:*`,
+para que duas mensagens do mesmo payload nunca se suprimam.
+
+### `public.mind_engagement_fatos(p_pessoa_id uuid) → jsonb`  *(Passo 6)*
+
+Responde: **"o que sabemos, pelo histórico real de interação, que esta pessoa falou, recebeu e
+viveu nos canais do Mind?"**
+
+```
+pessoas.pessoas.id → engagement.conversas.participante_id → engagement.mensagens
+```
+
+Factual e determinístico. **Não usa LLM, não escreve, não lê CRM/HubSpot, nem
+`intelligence.analise_conversa`, `participante_memoria` ou Silence.** O coletor não conhece
+payload de canal — quem normaliza é o adapter.
+
+```jsonc
+{
+  "ok": true, "pessoa_id": "…",
+  "resumo": { "conversas_total", "mensagens_total", "canais": [],
+              "primeira_interacao_em", "ultima_interacao_em" },
+  "conversas": [ { "conversa_id", "canal", "agente", "origem_codigo", "produto_codigo",
+                   "iniciada_em", "ultima_atividade", "encerrada_em",
+                   "mensagens": [ { "mensagem_id", "papel", "conteudo", "blocos",
+                                    "origem", "criado_em" } ] } ],
+  "meta": { "autoria_individual_treble_disponivel": false }
+}
+```
+
+Conversas e mensagens em ordem cronológica, sem paginação — o volume por pessoa é pequeno.
+`origem_codigo` e `produto_codigo` entram porque explicam em que contexto a conversa nasceu.
+
+Fora do contrato de propósito: `variables`, telefone, e-mail, `session_external_id`, payload cru
+e qualquer coisa de `intelligence.*`. Análise pós-turno e memória são o **Passo 15**;
+continuidade/Silence é o **Passo 16**.
 
 ---
 
@@ -398,8 +460,8 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 3 | Fila universal de resolução identidade/CRM | ✅ **fechado** |
 | 4 | Coletor factual CRM | ✅ **fechado** |
 | 5 | Compras + contexto comercial | ✅ **5A fechado** |
-| 6 | **Coletor factual de Engagement** | ⏭️ **PRÓXIMO** |
-| 7 | Normalização determinística da realidade | |
+| 6 | Coletor factual de Engagement | ✅ **fechado** |
+| 7 | **Normalização determinística da realidade** | ⏭️ **PRÓXIMO** |
 | 8 | Construção do AGENT_CONTEXT universal | |
 | 9 | Testes de contrato do AGENT_CONTEXT | |
 | 10 | Router universal | |
