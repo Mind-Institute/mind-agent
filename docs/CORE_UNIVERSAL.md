@@ -421,6 +421,33 @@ Fora do contrato de propósito: `variables`, telefone, e-mail, `session_external
 e qualquer coisa de `intelligence.*`. Análise pós-turno e memória são o **Passo 15**;
 continuidade/Silence é o **Passo 16**.
 
+### Passo 6B — transcrição/normalização de áudio  ⏭️ *próximo, ainda não implementado*
+
+Hoje mídia entra sem texto: das 44 mensagens de mídia, **11 são áudio e nenhuma tem `conteudo`**
+— só `blocos.url`. Para o agente, um áudio é hoje uma mensagem muda.
+
+O 6B fecha isso **como normalização de conteúdo na ingestão**, não como uma arquitetura de áudio
+à parte. A ordem importa:
+
+```
+áudio chega
+  → PERSISTE a mensagem original primeiro   (a fala existe no sistema antes de qualquer IA)
+  → transcreve com Whisper
+  → grava a transcrição como `conteudo` da MESMA mensagem, preservando `blocos` = {tipo:"audio", url}
+  → só então Router / Decisioning / Agent podem processar e responder
+```
+
+Duas consequências de desenho:
+
+- **A proveniência não se perde.** A transcrição vira o `conteudo` da mensagem que já existe; o
+  `blocos` continua dizendo que a origem era áudio e onde está o arquivo. Não se cria mensagem
+  nova, nem tabela de áudio, nem canal paralelo.
+- **Histórico antigo usa a mesma capacidade**, em background — os 11 áudios já gravados podem ser
+  transcritos depois, pelo mesmo caminho, sem tratamento especial.
+
+Nada disso está implementado. Quando estiver, `mind_engagement_fatos` não muda de contrato: ele
+já devolve `conteudo` + `blocos`, e passa a devolver o áudio com texto sem alteração nenhuma.
+
 ---
 
 ## 9. AGENT_CONTEXT — contrato arquitetural futuro
@@ -461,7 +488,8 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 4 | Coletor factual CRM | ✅ **fechado** |
 | 5 | Compras + contexto comercial | ✅ **5A fechado** |
 | 6 | Coletor factual de Engagement | ✅ **fechado** |
-| 7 | **Normalização determinística da realidade** | ⏭️ **PRÓXIMO** |
+| 6B | **Transcrição/normalização de áudio** | ⏭️ **PRÓXIMO** |
+| 7 | Normalização determinística da realidade | |
 | 8 | Construção do AGENT_CONTEXT universal | |
 | 9 | Testes de contrato do AGENT_CONTEXT | |
 | 10 | Router universal | |
