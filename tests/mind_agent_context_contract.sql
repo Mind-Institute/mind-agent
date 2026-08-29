@@ -467,6 +467,9 @@ begin
   if v_exec is null then
     raise exception 'CONTRATO 12: sem ACL — EXECUTE estaria aberto a todos';
   end if;
+  if not ('postgres' = any(v_exec)) then
+    raise exception 'CONTRATO 12: postgres devia poder executar, ACL = %', v_exec;
+  end if;
   if not ('service_role' = any(v_exec)) then
     raise exception 'CONTRATO 12: service_role devia poder executar, ACL = %', v_exec;
   end if;
