@@ -1,153 +1,73 @@
-# Claude Code Project Rules
+# Mind — regras para o agente de código
 
-Before doing any work, read:
-1. `README_FIRST.md`
-2. `docs/00_EXECUTION_CONTROL.md`
-3. `docs/00_ARCHITECTURE.md`
+## Antes de trabalhar
 
-You are the technical executor of this project. Architecture is governed by the versioned project documents, not by convenience in the current task.
+1. Leia **`docs/CORE_UNIVERSAL.md`** — é o documento canônico do sistema.
+2. **Investigue o sistema real** relacionado ao passo que você vai executar.
+3. Documentação **descreve** o sistema; ela **não substitui** verificar o sistema.
 
-## Mandatory behavior
+## Ordem de autoridade
 
-- Do not invent new schemas, tables, entities, runtimes or architectural patterns without checking the existing architecture first.
-- Do not duplicate person, organization, product, product run or concept.
-- Do not treat CRM contact as canonical person identity.
-- Do not treat email/phone/contact points as the same thing as provider external ids.
-- Do not treat a product edition/cohort as a new canonical product.
-- Do not expose arbitrary SQL as the main interface for LLM agents.
-- Do not put commercial truth such as price, lot, availability or discount authority inside prompts.
-- Do not use embeddings/vector search as universal source of truth when structured authoritative data exists.
-- Do not silently turn AI inference into fact; persist source, confidence and provenance.
-- Do not copy canonical data into `intelligence.facts` merely for convenience.
-- Do not make production schema changes manually outside versioned migrations.
-- Do not delete or destructively alter structures without checkpoint and rollback/recovery plan.
-- Do not deploy or modify production unless the task explicitly authorizes it.
-- Do not expose privileged secrets to browser/client code.
-- Do not create a parallel conversation runtime when shared `engagement` should be used.
-- Do not assume shared engagement means one infinite conversation across every channel.
-- Do not redesign the architecture while implementing a local feature.
-- Do not ship an agent behavior change without the relevant eval/regression checks.
-- Do not allow LLM decisions to override deterministic privacy/contactability/suppression rules.
+1. Decisões explicitamente fechadas com a Adriana.
+2. Infraestrutura real: Supabase, código, migrations aplicadas.
+3. Documentação canônica atual (`docs/CORE_UNIVERSAL.md`).
 
-## Read the domain-specific docs before implementation
+**Documentação antiga não é requirement.** Se um documento contradiz o sistema vigente, o
+sistema vence e o documento é que está errado. Git preserva a história — não é preciso
+preservar a contradição.
 
-### Database/entity/schema work
-Read:
-- `docs/02_TARGET_DATA_MODEL.md`
-- `docs/09_SOURCE_OF_TRUTH_DRAFT.md`
-- `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`
-- future Current → Target / Migration Plan when present.
+## Regras
 
-### Sales behavior/prompt/playbook/decisioning
-Read:
-- `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`
-- `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
-- `docs/08_AGENT_CONTRACTS.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
+- **Menor mudança correta.** Não redesenhe o que já foi aprovado.
+- **Não invente requisitos.** Não crie arquitetura, entidade ou regra de um sistema que não
+  existe. Se falta informação de negócio, pergunte.
+- **Não reabra decisões fechadas.**
+- **Não faça limpeza lateral.** Achou algo quebrado fora do escopo? Registre no `BACKLOG.md` e
+  siga.
+- **Não expanda legado.** O que a §13 do CORE_UNIVERSAL marca como legado não se replica em
+  tabela ou código novo.
+- **Teste só o afetado** e as regressões diretamente atingidas. Não rode suíte completa.
+- **Agente novo consome o Core Universal.** Não reimplementa identidade, contexto, memória nem
+  histórico.
 
-Behavior Spec is authoritative for what good Sales behavior means. Do not rewrite the behavior definition merely to fit an implementation.
+## As quatro camadas
 
-### Knowledge/RAG/site ingestion/retrieval
-Read:
-- `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`
-- `docs/02_TARGET_DATA_MODEL.md`
-- `docs/08_AGENT_CONTRACTS.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
+| camada | papel |
+|---|---|
+| **Intelligence** | factual — o que é verdade agora |
+| **Playbook** | competência — como um excelente profissional pensa |
+| **Decisioning** | estratégia — o que faz sentido agora |
+| **Agent** | execução — o que se diz ou faz |
 
-Do not solve all knowledge questions with generic vector retrieval.
+> PLAYBOOK DECIDE COMO PENSAR. INTELLIGENCE INFORMA O QUE É VERDADE AGORA.
 
-### Outbound
-Read:
-- `docs/14_OUTBOUND_WORKFLOW.md`
-- `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`
-- privacy/contactability parts of `docs/02_TARGET_DATA_MODEL.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
+Coletor factual não decide, não pontua, não recomenda e não escreve.
 
-### Concierge
-Read:
-- `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
-- `docs/08_AGENT_CONTRACTS.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
-- Summit/product docs relevant to the task.
+## Divisão de trabalho
 
-### Security/RLS/webhooks/external writes
-Read:
-- `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`
-- `docs/09_SOURCE_OF_TRUTH_DRAFT.md`
+- **Claude faz o encanamento:** edge functions, SQL, RPCs, estrutura de tabela, wiring,
+  retrieval, fluxo de dado.
+- **Adriana é dona do conteúdo e da verdade de negócio:** prompts, playbooks, preço, lote,
+  produto, mapeamentos, posicionamento.
 
-## If a task conflicts with architecture
+**Não invente prompt, playbook ou conteúdo de negócio.** Quando o conteúdo tiver sido fornecido ou explicitamente aprovado, implemente-o fielmente. Se depender de conteúdo ainda não definido, não invente para preencher o espaço — deixe-o pronto e vazio.
 
-Stop before implementing the conflicting change.
-Return:
-1. the exact conflict;
-2. why the current request would violate architecture;
-3. the smallest viable options;
-4. expected migration/compatibility impact.
+**Antes de criar qualquer tabela, investigue o que já existe.** Se a criação não estiver
+explicitamente autorizada ou depender de uma decisão material ainda aberta, pergunte. Se a
+tarefa já autorizou a mudança e a investigação confirmou a necessidade, implemente a menor
+estrutura correta.
 
-Wait for approval before implementing an architectural deviation.
+Conversa já tem casa (`engagement`), coisa aprendida sobre a pessoa já tem casa
+(`intelligence`), identidade já tem casa (`pessoas` + `engagement.identidades`). Só a **config**
+de uma plataforma nova ganha lugar novo.
 
-## Scope discipline
+**Não popule dado de negócio sem autorização.** Isso não impede seed, backfill ou carga que a
+própria tarefa tenha mandado fazer — nesses casos, execute e relate. Dado de teste pode, avisando.
 
-Implement only the requested step.
-Do not opportunistically refactor unrelated parts of the repository.
-Do not build future domains just because the schema allows them.
+## Como responder
 
-`docs/00_EXECUTION_CONTROL.md` decides what is active now.
+Objetivo, um passo por vez. Explique o essencial em poucas linhas e espere a resposta antes do
+próximo passo. A Adriana precisa entender a engenharia do próprio sistema — nada opaco.
 
-## Required quality for schema changes
-
-Every structural database change should include, when applicable:
-- declarative/current schema source;
-- migration;
-- rollback or reversibility/recovery note;
-- tests/validation query;
-- documentation update;
-- dependency/consumer review for legacy objects.
-
-## Required quality for agent-facing contract changes
-
-When changing Agent API or structured output:
-- update versioned contract/schema where applicable;
-- inventory consumers;
-- preserve compatibility or explicitly migrate;
-- run contract tests;
-- run relevant behavior evals.
-
-## Required quality for external actions
-
-Writes to HubSpot, Treble, email, calendar or other external systems must be idempotent and auditable.
-
-Outbound additionally requires deterministic contactability/consent/suppression and cadence checks before send.
-
-## Context philosophy
-
-Agent runtime uses:
-- minimal Base Context;
-- Context Planner;
-- just-in-time retrieval;
-- deep memory/research only when necessary;
-- authority/freshness metadata where relevant;
-- context/retrieval trace for debugging.
-
-Do not solve missing context by loading entire datasets into prompts.
-
-## Evals philosophy
-
-Evals are part of development, not a final polishing phase.
-
-Before changing prompt/model/playbook/context/retrieval/tool behavior:
-1. identify relevant golden cases;
-2. implement narrowly;
-3. run relevant regressions;
-4. do not rewrite expected behavior simply to make a failing implementation pass.
-
-## Current execution state
-
-Always defer to `docs/00_EXECUTION_CONTROL.md` for:
-- active objective;
-- current phase;
-- checkpoint/gaps;
-- done criteria;
-- explicitly forbidden work.
-
-If this file and `00_EXECUTION_CONTROL.md` disagree on sequencing, stop and report the discrepancy rather than guessing.
+**Agilidade > cerimônia.** Quase tudo ainda é teste: deletar costuma ser mais rápido que migrar.
+Nada de governança pesada sem necessidade real.
