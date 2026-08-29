@@ -2,25 +2,26 @@
 
 ## Antes de trabalhar
 
-1. Leia **`BACKLOG.md`** — é o checkpoint operacional versionado: ordem do projeto, passo atual, decisões congeladas e investigações deferidas que não devem ser refeitas.
-2. Leia **`docs/CORE_UNIVERSAL.md`** — é o documento canônico do sistema real e dos contratos já implementados.
-3. **Investigue o sistema real** relacionado ao passo que você vai executar.
-4. Documentação **descreve** o sistema; ela **não substitui** verificar o sistema.
+1. Leia **`PROJECT_STATE.md`** — é o checkpoint operacional versionado: arquitetura congelada, ordem do projeto, passo atual e decisões que não devem ser reabertas.
+2. Leia **`BACKLOG.md`** — investigações, fragilidades e trabalho deliberadamente deferido que não deve ser redescoberto do zero.
+3. Leia **`docs/CORE_UNIVERSAL.md`** — é o documento canônico do sistema real e dos contratos já implementados.
+4. **Investigue o sistema real** relacionado ao passo que você vai executar.
+5. Documentação **descreve** o sistema; ela **não substitui** verificar o sistema.
 
-Uma IA que entra no projeto sem contexto deve conseguir reconstruir o ponto de trabalho lendo, nessa ordem, `BACKLOG.md` + `docs/CORE_UNIVERSAL.md` e só depois verificando o sistema real.
+Uma IA que entra no projeto sem contexto deve conseguir reconstruir o ponto de trabalho lendo, nessa ordem, `PROJECT_STATE.md` + `BACKLOG.md` + `docs/CORE_UNIVERSAL.md` e só depois verificando o sistema real.
 
 ## Ordem de autoridade
 
 1. Decisões explicitamente fechadas com a Adriana **e registradas na documentação versionada**.
 2. Infraestrutura real: Supabase, código, migrations aplicadas.
-3. Documentação canônica atual (`BACKLOG.md` para checkpoint/ordem/decisões; `docs/CORE_UNIVERSAL.md` para estado e contratos implementados).
+3. Documentação canônica atual (`PROJECT_STATE.md` para arquitetura/ordem/checkpoint; `BACKLOG.md` para deferimentos; `docs/CORE_UNIVERSAL.md` para estado e contratos implementados).
 
 **Documentação antiga não é requirement.** Se um documento contradiz o sistema vigente, o sistema vence e o documento precisa ser corrigido. Mas uma decisão congelada nova **não pode ficar só na conversa**: deve ser registrada antes de o passo ser considerado fechado.
 
 ### Regra de versão das decisões congeladas
 
 - `CONGELADO` significa: decisão aprovada e registrada no Git.
-- Se uma decisão congelada mudar materialmente o funcionamento ou a ordem do sistema, **não sobrescreva silenciosamente**. Atualize a versão do checkpoint no `BACKLOG.md` (`vN → vN+1`), registre o que foi substituído e por quê, e ajuste somente as seções afetadas do `CORE_UNIVERSAL.md` quando a mudança também alterar o estado/contrato canônico.
+- Se uma decisão congelada mudar materialmente o funcionamento ou a ordem do sistema, **não sobrescreva silenciosamente**. Atualize a versão do checkpoint em `PROJECT_STATE.md` (`vN → vN+1`), registre o que foi substituído e por quê, e ajuste somente as seções afetadas do `CORE_UNIVERSAL.md` quando a mudança também alterar o estado/contrato canônico.
 - Git preserva o histórico; a documentação corrente deve preservar **a decisão vigente**, com referência clara ao que ela substituiu.
 
 ## Ritual de trabalho
