@@ -509,18 +509,61 @@ implementado, e nenhuma arquitetura nova se abre aqui sem evidência de que ela 
 
 ---
 
-## 9. AGENT_CONTEXT — contrato arquitetural futuro
+## 9. AGENT_CONTEXT universal  ✅ *fechado (Passo 8)*
 
-**Congelado como conceito, não implementado.** Não existe função `agent_context` hoje.
+`public.mind_agent_context(p_conversa_id uuid) → jsonb`
 
-Deve reunir, de forma **factual e determinística**:
+**A conversa é a única âncora.** Não existe parâmetro de pessoa: ela vem de
+`engagement.conversas.participante_id`. Isso torna impossível, por construção, montar um contexto
+com a pessoa A e a conversa B.
 
 ```
-person · entry · crm · purchases/commercial · memory · conversation
+conversa_id → conversas.participante_id → pessoa_id
+            → mind_pessoa_fatos · mind_crm_fatos · mind_crm_comercial · mind_engagement_fatos
 ```
 
-**Não é Decisioning. Não se usa LLM para construí-lo.** O contrato exato será fechado nos
-Passos 7 a 9.
+**Compõe, não reimplementa.** Cada coletor é chamado uma vez e entra **integral**, na linguagem
+dele. Esta função não reinterpreta nenhum deles, e nenhum precisou mudar para o Passo 8 existir.
+
+| chave | vem de |
+|---|---|
+| `person` | `mind_pessoa_fatos` |
+| `crm` | `mind_crm_fatos` |
+| `commercial` | `mind_crm_comercial` |
+| `entry` | `engagement.conversas` + `engagement.origens` |
+| `conversation` | a conversa atual, tirada de `mind_engagement_fatos.conversas` |
+| `engagement` | `resumo` + `conversas_anteriores` + `meta` do mesmo coletor |
+
+**`conversation` é a conversa atual; `engagement` é a pessoa inteira.** As duas coexistem porque
+o histórico é pessoa-wide (§8): as conversas anteriores vêm **completas, com suas mensagens** —
+não reduzidas a contadores. Engagement factual não é Memory.
+
+### `entry` — só o fato da entrada atual
+
+`canal` · `origem_codigo` · `origem` (apenas `site`, `botao_rotulo`, `descricao`) ·
+`produto_codigo` · `entry_action`.
+
+`entry_action` é a CTA que a pessoa clicou, extraída de `conversas.variables` — que existe em duas
+formas: **array** de `{key,value}` quando vem do `session.close`, e **objeto** quando o agente
+escreve. As duas são normalizadas, com prioridade `hubspot_opcao_selecionada_treble` →
+`opcao_selecionada`. **`variables` nunca sai cru.**
+
+**Fora do contrato, de propósito:**
+
+- `audience`, `stage`, `intent`, `ticket_interest`, `objection`, `needs_human`, `checkout_sent`,
+  `desfecho` — moram em `conversas` e parecem entrada, mas são **escritos pelo agente**
+  (`mind_turno_registrar`). São estado/resultado, não fato.
+- `session_external_id`, `telefone`, `nome_contato`, `dispositivo_id`, `utm`, `utm_token` —
+  transporte de canal, PII já coberta por `person`, ou coluna sem dado.
+- **evento, ofertas, agenda, FAQ, políticas, regras comerciais** — conhecimento de **um produto**.
+  Pertence ao **Kit da rota**, carregado depois do Router. `treble_agent_context` e
+  `treble_agent_context_base` são exatamente isso, apesar do nome: nenhuma das duas contém um
+  único fato sobre a pessoa, a entrada ou a conversa.
+- `memory` — Passo 15. A chave **não aparece** enquanto não existir.
+
+**Não é Decisioning. Não se usa LLM para construí-lo.**
+
+Erros, sem exception: `sem_conversa` · `conversa_nao_encontrada` · `conversa_sem_pessoa`.
 
 ---
 
@@ -549,8 +592,8 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 6 | Coletor factual de Engagement | ✅ **fechado** |
 | 6B | **Normalização de áudio** | ✅ **fechado** |
 | 7 | **Normalização determinística da pessoa** | ✅ **fechado** |
-| 8 | Construção do AGENT_CONTEXT universal | ⏭️ **PRÓXIMO** |
-| 9 | Testes de contrato do AGENT_CONTEXT | |
+| 8 | **AGENT_CONTEXT universal** | ✅ **fechado** |
+| 9 | Testes de contrato do AGENT_CONTEXT | ⏭️ **PRÓXIMO** |
 | 10 | Router universal | |
 | 11 | Registry de rotas + capability gate | |
 | 12 | Separação Base / Router / Kit Loader | |
