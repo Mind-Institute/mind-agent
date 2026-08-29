@@ -28,6 +28,10 @@ existem, são chamáveis e estão cobertos por teste, mas nada em produção dep
 O Registry não ganhou tabela — o mapa rota → playbook é a convenção `playbook_<rota>` em
 `agentes.prompts`, e a ausência da linha já significa `missing_playbook`.
 
+A fonte canônica de preço, lote e desconto é o projeto **`mind-summit-propostas`**; `summit_2026`
+é espelho. Um hotfix restaurou o sync de preço e o retrieval live, que apontavam para schemas
+renomeados.
+
 **Próximo passo: 12A — Auditoria e reforma de Product Intelligence / Knowledge**, e depois
 **12B — Kit Loader universal**. Construir o loader antes de auditar o que ele carrega seria encanar
 uma fonte que ninguém verificou. Princípio fechado: **estruturado autoritativo primeiro, RAG para

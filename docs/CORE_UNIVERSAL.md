@@ -701,6 +701,37 @@ contrato de ação (Passo 14).
 não exista nada capaz de atender — o que se faz com uma rota sem capacidade é o **capability gate
 do Passo 11**. Handoff é o **Passo 14**.
 
+### Integridade do dado de produto — estado após o hotfix
+
+Os schemas `summit` e `comum` foram renomeados e não existem mais, mas um conjunto de funções
+continuou apontando para eles. Quatro delas estavam no caminho vivo e o efeito chegava ao cliente.
+Corrigidas — troca de schema, sem redesenho:
+
+| função | efeito que causava | estado |
+|---|---|---|
+| `mindagent_sync_offers` | cron de preço falhando a cada 30 min | ✅ sincroniza |
+| `mind_precos_por_volume` | bloco `precos_por_volume` indisponível | ✅ calcula |
+| `mindagent_chat_search` | chat web sem dados oficiais; agenda vazia no WhatsApp | ✅ responde |
+| `api.treble_find_location` | busca de local morta | ✅ responde |
+
+**Preço.** A fonte canônica de preço, lote e desconto por volume é o projeto
+**`mind-summit-propostas`**; `summit_2026.offers` e `commercial_rules` são espelho, alimentado
+pelo `mindagent-sync-precos`. Com o sync parado, o agente cotou um lote encerrado. Após o hotfix,
+as 18 linhas de lote conferem com a fonte — preço, datas e o par `ativo`/`publico` —, só o lote
+vigente está ativo, e nenhuma oferta de grupo está pública.
+
+**Palestrantes — cobertura ainda limitada.** `summit_2026.session_speakers` tem duas colunas de
+palestrante: `palestrante_id` (uuid, apontando para a tabela removida) e `speaker_id` (bigint,
+canônico, para `ecossistema.palestrantes_especialistas`). Dos 61 vínculos, **9 têm o
+`speaker_id`** e são os únicos que o retrieval enxerga. Os 52 restantes **não têm mapeamento
+determinístico**: a tabela que o uuid referenciava não existe mais, nenhuma outra tabela o resolve,
+e o cruzamento por título com a fonte da programação cobre só 9 dos 52. Reparar esse vínculo é do
+**Passo 12A** e não se faz por semelhança de nome.
+
+**`summit_b2b` continua `missing_kit`.** `mind_precos_por_volume` voltou a funcionar, mas o loader
+vivo ainda não entrega esse bloco aos `DADOS_OFICIAIS` — e kit, para o Capability Gate, é
+capacidade acessível ao runtime. Ligar os dois é o **Passo 12B**.
+
 ### Blocker conhecido para a integração
 
 A confiabilidade do transporte da Treble (§8, Passo 6B) continua aberta. **O que se sabe são dois
