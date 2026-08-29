@@ -299,3 +299,152 @@ redescobrir): `cortesia_requisicoes` · `receita_participantes` (~120) · `ingre
 fonte `cred_produtos_mapa`; é uma linha pra espelhar).
 
 Contexto do sistema em `docs/CORE_UNIVERSAL.md`.
+
+---
+
+## 📌 CHECKPOINT — investigação do Passo 12B (29/08)
+
+Registro do que foi **investigado e confirmado no sistema real**, para ninguém reinvestigar.
+Nada aqui foi implementado. Divide-se em **caminho atual** (o que está no ar hoje) e
+**dívida/deferimento** (o que ficou registrado para depois).
+
+### Caminho atual — o runtime vivo do Treble
+
+`treble-inbound-agent` v1.3.0 é o único caminho vivo do vendedor no WhatsApp. Por turno ele faz,
+nesta ordem:
+
+```
+treble_agent_config()            → treble.config (token, modelo, timeout, flags)
+treble_agent_start(...)          → ingestão + identidade + histórico + audience/stage
+[em paralelo]
+  treble_agent_context(5 args)   → IGNORA os 5 argumentos
+  treble_agent_prompt(null)
+  mindagent_chat_search(...)     → só se treble.config.bloco_agenda_busca = 'true'
+treble_agent_resposta_repetida() → dedup de 90 s
+treble_agent_prompt(audience)    → 2ª chamada, agora com a audiência
+agendaSegura                     → filtro em TypeScript, 5 chaves
+OpenAI Responses (json_schema strict, effort:none, store:false)
+guardrail de preço (TS, regex R$)
+treble_agent_identificar / mind_pessoa_completar / mind_lead_capturar / mind_turno_registrar
+```
+
+O payload ao LLM tem 6 chaves: `DADOS_OFICIAIS`, `AGENDA_E_PALESTRANTES`, `estado_da_conversa`,
+`quem_esta_falando`, `historico`, `mensagem_do_lead`.
+
+### O achado central — duas `treble_agent_context`
+
+- **`treble_agent_context` (viva, reduzida)** devolve **somente** `evento` e `ofertas_vigentes`.
+  Verificado no `prosrc`: **não referencia nenhum dos 5 parâmetros** que recebe
+  (`p_audience`, `p_origem`, `p_utm`, `p_conversa`, `p_produto`).
+- **`treble_agent_context_base` (ÓRFÃ, zero chamadores)** é a rica: `experiencias_o_que_inclui`,
+  `faq`, `conteudo_aprovado`, `visao_geral`, `virada_de_lote`, `proximo_lote`,
+  **`regras_comerciais`** e `politicas`.
+
+Quem lê o código da `_base` conclui que o agente recebe FAQ, políticas e regras comerciais.
+**Ele não recebe nada disso.** É o descompasso mais caro do sistema hoje.
+
+### Órfãs que funcionam
+
+Testadas nesta investigação, corretas, **zero chamadores**:
+
+- **`mind_precos_por_volume()`** — devolve 4 faixas × 3 experiências com `faixa`,
+  `valor_cheio_por_ingresso`, `valor_por_ingresso_com_desconto`, `economia_por_ingresso`,
+  `parcelamento_com_desconto`. É **exatamente** o bloco `precos_por_volume` que o
+  `playbook_summit_b2b` exige em DADOS_OFICIAIS.
+- **`mind_virada_de_lote()`** — devolve `dias_restantes`, `ultimo_dia_do_lote_atual`,
+  `pode_usar_como_urgencia`.
+
+### Core canônico construído e fora do runtime
+
+| componente | passo | estado |
+|---|---|---|
+| `mind_agent_context(uuid)` | 8 | **ÓRFÃ.** Substituída na prática pelo retorno de `treble_agent_start` |
+| Edge `router` + `router_universal` | 10 | **ÓRFÃ.** Nunca chamada pelo inbound |
+| `mind_rota_capacidade` | 11 | **ÓRFÃ.** Nunca chamada |
+
+### `audience` legado usado como rota
+
+A rota, hoje, é o campo `audience` que **o próprio LLM devolveu no turno anterior**, persistido em
+`engagement.conversas.audience` e realimentado no turno seguinte. Taxonomia legada de 5 valores
+(`b2c`, `b2b`, `cliente_suporte`, `ja_comprou`, `desconhecido`) — **não** a taxonomia canônica de 6
+rotas. No primeiro turno ela é `desconhecido`.
+
+**Decisão fechada (12B):** `audience` **não** pode virar fonte de verdade da rota no Core novo.
+
+### Bloqueios comerciais — o dado existe, não é entregue
+
+Tudo abaixo está no banco, ativo e correto. **Nada chega ao agente**, porque só existe dentro da
+`treble_agent_context_base` órfã:
+
+| bloqueia | onde está | quem lê hoje |
+|---|---|---|
+| desconto por volume (B2B) | `summit_2026.commercial_rules.desconto_por_volume` + `mind_precos_por_volume()` | ninguém |
+| escada de desconto individual D1–D4 (B2C) | `summit_2026.commercial_rules.desconto_individual` | ninguém |
+| políticas institucionais | `mind.policies` (6 linhas) | ninguém |
+| virada de lote / próximo lote | `mind_virada_de_lote()`, `offers.inicia_em` | ninguém |
+
+`commercial_rules` ativas (5): `desconto_por_volume` (tiers 5–9 = 10%, +10 = 20%, +15 = 30%,
++20 = 35%) · `desconto_individual` (4 níveis D1–D4 × 3 experiências, cada um com cupom e
+`checkout_url` próprios) · `desconto_espontaneo` · `mencionar_cupom_nao_solicitado` ·
+`insistencia_apos_desinteresse` (`max_retomadas: 1`).
+
+Consequência prática: sem as regras de guarda, o `sales_decision_engine` (20 mil caracteres, ativo,
+no prompt) opera **sem a tabela de condições que ele manda usar**. O guardrail de preço barra o
+valor inventado e cai em `needs_human` — cada negociação de preço vira transferência.
+
+### Outros achados que seriam caros de redescobrir
+
+- **`mindagent_chat_search` preso a `agents={concierge}`.** O bloco `mind` (que carrega FAQ,
+  ingresso e experiência) filtra por `'concierge' = any(k.agents)`. Os 17 documentos têm
+  `agents = {concierge}` e `aprovado_treble = true`, então **funciona hoje** — mas o campo é
+  legado e não é taxonomia canônica de applicability.
+- **`agendaSegura`** (TypeScript) mantém só `sessions, speakers, locations, exhibitors, mind`.
+  Descarta `event`, `offers` e `official_note` do retorno do `chat_search` — sem perda, porque os
+  dois primeiros já chegam por `treble_agent_context`.
+- **Prompt `base` não existe.** `treble_agent_prompt` procura `chave='base'` na ordem 1 e não
+  acha: a composição perde silenciosamente o bloco de identidade e limites que ela supõe existir.
+  As chaves reais são `playbook_router`, `tom_de_voz`, `sales_decision_engine`,
+  `playbook_summit_<audience>`, `objecoes`.
+- **Divergência de modelo:** `treble.config.openai_model = gpt-5.4` ·
+  `intelligence.config.openai_model = gpt-5.4-mini` · `DEFAULT_MODEL = "gpt-5.4-mini"` no código
+  da Edge. A config do Treble vence no inbound.
+- **Flags sem efeito:** `treble.config.bloco_politicas` e `bloco_visao_geral` são lidas **apenas**
+  pela função órfã. Ligadas ou desligadas, não mudam nada hoje.
+- **8 funções legadas quebradas** apontam para `comum.speakers`, apagada fora de migration:
+  `api.speakers`, `api.sessions`, `api.mindagent_bootstrap`, `api.treble_event_bundle`,
+  `api.changed_since`, `mind_admin_read_resource`, `mind_admin_mutate_resource`,
+  `mind_admin_dashboard_counts`. O caminho de escrita do painel está quebrado.
+- **`checkout_url` conferem.** `offers` e os 3 documentos `ingresso` apontam para os mesmos links
+  (`89AQDKYGWD`, `40Q3EKPK0B`, `E05XKB2KWX`). A escada D1–D4 usa produtos Eduzz **distintos**
+  (`60E2ZOBBW3`, `6W4GEYV60Z`, `8017OQVK07`), com cupom embutido. Não há conflito a resolver.
+- **`summit_2026.knowledge_documents`** já tem superfície de roteamento por linha: `agents text[]`,
+  `produto_codigo`, `event_id`, `audiencia`, `cluster`, `tipo_conteudo`, `aprovado_treble`,
+  `ativo`, `valido_de/ate`. `fonte_id` é uuid **sem FK** — aponta para uma tabela de fontes que
+  nunca existiu.
+- **Nenhuma estrutura existente serve de Source Registry.** `platform.llm_routes` roteia *modelo*
+  e usa outra taxonomia de "rota" (`classificacao`/`conversa`/`recomendacao`/`resumo_dia`);
+  `intelligence.config` é saco de segredos; `treble.config` é flag por canal;
+  `concierge.ferramentas` (28 linhas) é registry de **ferramenta**, com `trilhas` vazio nas 28 —
+  é o modelo de *forma* certo, não a tabela a reusar.
+- **`engagement.conversas`** tem `canal`, `audience`, `produto_codigo`, `stage` — útil saber, mas
+  ver a decisão acima: `audience` não vira rota canônica.
+
+### Dívida / deferimento
+
+- **12B.2** — wiring do Treble ao Core canônico (AGENT_CONTEXT, Router, Gate, Kit Loader). Não
+  faz parte do 12B.1.
+- **Gate desatualizado depois do Kit Loader.** `mind_rota_capacidade` decide kit por lista
+  literal `('summit_b2c','concierge_summit')`. Quando o Kit Loader entregar `precos_por_volume`,
+  o Gate passa a subestimar `summit_b2b`. Correção natural: o Gate consultar o Registry.
+- **Prompt `base`** — decidir se cria a chave ou se remove a referência de `treble_agent_prompt`.
+- **Modelo divergente** entre `treble.config` e `intelligence.config`.
+- **8 funções legadas** apontando para `comum.speakers`.
+- **FAQ comercial inexistente** — as 5 FAQs são logísticas (chegar/estacionar, tradução,
+  masterclass, Mind×VIP, assento). Não há FAQ de parcelamento, reembolso, nota fiscal ou troca de
+  titularidade. Conteúdo da Adriana, não encanamento.
+- **Retrieval planner por LLM** — decisão fechada: determinístico primeiro, planner depois.
+  O gargalo atual é entrega da Intelligence existente, não interpretação da pergunta.
+- **`ecossistema` preso ao Summit no retrieval** — `mindagent_chat_search` filtra especialista por
+  `exists(session_speakers)`; 3 de 31 dossiês alcançáveis. Já registrado no 12A.2.
+- **Comentário interno de `mindagent_chat_search`** — formulação antiga sobre cobertura de termos.
+  Corrigir junto com a próxima mudança legítima que tocar a função.
