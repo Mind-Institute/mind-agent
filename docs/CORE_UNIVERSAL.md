@@ -701,6 +701,61 @@ contrato de ação (Passo 14).
 não exista nada capaz de atender — o que se faz com uma rota sem capacidade é o **capability gate
 do Passo 11**. Handoff é o **Passo 14**.
 
+### Busca no Product Intelligence — estratégia canônica
+
+O retrieval estruturado do Summit é `public.mindagent_chat_search`, consumido pelo chat web e pelo
+bloco de agenda do WhatsApp.
+
+**A pergunta vira uma disjunção dos seus lexemas, e o resultado é ordenado por relevância.**
+`plainto_tsquery` conjugava os termos: "diferença VIP Prime" não casava com documento nenhum,
+embora "diferença VIP" casasse. Trocar por `websearch_to_tsquery` não resolveria — para essas
+consultas ele produz exatamente a mesma conjunção. A consulta canônica é
+`to_tsvector(pergunta)` com os lexemas unidos por `|`, e o ranking é `ts_rank_cd`.
+
+**Corte de relevância: `0.1 × least(2, nº de lexemas da pergunta)`, calibrado empiricamente.**
+`ts_rank_cd` pontua por **frequência de ocorrências**, e **não garante cobertura de lexemas
+distintos**: um registro pode alcançar o corte repetindo o mesmo termo. O piso foi ajustado contra
+as perguntas reais para cortar acertos fracos — derruba a sessão que casava apenas por "existir"
+numa pergunta sem sentido, e preserva "Maslach" perguntado sozinho. É um filtro de relevância, não
+uma garantia de cobertura.
+
+**Falsos positivos pontuais continuam possíveis, e isso é conhecido.** Em "precisa de reserva", o
+documento "Prime Lounge" entra no bloco `mind` porque "reservado" aparece duas vezes no corpo —
+duas ocorrências do mesmo lexema, não dois termos da pergunta. Não foi eliminado nesta mudança.
+
+**Ofertas usam corte 0,1.** São três linhas públicas de texto curto, onde um piso mais alto
+excluiria acertos legítimos. Nomear o produto — "VIP", "Prime", "Mind" — é o sinal. Elas deixaram de depender de uma regex de palavras-gatilho, que devolvia vazio
+para "quanto custa o VIP" porque "custa" não estava na lista.
+
+**Palestrante casa por identidade, não por prosa** — nome, cargo e instituição. O bio é texto longo
+e, com disjunção, acumulava acerto em termos genéricos; continua saindo no campo `bio`, apenas não
+é superfície de busca.
+
+**Um alias estrutural, factual.** `precisa_reserva` é boolean e nenhuma das 33 sessões que exigem
+reserva diz "reserva" em texto — nenhum ranking as encontraria. O atributo entra no texto indexado
+escrito por extenso, só quando verdadeiro. Duas palavras derivadas do dado, sem sinônimo inventado.
+
+Os gatilhos de **categoria** continuam ("me mostra a programação", "quem são os palestrantes"):
+essas perguntas não compartilham lexema com nenhum registro, e ranking nenhum as substitui. Agora
+convivem com a busca ranqueada em vez de serem o único caminho.
+
+**O que isso passou a resolver:** diferença entre tiers · preço de um tier nomeado sem palavra-chave
+de preço · sessões que exigem reserva · e, mantidos, FAQ de tradução e estacionamento, localização e
+palestrante por nome. Das 16 perguntas reais da auditoria, 11 encontram algo — eram 6.
+
+Em "precisa de reserva" a precisão é **100% no bloco `sessions`** — 8 de 8 exigem reserva de fato.
+No resultado inteiro não é: o bloco `mind` traz um documento a mais, pelo motivo acima.
+
+**`commercial_rules` continua fora deste caminho.** "Desconto para 10 pessoas" segue sem resposta
+aqui, deliberadamente: trazer essa fonte mudaria o contrato que o `treble-inbound-agent` filtra em
+`agendaSegura`, e compor Product Intelligence é o **Passo 12B**.
+
+**RAG continua desnecessário para esses casos.** Nenhuma das perguntas exigiu vetor; todas são
+lookup estruturado. `knowledge_chunks` segue vazio por não haver produtor, e isso não bloqueia nada
+aqui.
+
+O **Passo 12A segue aberto** — esta foi a primeira de várias mudanças.
+
 ### Integridade do dado de produto — estado após o hotfix
 
 Os schemas `summit` e `comum` foram renomeados e não existem mais, mas um conjunto de funções
@@ -723,10 +778,11 @@ vigente está ativo, e nenhuma oferta de grupo está pública.
 **Palestrantes — cobertura ainda limitada.** `summit_2026.session_speakers` tem duas colunas de
 palestrante: `palestrante_id` (uuid, apontando para a tabela removida) e `speaker_id` (bigint,
 canônico, para `ecossistema.palestrantes_especialistas`). Dos 61 vínculos, **9 têm o
-`speaker_id`** e são os únicos que o retrieval enxerga. Os 52 restantes **não têm mapeamento
-determinístico**: a tabela que o uuid referenciava não existe mais, nenhuma outra tabela o resolve,
-e o cruzamento por título com a fonte da programação cobre só 9 dos 52. Reparar esse vínculo é do
-**Passo 12A** e não se faz por semelhança de nome.
+`speaker_id`** e são os únicos que o retrieval enxerga. Dos 52 restantes, **16 são
+deterministicamente resolvíveis** — título casando com a fonte da programação e nome batendo exato
+com o palestrante canônico. Os demais esbarram num mirror incompleto: `palestrantes_especialistas`
+tem 31 dos 54 palestrantes da fonte. Completar o mirror vem antes de reparar o vínculo, e nem um
+nem outro se faz por semelhança de nome. Ambos são do **Passo 12A**.
 
 **`summit_b2b` continua `missing_kit`.** `mind_precos_por_volume` voltou a funcionar, mas o loader
 vivo ainda não entrega esse bloco aos `DADOS_OFICIAIS` — e kit, para o Capability Gate, é
