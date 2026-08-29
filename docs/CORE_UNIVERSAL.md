@@ -388,6 +388,10 @@ array — `client_msg_id = 'treble-close:<ordinal>'`. Vale porque cada `session_
 máximo um `session.close`. A verificação de "já capturada ao vivo" ignora linhas `treble-close:*`,
 para que duas mensagens do mesmo payload nunca se suprimam.
 
+Texto casa por conteúdo; **mídia casa por arquivo**. Um item de áudio do close não tem texto, então
+a comparação por conteúdo nunca o alcança — a chave dele é igualdade exata de `blocos.url`, que não
+tem querystring, não expira e é única por arquivo.
+
 ### `public.mind_engagement_fatos(p_pessoa_id uuid) → jsonb`  *(Passo 6)*
 
 Responde: **"o que sabemos, pelo histórico real de interação, que esta pessoa falou, recebeu e
@@ -421,32 +425,47 @@ Fora do contrato de propósito: `variables`, telefone, e-mail, `session_external
 e qualquer coisa de `intelligence.*`. Análise pós-turno e memória são o **Passo 15**;
 continuidade/Silence é o **Passo 16**.
 
-### Passo 6B — transcrição/normalização de áudio  ⏭️ *próximo, ainda não implementado*
+### Passo 6B — normalização de áudio  ✅ *fechado*
 
-Hoje mídia entra sem texto: das 44 mensagens de mídia, **11 são áudio e nenhuma tem `conteudo`**
-— só `blocos.url`. Para o agente, um áudio é hoje uma mensagem muda.
+**Um áudio é uma mensagem, não um anexo à parte.** Uma pessoa mandou um áudio: existe UMA linha em
+`engagement.mensagens`, com `conteudo` = a transcrição e `blocos` = `{"tipo":"audio","url":…}`.
+Não há tabela de áudio, canal paralelo, nem uma segunda mensagem para representar o arquivo.
 
-O 6B fecha isso **como normalização de conteúdo na ingestão**, não como uma arquitetura de áudio
-à parte. A ordem importa:
+**A Treble é a fonte do transcript.** Ela transcreve o áudio antes de chamar o nosso inbound e
+entrega o texto na chave `mensagem`, com o arquivo em `mensagem_file_url`. O `treble-inbound-agent`
+lê os dois e monta uma única `p_mensagem`; o resto do caminho — `treble_agent_start` →
+`mind_inbound` → `mind_mensagem_registrar` — já aceitava `conteudo` + `blocos` e não mudou. No
+histórico, o mesmo texto está em `message.text` do `GET /devapi/session/{id}/history`, recuperável
+de forma determinística por `session_external_id` + igualdade exata de `file_url`.
+
+**O transcript pode não existir.** Quando falta, nada é inventado:
 
 ```
 áudio chega
-  → PERSISTE a mensagem original primeiro   (a fala existe no sistema antes de qualquer IA)
-  → transcreve com Whisper
-  → grava a transcrição como `conteudo` da MESMA mensagem, preservando `blocos` = {tipo:"audio", url}
-  → só então Router / Decisioning / Agent podem processar e responder
+  → tem transcript?  sim → conteudo = transcrição, blocos = {tipo, url}  → o Agent responde
+                     não → conteudo = NULL,        blocos = {tipo, url}  → o Agent NÃO é chamado
 ```
 
-Duas consequências de desenho:
+Três regras sustentam isso:
 
-- **A proveniência não se perde.** A transcrição vira o `conteudo` da mensagem que já existe; o
-  `blocos` continua dizendo que a origem era áudio e onde está o arquivo. Não se cria mensagem
-  nova, nem tabela de áudio, nem canal paralelo.
-- **Histórico antigo usa a mesma capacidade**, em background — os 11 áudios já gravados podem ser
-  transcritos depois, pelo mesmo caminho, sem tratamento especial.
+- **O arquivo é sempre preservado**, com texto ou sem. `blocos.url` é a prova de que a fala
+  existiu, e é por ela que a transcrição pode ser recuperada depois.
+- **Ausência de transcript nunca vira conteúdo.** Uma URL não é fala de ninguém, e o texto de um
+  turno anterior não é a mensagem atual — o fallback que varria `user_session_keys` está fechado
+  para os dois casos. Sem texto confiável o turno para ali: a IA não é chamada fingindo ter
+  entendido, e nenhuma resposta é devolvida ao fluxo.
+- **O `session.close` não duplica.** O item de áudio do close não tem texto, então o de-dup por
+  conteúdo nunca o alcançava. Para mídia a identidade é o próprio arquivo: igualdade exata de
+  `blocos.url`, sem janela de tempo.
 
-Nada disso está implementado. Quando estiver, `mind_engagement_fatos` não muda de contrato: ele
-já devolve `conteudo` + `blocos`, e passa a devolver o áudio com texto sem alteração nenhuma.
+**Limitação conhecida, ainda aberta: o áudio que abre a sessão.** Quando o áudio é a primeira
+mensagem da conversa, a Treble não entrega transcript. Esses áudios ficam com `conteudo` nulo e o
+arquivo preservado — a conversa registra que a pessoa falou, sem inventar o que ela disse. Também
+não está estabelecido se o `treble-inbound-agent` chega a ser chamado nesse caso; sem saber em que
+ponto o arquivo entra no sistema, não há fallback a construir. Whisper não foi implementado, e
+essa frente só abre com evidência de runtime.
+
+`mind_engagement_fatos` não mudou de contrato: já devolvia `conteudo` + `blocos`.
 
 ---
 
@@ -488,7 +507,7 @@ O Router **só decide quando a rota não veio determinada** pelo contexto de ent
 | 4 | Coletor factual CRM | ✅ **fechado** |
 | 5 | Compras + contexto comercial | ✅ **5A fechado** |
 | 6 | Coletor factual de Engagement | ✅ **fechado** |
-| 6B | **Transcrição/normalização de áudio** | ⏭️ **PRÓXIMO** |
+| 6B | **Normalização de áudio** | ✅ **fechado** |
 | 7 | Normalização determinística da realidade | |
 | 8 | Construção do AGENT_CONTEXT universal | |
 | 9 | Testes de contrato do AGENT_CONTEXT | |
