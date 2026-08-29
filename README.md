@@ -16,12 +16,11 @@ Se algum documento divergir do banco, **o banco vence**.
 
 ## Estado atual
 
-Passos **1 a 6 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
-resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor factual
-de Engagement.
+Passos **1 a 6 e 6B fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila
+de resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor
+factual de Engagement · normalização de áudio.
 
-**Próximo passo: 6B — transcrição/normalização de áudio na ingestão**, para que uma mensagem
-de voz chegue ao agente já com texto, sem virar arquitetura de áudio à parte.
+**Próximo passo: 7 — normalização determinística da realidade.**
 
 AGENT_CONTEXT, Router, Decisioning e memória universal são arquitetura congelada, ainda não
 implementados.

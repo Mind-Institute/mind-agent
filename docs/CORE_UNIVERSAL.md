@@ -458,12 +458,12 @@ Três regras sustentam isso:
   conteúdo nunca o alcançava. Para mídia a identidade é o próprio arquivo: igualdade exata de
   `blocos.url`, sem janela de tempo.
 
-**Limitação conhecida, ainda aberta: o áudio que abre a sessão.** Quando o áudio é a primeira
-mensagem da conversa, a Treble não entrega transcript. Esses áudios ficam com `conteudo` nulo e o
-arquivo preservado — a conversa registra que a pessoa falou, sem inventar o que ela disse. Também
-não está estabelecido se o `treble-inbound-agent` chega a ser chamado nesse caso; sem saber em que
-ponto o arquivo entra no sistema, não há fallback a construir. Whisper não foi implementado, e
-essa frente só abre com evidência de runtime.
+**Limitação conhecida, ainda aberta: o áudio que abre a sessão.** Nos casos observados, o áudio
+que abriu a sessão não teve transcript e não chegou ao inbound antes do `session.close`. Esse
+cenário permanece como **limitação conhecida do adapter Treble**; ainda não há evidência suficiente
+para tratá-lo como regra geral da plataforma. Esses áudios ficam com `conteudo` nulo e o arquivo
+preservado — a conversa registra que a pessoa falou, sem inventar o que ela disse. Whisper não foi
+implementado, e nenhuma arquitetura nova se abre aqui sem evidência de que ela é necessária.
 
 `mind_engagement_fatos` não mudou de contrato: já devolvia `conteudo` + `blocos`.
 
