@@ -1,10 +1,53 @@
 # Backlog — fila de desenvolvimento
 
-Decisões pendentes e trabalho conhecido que **ainda não foi feito**. Não é roadmap nem promessa:
-é a lista honesta do que ficou em aberto, pra ninguém redescobrir o mesmo buraco duas vezes.
+Este arquivo preserva **trabalho conhecido que ainda não foi feito e investigação já realizada que não pode se perder**.
 
-Regra: item entra aqui quando a decisão é da Adriana (negócio) ou quando o encanamento existe mas
-falta uma peça. Item sai daqui quando vira código no ar — ou quando a gente decide que não vale.
+Para reconstruir o projeto sem contexto, a ordem obrigatória de leitura é:
+
+1. `PROJECT_STATE.md` — arquitetura congelada, ordem de execução, versões e checkpoint atual;
+2. `BACKLOG.md` — o que ficou para depois e o que já sabemos sobre cada frente;
+3. `docs/CORE_UNIVERSAL.md` — estado real e contratos implementados.
+
+## 0. Índice da execução até o fim do Core Universal
+
+O significado detalhado, as decisões congeladas e o runtime estão em `PROJECT_STATE.md`. Este índice fica aqui também para ninguém abrir o backlog e perder a sequência.
+
+| # | passo | estado |
+|---|---|---|
+| 1 | Ingestão + persistência + identidade universal | ✅ fechado |
+| 2 | Ponte Pessoa Mind ↔ CRM/HubSpot | ✅ fechado |
+| 3 | Fila universal de resolução identidade/CRM | ✅ fechado |
+| 4 | Coletor factual CRM | ✅ fechado |
+| 5 | Compras + contexto comercial | ✅ 5A fechado |
+| 6 | Coletor factual de Engagement | ✅ fechado |
+| 6B | Normalização universal de áudio | ✅ fechado; risco de confiabilidade/latência fica deferido |
+| 7 | Normalização determinística da pessoa | ✅ fechado |
+| 8 | `AGENT_CONTEXT` universal | ✅ fechado |
+| 9 | Testes de contrato do `AGENT_CONTEXT` | ✅ fechado |
+| 10 | Router universal | ✅ fechado |
+| 11 | Registry de rotas + Capability Gate | ✅ fechado |
+| 12A | Auditoria/reforma Product Intelligence + Knowledge | ⏸️ parcial; 12A.1 concluído, restante investigado/deferido abaixo |
+| 12B | Source Registry mínimo + Kit Loader universal | 🚧 passo atual — investigação enviada ao Claude |
+| 13 | Finalizar cérebro de vendas Summit | ⬜ |
+| 14 | Contrato universal de ação + handoff/escalation | ⬜ |
+| 15 | Análise pós-turno + memória universal | ⬜ |
+| 15B | Write-back + dispatch operacional pós-turno | ⬜ |
+| 16 | Continuidade / Silence | ⬜ |
+| 17 | E2E vendas Summit via Treble | ⬜ |
+| 18 | Hardening + documentação + travas Core Universal | ⬜ |
+
+### Regra para não perder decisões nem investigações
+
+- Decisão marcada como **CONGELADA** deve ser registrada em `PROJECT_STATE.md`; conversa não é documentação.
+- Mudança material em decisão congelada → nova versão do `PROJECT_STATE.md` (`vN → vN+1`) com o que foi substituído e por quê.
+- Mudança implementada → atualizar as seções afetadas de `docs/CORE_UNIVERSAL.md` depois dos testes.
+- Descoberta relevante que não será resolvida agora → acrescentar ao **fim deste backlog** antes de avançar.
+- O registro deferido precisa conter evidência já levantada, estado atual, por que foi deixado para depois, gatilho/dependências e como retomar sem reinvestigar do zero.
+- A cada passo executado, atualizar o check/status do roadmap e o checkpoint atual.
+
+Prioridade corrente:
+
+`Source Registry + Kit Loader mínimo → Intelligence comercial mínima Summit → Decisioning de vendas → Agent → ação/handoff → memória/write-back/continuidade → Treble E2E → vendedor funcionando`.
 
 ---
 
