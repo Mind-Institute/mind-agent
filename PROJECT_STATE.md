@@ -3,9 +3,10 @@
 > **Documento obrigatório de entrada no projeto.**
 > Este arquivo preserva as decisões congeladas, a ordem de trabalho e o checkpoint atual para que uma nova IA ou desenvolvedor consiga continuar o projeto sem depender de conversa anterior.
 >
-> **Versão do checkpoint: v3 — 29/08/2026.**
-> v2 formaliza a mudança de prioridade feita no Passo 12: completar toda a Intelligence do Summit **não bloqueia** o go-live do vendedor. A investigação já feita fica preservada no `BACKLOG.md`; o caminho crítico passa a ser Kit Loader mínimo → vendas Summit → runtime completo → Treble E2E. **Essa decisão continua vigente — v3 não a substitui.**
-> v3 acrescenta e formaliza o **modo de execução assistida/autônoma** entre Adriana, ChatGPT, Claude Code e GitHub (§2B). É uma decisão sobre como o trabalho é conduzido; não altera arquitetura, runtime nem a ordem do roadmap.
+> **Versão do checkpoint: v4 — 29/08/2026.**
+> v2 formaliza a mudança de prioridade feita no Passo 12: completar toda a Intelligence do Summit **não bloqueia** o go-live do vendedor. A investigação já feita fica preservada no `BACKLOG.md`; o caminho crítico passa a ser Kit Loader mínimo → vendas Summit → runtime completo → Treble E2E. **Essa decisão continua vigente — v3 e v4 não a substituem.**
+> v3 acrescenta e formaliza o **modo de execução assistida/autônoma** entre Adriana, ChatGPT, Claude Code e GitHub (§2B). É uma decisão sobre como o trabalho é conduzido; não altera arquitetura, runtime nem a ordem do roadmap. **Continua vigente, exceto na premissa corrigida por v4.**
+> v4 corrige **apenas uma premissa incorreta de v3**: a frase `Produção continua separada e controlada.` foi contrariada pelo sistema real. As integrações GitHub da Cloudflare e do Supabase estão ativas e **merge em `main` publica produção**. v4 substitui essa premissa pelo contrato canônico **merge em `main` é boundary de deploy** (§2B). Não muda arquitetura, runtime, roadmap nem PASSO ATUAL; os papéis Adriana / ChatGPT / Claude Code / GitHub de v3 permanecem.
 
 ---
 
@@ -84,7 +85,7 @@ Não criar abstrações, hardening ou proteções para riscos hipotéticos dista
 
 ---
 
-## 2B. Modo operacional de execução — decisão congelada (v3)
+## 2B. Modo operacional de execução — decisão congelada (v3, corrigida em v4)
 
 Papéis:
 
@@ -100,9 +101,28 @@ Regras:
 - Investigação e desenho técnico podem ocorrer autonomamente entre ChatGPT e Claude.
 - Código reversível pode seguir Claude → branch/PR → revisão do ChatGPT → testes afetados → documentação → merge.
 - Alterações de dados, identidade, segurança/RLS/auth/secrets, preço/desconto/regra comercial, outbound/disparo, source of truth, mudança material de comportamento do produto ou operação irreversível exigem gate explícito da Adriana antes da execução perigosa.
-- Claude via GitHub não recebe credenciais de produção nem autorização de deploy. Produção continua separada e controlada.
 - Se uma implementação depender de decisão de produto/negócio não congelada, parar e devolver a pergunta em vez de escolher.
 - O ritual INVESTIGAR → DECIDIR → IMPLEMENTAR → TESTAR → DOCUMENTAR → FECHAR continua valendo; a automação só remove Adriana do papel de mensageira.
+
+### Boundary de deploy — correção v4 (29/08/2026)
+
+v3 dizia: `Claude via GitHub não recebe credenciais de produção nem autorização de deploy. Produção continua separada e controlada.`
+
+A primeira frase continua verdadeira. **A segunda estava errada** e foi verificada como falsa contra o sistema real: as integrações GitHub da Cloudflare e do Supabase estão ativas neste repositório, geram preview em PR e agem em produção no merge. Contrato canônico vigente:
+
+> **MERGE EM `main` É BOUNDARY DE DEPLOY.**
+
+- Claude Code continua sem credenciais de produção e **nunca mergeia**.
+- Claude trabalha em `claude/...` e entrega branch/PR.
+- PR que toca runtime Cloudflare pode gerar preview automaticamente; **merge em `main` pode publicar produção**.
+- PR que toca `supabase/` pode gerar preview DB; **merge em `main` pode aplicar migrations/Edge Functions em produção** pela integração Supabase.
+- Portanto **revisão e teste devem acontecer ANTES do merge**, não depois.
+- Mudança aditiva/reversível, com preview/testes afetados aprovados e sem decisão de negócio pendente, pode seguir ChatGPT → merge → verificação pós-deploy **sem pedir aprovação operacional da Adriana a cada PR**.
+- Mudanças de dados destrutivas/irreversíveis, identidade, segurança/RLS/auth/secrets, preço/desconto/regra comercial, outbound/disparo, source of truth, mudança material de comportamento do produto ou qualquer decisão de negócio não congelada continuam exigindo **gate explícito da Adriana ANTES DO MERGE**.
+- Se preview/CI relevante não existir ou não puder ser verificado, **não mergear no automático**; relatar a lacuna.
+- Depois do merge, verificar **somente o efeito diretamente afetado** em produção.
+
+A evidência que sustenta essa correção está registrada no `BACKLOG.md`, em `Infra de deploy GitHub — descoberta 29/08/2026`. **Não reinvestigar esses fatos do zero.**
 
 ---
 
@@ -616,6 +636,7 @@ Este índice é deliberadamente curto. Quando uma nova decisão for aprovada com
 - Source Registry: conteúdo novo automático na fonte registrada; fonte nova pending + aprovação;
 - handoff por necessidade, não por horário;
 - roadmap e ordem operacional;
-- modo operacional de execução Adriana / ChatGPT / Claude Code / GitHub (§2B).
+- modo operacional de execução Adriana / ChatGPT / Claude Code / GitHub (§2B);
+- merge em `main` é boundary de deploy: revisão/teste antes do merge, gate da Adriana antes do merge nos casos sensíveis (§2B, correção v4).
 
 Se alguma dessas decisões mudar, **nova versão deste documento**.
