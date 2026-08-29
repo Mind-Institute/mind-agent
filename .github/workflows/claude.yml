@@ -36,3 +36,4 @@ jobs:
           anthropic_workspace_id: ${{ secrets.ANTHROPIC_WORKSPACE_ID }}
           github_token: ${{ github.token }}
           claude_args: --max-turns 8
+          show_full_output: true
