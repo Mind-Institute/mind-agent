@@ -767,29 +767,36 @@ vazio não ensina nada.
 | rota | playbook | kit | `whatsapp` | `mindagent-web` |
 |---|---|---|---|---|
 | `summit_b2c` | ✅ `playbook_summit_b2c` | ✅ | ✅ | — |
-| `summit_b2b` | ✅ `playbook_summit_b2b` | ✅ | ✅ | — |
+| `summit_b2b` | ✅ `playbook_summit_b2b` | ❌ | ✅ | — |
 | `cliente_suporte` | ✅ `playbook_cliente_suporte` | ❌ | ✅ | — |
 | `concierge_summit` | ❌ | ✅ | — | ✅ |
 | `institute` | ❌ | ❌ | — | — |
 | `dash` | ❌ | ❌ | — | — |
 
-**Kit — estado transitório.** Hoje não existe Kit Loader: o que cada canal carrega está fixo
-dentro do próprio executor. `treble_agent_context` ignora os cinco parâmetros que recebe e devolve
-sempre evento + ofertas do `summit_2026`; o `mindagent-chat` traz o próprio prompt como constante
-no código. Por isso a matriz de kit está escrita **no corpo da função**, e o **Passo 12 — Separação
-Base / Router / Kit Loader** a substitui pelo loader canônico. Não se criou tabela para atravessar
-esse intervalo.
+**Kit é capacidade acessível ao runtime atual — não existência do dado na base.** Um fato que o
+loader vivo não entrega não está no kit: ele é Intelligence que existe, e nada além disso. O Gate
+responde *"o runtime atual consegue executar esta rota autonomamente?"*, nunca *"existe em algum
+lugar do banco informação suficiente para um dia executá-la?"*.
+
+**Estado transitório.** Hoje não existe Kit Loader: o que cada canal carrega está fixo dentro do
+próprio executor. `treble_agent_context` ignora os cinco parâmetros que recebe e devolve sempre
+evento + ofertas do `summit_2026`; o `mindagent-chat` traz o próprio prompt como constante no
+código. Por isso a matriz de kit está escrita **no corpo da função**, e o **Passo 12B — Kit Loader
+universal** a substitui pelo loader canônico. Não se criou tabela para atravessar esse intervalo.
 
 O que sustenta cada célula:
 
 - `summit_b2c` — ofertas ativas e públicas com preço, condições e checkout em `summit_2026.offers`,
-  mais `objecoes` e `sales_decision_engine`.
-- `summit_b2b` — as mesmas ofertas, mais `desconto_por_volume` **ativo, com tiers**, em
-  `summit_2026.commercial_rules`. O conteúdo existe; quem ainda não o carrega é o loader — isso é
-  dívida do Passo 12, não ausência de kit.
+  entregues pelo `treble_agent_context` — que é exatamente o que o playbook precisa.
 - `concierge_summit` — `sessions`, `locations`, `speakers`, `exhibitors` e `event_rules` do
-  `summit_2026`, alcançáveis por `mindagent_chat_search`. É o kit mais rico de todos, e a rota
-  ainda assim não executa: falta o playbook.
+  `summit_2026`, alcançáveis por `mindagent_chat_search`, que o próprio canal chama. É o kit mais
+  rico de todos, e a rota ainda assim não executa: falta o playbook.
+- `summit_b2b` — **não tem.** Os fatos comerciais B2B existem em `summit_2026`:
+  `commercial_rules.desconto_por_volume` está ativo, com tiers. Mas o `treble-inbound-agent` monta
+  `DADOS_OFICIAIS` a partir do `treble_agent_context`, e essa função **não entrega
+  `commercial_rules` nem `precos_por_volume`** — enquanto o `playbook_summit_b2b` ativo depende
+  explicitamente do bloco `precos_por_volume` dentro de `DADOS_OFICIAIS`. O dado existe; o kit não
+  chega ao agente. Corrigir isso é o Passo 12B, não este.
 - `cliente_suporte` — **não tem**. Não há base de política de suporte, não há consulta de pedido
   exposta ao agente, e o destino `suporte.chamado` aponta para um schema que não existe. O próprio
   playbook manda escalar o que não consegue resolver.
@@ -854,7 +861,8 @@ short-circuit entra na orquestração — e nunca pulando o Gate.
 | 9 | **Testes de contrato do AGENT_CONTEXT** | ✅ **fechado** |
 | 10 | **Router universal** | ✅ **fechado** |
 | 11 | **Registry de rotas + capability gate** | ✅ **fechado** |
-| 12 | Separação Base / Router / Kit Loader | ⏭️ **PRÓXIMO** |
+| 12A | **Auditoria e reforma de Product Intelligence / Knowledge** | ⏭️ **PRÓXIMO** |
+| 12B | Kit Loader universal | |
 | 13 | Finalizar cérebro de vendas Summit | |
 | 14 | Contrato universal de ação + handoff/escalation | |
 | 15 | Análise pós-turno + memória universal | |
@@ -862,6 +870,40 @@ short-circuit entra na orquestração — e nunca pulando o Gate.
 | 16 | Continuidade / Silence | |
 | 17 | E2E vendas Summit via Treble | |
 | 18 | Hardening, documentação e travas Core Universal | |
+
+### 12A e 12B — o que eram um passo só
+
+O antigo **12 — Separação Base / Router / Kit Loader** virou dois, porque construir o loader antes
+de saber o que ele carrega seria encanar uma fonte que ninguém auditou.
+
+**12A — Auditoria e reforma de Product Intelligence / Knowledge.** Usa o Summit como primeiro
+sistema real e investiga: fontes autoritativas por conceito · a estrutura atual de `summit_2026` ·
+conteúdo espalhado por outros schemas e funções · duplicações e legado · freshness e origem dos
+dados · conhecimento estruturado versus long-tail/RAG · `knowledge_documents` e `knowledge_chunks`
+— inclusive **por que `knowledge_chunks` está vazio** · estruturas duplicadas entre `summit_2026`,
+eventos, Dash e Institute · funções de retrieval existentes, quebradas ou legadas · e a qualidade
+real do retrieval.
+
+Princípio fechado:
+
+> **ESTRUTURADO AUTORITATIVO PRIMEIRO. RAG PARA LONG-TAIL.**
+
+Preço, checkout, desconto, horário, inclusão e disponibilidade **não podem depender de vetor**.
+
+E uma regra que o Passo 11 já tornou concreta: **não basta a informação existir — é preciso provar
+que o agente a encontra quando precisa.** A auditoria do 12A usa perguntas reais para verificar se
+a informação existe, se a fonte correta é recuperada, se veio informação suficiente, se algo
+decisivo se perdeu e se veio ruído que atrapalha.
+
+**12B — Kit Loader universal.** Só então:
+
+```
+ROTA + NECESSIDADE ATUAL + AGENT_CONTEXT  →  KIT DA ROTA
+```
+
+contendo, conceitualmente, **playbook + Product Intelligence relevante + Knowledge recuperado para
+aquele turno + tools**. O contexto de produto é **recomposto a cada turno** a partir das fontes
+atuais — nunca persistido como um bloco gigante estático dentro da conversa.
 
 **Backlog:** 19 permissões legadas · 20 secrets hygiene · 21 exposed surface audit ·
 23 front-end/inbox de pendências.

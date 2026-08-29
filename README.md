@@ -28,7 +28,10 @@ existem, são chamáveis e estão cobertos por teste, mas nada em produção dep
 O Registry não ganhou tabela — o mapa rota → playbook é a convenção `playbook_<rota>` em
 `agentes.prompts`, e a ausência da linha já significa `missing_playbook`.
 
-**Próximo passo: 12 — Separação Base / Router / Kit Loader.**
+**Próximo passo: 12A — Auditoria e reforma de Product Intelligence / Knowledge**, e depois
+**12B — Kit Loader universal**. Construir o loader antes de auditar o que ele carrega seria encanar
+uma fonte que ninguém verificou. Princípio fechado: **estruturado autoritativo primeiro, RAG para
+long-tail** — preço, checkout, desconto e horário não dependem de vetor.
 
 Kit Loader, Decisioning e memória universal seguem como arquitetura congelada, ainda não
 implementados.
