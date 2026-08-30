@@ -21,18 +21,19 @@
 //
 // NADA DISSO PODE CUSTAR O TURNO. Router indisponível, Gate fechado ou Kit ausente
 // derrubam o turno de volta para o caminho legado (v1.3.0, byte a byte) em vez de deixar
-// a pessoa sem resposta. E quando o Gate fecha uma rota DE VENDA, `needs_human` é
-// forçado pelo runtime: o Gate é a autoridade sobre "esta necessidade não se conclui
-// sozinha", exatamente a semântica congelada.
+// a pessoa sem resposta. Mas quando o Gate fecha a rota, `needs_human` é forçado pelo
+// runtime: o Gate é a autoridade sobre "esta necessidade não se conclui sozinha", e essa
+// resposta é determinística — não fica a cargo da leitura do modelo.
 //
 // LIGA/DESLIGA EM DADO, NÃO EM DEPLOY. `treble.config.core_rota_kit = 'true'` ativa o
 // caminho canônico. Ausente ou diferente disso, o runtime é idêntico à v1.3.0. Publicar
 // esta versão não muda nada sozinho: o caminho novo entra por decisão explícita e volta
 // pelo mesmo interruptor, sem redeploy.
 //
-// ESCOPO: só `summit_b2c` e `summit_b2b` — as rotas deste vendedor. Toda outra rota
-// continua no caminho legado até a lane dona dela chegar; trocar o caminho de
-// `cliente_suporte` ou `concierge_summit` aqui seria decidir por lane alheia.
+// ESCOPO DE EXECUÇÃO: só `summit_b2c` e `summit_b2b` — as rotas deste vendedor. Toda
+// outra rota responde pelo caminho legado até a lane dona dela chegar; carregar Kit ou
+// playbook de `cliente_suporte`/`concierge_summit` aqui seria decidir por lane alheia.
+// O Gate, porém, é consultado para todas (ver abaixo): capacidade não é execução.
 //
 // O GUARDRAIL DE PREÇO SAIU DAQUI para `guardrail-preco.ts`, e ficou mais estreito no
 // caminho: a lista de valores permitidos passou a sair de CAMPOS MONETÁRIOS do payload
@@ -41,8 +42,14 @@
 //
 // O CONTRATO DE CLARIFY DO ROUTER É PRESERVADO. `rota = null` com `precisa_esclarecer`
 // vem acompanhado das `candidatas`, e elas chegam ao Agent para que ele faça UMA
-// pergunta que as separe. `rota_aplicada` continua null e nenhum Kit é carregado: o
-// classificador do prompt legado não é promovido a rota canônica.
+// pergunta que as separe. `rota_aplicada` continua null, nenhum Kit é carregado e
+// NENHUMA audiência nova é gravada: o classificador do prompt legado não é promovido a
+// rota canônica nem a estado novo.
+//
+// O GATE RODA PARA TODA ROTA CANÔNICA, não só para as desta lane. Perguntar capacidade
+// e executar são coisas diferentes: `mind_rota_capacidade` é consultado sempre que o
+// Router decide, para que `needs_human` venha do contrato; Kit e playbook comercial só
+// são carregados em `summit_b2c`/`summit_b2b`.
 //
 // v1.3.0 — ÁUDIO É MENSAGEM, NÃO ANEXO À PARTE. A Treble transcreve o áudio dentro de
 // uma sessão em andamento e entrega o texto em `mensagem`, com o arquivo em
@@ -530,23 +537,38 @@ Deno.serve(async (req: Request) => {
       falhaDaRota = decisao.falha;
     }
 
-    if (rotaDecidida && ROTAS_DO_VENDEDOR.has(rotaDecidida)) {
-      // Gate e Kit em paralelo: o Gate continua sendo a autoridade sobre executar ou
-      // não, e um Kit montado à toa custa uma leitura, não um turno.
-      const [{ data: gate }, { data: kit }, { data: playbookDaRota }] = await Promise.all([
+    if (rotaDecidida) {
+      // O GATE RODA PARA QUALQUER ROTA CANÔNICA que o Router decidir, não só para as
+      // desta lane. O caminho declarado é Router → Gate: se o Router disser
+      // `cliente_suporte` e o Gate não for consultado, `needs_human` volta a depender
+      // da leitura do modelo, e o handoff passa a ser sorte em vez de contrato.
+      //
+      // O que é exclusivo da lane é EXECUTAR: Kit e playbook comercial só são
+      // carregados para `summit_b2c`/`summit_b2b`. Capacidade se pergunta sempre;
+      // execução só onde este runtime é dono.
+      const ehDoVendedor = ROTAS_DO_VENDEDOR.has(rotaDecidida);
+      const vazio = Promise.resolve({ data: null, error: null });
+      const [{ data: gate }, kitR, playbookR] = await Promise.all([
         supabase.rpc("mind_rota_capacidade", { p_rota: rotaDecidida, p_canal: CANAL }),
-        supabase.rpc("mind_agent_kit", {
-          p_rota: rotaDecidida,
-          p_conversa_id: conv.conversation_id,
-          p_necessidade: { texto: message },
-        }),
-        supabase.rpc("treble_agent_prompt", { p_audience: rotaDecidida }),
+        ehDoVendedor
+          ? supabase.rpc("mind_agent_kit", {
+            p_rota: rotaDecidida,
+            p_conversa_id: conv.conversation_id,
+            p_necessidade: { texto: message },
+          })
+          : vazio,
+        ehDoVendedor
+          ? supabase.rpc("treble_agent_prompt", { p_audience: rotaDecidida })
+          : vazio,
       ]);
+      const kit = kitR.data;
+      const playbookDaRota = playbookR.data;
 
       gateReason = typeof gate?.reason === "string" ? gate.reason : null;
       needsHumanDoGate = gate?.needs_human === true;
 
-      const kitServe = gate?.pode_executar === true &&
+      const kitServe = ehDoVendedor &&
+        gate?.pode_executar === true &&
         kit && kit.ok !== false &&
         kit.meta?.kit_disponivel === true &&
         kit.structured && Object.keys(kit.structured as Record<string, unknown>).length > 0 &&
@@ -559,15 +581,21 @@ Deno.serve(async (req: Request) => {
       } else {
         // O turno continua de qualquer jeito: transferir é o último recurso, não a
         // primeira resposta. Quem decide se ele também vira necessidade humana é o
-        // Gate, e só ele — `needsHumanDoGate` já carrega a resposta.
+        // Gate, e só ele — `needsHumanDoGate` já carrega a resposta, para qualquer rota.
         //
-        // A distinção importa. Gate FECHADO é condição estável (missing_playbook,
-        // missing_kit): a rota não executa aqui, e isso é necessidade humana de fato.
-        // Gate ABERTO com Kit que não veio é falha passageira de leitura: o turno cai
-        // no piso factual do caminho legado — evento e ofertas vigentes, o mesmo com
-        // que este agente vende hoje — e mandar a pessoa para um humano por causa de
-        // um soluço de RPC seria pior que responder.
-        falhaDaRota = falhaDaRota ?? gateReason ?? "kit_indisponivel";
+        // Três motivos distintos caem aqui, e o registro os separa:
+        //   rota_de_outra_lane  a rota é canônica e o Gate já respondeu, mas executá-la
+        //                       não é desta lane; o turno responde pelo piso legado;
+        //   gate fechado        condição estável (missing_playbook, missing_kit): a rota
+        //                       não executa aqui, e isso é necessidade humana de fato;
+        //   kit_indisponivel    Gate aberto e Kit que não veio — falha passageira de
+        //                       leitura. O turno cai no piso factual do caminho legado
+        //                       (evento e ofertas vigentes, o mesmo com que este agente
+        //                       vende hoje) e NÃO acende handoff: mandar a pessoa para
+        //                       um humano por causa de um soluço de RPC seria pior que
+        //                       responder.
+        falhaDaRota = falhaDaRota ??
+          (!ehDoVendedor ? "rota_de_outra_lane" : gateReason ?? "kit_indisponivel");
       }
     }
 
@@ -691,14 +719,28 @@ Deno.serve(async (req: Request) => {
     const answer = String(turn.answer ?? "").trim().slice(0, 700);
     if (!answer) throw new Error("resposta_vazia");
 
-    // A rota manda no `audience`. No caminho canônico ele é derivado dela; no legado
-    // continua sendo o que o modelo classificou. A chave em si nunca some do payload.
+    // A rota manda no `audience`.
+    //
+    //   rota executada  → derivado dela;
+    //   CLARIFY         → NÃO se grava classificação nova. O Router disse "não decidi";
+    //                     deixar o classificador legado escrever `b2c`/`b2b` aqui
+    //                     criaria estado que um fallback futuro trataria como decisão.
+    //                     Preserva-se o que a conversa já tinha, ou `desconhecido`;
+    //   demais casos    → segue o legado, como na v1.3.0.
+    //
+    // A chave em si nunca some do payload do Treble.
+    const audienceDaConversa = typeof conv.audience === "string" && conv.audience
+      ? conv.audience
+      : "desconhecido";
     const audienceFinal = rotaAplicada
       ? (AUDIENCE_DA_ROTA[rotaAplicada] ?? turn.audience)
+      : precisaEsclarecer
+      ? audienceDaConversa
       : turn.audience;
 
-    // `needs_human` é NECESSIDADE, e o Gate é quem sabe que esta rota de venda não se
-    // conclui sozinha neste runtime. Ele soma à leitura do modelo; nunca a subtrai.
+    // `needs_human` é NECESSIDADE, e o Gate é quem sabe que a rota decidida não se
+    // conclui sozinha neste runtime — qualquer rota, não só as de venda. Ele soma à
+    // leitura do modelo; nunca a subtrai.
     const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
 
     // Guardrail de preço: valor em R$ que não veio de um campo monetário dos dados

@@ -3,12 +3,31 @@
 //
 // Bate no `treble-inbound-agent` com o MESMO payload que a Treble envia e imprime, por
 // caso, o que voltou no contrato público: `resposta_ia`, `needs_human`, `audience`,
-// `intent`, `checkout_sent` e o `request_id`.
+// `intent`, `checkout_sent`, o `request_id` e o TEMPO de cada turno.
 //
 // NÃO é suíte de regressão e não substitui leitura humana. Ele prova o encanamento —
 // turno responde, rota executa, handoff acende, guardrail dispara — e deixa a resposta
 // na tela para alguém julgar se o fato está certo e o tom está certo. O critério do
 // go-live ("factual correto, tom adequado, sem invenção") é de gente, não de assert.
+//
+// ============================================================================
+// HTTP 200 NÃO É O CRITÉRIO. ENTREGA NO WHATSAPP É.
+//
+// O caminho canônico soma uma ida ao modelo (Router) antes da ida do Agent. Produção
+// tem `treble_agent_config.timeout_ms = 20000` e o Router pode gastar até
+// `router_timeout_ms` (6000 por padrão) antes disso. Já existe evidência histórica de
+// um turno de ~5,96 s que a Treble NÃO emitiu, contra um de ~4,43 s que chegou
+// (§8/§10 do Core, Passo 6B).
+//
+// Portanto: este script mede a latência da Edge e mostra `router_ms` no log, mas isso é
+// DIAGNÓSTICO. A Definition of Done do ciclo E2E é a mensagem chegar no WhatsApp de um
+// número real. Um caso com `ok:true`, resposta bonita e 9 s de latência que não aparece
+// no aparelho é uma FALHA, e o desfecho correto é devolver
+// `treble.config.core_rota_kit` para off — não seguir para o próximo passo.
+//
+// O script não consegue provar entrega sozinho: quem confirma é quem está com o
+// telefone. Por isso ele imprime, no fim, a checagem que precisa ser feita por fora.
+// ============================================================================
 //
 // ELE ESCREVE DADO REAL. Cada caso abre uma conversa de verdade em `engagement` e gasta
 // chamada de modelo. As sessões nascem com o prefixo `smoke-laneb-<carimbo>` justamente
@@ -112,6 +131,7 @@ function chave(keys, nome) {
 }
 
 async function turno(sessionId, texto) {
+  const comecou = Date.now();
   const resposta = await fetch(`${URL_AGENTE}?token=${encodeURIComponent(TOKEN)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -124,7 +144,7 @@ async function turno(sessionId, texto) {
     }),
   });
   const corpo = await resposta.json().catch(() => ({}));
-  return { status: resposta.status, corpo };
+  return { status: resposta.status, corpo, ms: Date.now() - comecou };
 }
 
 async function main() {
@@ -138,6 +158,7 @@ async function main() {
   }
 
   const so = argv("--caso") ? Number(argv("--caso")) : null;
+  const tempos = [];
   const carimbo = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
   const prefixo = `smoke-laneb-${carimbo}`;
   const falhas = [];
@@ -154,8 +175,9 @@ async function main() {
     for (const texto of caso.turnos) {
       console.log(`   lead → ${texto}`);
       ultimo = await turno(sessionId, texto);
+      tempos.push(ultimo.ms);
       const keys = ultimo.corpo?.user_session_keys;
-      console.log(`   agente → ${chave(keys, "resposta_ia") ?? "(sem resposta_ia)"}`);
+      console.log(`   agente (${(ultimo.ms / 1000).toFixed(2)}s) → ${chave(keys, "resposta_ia") ?? "(sem resposta_ia)"}`);
     }
 
     const keys = ultimo?.corpo?.user_session_keys;
@@ -191,6 +213,39 @@ async function main() {
   } else {
     console.log("Contrato de saída íntegro em todos os casos rodados.");
   }
+
+  if (tempos.length) {
+    const ordenados = [...tempos].sort((a, b) => a - b);
+    const p50 = ordenados[Math.floor(ordenados.length * 0.5)];
+    const p95 = ordenados[Math.min(ordenados.length - 1, Math.floor(ordenados.length * 0.95))];
+    const pior = ordenados[ordenados.length - 1];
+    const seg = (ms) => `${(ms / 1000).toFixed(2)}s`;
+    console.log(`\nLatência da Edge em ${tempos.length} turnos: ` +
+      `p50 ${seg(p50)} · p95 ${seg(p95)} · pior ${seg(pior)}`);
+    if (pior >= 5960) {
+      console.log("  ⚠️  Pior turno igual ou acima dos ~5,96 s do turno que a Treble NÃO emitiu.");
+    }
+  }
+
+  console.log(`
+${"═".repeat(78)}
+DEFINITION OF DONE — o que este script NÃO prova
+
+Tudo acima é HTTP da Edge. O ciclo E2E só fecha quando a mensagem CHEGA no WhatsApp de
+um número real. Latência aqui é diagnóstico; entrega é o critério.
+
+  [ ] cada resposta apareceu no aparelho, e não só no \`resposta_ia\` do JSON
+  [ ] nenhum turno silencioso — resposta que a Edge devolveu e a Treble não emitiu
+  [ ] \`router_ms\` nos logs da function é compatível com a entrega observada
+  [ ] leitura humana: fato correto, tom certo, sem invenção, rota certa, handoff certo
+
+Se algum turno não chegar, o caminho canônico NÃO está pronto:
+
+  update treble.config set valor = 'false' where chave = 'core_rota_kit';
+
+Isso volta o runtime ao comportamento da v1.3.0 sem redeploy. Não seguir adiante com
+turno que não entrega.
+`);
 
   console.log(`
 Rota realmente executada em cada turno (a rota não sai no payload público do Treble —
