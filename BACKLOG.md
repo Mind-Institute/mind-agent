@@ -765,11 +765,21 @@ de concierge/web, e só então medir a fila. É mudança de uma cláusula `where
 **POR QUE APARECEU.** Decisão 4 da supervisão: memória não vai ao Agent antes de a política de
 sensibilidade funcionar. Esta seção é a investigação que sustenta essa decisão.
 
-#### Existe memória sensível persistida hoje? Não.
+#### Existe memória sensível persistida hoje? O scan NÃO responde isso.
+
+> **CORREÇÃO (30/08/2026).** Este bloco afirmava "não existe memória sensível persistida hoje".
+> **Está errado e não deve ser reusado.** O scan prova apenas que **aquele scan não identificou
+> nenhum caso** — não que não exista nenhum. A diferença é material, e o próprio achado abaixo
+> explica por quê: se a distinção entre "é psicóloga clínica" e "está afastada por burnout" não
+> está nas palavras, então uma varredura por palavra não pode ser exaustiva, e um caso redigido
+> fora do vocabulário previsto passaria despercebido pelo mesmo método.
+>
+> **Consequência:** as 886 linhas legadas continuam **sem autorização de exposição ao Agent**. A
+> proposta mínima de revalidação está na §16.6 (PR de memória segura).
 
 Varredura determinística das 886 linhas contra as 10 categorias de `intelligence.memoria_bloqueios`
 (saúde, diagnóstico, medicação, afastamento, religião, opinião política, orientação sexual, origem
-racial, filiação sindical, saúde de terceiro). **11 candidatos. Os 11 são falso-positivo**, e o
+racial, filiação sindical, saúde de terceiro). **11 candidatos, e os 11 são falso-positivo** — o
 padrão deles é a descoberta que importa:
 
 | o que casou | por quê |
@@ -1078,5 +1088,9 @@ Registro da decisão 4 da supervisão na issue #42, para não ficar só em comen
 > desligado.
 
 Sustentada pela §15.3: `memoria_bloqueios` e `memoria_regras` não são aplicados por nenhum writer, e
-o gate correto é na escrita, dependente de um rótulo que o analisador ainda não emite. O gatilho
-para reabrir é a resposta à pergunta exata da §15.3.
+o gate correto é na escrita, dependente de um rótulo que o analisador ainda não emite.
+
+**Atualização (30/08/2026):** a pergunta da §15.3 foi respondida e aprovada. O contrato
+(`sensitivity` no prompt v2) e a trava fail closed em `analise_projetar_memoria` estão implementados
+na PR de memória segura — ver **§16**. A decisão acima **continua valendo para o legado**: as 886
+linhas gravadas sob o contrato v1 não são expostas ao Agent até serem revalidadas (§16.6).
