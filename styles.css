@@ -547,6 +547,30 @@ body {
 }
 .alvo.dica.largo::after { display: none; }
 .alvo.erra { animation: tremer .4s; }
+
+/* Véu: tudo escurece menos a próxima ação, para ela não competir com o
+   resto da tela. O buraco é feito por uma sombra enorme em volta do
+   elemento — `.frame` recorta, então ela para na borda do telefone.
+   Fica abaixo do anel (z 4) e abaixo do balão, que precisa continuar
+   legível. */
+.veu {
+  position: absolute; z-index: 3;
+  transform: translate(-50%, -50%);
+  width: 13cqw; height: 13cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(6, 6, 10, .62);
+  pointer-events: none;
+}
+.veu.largo { border-radius: 12px; }
+/* Ação numa aba: a foto inteira escurece e a barra, que fica fora do
+   `.frame`, permanece acesa. */
+.veu.tudo {
+  left: 0; top: 0; right: 0; bottom: 0;
+  width: auto; height: auto;
+  transform: none; border-radius: 0;
+  box-shadow: none;
+  background: rgba(6, 6, 10, .62);
+}
 @keyframes pulso {
   0% { box-shadow: 0 0 0 0 rgba(62, 155, 255, .55); }
   70% { box-shadow: 0 0 0 4cqw rgba(62, 155, 255, 0); }

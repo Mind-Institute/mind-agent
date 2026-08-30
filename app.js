@@ -172,13 +172,7 @@ const ABAS = [
 /* Popups do app, refeitos em HTML */
 const FOLHAS = {
   agente: { titulo: 'Mind Agent', texto: 'Oi! É aqui que eu moro dentro do app. Me chame para dúvidas do evento, sugestão de conteúdo, bios de palestrantes e logística.', botao: 'Legal!' },
-  notificacoes: { titulo: 'Notificações', itens: [
-      ['A Arena Mind abre em 15 minutos', 'Keynote de abertura · 09:15'],
-      ['Sua reserva foi confirmada', 'Da mensuração ao PGR · Sala Workshop 2 · 11:30'],
-    ], botao: 'Fechar' },
   contato: { titulo: 'Solicitação enviada', texto: 'Quando a pessoa aceitar, ela entra em Contatos. Enquanto isso fica em Pendentes.', botao: 'Entendi' },
-  comousar: { titulo: 'Como usar o mapa', texto: 'Use os filtros para ver só arenas, estandes ou lounges. Toque num espaço para ver o que acontece nele. O evento é no São Paulo Expo, em São Paulo.', botao: 'Entendi' },
-  logout: { titulo: 'É só uma demonstração', texto: 'Aqui você sairia da sua conta. Neste tour, ninguém sai de lugar nenhum. 🙂', botao: 'Voltar ao tour' },
   reservado: { titulo: 'Lugar reservado!', texto: 'No dia da sessão, faça o check-in aqui mesmo, na página dela, até o horário de início. A reserva é exclusiva por horário.', botao: 'Combinado' },
 };
 
@@ -255,15 +249,12 @@ const TELAS = {
   'menu': {
     img: 'menu', aba: 'menu', rotulo: 'Menu',
     alvos: [
-      { id: 'perfil', x: 31, y: 13.7, w: 32, h: 6, brinde: 'Em Editar Perfil você põe foto e cargo.' },
       { id: 'qrmini', x: 90.7, y: 13.9, w: 13, h: 6.5, vai: 'qrcode', modo: 'troca' },
       { id: 'mapa', x: 25.9, y: 28.2, w: 44.4, h: 10.9, vai: 'mapa', modo: 'push', dica: 'Abra o <b>Mapa do evento</b>.' },
       { id: 'rede', x: 74.1, y: 28.2, w: 44.4, h: 10.9, vai: 'rede', modo: 'push', dica: 'Abra a <b>Área de Networking</b>.' },
       { id: 'palestrantes', x: 25.9, y: 41.1, w: 44.4, h: 10.9, vai: 'palestrantes', modo: 'push', dica: 'Abra <b>Palestrantes</b>.' },
-      { id: 'notificacoes', x: 74.1, y: 41.1, w: 44.4, h: 10.9, folha: 'notificacoes' },
       { id: 'chat', x: 25.9, y: 54.1, w: 44.4, h: 10.9, vai: 'chat', modo: 'push', dica: 'Abra o <b>Chat</b> — é onde eu fico.' },
       { id: 'qrtile', x: 74.1, y: 54.1, w: 44.4, h: 10.9, vai: 'qrcode', modo: 'troca' },
-      { id: 'logout', x: 50, y: 93.3, w: 92, h: 5, folha: 'logout' },
     ],
   },
   'mapa': {
@@ -273,7 +264,6 @@ const TELAS = {
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'filtroArenas', x: 33.8, y: 41.3, w: 18.5, h: 4.5, faz: 'filtrar',
         brinde: 'Só as arenas. A Arena Mind é a maior — fica à esquerda.' },
-      { id: 'comousar', x: 17, y: 93, w: 30, h: 6, folha: 'comousar' },
     ],
   },
   'rede': {
@@ -518,13 +508,16 @@ function fimDaEntrada() {
   ]);
 }
 
+/* Alvo comprido ganha anel retangular; o redondo cortaria as pontas. */
+const ehLargo = (a) => a.w > 40 || a.h > 12 || a.w / a.h > 3;
+
 /* --- desenha a tela atual --- */
 function pintar(modo) {
   const tela = TELAS[telaAtual];
   telaImg.src = TOUR_IMG_SRC(tela.img);
   telaImg.alt = 'Tela ' + telaAtual + ' do app';
 
-  conteudo.querySelectorAll('.alvo, .marca').forEach((el) => el.remove());
+  conteudo.querySelectorAll('.alvo, .marca, .veu').forEach((el) => el.remove());
 
   /* Com um modal obrigatório aberto, a única ação possível é o botão
      dele. Apontar para a próxima etapa aqui dava duas instruções que se
@@ -544,7 +537,7 @@ function pintar(modo) {
     b.setAttribute('aria-label', (a.dica || a.brinde || a.id).replace(/<[^>]+>/g, ''));
     if (dica && dica.alvo === a.id) {
       b.classList.add('dica');
-      if (a.w > 40 || a.h > 12 || a.w / a.h > 3) b.classList.add('largo');
+      if (ehLargo(a)) b.classList.add('largo');
     }
     b.addEventListener('click', (e) => { e.stopPropagation(); tocar(a); });
     conteudo.appendChild(b);
@@ -586,6 +579,24 @@ function pintar(modo) {
     balao.innerHTML = '<span class="rot">Próxima ação</span>' + alvoDica.dica;
   } else {
     balao.hidden = true;
+  }
+
+  /* Véu: a tela escurece e só a próxima ação fica em evidência. O buraco
+     é uma sombra gigante em volta do próprio alvo — sem máscara nem SVG,
+     e `.frame` tem `overflow: hidden`, então ela para na borda. Quando a
+     ação é numa aba, o véu cobre a foto inteira: a barra fica fora dele. */
+  if (dica) {
+    const veu = document.createElement('span');
+    if (alvoDica) {
+      const largo = ehLargo(alvoDica);
+      veu.className = 'veu' + (largo ? ' largo' : '');
+      veu.style.left = alvoDica.x + '%';
+      veu.style.top = alvoDica.y + '%';
+      if (largo) { veu.style.width = alvoDica.w + '%'; veu.style.height = alvoDica.h + '%'; }
+    } else {
+      veu.className = 'veu tudo';
+    }
+    conteudo.appendChild(veu);
   }
 
   /* abas: ativa + dica */
