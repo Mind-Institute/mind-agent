@@ -232,6 +232,15 @@ comment on function public.mind_kit_inclusoes(uuid, jsonb) is
   'Bloco factual do Kit: o que cada experiência do Summit inclui (summit_2026.experiencias), alinhado com as ofertas vigentes da mesma categoria (offers.elegibilidade->>categoria). NULL só quando não há nenhuma experiência — a existência de oferta não decide este bloco. Oferta de grupo não cria tier novo.';
 
 -- ------------------------------------------------------------
+-- 1.4b Volatilidade de public.mind_precos_por_volume()
+-- O wrapper do bloco é STABLE e o cálculo é uma leitura pura; a função estava
+-- marcada VOLATILE apenas por omissão do default. Só a volatilidade muda —
+-- o corpo não é reescrito.
+-- ------------------------------------------------------------
+alter function public.mind_precos_por_volume() stable;
+
+
+-- ------------------------------------------------------------
 -- 1.5 mind_kit_precos_por_volume
 -- Verdade mínima: `public.mind_precos_por_volume()` produz um array com ao
 -- menos uma linha. A função devolve `[]` quando não há tier ativo ou não há
@@ -404,6 +413,23 @@ begin
     return v_meta;
   end if;
 
+  -- conversa: taxonomia já congelada em public.mind_agent_context, reproduzida
+  -- literalmente. `engagement` NÃO entra no search_path — a referência é
+  -- schema-qualified e a função é SECURITY DEFINER.
+  -- Precedência: rota_invalida > sem_conversa > conversa_nao_encontrada > kit.
+  if p_conversa_id is null then
+    return jsonb_build_object('ok', false, 'motivo', 'sem_conversa');
+  end if;
+
+  if not exists (
+    select 1 from engagement.conversas c where c.id = p_conversa_id
+  ) then
+    return jsonb_build_object(
+      'ok',          false,
+      'motivo',      'conversa_nao_encontrada',
+      'conversa_id', p_conversa_id);
+  end if;
+
   -- playbook vem só do sistema, nunca de kit_blocos
   select pr.conteudo
     into v_playbook
@@ -459,4 +485,4 @@ revoke all on function public.mind_agent_kit(text, uuid, jsonb)
 grant execute on function public.mind_agent_kit(text, uuid, jsonb) to service_role;
 
 comment on function public.mind_agent_kit(text, uuid, jsonb) is
-  'Kit da rota para o agente: playbook (agentes.prompts), structured (bloco -> payload dos providers ativos de secao=structured com payload não-nulo), knowledge=[], tools=[] e meta (chamada literal a mind_kit_meta). Sem canal, sem histórico, sem blob de conversa, sem gerado_em.';
+  'Kit da rota para o agente. Erros na precedência congelada: rota_invalida (de mind_kit_meta) > sem_conversa > conversa_nao_encontrada (taxonomia de mind_agent_context). Em sucesso: playbook (agentes.prompts), structured (bloco -> payload dos providers ativos de secao=structured com payload não-nulo), knowledge=[], tools=[] e meta (chamada literal a mind_kit_meta). Sem canal, sem histórico, sem blob de conversa, sem gerado_em.';
