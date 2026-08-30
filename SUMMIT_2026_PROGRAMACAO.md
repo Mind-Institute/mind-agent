@@ -6,13 +6,14 @@ Checkpoint factual e decisões aprovadas em 30/08/2026.
 
 A programação atual do Mind Summit 2026 foi reconstruída em produção a partir de `Mind-Institute/mindsummit2026/src/data/programacao.json`.
 
-Estado verificado após o rebuild:
+Estado verificado em produção em 30/08/2026, já incluindo os Alumni Talks acrescentados ao site depois do rebuild:
 
-- `summit_2026.sessions`: 69 sessões;
-- 35 sessões em 16/09/2026;
-- 34 sessões em 17/09/2026;
-- os novos `sessions.id` passam a ser estáveis;
-- o wipe foi excepcional e só foi permitido porque não havia jornada, feedback, recomendação, interesse ou inscrição operacional dependente das sessões.
+- `summit_2026.sessions`: 77 sessões;
+- 39 sessões em 16/09/2026;
+- 38 sessões em 17/09/2026;
+- `sessions.site_session_id` preenchido e distinto nas 77 — é a chave determinística que corresponde a `programacao.json.id`;
+- os `sessions.id` permanecem estáveis;
+- o wipe original foi excepcional e só foi permitido porque não havia jornada, feedback, recomendação, interesse ou inscrição operacional dependente das sessões.
 
 A partir deste checkpoint, mudanças futuras de programação devem preservar `sessions.id` por UPDATE/INSERT. Não repetir wipe quando houver dado operacional dependente.
 
@@ -49,16 +50,22 @@ Objetivo de convergência: `session_speakers` deve terminar com um único identi
 
 Verificado diretamente em produção:
 
-- `ecossistema.palestrantes_especialistas`: 31 registros;
-- os 31 têm `quem_e`, `formacao_e_posicao`, `principais_contribuicoes` e `conceitos_chave_explicados` preenchidos;
-- 30/31 têm `fontes_gerais`;
-- 29/31 têm `relevancia_para_os_icps_do_mind`;
-- `session_speakers`: 12 vínculos após o rebuild;
-- os 12 vínculos têm `speaker_id` canônico preenchido;
-- os 12 cobrem Amy Edmondson, Christina Maslach, Jan-Emmanuel De Neve e Sonja Lyubomirsky;
+- `ecossistema.palestrantes_especialistas`: **64 registros**;
+- **31 registros ricos originais**, preservados intactos: têm `quem_e`, `formacao_e_posicao`, `principais_contribuicoes` e `conceitos_chave_explicados`; 30/31 têm `fontes_gerais`; 29/31 têm `relevancia_para_os_icps_do_mind`;
+- **33 registros mínimos acrescentados** (ids 32–64) a partir de `speakers.json`: `nome` ← `name` e `quem_e` ← `bio` do site, com `cargo_curto` e `instituicao` NULL porque o site não traz `institution` explícito para nenhuma delas. Isso é **deliberado**, não lacuna de qualidade: o objetivo desta etapa foi identidade + bio mínima. O enriquecimento editorial dessas 33 fica para depois;
+- zero duplicata canônica: os índices únicos por `lower(btrim(nome))` e por `slug` seguem sem violação;
+- `Márcio Atalla` permanece no Ecossistema e não faz parte do line-up atual do site — preservado;
+- `session_speakers`: **12 vínculos**, o estado ANTES da reconstrução;
+- os 12 têm `speaker_id` canônico preenchido e cobrem Amy Edmondson, Christina Maslach, Jan-Emmanuel De Neve e Sonja Lyubomirsky;
 - os demais vínculos antigos não foram reconstruídos no rebuild porque não tinham identidade canônica segura.
 
-Completar a curadoria e religar os demais palestrantes continua sendo trabalho do Passo 12A. Não resolver por fuzzy matching nem recriar uma identidade paralela.
+### Fora do escopo por decisão
+
+`Sibelle Pedral` e `Virginie Leite` aparecem em `programacao.json` como mediação, mas não existem em `speakers.json`. Decisão de 30/08: **não entram**. Não criar registro no Ecossistema, não criar vínculo em `session_speakers`, não pesquisar bio e não tratar como pendência.
+
+Com essa exclusão, `programacao.json` tem 83 ocorrências pessoa×sessão brutas e **81 relevantes**.
+
+Reconstruir os vínculos continua sendo trabalho do Passo 12A. Não resolver por fuzzy matching nem recriar identidade paralela.
 
 ## Fonte e mirror
 
