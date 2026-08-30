@@ -959,8 +959,15 @@ para um estado que já tem casa canônica — exatamente o que o `CLAUDE.md` pro
 conceito"). **A menor correção correta é remover a chamada**, não implementá-la.
 
 A remoção é em `supabase/functions/treble-inbound-agent/index.ts`, que é **arquivo da Lane B**.
-Esta lane não o toca. O bloco a remover é o `if (idPessoa) { … "mind_lead_capturar" … }` inteiro —
-nada mais depende dele, e o `console.error` que o acompanha some junto.
+Esta lane não o tocou: passou o achado adiante.
+
+**RESOLVIDO em 30/08/2026 — a Lane B removeu a chamada** na v1.4.0 do `treble-inbound-agent`
+(PR #47, head `8401faf`), com o comentário no lugar do bloco citando esta investigação e a tabela
+de casas canônicas acima. Não há writer novo no lugar, que é o correto: o estado já estava sendo
+persistido. Quando o Passo 15B construir o write-back de verdade, ele nasce da casa canônica.
+
+**O que continua aberto:** o 15B em si (mapeamento `buyer_state` → `hs_pipeline_stage`, gate da
+Adriana) e a dupla órfã abaixo.
 
 **Se a intenção original era outra** (enfileirar o lead para criação de card no HubSpot, que é o
 Passo 15B), então a chamada está no lugar errado de qualquer forma: o payload é estado de turno,
