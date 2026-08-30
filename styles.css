@@ -966,6 +966,22 @@ body {
 }
 .ins textarea:focus { outline: none; border-color: var(--verde); }
 
+/* A pergunta da nota é template aprovado (`ciclo.nota`), não rótulo de campo:
+   ela fala com a pessoa, então tem peso de fala e não de formulário. */
+.ins-pergunta {
+  margin: 2px 0 -2px; font-size: 13px; line-height: 1.4;
+  color: var(--texto-suave);
+}
+
+/* Onze alvos numa linha de celular: os chips da nota são quadrados e
+   compactos, mas continuam com área de toque de dedo. O resto do visual é o
+   mesmo `.chips` — nota e sessão são a mesma gramática de escolha. */
+.ins .chips.nota { gap: 5px; }
+.ins .chips.nota button {
+  flex: 1 1 auto; min-width: 30px; padding: 8px 0;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+
 /* Plano pós-Summit */
 .plano { display: flex; flex-direction: column; gap: 8px; }
 .plano li {

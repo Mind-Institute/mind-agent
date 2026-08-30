@@ -29,6 +29,19 @@ export const CONFIG = {
      telefone, monta o contexto público e grava mensagens e interesses. */
   chatFunction: 'mindagent-chat',
 
+  /* Onde o runtime do Concierge executa uma ferramenta do Play — nota de
+     sessão, NPS, feedback da operação, coleta tipada. Nula até esse ponto
+     de execução existir, igual `apiBaseUrl` foi nula antes do
+     `mindagent-bootstrap`: preencher aqui liga a coleta e nenhuma outra
+     linha do frontend muda.
+
+     Nula, o `play-service.js` devolve `sem_endpoint` e a tela diz a
+     verdade em vez de fingir que gravou. O endpoint não é do Play: quem
+     executa ferramenta é o runtime do Concierge, que é quem sabe quem é a
+     pessoa. As funções que gravam (`public.mind_play_*`) são
+     `service_role` e nunca são chamadas do navegador. */
+  playActionUrl: null,
+
   /* Rede de segurança: se a API não responder, a página cai no
      `dados/summit.json` do repositório — conteúdo mais antigo, mas
      conteúdo real. Desligar as duas origens deixa a página sem fonte, e

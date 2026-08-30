@@ -7,6 +7,7 @@
 */
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
+import { registrarFeedbackSessao } from './play-service.js';
 import { carregarDadosSummit } from './data-service.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -1229,6 +1230,12 @@ const FLUXOS = {
     campoChat.focus();
   },
 
+  /* O QUE FICOU — a coleta de feedback de sessão do Play.
+     A nota e o texto vão para `engagement.sessao_feedback` pela ferramenta
+     `registrar_feedback_sessao`, que aceita preenchimento parcial: dar só a
+     nota, só o texto, ou completar depois, tudo cai na mesma linha.
+     A pergunta da nota é o template aprovado `ciclo.nota`; o placeholder do
+     texto é o `ciclo.debrief`. Nada de copy inventada aqui. */
   insight() {
     const base = PERFIL.sessoes.length ? PERFIL.sessoes
                : sessoesPorAfinidade().slice(0, 3).map((x) => x.s);
@@ -1240,30 +1247,52 @@ const FLUXOS = {
     const cx = document.createElement('div');
     cx.className = 'ins';
     cx.innerHTML =
-      '<div class="chips">' + base.map((s, i) =>
+      '<div class="chips sessoes">' + base.map((s, i) =>
         '<button type="button" aria-pressed="' + (i === 0) + '" data-s="' + s.id + '">' +
         s.titulo.slice(0, 30) + (s.titulo.length > 30 ? '…' : '') + '</button>').join('') + '</div>' +
+      '<p class="ins-pergunta">De 0 a 10, quanto essa sessão foi útil para você?</p>' +
+      '<div class="chips nota">' + Array.from({ length: 11 }, (_, n) =>
+        '<button type="button" aria-pressed="false" data-n="' + n + '">' + n + '</button>').join('') + '</div>' +
       '<textarea placeholder="O que dessa sessão conversou com o que você está tentando resolver?"></textarea>';
     const salvar = document.createElement('button');
     salvar.type = 'button';
     salvar.className = 'avancar';
     salvar.textContent = 'Guardar no meu Summit';
-    cx.querySelector('.chips').addEventListener('click', (e) => {
+
+    /* Sessão: uma escolhida sempre. Nota: opcional, e destocável — um toque
+       errado não pode virar avaliação que a pessoa não quis dar. */
+    cx.querySelector('.chips.sessoes').addEventListener('click', (e) => {
       const b = e.target.closest('button');
       if (!b) return;
-      cx.querySelectorAll('.chips button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+      cx.querySelectorAll('.chips.sessoes button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
     });
-    salvar.addEventListener('click', () => {
+    cx.querySelector('.chips.nota').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const jaEra = b.getAttribute('aria-pressed') === 'true';
+      cx.querySelectorAll('.chips.nota button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', jaEra ? 'false' : 'true');
+    });
+
+    salvar.addEventListener('click', async () => {
       const txt = cx.querySelector('textarea').value.trim();
-      if (!txt) return cx.querySelector('textarea').focus();
-      const id = cx.querySelector('.chips button[aria-pressed="true"]').dataset.s;
+      const marcada = cx.querySelector('.chips.nota button[aria-pressed="true"]');
+      const nota = marcada ? Number(marcada.dataset.n) : null;
+      if (!txt && nota === null) return cx.querySelector('textarea').focus();
+
+      const id = cx.querySelector('.chips.sessoes button[aria-pressed="true"]').dataset.s;
       const sessao = base.find((x) => x.id === id);
-      PERFIL.insights.push({ sessao: sessao.titulo, texto: txt, temas: sessao.temas });
+      if (txt) PERFIL.insights.push({ sessao: sessao.titulo, texto: txt, temas: sessao.temas });
       sessao.temas.forEach((t) => pesoTema(t, 1));
       cx.remove(); salvar.remove();
-      bolha('Guardei. Isso muda o seu mapa e o que eu vou sugerir daqui pra frente. 💚', 'mind');
       tocarPerfil();
+
+      const r = await registrarFeedbackSessao({ sessao_id: sessao.id, nota, insight: txt });
+      bolha(r.ok
+        ? 'Guardei. Isso muda o seu mapa e o que eu vou sugerir daqui pra frente. 💚'
+        : 'Anotei no seu Summit, aqui neste aparelho. Ainda não consigo registrar isso no sistema do evento — quando essa parte entrar no ar, passa a valer para a organização também.',
+        'mind');
     });
     alvo.appendChild(cx); alvo.appendChild(salvar);
     mensagens.scrollTop = mensagens.scrollHeight;

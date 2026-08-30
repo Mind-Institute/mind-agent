@@ -811,3 +811,39 @@ produção, ou na faxina de reconciliação da cadeia de migrations. A correçã
 e idempotente (`alter table ... add column if not exists`), não um backfill de dado.
 
 **Dependência:** dono de `summit_2026.sessions` (frente da programação/Concierge).
+
+### 14.8 `public.mindagent_bootstrap` quebrada bloqueia o vínculo canônico do Play
+
+**Status:** descoberto ao preparar a superfície de coleta no app (Lane E, 30/08/2026).
+**Não corrigido — fora do escopo da lane.** É o bloqueio concreto do Definition of Done do Play.
+
+**Evidência.** Chamar `public.mindagent_bootstrap('mind-summit-2026')` em produção falha com
+`42P01: relation "summit.events" does not exist`. A função lê `summit.events`, `summit.sessions`,
+`summit.locations`, `summit.session_speakers.palestrante_id` (coluna legada), `comum.speakers` e
+`comum.taxonomy` — schemas renomeados (`summit` → `summit_2026`, `comum` → `ecossistema`) e, no caso
+de `comum.taxonomy`, **schema que não existe mais**. É uma das 19 funções já listadas na §8.
+
+**Consequência em cadeia, que é o que importa aqui:**
+
+1. a Edge Function `mindagent-bootstrap` devolve 503;
+2. `data-service.js` cai no `useLocalFallback` e o app roda inteiro no `dados/summit.json`;
+3. esse arquivo tem **53 sessões** (produção tem 77) e ids **slug** (`d1-09_00-abertura`), não uuid;
+4. logo **o app não tem o `sessao_id` canônico** para vincular nada a `summit_2026.sessions`.
+
+Sem esse id, `mind_play_feedback_sessao` recusa com `sessao_nao_encontrada` — corretamente. O
+`play-service.js` antecipa a recusa como `sessao_sem_id_canonico` para a tela poder ser honesta.
+
+**Atenção ao consertar:** `'id', coalesce(s.yazo_id, s.id::text)` faz o `yazo_id` ganhar do id
+canônico quando existe. Só reapontar os schemas **não** resolve o Play: o contrato do app precisa
+carregar o uuid canônico de `summit_2026.sessions` (como campo próprio, se `yazo_id` tiver de
+continuar sendo o `id` público). `comum.taxonomy` não existe mais, então `temas` precisa de decisão
+sobre o que passa a alimentá-lo.
+
+**Por que foi deferido:** a função serve o app inteiro (programação, pessoas, temas), não só o Play;
+consertá-la envolve decidir o destino de `temas` sem `comum.taxonomy`. Fazer isso dentro da Lane E
+seria limpeza lateral e atropelaria quem é dono da programação.
+
+**Gatilho para retomar:** é pré-requisito para o Play coletar feedback vinculado a sessão. Deve
+entrar antes do E2E do Play.
+
+**Dependência:** dono da programação/bootstrap + decisão sobre `temas`.
