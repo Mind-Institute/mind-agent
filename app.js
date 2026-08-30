@@ -241,7 +241,7 @@ const TELAS = {
     serve: 'Sua credencial e seu cartão de visita: quem escaneia seu código vê o seu perfil.',
     alvos: [
       { id: 'meucodigo', x: 50, y: 40, w: 70, h: 26, brinde: 'Este é o seu código. Apresente quando pedirem.' },
-      { id: 'escanear', x: 49.8, y: 95.5, w: 90, h: 5, vai: 'scanner', modo: 'push', missao: 'm4',
+      { id: 'escanear', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'scanner', modo: 'push', missao: 'm4',
         dica: 'Toque em <b>Escanear Qr Code</b> para adicionar uma pessoa à sua rede.' },
     ],
   },
@@ -249,7 +249,7 @@ const TELAS = {
     img: 'scanner', aba: 'qr', volta: 'qrcode', rotulo: 'Leitor de QR',
     serve: 'Aponte para o QR Code de outra pessoa: o contato entra direto na sua rede.',
     alvos: [
-      { id: 'meuqr', x: 49.8, y: 95.5, w: 90, h: 5, volta: true, dica: 'Toque em <b>Meu Qr Code</b> para voltar.' },
+      { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, volta: true, dica: 'Toque em <b>Meu Qr Code</b> para voltar.' },
     ],
   },
   'menu': {
