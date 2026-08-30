@@ -42,8 +42,22 @@
 --   5. O HORÁRIO CHEGAVA AO MODELO EM UTC.
 --      `starts_at` é timestamptz e sai serializado como `...T22:00:00+00:00`.
 --      A sessão das 19:00 em São Paulo vira 22:00 na resposta — a instrução do
---      concierge pede "HH:MM–HH:MM" e o modelo escreve o que recebeu. O
---      horário que a pessoa lê agora vem escrito, no fuso do evento.
+--      concierge pede "HH:MM–HH:MM" e o modelo escreve o que recebeu.
+--      Acrescentar um campo local não bastava: nada dizia ao modelo qual dos
+--      dois vence, e o bloco de agenda do Treble nem recebe o `official_note`.
+--      Então o UTC deixa de existir na saída.
+--
+--   6. NÚMERO SOLTO VIRAVA DATA.
+--      `dia_pedido` aceitava o 16/17 solto, e o mesmo retrieval serve o bloco
+--      de agenda do Treble, onde "somos 17 pessoas" e "quero 17 ingressos" são
+--      o dia a dia. Data agora exige sinal inequívoco: a palavra `dia`
+--      governando o número, data escrita ou mês por extenso.
+--
+--   7. O RECORTE VALIA SÓ NA METADE DA RESPOSTA.
+--      `sessions` aplicava dia/faixa; `speakers[].sessions` devolvia todas as
+--      sessões da pessoa. "Amy no dia 17" entregava as sessões do dia 16 dela
+--      dentro do bloco da pessoa — duas verdades sobre a mesma pergunta, na
+--      mesma resposta.
 --
 -- A MUDANÇA EM UMA FRASE
 --   O piso passa a ser calculado sobre os lexemas de ASSUNTO da pergunta, e
@@ -56,7 +70,16 @@
 --   exhibitors, mind (agendaSegura). Todas as chaves continuam existindo com
 --   o mesmo nome e o mesmo formato. Campos novos são ADITIVOS.
 --
--- CAMPOS NOVOS (aditivos; nada foi removido nem renomeado)
+-- CAMPOS DE SAÍDA — nada foi removido nem renomeado; `starts_at`/`ends_at`
+-- mudam de FUSO, não de nome: saem no fuso do evento, sem offset, e passam a
+-- concordar com `*_local`. Nenhum consumidor os lê programaticamente — o chat
+-- só conta arrays, o Treble filtra chaves e varre números >= 100 no guardrail
+-- de preço —, então a troca não muda contrato de código: ela só remove a
+-- leitura errada de horário.
+--   sessions[].starts_at / ends_at              — timestamp local, sem UTC
+--   sessions[].timezone                         — o fuso, dentro do item, para
+--                                                 ele se explicar sozinho
+--                                                 mesmo depois de filtrado
 --   sessions[].starts_at_local / ends_at_local  — HH:MM no fuso do evento
 --   sessions[].type                             — tipo da sessão, inclusive
 --                                                 `em-curadoria`, para o
@@ -157,16 +180,33 @@ loc as (
 ),
 -- ---------------------------------------------------------------- DIA
 -- O dia sai da pergunta contra os dias que o evento REALMENTE tem. Nada de
--- data em constante. `16h`/`16:00` não é dia: a hora é excluída aqui e tratada
--- na faixa.
+-- data em constante.
+--
+-- NÚMERO SOLTO NÃO É DATA. "somos 17 pessoas" e "quero 17 ingressos" citam o
+-- 17 sem falar do dia 17 — e o Treble, que consome este mesmo retrieval, vive
+-- de perguntas com quantidade. Por isso o número só vira data quando a própria
+-- pergunta diz que é data: a palavra `dia` governando o número, uma data
+-- escrita (17/09, 17-9, 2026-09-17) ou o mês por extenso.
+-- `16h` e `16:00` também não são dia: são hora, e têm filtro próprio.
+meses_pt as (
+  select array['janeiro','fevereiro','marco','abril','maio','junho',
+               'julho','agosto','setembro','outubro','novembro','dezembro']::text[] as m
+),
 dia_pedido as (
   select array_agg(distinct d.dia) as dias
   from (select distinct s.dia from summit_2026.sessions s join ev e on e.id = s.event_id) d
   cross join params p
-  where p.qn ~ ('(^|[^0-9])' || to_char(d.dia, 'FMDD') || '([^0-9hH:]|$)')
-     or p.qn like '%' || to_char(d.dia, 'DD/MM') || '%'
-     or p.qn like '%' || to_char(d.dia, 'FMDD/FMMM') || '%'
-     or p.qn like '%' || to_char(d.dia, 'YYYY-MM-DD') || '%'
+  cross join meses_pt mp
+  where
+    -- "dia 17", "no dia 17", "dias 16 e 17" (o primeiro número após `dia`)
+    p.qn ~ ('\mdias?\M[^0-9]{0,6}' || to_char(d.dia, 'FMDD') || '([^0-9hH:]|$)')
+    -- data escrita: 17/09, 17/9, 17-09
+    or p.qn ~ ('(^|[^0-9])' || to_char(d.dia, 'FMDD') || '[/-]0?' || to_char(d.dia, 'FMMM') || '([^0-9]|$)')
+    -- ISO
+    or p.qn like '%' || to_char(d.dia, 'YYYY-MM-DD') || '%'
+    -- "17 de setembro"
+    or p.qn ~ ('(^|[^0-9])' || to_char(d.dia, 'FMDD') || '\s+de\s+' ||
+               mp.m[extract(month from d.dia)::int])
 ),
 -- ------------------------------------------------------------- HORÁRIO
 -- Convenção de leitura da pergunta, não regra de negócio: manhã < 12h,
@@ -303,13 +343,20 @@ session_ranked as (
 session_items as (
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', x.id, 'title', x.titulo, 'description', x.descricao,
-    'date', x.dia, 'starts_at', x.inicio, 'ends_at', x.fim,
-    -- HORA LOCAL, ESCRITA. `starts_at` é timestamptz e chega ao modelo em UTC:
-    -- a sessão das 19:00 em São Paulo aparece como 22:00Z, e o modelo escreve
-    -- 22:00 na resposta. O horário que a pessoa vai ler sai daqui, já no fuso
-    -- do próprio evento. Os campos originais continuam intactos.
+    'date', x.dia,
+    -- NÃO SAI UTC DAQUI. `s.inicio` é timestamptz e serializava como
+    -- `...T22:00:00+00:00`: a sessão das 19:00 em São Paulo chegava ao modelo
+    -- como 22:00, e a instrução do concierge pede "HH:MM–HH:MM". Não bastava
+    -- acrescentar um campo local — nada dizia ao modelo qual dos dois vence, e
+    -- o bloco de agenda do Treble nem recebe o `official_note`. Então o UTC
+    -- deixa de existir na saída: `starts_at`/`ends_at` saem no fuso do evento,
+    -- sem offset, e concordam com `*_local`. `timezone` acompanha cada sessão
+    -- para o item se explicar sozinho mesmo depois de filtrado.
+    'starts_at', x.inicio at time zone x.fuso,
+    'ends_at',   x.fim    at time zone x.fuso,
     'starts_at_local', to_char(x.inicio at time zone x.fuso, 'HH24:MI'),
     'ends_at_local',   to_char(x.fim    at time zone x.fuso, 'HH24:MI'),
+    'timezone', x.fuso,
     'type', x.tipo, 'location', x.local,
     'requires_reservation', x.precisa_reserva,
     'limited_seats', x.lugares_limitados,
@@ -336,16 +383,29 @@ speaker_ranked as (
   from pessoa_evento pe
   cross join params p
   cross join dia_pedido dp
+  cross join faixa fx
   left join pessoa_nomeada pn on pn.id = pe.id
   where (
       pn.id is not null
       or (p.q_foco is not null and ts_rank_cd(pe.tsv, p.q_foco) >= p.piso)
       or (p.listar_pessoas and p.n_foco = 0)
     )
-    and (dp.dias is null or exists (
+    -- Quem a pergunta recortou por dia/faixa só entra se realmente fala nesse
+    -- recorte. Mesmo predicado do bloco de sessões, para os dois não
+    -- discordarem dentro da mesma resposta.
+    and ((dp.dias is null and fx.ini is null) or exists (
       select 1 from summit_2026.session_speakers ss
       join summit_2026.sessions s on s.id = ss.sessao_id
-      where ss.speaker_id = pe.id and s.dia = any (dp.dias)))
+      join ev e3 on e3.id = s.event_id
+      where ss.speaker_id = pe.id
+        and (dp.dias is null or s.dia = any (dp.dias))
+        and (fx.ini is null or (
+          case when fx.por_sobreposicao
+            then (s.inicio at time zone e3.fuso)::time <  fx.fim
+             and (s.fim    at time zone e3.fuso)::time >  fx.ini
+            else (s.inicio at time zone e3.fuso)::time >= fx.ini
+             and (s.inicio at time zone e3.fuso)::time <  fx.fim
+          end))))
 ),
 -- A pessoa vem com as sessões dela. "Que horas fala a Amy" e "onde é a sessão
 -- da Sonja" passam a ter resposta determinística num bloco só, em vez de
@@ -357,16 +417,31 @@ speaker_items as (
     'sessions', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', s.id, 'title', s.titulo, 'date', s.dia,
-        'starts_at', s.inicio, 'ends_at', s.fim,
+        'starts_at', s.inicio at time zone e2.fuso,
+        'ends_at',   s.fim    at time zone e2.fuso,
         'starts_at_local', to_char(s.inicio at time zone e2.fuso, 'HH24:MI'),
         'ends_at_local',   to_char(s.fim    at time zone e2.fuso, 'HH24:MI'),
+        'timezone', e2.fuso,
         'location', l.nome, 'participation', ss.papel
       ) order by s.inicio)
       from summit_2026.session_speakers ss
       join summit_2026.sessions s on s.id = ss.sessao_id
       join ev e2 on e2.id = s.event_id
+      cross join dia_pedido dp2
+      cross join faixa fx2
       left join summit_2026.locations l on l.id = s.espaco_id
-      where ss.speaker_id = x.id), '[]'::jsonb)
+      where ss.speaker_id = x.id
+        -- MESMO RECORTE DO BLOCO DE SESSÕES. Sem isto, "Amy no dia 17" traz as
+        -- sessões do dia 16 dela dentro do bloco da pessoa, e o modelo lê duas
+        -- verdades diferentes sobre a mesma pergunta na mesma resposta.
+        and (dp2.dias is null or s.dia = any (dp2.dias))
+        and (fx2.ini is null or (
+          case when fx2.por_sobreposicao
+            then (s.inicio at time zone e2.fuso)::time <  fx2.fim
+             and (s.fim    at time zone e2.fuso)::time >  fx2.ini
+            else (s.inicio at time zone e2.fuso)::time >= fx2.ini
+             and (s.inicio at time zone e2.fuso)::time <  fx2.fim
+          end))), '[]'::jsonb)
   ) order by x.score desc, x.nome), '[]'::jsonb) as items
   from (select * from speaker_ranked order by score desc, nome
         limit (select lim from params)) x
@@ -457,7 +532,7 @@ select jsonb_build_object(
   'mind', (select items from mind_items),
   'exhibitors', (select items from exhibitor_items),
   'offers', (select items from offer_items),
-  'official_note', 'Use somente estes dados oficiais. Se algo não estiver presente, informe que ainda não está disponível.'
+  'official_note', 'Use somente estes dados oficiais. Se algo não estiver presente, informe que ainda não está disponível. Horário apresentado à pessoa é sempre starts_at_local/ends_at_local, no fuso indicado em timezone; nenhum horário desta resposta está em UTC.'
 );
 $function$;
 

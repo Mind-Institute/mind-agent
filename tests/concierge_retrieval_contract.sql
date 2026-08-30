@@ -6,7 +6,8 @@
 -- programação real e roda inteiro dentro de uma transação que termina em
 -- ROLLBACK. Depois dele nada no banco muda.
 --
--- Testa o CONTRATO OBSERVÁVEL do retrieval, não a implementação: quais chaves
+-- Testa o CONTRATO OBSERVÁVEL do retrieval e do Kit da rota, não a
+-- implementação: quais chaves
 -- saem, o que uma pergunta por pessoa devolve, o que um filtro de dia e faixa
 -- devolve, e — o mais importante — que pergunta sem lastro na base devolve
 -- VAZIO, e não a agenda inteira travestida de resposta.
@@ -37,7 +38,12 @@ declare
   v_esperado_hora text;
   v_fuso   text;
   v_dia    date;
+  v_dia1   date;
   v_n      int;
+  v_m      int;
+  v_conv   uuid;
+  v_a      jsonb;
+  v_b      jsonb;
 begin
   select e.fuso into v_fuso from summit_2026.events e where e.slug = v_slug and e.ativo;
   if v_fuso is null then
@@ -219,7 +225,142 @@ begin
     end if;
   end if;
 
-  raise notice 'mindagent_chat_search: 7 contratos OK';
+  -- ------------------------------------------------------------ CONTRATO 8
+  -- NÚMERO SOLTO NÃO É DATA. O mesmo retrieval serve o bloco de agenda do
+  -- Treble, onde "somos 17 pessoas" e "quero 17 ingressos" são o dia a dia.
+  -- Tratar o 17 como dia 17 devolveria a programação de um dia inteiro para
+  -- uma pergunta sobre tamanho de grupo.
+  select min(s.dia), max(s.dia) into v_dia1, v_dia
+  from summit_2026.sessions s
+  join summit_2026.events e on e.id = s.event_id and e.slug = v_slug;
+
+  for v_perg in
+    select * from (values
+      (format('somos %s pessoas, o que vocês recomendam?', to_char(v_dia, 'FMDD'))),
+      (format('quero %s ingressos', to_char(v_dia, 'FMDD'))),
+      (format('%s pessoas do meu time vão', to_char(v_dia1, 'FMDD')))
+    ) t(pergunta)
+  loop
+    v := public.mindagent_chat_search(v_slug, v_perg, 8);
+    if exists (
+      select 1 from jsonb_array_elements(v->'sessions') x
+      group by 1 = 1
+      having count(*) > 0 and count(distinct (x->>'date')) = 1
+    ) and (v->>'sessions_total')::int > 12 then
+      raise exception 'CONTRATO 8: "%" foi lido como filtro de dia (% sessões de um único dia)',
+        v_perg, v->>'sessions_total';
+    end if;
+  end loop;
+
+  -- E a forma inequívoca continua filtrando.
+  v := public.mindagent_chat_search(
+         v_slug, format('programação do dia %s', to_char(v_dia, 'FMDD')), 8);
+  if jsonb_array_length(v->'sessions') = 0
+     or exists (select 1 from jsonb_array_elements(v->'sessions') x
+                where (x->>'date')::date <> v_dia) then
+    raise exception 'CONTRATO 8: "dia %" deixou de filtrar o dia', v_dia;
+  end if;
+
+  -- ------------------------------------------------------------ CONTRATO 9
+  -- O RECORTE DA PERGUNTA VALE NOS DOIS BLOCOS. Sem isto, "Amy no dia 17" traz
+  -- as sessões do dia 16 dela dentro do bloco da pessoa, e a mesma resposta
+  -- carrega duas verdades sobre a mesma pergunta.
+  v := public.mindagent_chat_search(
+         v_slug, format('que horas fala a Amy Edmondson no dia %s?', to_char(v_dia, 'FMDD')), 8);
+  if exists (
+    select 1 from jsonb_array_elements(v->'speakers') s,
+                  jsonb_array_elements(s->'sessions') ss
+    where (ss->>'date')::date <> v_dia
+  ) then
+    raise exception 'CONTRATO 9: speakers[].sessions trouxe sessão fora do dia %', v_dia;
+  end if;
+
+  -- ----------------------------------------------------------- CONTRATO 10
+  -- NENHUM HORÁRIO EM UTC. `starts_at` e `starts_at_local` têm de concordar:
+  -- é o que impede o modelo de escrever 22:00 para uma sessão das 19:00.
+  v := public.mindagent_chat_search(v_slug, 'me mostra a programação', 12);
+  if exists (
+    select 1 from jsonb_array_elements(v->'sessions') x
+    where substring(x->>'starts_at' from 12 for 5) is distinct from x->>'starts_at_local'
+       or substring(x->>'ends_at'   from 12 for 5) is distinct from x->>'ends_at_local'
+       or x->>'starts_at' like '%+00:00'
+       or x->>'timezone' is null
+  ) then
+    raise exception 'CONTRATO 10: sessão com horário em UTC ou divergente do local';
+  end if;
+
+  -- ----------------------------------------------------------- CONTRATO 11
+  -- O GATE ABRE PARA A ROTA. Playbook na casa canônica e Kit disponível.
+  v := public.mind_rota_capacidade('concierge_summit', 'mindagent-web');
+  if coalesce((v->>'pode_executar')::boolean, false) is not true then
+    raise exception 'CONTRATO 11: Gate segue fechado para concierge_summit/mindagent-web: %', v;
+  end if;
+
+  v := public.mind_kit_meta('concierge_summit');
+  if coalesce((v->>'kit_disponivel')::boolean, false) is not true then
+    raise exception 'CONTRATO 11: kit de concierge_summit indisponível: %', v;
+  end if;
+
+  -- ----------------------------------------------------------- CONTRATO 12
+  -- O KIT ENTREGA PLAYBOOK E PROGRAMAÇÃO PELA NECESSIDADE ATUAL.
+  select c.id into v_conv from engagement.conversas c limit 1;
+  if v_conv is not null then
+    v := public.mind_agent_kit('concierge_summit', v_conv,
+           jsonb_build_object('pergunta', 'que horas fala a Amy Edmondson?'));
+
+    if coalesce(length(v->>'playbook'), 0) = 0 then
+      raise exception 'CONTRATO 12: kit veio sem playbook';
+    end if;
+    if v->'structured'->'programacao' is null or v->'structured'->'evento' is null then
+      raise exception 'CONTRATO 12: kit veio sem os blocos evento/programacao: %',
+        (select string_agg(k, ', ') from jsonb_object_keys(v->'structured') k);
+    end if;
+    if jsonb_array_length(v->'structured'->'programacao'->'sessions') = 0 then
+      raise exception 'CONTRATO 12: bloco programacao não respondeu a necessidade atual';
+    end if;
+
+    -- --------------------------------------------------------- CONTRATO 13
+    -- MEMÓRIA NÃO ENTRA NA NECESSIDADE ATUAL. Interesse só reordena: o
+    -- CONJUNTO devolvido tem de ser idêntico com e sem interesse.
+    v_a := public.mind_agent_kit('concierge_summit', v_conv,
+             jsonb_build_object('pergunta', 'o que tem na programação do dia 17 à tarde?'));
+    v_b := public.mind_agent_kit('concierge_summit', v_conv,
+             jsonb_build_object('pergunta', 'o que tem na programação do dia 17 à tarde?',
+                                'interesses', jsonb_build_array('Liderança', 'Saúde mental')));
+
+    if (v_a->'structured'->'programacao'->>'sessions_total')
+       is distinct from (v_b->'structured'->'programacao'->>'sessions_total') then
+      raise exception 'CONTRATO 13: interesse mudou o total de sessões (% vs %)',
+        v_a->'structured'->'programacao'->>'sessions_total',
+        v_b->'structured'->'programacao'->>'sessions_total';
+    end if;
+
+    if (select count(*) from (
+          select x->>'id' from jsonb_array_elements(v_a->'structured'->'programacao'->'sessions') x
+          except
+          select x->>'id' from jsonb_array_elements(v_b->'structured'->'programacao'->'sessions') x
+          union all
+          select x->>'id' from jsonb_array_elements(v_b->'structured'->'programacao'->'sessions') x
+          except
+          select x->>'id' from jsonb_array_elements(v_a->'structured'->'programacao'->'sessions') x
+        ) d) <> 0 then
+      raise exception 'CONTRATO 13: interesse mudou a SELEÇÃO de sessões, não só a ordem';
+    end if;
+
+    if jsonb_array_length(v_a->'structured'->'programacao'->'sessions') = 0 then
+      raise exception 'CONTRATO 13: pergunta de agenda com dia/faixa devolveu vazio';
+    end if;
+
+    -- E pergunta sem lastro continua vazia mesmo com interesse anexado.
+    v_b := public.mind_agent_kit('concierge_summit', v_conv,
+             jsonb_build_object('pergunta', 'tem sessão sobre criptomoedas e blockchain?',
+                                'interesses', jsonb_build_array('Liderança', 'Saúde mental')));
+    if jsonb_array_length(v_b->'structured'->'programacao'->'sessions') <> 0 then
+      raise exception 'CONTRATO 13: interesse fabricou sessão para pergunta sem lastro';
+    end if;
+  end if;
+
+  raise notice 'concierge_summit: 13 contratos OK';
 end $$;
 
 rollback;
