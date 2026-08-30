@@ -528,9 +528,16 @@ Deno.serve(async (req: Request) => {
         dadosOficiais = kit.structured;
         instructions = playbookDaRota as string;
       } else {
-        // Rota de venda que o runtime não executa: o turno continua (transferir é o
-        // último recurso, não a primeira resposta), mas sem Kit não há fato comercial
-        // novo para afirmar e o Gate já disse que isto não se conclui sozinho.
+        // O turno continua de qualquer jeito: transferir é o último recurso, não a
+        // primeira resposta. Quem decide se ele também vira necessidade humana é o
+        // Gate, e só ele — `needsHumanDoGate` já carrega a resposta.
+        //
+        // A distinção importa. Gate FECHADO é condição estável (missing_playbook,
+        // missing_kit): a rota não executa aqui, e isso é necessidade humana de fato.
+        // Gate ABERTO com Kit que não veio é falha passageira de leitura: o turno cai
+        // no piso factual do caminho legado — evento e ofertas vigentes, o mesmo com
+        // que este agente vende hoje — e mandar a pessoa para um humano por causa de
+        // um soluço de RPC seria pior que responder.
         falhaDaRota = falhaDaRota ?? gateReason ?? "kit_indisponivel";
       }
     }
