@@ -1,153 +1,85 @@
-# Claude Code Project Rules
+# Mind — regras para o agente de código
 
-Before doing any work, read:
-1. `README_FIRST.md`
-2. `docs/00_EXECUTION_CONTROL.md`
-3. `docs/00_ARCHITECTURE.md`
+## Antes de trabalhar
 
-You are the technical executor of this project. Architecture is governed by the versioned project documents, not by convenience in the current task.
+1. Leia **`PROJECT_STATE.md`** — é o checkpoint operacional versionado: arquitetura congelada, ordem do projeto, passo atual e decisões que não devem ser reabertas.
+2. Leia **`BACKLOG.md`** — investigações, fragilidades e trabalho deliberadamente deferido que não deve ser redescoberto do zero.
+3. Leia **`docs/CORE_UNIVERSAL.md`** — é o documento canônico do sistema real e dos contratos já implementados.
+4. **Investigue o sistema real** relacionado ao passo que você vai executar.
+5. Documentação **descreve** o sistema; ela **não substitui** verificar o sistema.
 
-## Mandatory behavior
+Uma IA que entra no projeto sem contexto deve conseguir reconstruir o ponto de trabalho lendo, nessa ordem, `PROJECT_STATE.md` + `BACKLOG.md` + `docs/CORE_UNIVERSAL.md` e só depois verificando o sistema real.
 
-- Do not invent new schemas, tables, entities, runtimes or architectural patterns without checking the existing architecture first.
-- Do not duplicate person, organization, product, product run or concept.
-- Do not treat CRM contact as canonical person identity.
-- Do not treat email/phone/contact points as the same thing as provider external ids.
-- Do not treat a product edition/cohort as a new canonical product.
-- Do not expose arbitrary SQL as the main interface for LLM agents.
-- Do not put commercial truth such as price, lot, availability or discount authority inside prompts.
-- Do not use embeddings/vector search as universal source of truth when structured authoritative data exists.
-- Do not silently turn AI inference into fact; persist source, confidence and provenance.
-- Do not copy canonical data into `intelligence.facts` merely for convenience.
-- Do not make production schema changes manually outside versioned migrations.
-- Do not delete or destructively alter structures without checkpoint and rollback/recovery plan.
-- Do not deploy or modify production unless the task explicitly authorizes it.
-- Do not expose privileged secrets to browser/client code.
-- Do not create a parallel conversation runtime when shared `engagement` should be used.
-- Do not assume shared engagement means one infinite conversation across every channel.
-- Do not redesign the architecture while implementing a local feature.
-- Do not ship an agent behavior change without the relevant eval/regression checks.
-- Do not allow LLM decisions to override deterministic privacy/contactability/suppression rules.
+## Ordem de autoridade
 
-## Read the domain-specific docs before implementation
+1. Decisões explicitamente fechadas com a Adriana **e registradas na documentação versionada**.
+2. Infraestrutura real: Supabase, código, migrations aplicadas.
+3. Documentação canônica atual (`PROJECT_STATE.md` para arquitetura/ordem/checkpoint; `BACKLOG.md` para deferimentos; `docs/CORE_UNIVERSAL.md` para estado e contratos implementados).
 
-### Database/entity/schema work
-Read:
-- `docs/02_TARGET_DATA_MODEL.md`
-- `docs/09_SOURCE_OF_TRUTH_DRAFT.md`
-- `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`
-- future Current → Target / Migration Plan when present.
+**Documentação antiga não é requirement.** Se um documento contradiz o sistema vigente, o sistema vence e o documento precisa ser corrigido. Mas uma decisão congelada nova **não pode ficar só na conversa**: deve ser registrada antes de o passo ser considerado fechado.
 
-### Sales behavior/prompt/playbook/decisioning
-Read:
-- `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`
-- `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
-- `docs/08_AGENT_CONTRACTS.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
+### Regra de versão das decisões congeladas
 
-Behavior Spec is authoritative for what good Sales behavior means. Do not rewrite the behavior definition merely to fit an implementation.
+- `CONGELADO` significa: decisão aprovada e registrada no Git.
+- Se uma decisão congelada mudar materialmente o funcionamento ou a ordem do sistema, **não sobrescreva silenciosamente**. Atualize a versão do checkpoint em `PROJECT_STATE.md` (`vN → vN+1`), registre o que foi substituído e por quê, e ajuste somente as seções afetadas do `CORE_UNIVERSAL.md` quando a mudança também alterar o estado/contrato canônico.
+- Git preserva o histórico; a documentação corrente deve preservar **a decisão vigente**, com referência clara ao que ela substituiu.
 
-### Knowledge/RAG/site ingestion/retrieval
-Read:
-- `docs/12_KNOWLEDGE_INGESTION_AND_RETRIEVAL.md`
-- `docs/02_TARGET_DATA_MODEL.md`
-- `docs/08_AGENT_CONTRACTS.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
+## Ritual de trabalho
 
-Do not solve all knowledge questions with generic vector retrieval.
+```
+INVESTIGAR
+→ ENTENDER O QUE JÁ EXISTE
+→ DECIDIR A MENOR MUDANÇA
+→ IMPLEMENTAR
+→ TESTAR SÓ O AFETADO
+→ ATUALIZAR A DOCUMENTAÇÃO DO ESTADO FINAL
+→ FECHAR O PASSO
+```
 
-### Outbound
-Read:
-- `docs/14_OUTBOUND_WORKFLOW.md`
-- `docs/11_SALES_AGENT_BEHAVIOR_SPEC.md`
-- privacy/contactability parts of `docs/02_TARGET_DATA_MODEL.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
+Se algo relevante for descoberto mas deliberadamente deixado para depois, **não abra a frente agora**. Registre no fim do `BACKLOG.md` com: evidência já levantada, estado atual, por que foi deferido, o gatilho para retomar e dependências. Assim ninguém precisa repetir a investigação.
 
-### Concierge
-Read:
-- `docs/03_AGENT_RUNTIME_CONTEXT_MEMORY.md`
-- `docs/08_AGENT_CONTRACTS.md`
-- `docs/13_EVALS_AND_OBSERVABILITY.md`
-- Summit/product docs relevant to the task.
+## Regras
 
-### Security/RLS/webhooks/external writes
-Read:
-- `docs/06_SECURITY_AND_CHANGE_PROTOCOL.md`
-- `docs/09_SOURCE_OF_TRUTH_DRAFT.md`
+- **Menor mudança correta.** Não redesenhe o que já foi aprovado.
+- **Não invente requisitos.** Não crie arquitetura, entidade ou regra de um sistema que não existe. Se falta informação de negócio, pergunte.
+- **Não reabra decisões fechadas.**
+- **Não faça limpeza lateral.** Achou algo quebrado fora do escopo? Registre no `BACKLOG.md` e siga.
+- **Não perca investigação deferida.** Antes de adiar uma frente investigada, registre o checkpoint suficiente para retomá-la sem redescoberta.
+- **Não expanda legado.** O que a §13 do CORE_UNIVERSAL marca como legado não se replica em tabela ou código novo.
+- **Teste só o afetado** e as regressões diretamente atingidas. Não rode suíte completa.
+- **Agente novo consome o Core Universal.** Não reimplementa identidade, contexto, memória nem histórico.
 
-## If a task conflicts with architecture
+## As quatro camadas
 
-Stop before implementing the conflicting change.
-Return:
-1. the exact conflict;
-2. why the current request would violate architecture;
-3. the smallest viable options;
-4. expected migration/compatibility impact.
+| camada | papel |
+|---|---|
+| **Intelligence** | factual — o que é verdade agora |
+| **Playbook** | competência — como um excelente profissional pensa |
+| **Decisioning** | estratégia — o que faz sentido agora |
+| **Agent** | execução — o que se diz ou faz |
 
-Wait for approval before implementing an architectural deviation.
+> PLAYBOOK DECIDE COMO PENSAR. INTELLIGENCE INFORMA O QUE É VERDADE AGORA.
 
-## Scope discipline
+Coletor factual não decide, não pontua, não recomenda e não escreve.
 
-Implement only the requested step.
-Do not opportunistically refactor unrelated parts of the repository.
-Do not build future domains just because the schema allows them.
+## Divisão de trabalho
 
-`docs/00_EXECUTION_CONTROL.md` decides what is active now.
+- **Codex supervisiona a execução técnica:** decide a menor mudança e delega dentro das constraints canônicas.
+- **Claude Code investiga e implementa o escopo delegado:** edge functions, SQL, RPCs, estrutura de tabela, wiring, retrieval, fluxo de dado — trazendo leitura independente. Não decide produto, não mergeia e não amplia escopo.
+- **Adriana é dona do conteúdo, da verdade de negócio e dos gates sensíveis:** prompts, playbooks, preço, lote, produto, mapeamentos, posicionamento.
 
-## Required quality for schema changes
+**Não invente prompt, playbook ou conteúdo de negócio.** Quando o conteúdo tiver sido fornecido ou explicitamente aprovado, implemente-o fielmente. Se depender de conteúdo ainda não definido, não invente para preencher o espaço — deixe-o pronto e vazio.
 
-Every structural database change should include, when applicable:
-- declarative/current schema source;
-- migration;
-- rollback or reversibility/recovery note;
-- tests/validation query;
-- documentation update;
-- dependency/consumer review for legacy objects.
+**Antes de criar qualquer tabela, investigue o que já existe.** Se a criação não estiver explicitamente autorizada ou depender de uma decisão material ainda aberta, pergunte. Se a tarefa já autorizou a mudança e a investigação confirmou a necessidade, implemente a menor estrutura correta.
 
-## Required quality for agent-facing contract changes
+Conversa já tem casa (`engagement`), coisa aprendida sobre a pessoa já tem casa (`intelligence`), identidade já tem casa (`pessoas` + `engagement.identidades`). Só a **config** de uma plataforma nova ganha lugar novo.
 
-When changing Agent API or structured output:
-- update versioned contract/schema where applicable;
-- inventory consumers;
-- preserve compatibility or explicitly migrate;
-- run contract tests;
-- run relevant behavior evals.
+**Não popule dado de negócio sem autorização.** Isso não impede seed, backfill ou carga que a própria tarefa tenha mandado fazer — nesses casos, execute e relate. Dado de teste pode, avisando.
 
-## Required quality for external actions
+## Como responder
 
-Writes to HubSpot, Treble, email, calendar or other external systems must be idempotent and auditable.
+Objetivo, um passo por vez. Explique o essencial em poucas linhas. A Adriana precisa entender a engenharia do próprio sistema — nada opaco.
 
-Outbound additionally requires deterministic contactability/consent/suppression and cadence checks before send.
+**Autonomia operacional.** Relate conclusões e checkpoints de forma objetiva, mas **continue automaticamente** quando não houver gate da Adriana (§2B do `PROJECT_STATE.md`). Parar é para gate sensível ou decisão de negócio não congelada — não para espera técnica, revisão ou verificação.
 
-## Context philosophy
-
-Agent runtime uses:
-- minimal Base Context;
-- Context Planner;
-- just-in-time retrieval;
-- deep memory/research only when necessary;
-- authority/freshness metadata where relevant;
-- context/retrieval trace for debugging.
-
-Do not solve missing context by loading entire datasets into prompts.
-
-## Evals philosophy
-
-Evals are part of development, not a final polishing phase.
-
-Before changing prompt/model/playbook/context/retrieval/tool behavior:
-1. identify relevant golden cases;
-2. implement narrowly;
-3. run relevant regressions;
-4. do not rewrite expected behavior simply to make a failing implementation pass.
-
-## Current execution state
-
-Always defer to `docs/00_EXECUTION_CONTROL.md` for:
-- active objective;
-- current phase;
-- checkpoint/gaps;
-- done criteria;
-- explicitly forbidden work.
-
-If this file and `00_EXECUTION_CONTROL.md` disagree on sequencing, stop and report the discrepancy rather than guessing.
+**Agilidade > cerimônia.** Quase tudo ainda é teste: deletar costuma ser mais rápido que migrar. Nada de governança pesada sem necessidade real.

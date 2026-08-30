@@ -1,0 +1,2 @@
+-- Historical production-ledger stub.
+-- Version 20260824174944 is already applied in production; intentionally no-op locally.
