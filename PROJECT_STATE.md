@@ -468,7 +468,15 @@ missing_playbook > missing_kit > canal_incompativel
 
 `needs_human` é semântica de necessidade, não transporte.
 
-Estado relevante para o caminho crítico: `summit_b2b` permanece `missing_kit` enquanto a Intelligence B2B existir no banco mas não chegar de forma canônica ao runtime.
+### A célula `kit` lê `mind_kit_meta` — atualização de 30/08/2026 (Passo 12B.2)
+
+A completude do Kit tem um dono só: `public.mind_kit_meta(rota)`. O Gate **lê** `kit_disponivel`; não re-deriva. Saiu do corpo do Gate a lista fixa de rotas que era um retrato manual do que o runtime alcançava e precisava ser reeditada a cada mudança da realidade.
+
+Nada mais mudou: assinatura, `STABLE`, `SECURITY DEFINER`, `search_path`, as seis rotas, os dois canais, a leitura de playbook, os reasons, a precedência e o envelope seguem como estavam.
+
+**O que isso substituiu.** A redação anterior registrava: *"`summit_b2b` permanece `missing_kit` enquanto a Intelligence B2B existir no banco mas não chegar de forma canônica ao runtime."* A decisão não foi reaberta — **a condição dela deixou de valer**. Com o Kit Loader (12B.1B/12B.1C) entregando os cinco blocos obrigatórios de `summit_b2b` — `evento`, `inclusoes`, `ofertas`, `precos_por_volume`, `regras_comerciais` — com `blocos_ausentes` vazio, a Intelligence B2B passou a chegar de forma canônica. Verificado em produção: `summit_b2b` em `whatsapp` é executável.
+
+**Consequência latente registrada.** `concierge_summit` não tem linha em `agentes.kit_blocos`, então `mind_kit_meta` devolve `kit_configurado=false`. Hoje é inócuo — a rota não tem playbook ativo e a precedência entrega `missing_playbook` antes de olhar o kit. No dia em que o playbook do concierge for escrito, a rota responderá `missing_kit` até que seus blocos sejam registrados no registry. Isso é registro de conteúdo, não mudança de Gate.
 
 ---
 
