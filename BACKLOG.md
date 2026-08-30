@@ -666,3 +666,143 @@ físicas, avaliar:
 **Gatilho para retomar:** quando o modelo operacional deixar de bastar — por exemplo, mais gente
 mergeando, incidente de deploy indevido, ou necessidade de separar ambiente de produção de fato.
 Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco é só memória.
+
+---
+
+## 16. Memória sensível: contrato no prompt + trava fail closed na escrita — Lane D, 30/08/2026
+
+> Numeração: **§14** é da Lane B (`mind_lead_capturar`, PR #47), **§15** é o levantamento das
+> quatro capacidades da Lane D (PR #46) e **§16** é este chunk (PR de memória segura). As três
+> anexam no fim do arquivo e vão conflitar textualmente; a resolução é manter as três, nesta ordem.
+
+Decisões aprovadas na issue #42 (supervisão de 30/08/2026), implementadas aqui.
+
+### 16.1 Correção factual — o scan NÃO provou ausência de dado sensível
+
+O checkpoint anterior desta lane afirmou "**não existe memória sensível persistida hoje**". **Isso
+está errado e não deve ser reusado.**
+
+O que o scan realmente fez: varreu as 886 linhas com uma lista de palavras derivada das 10
+categorias de `intelligence.memoria_bloqueios`, achou 11 candidatos e, lidos um a um, os 11 eram
+profissão, nome de empresa ou colisão de substring. O que isso prova é **que aquele scan não
+identificou nenhum caso sensível** — não que não exista nenhum.
+
+A diferença é material e o próprio achado do scan explica por quê: a distinção entre "é psicóloga
+clínica" e "está afastada por burnout" não está nas palavras, então uma varredura por palavra não
+tem como ser exaustiva. Um caso sensível redigido fora do vocabulário previsto passaria despercebido
+pelo mesmo scan que produziu a afirmação.
+
+**Consequência operacional:** as 886 linhas legadas continuam **sem autorização de exposição ao
+Agent**. O coletor `public.mind_memoria_fatos` (PR #46) segue pronto e desligado.
+
+### 16.2 O contrato — `sensitivity` em todo item de `customer_memory`
+
+`analise_vendas_summit` v2 passa a emitir, por item, `sensitivity` com **exatamente um** valor:
+`none` ou uma chave **ativa** de `intelligence.memoria_bloqueios`. Nenhuma taxonomia, tabela ou
+coluna nova — o vocabulário é o que já estava no banco, e as 10 chaves ativas estão nomeadas no
+prompt.
+
+O prompt ganhou também a regra de decisão que o scan revelou: **o que separa os casos é o sujeito e
+o que a frase afirma, nunca as palavras.** Profissão clínica é `none`; a própria pessoa falando da
+própria condição é a chave correspondente; saúde de terceiro identificável é
+`saude_de_pessoa_citada`. Na dúvida, a chave sensível — perder uma memória comercial é melhor que
+persistir dado do art. 11.
+
+### 16.3 A trava — `analise_projetar_memoria` fail closed
+
+Só persiste o item cujo `sensitivity` for exatamente `none`. Não persistem: chave de bloqueio ativa,
+rótulo ausente, rótulo desconhecido, chave de bloqueio **inativa** (não é `none` nem bloqueio ativo)
+e o caso em que o modelo devolve a linha do enum em vez de escolher.
+
+**Por que a trava existe além do prompt:** o `analisar-conversa` chama a OpenAI com `json_object`,
+não com schema strict — o transporte não obriga o modelo a emitir a chave. O prompt define o
+contrato; o writer é quem garante.
+
+**O gate não lê o texto.** Sem regex de conteúdo, sem inferência por `category` ou `scope`. Ele
+confere um rótulo declarado e obedece. O log sai com contagem, nunca com o valor do item barrado.
+
+**Vale para qualquer analisador**, não só `analise_vendas_summit`. A supervisão especificou o
+comportamento para esse analisador; aplicar só a ele deixaria o próximo passar sem contrato, e isso
+não seria fail closed. Analisador novo adota o contrato v2 antes de ser ativado. **Se essa leitura
+for ampla demais, é uma condição a menos no `if` — mas o efeito de estreitar é abrir o gate.**
+
+**Buraco conhecido, não fechado aqui:** `public.mindagent_chat_save_interests` escreve direto em
+`participante_memoria` **sem passar** por `analise_projetar_memoria`, então não é coberto por esta
+trava. Hoje ela grava só `tipo='interesse'` confirmado explicitamente pelo usuário na superfície
+web, que é o caso menos arriscado — mas o caminho existe. Gatilho para tratar: antes de a superfície
+web passar a extrair memória de forma livre.
+
+### 16.4 Silence D1 — no contrato
+
+`stopped` passou a ser definido no prompt como **o fim da continuidade, não o fim da mensagem**:
+só vale para opt-out, recusa inequívoca, impossibilidade real ou compra. Conversa encerrada com
+pergunta sem resposta, checkout não concluído, decisão pendente ou compromisso de retorno **não é
+`stopped`**. A frase "a conversa acabou" deixou de ser, sozinha, motivo.
+
+Nenhum enum novo: os valores continuam sendo os sete que já existiam.
+
+**Efeito medido nos 113 casos** (simulação determinística, `tests/silence_d1_decomposicao.sql`):
+96 entrariam na fila (95 `timing_matrix` + 1 `commitment_pending`), 17 continuariam fora
+corretamente (14 sem motivo legítimo de recontato, 3 compraram depois da análise).
+
+**O efeito NÃO é retroativo.** `analise_pendentes` só devolve conversa cuja última mensagem é mais
+nova que a última análise: as 113 linhas antigas **não serão reanalisadas sozinhas**. Elas mudam
+quando a pessoa voltar a falar, ou se alguém reprocessar explicitamente (o `analisar-conversa`
+aceita `conversa_id` no corpo). Reprocessar é decisão de operação, não desta migration.
+
+### 16.5 Silence D2 — guard determinístico no motor
+
+`silence_calcular_next_review`: o ramo `dormant`/`followup_exhausted` passou a exigir
+`followup_count > 0`. Sem retomada feita, nada foi esgotado — e sair da fila por "esgotamento" com
+o contador em zero é perder a oportunidade em silêncio.
+
+Com a guarda, o turno segue o caminho normal e vira `silence`, que continua conservador: `silence`
+não envia nada.
+
+**Efeito hoje:** 1 linha em produção está em `dormant`/`followup_exhausted` com `followup_count = 0`
+— exatamente o caso que o §2 deste backlog registrou em 28/08. Todas as 395 linhas têm
+`followup_count = 0`, coerente com o D3 (ninguém envia), então esse ramo não podia estar certo em
+nenhuma delas.
+
+**Precedência intocada:** compra e opt-out são testados antes e continuam parando a continuidade.
+O outro ponto que emite `followup_exhausted` — o fim da lista `apos_followup_min` — é inalcançável
+com `followup_count = 0` por construção, e não ganhou guarda.
+
+### 16.6 As 886 memórias legadas — proposta mínima, NÃO executada
+
+Elas foram gravadas sob o contrato v1, sem `sensitivity`. Não foram apagadas nem reescritas, como
+mandado. Proposta mínima para revalidá-las **antes do wiring**, em ordem de preferência:
+
+1. **Revalidar pela fonte, sem reprocessar conversa.** Cada linha tem `analise_conversa_id`, e
+   `intelligence.analise_conversa.dados` guarda o `customer_memory` original inteiro. Reprocessar
+   apenas a projeção — passar aquele array pelo `analise_projetar_memoria` v2 — não custa chamada
+   de LLM. Mas o array v1 **não tem `sensitivity`**, então o gate fail closed rejeitaria tudo: essa
+   opção só serve se combinada com (2).
+2. **Reanalisar sob o prompt v2 as conversas que ainda importam.** `analisar-conversa` aceita
+   `conversa_id`, e `analise_gravar` faz `on conflict (conversa_id, analisador) do update` — é
+   idempotente por construção. Custo: uma chamada de LLM por conversa. As 886 memórias vêm de
+   **286 pessoas**; o recorte natural é reanalisar só as conversas com oportunidade viva, não as
+   395 análises inteiras.
+3. **Marcar o legado em vez de apagá-lo.** `participante_memoria.status` já tem o valor
+   `substituida`, usado quando uma memória é trocada por outra. Um lote que mova as linhas v1 para
+   um estado não-exposto **exigiria um valor novo de status** — ou seja, taxonomia nova, que está
+   vedada. Por isso esta opção fica registrada e **não recomendada** sem decisão explícita.
+
+**Recomendação:** (2), com recorte por oportunidade viva, e o coletor só é ligado depois. Enquanto
+isso o legado fica onde está, sem exposição — que é o estado seguro e o que a supervisão mandou
+preservar.
+
+### 16.7 O que ainda depende exclusivamente de D3 ou da Lane C
+
+- **D3 (outbound):** ligar o cron 13, escolher o canal (Treble HSM × janela de 24h), decidir se a
+  mensagem sai automática ou com aprovação humana, e quem gera o texto final a partir do
+  `message_brief`. Enquanto `silence_registrar_decisao` não for chamada com
+  `p_followup_enviado := true`, `followup_count` nunca sai de 0 — e o D2 acima é justamente a
+  proteção para esse mundo. Nada disso foi tocado.
+- **Lane C:** o pós-turno do concierge. Quando o runtime do `mindagent-chat` estabilizar, entra
+  **somente ele** no filtro de `analise_pendentes` (`agente = 'mindagent-chat'`, 14 conversas,
+  todas a partir de 28/08); o lote histórico com `agente` nulo (23 conversas, todas anteriores a
+  28/08) fica separado e é decisão à parte. O prompt `analise_concierge` continua vazio e **não
+  foi inventado**.
+- **Wiring da leitura:** depende de (a) o legado ser tratado pela §16.6 e (b) B/C fecharem. O
+  delta está desenhado na §15.6 (PR #46) e continua desligado.
