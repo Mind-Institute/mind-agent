@@ -271,8 +271,7 @@ const TELAS = {
     serve: 'Arenas, lounges, estandes e banheiros do São Paulo Expo — com filtro por tipo de espaço.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
-      { id: 'filtroArenas', x: 33.8, y: 41.3, w: 18.5, h: 4.5, faz: 'filtrar', missao: 'm5',
-        dica: 'Use os filtros para encontrar arenas, estandes e lounges. Toque em <b>Arenas</b>.',
+      { id: 'filtroArenas', x: 33.8, y: 41.3, w: 18.5, h: 4.5, faz: 'filtrar',
         brinde: 'Só as arenas. A Arena Mind é a maior — fica à esquerda.' },
       { id: 'comousar', x: 17, y: 93, w: 30, h: 6, folha: 'comousar' },
     ],
@@ -328,7 +327,6 @@ const MISSOES = [
   { id: 'm2', txt: 'Reservar seu lugar na sessão', tela: 'detalhe', alvo: 'reservar' },
   { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
   { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
-  { id: 'm5', txt: 'Encontrar espaços no mapa', tela: 'mapa', alvo: 'filtroArenas' },
   { id: 'm6', txt: 'Adicionar um contato à sua rede', tela: 'rede', alvo: 'add1' },
   { id: 'm7', txt: 'Falar com o Mind Agent no Chat', tela: 'chat' },
 ];
