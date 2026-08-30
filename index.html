@@ -34,6 +34,9 @@
       </header>
 
       <p class="h-sub">Seu concierge dentro do Summit</p>
+      <!-- Só aparece quando a Yazo diz quem abriu a página. Sem nome, sem
+           saudação: o agente não inventa identidade. -->
+      <p class="h-ola" id="h-ola" hidden>Olá, <b id="h-ola-nome"></b></p>
       <h1 class="h-titulo">O que você quer fazer<em>?</em></h1>
 
       <!-- As intenções são montadas a partir dos dados do data-service -->
@@ -148,7 +151,8 @@
       <div class="fim-cartao">
         <img src="./assets/simbolo-mind-verde.png" alt="" />
         <h3>Você mandou bem!</h3>
-        <p>Já sabe salvar uma sessão, reservar seu lugar, ver sua agenda, usar o QR Code, achar o mapa e adicionar contatos. E lembre: no <b>Chat</b> do app eu fico à disposição para dúvidas, sugestão de conteúdo e agenda, bios de palestrantes e logística. O que eu não souber, eu sei quem sabe. 😉</p>
+        <p>Agora você já sabe salvar uma sessão, reservar seu lugar, consultar sua agenda, usar o QR Code, adicionar contatos e falar com o Mind Agent.</p>
+        <p>Sempre que precisar de programação, palestrantes, conteúdos, localização ou ajuda com sua jornada, é só me chamar no <b>Chat</b>.</p>
         <button class="btn-verde" type="button" id="btn-concluir">Concluir tour</button>
         <button class="link-mind" type="button" id="tour-para-chat">Perguntar ao Mind Agent →</button>
       </div>
@@ -179,6 +183,7 @@
   <div class="guia" id="guia" hidden>
     <span class="guia-brilho" id="guia-brilho" aria-hidden="true"></span>
     <div class="guia-trilha" id="guia-trilha" aria-hidden="true"></div>
+    <p class="guia-nome">Tour rápido <span>Conheça o essencial em 30 segundos</span></p>
     <button type="button" class="guia-pular" id="guia-pular">Pular</button>
 
     <div class="guia-cena" id="guia-cena" role="dialog" aria-live="polite" aria-labelledby="guia-titulo">
@@ -192,18 +197,23 @@
 
     <svg class="guia-seta" id="guia-seta" aria-hidden="true"></svg>
     <span class="guia-barra" id="guia-barra" aria-hidden="true"></span>
-    <!-- Aparece depois de alguns segundos de tela: dali em diante quem manda
-         é a pessoa. Some no último passo, onde os botões já dizem o que
-         fazer. Só a seta para a frente — voltar existe, mas não é o que se
-         quer sugerir aqui. -->
+    <!-- Fica na tela desde o começo do passo: quem manda no ritmo é a
+         pessoa, e isso vale desde o primeiro instante. Some no último
+         passo, onde os botões já dizem o que fazer. Só a seta para a
+         frente — voltar existe, mas não é o que se quer sugerir aqui. -->
     <div class="guia-avance" id="guia-avance" hidden aria-hidden="true">
       <span>deslize para continuar</span>
-      <span class="s">›</span>
+      <span class="s">→</span>
     </div>
 
+    <!-- As zonas de toque são invisíveis por natureza. Estas marcas dizem
+         que elas existem, sem disputar atenção com o conteúdo. São
+         decorativas: quem lê o toque é o próprio guia, não elas. -->
+    <span class="guia-lado" id="guia-lado" hidden aria-hidden="true"><i>‹</i><i>›</i></span>
+
     <div class="guia-saida" id="guia-saida" hidden>
-      <button type="button" class="guia-fim" id="guia-fim">Ver o tour completo</button>
-      <button type="button" class="guia-sair" id="guia-sair">Sair</button>
+      <button type="button" class="guia-praticar" id="guia-praticar">Aprender usando o app<span>Tour interativo · cerca de 2 minutos</span></button>
+      <button type="button" class="guia-ir" id="guia-ir">Ir para o Mind Agent</button>
     </div>
   </div>
 
