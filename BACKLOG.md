@@ -666,3 +666,161 @@ físicas, avaliar:
 **Gatilho para retomar:** quando o modelo operacional deixar de bastar — por exemplo, mais gente
 mergeando, incidente de deploy indevido, ou necessidade de separar ambiente de produção de fato.
 Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco é só memória.
+
+---
+
+## 14. Lane D — pós-turno / memória / write-back / Silence: estado real levantado em 30/08/2026
+
+Investigação da issue #42 (go-live, execução paralela). **Não reinvestigar estes fatos do zero.**
+O que foi implementado nesta lane está na §14.1; o que ficou deferido, da §14.2 em diante, com o
+gatilho de retomada de cada um.
+
+Retrato do sistema real no momento da investigação (produção, projeto `ymnmotgglsrxmjmonwjz`):
+
+| capacidade | estado | evidência |
+|---|---|---|
+| análise pós-turno | **viva** | `analisar-conversa` + cron 12 (`*/15`, ativo); 395 linhas em `intelligence.analise_conversa`; 9 conversas pendentes no momento da medição |
+| memória universal | **escrita, nunca lida** | 886 linhas em `intelligence.participante_memoria`, 286 pessoas; nenhum leitor no turno |
+| write-back / dispatch | **parcial** | só `status_summit_2026`, via `treble_status_*` + ledger `crm.status_summit_hs` (67 linhas), crons 10/11 |
+| continuidade / Silence | **construída, desligada** | cron 13 `silence_reavaliar` `active = false`; `silence_sync_from_analysis` continua mantendo o estado (395 linhas em `intelligence.continuidade_comercial`) |
+
+O caminho de escrita do pós-turno está inteiro e é este:
+
+```text
+cron 12 → analisar-conversa → analise_montar_contexto
+  → analise_classificador (lista de analisadores)
+  → prompt do analisador → analise_gravar
+       ├── analise_projetar_memoria  → intelligence.participante_memoria
+       └── silence_sync_from_analysis → intelligence.continuidade_comercial
+```
+
+### 14.1 O circuito de memória estava aberto no lado da leitura — FECHADO nesta lane
+
+**O que foi provado.** `intelligence.participante_memoria` tem 886 linhas de 286 pessoas, todas
+projetadas por `analise_projetar_memoria` a partir de `dados.customer_memory`. Buscando em
+`pg_get_functiondef` de todo `public`/`intelligence`/`agentes`/`engagement`, os únicos consumidores
+da tabela são o próprio writer e `mindagent_chat_save_interests` (que também escreve). **Nenhum
+componente do runtime lê a memória.** `mind_agent_context` não a compõe — e o comentário da própria
+função já dizia, desde o Passo 8, `Memory entra no Passo 15`.
+
+**A menor mudança.** Um coletor a mais, na forma dos quatro que já existem:
+`public.mind_memoria_fatos(p_pessoa_id uuid) → jsonb`. Sem tabela nova, sem writer novo, sem
+arquitetura paralela.
+
+**Semântica congelada da leitura** (está no comentário da função e na migration):
+
+- `ativa` e `proposta` saem em listas **separadas** (`memorias` / `propostas`). Fundir as duas
+  transformaria inferência fraca em fato, que é o que o Passo 15 proíbe;
+- `substituida` e memória expirada (`valido_ate` no passado) **nunca saem** — viram contagem em
+  `meta`, para a ausência ser legível;
+- há **dois writers com duas formas de `valor`** — `{text, scope}` do analisador e
+  `{label, confirmed}` da superfície de chat. O coletor devolve `valor` cru e deriva
+  `texto = coalesce(text, label)`; `escopo` fica nulo quando o writer não gravou escopo. Nenhuma
+  terceira forma foi inventada.
+
+**O que ficou de fora de propósito.** A migration **não** altera `mind_agent_context`. O CONTRATO 3
+de `tests/mind_agent_context_contract.sql` trava o conjunto **exato** de chaves do topo, e aquele é
+o caminho síncrono compartilhado. O coletor entra pronto e desligado.
+
+**Como retomar (o wiring, uma linha).** Quem integrar o runtime decide onde a memória entra —
+`mind_agent_context` (e aí o CONTRATO 3 e o comentário da função precisam ser atualizados no mesmo
+passo) ou direto no Decisioning/Agent, sem tocar o contrato do Passo 8. **Enquanto essa linha não
+existir, memória continua sem voltar no turno seguinte** — o coletor sozinho não fecha o critério
+de pronto do PASSO 8 do go-live.
+
+### 14.2 `analise_pendentes` só enxerga o Treble — DEFERIDO em 30/08/2026
+
+**POR QUE APARECEU.** Verificando se o Concierge de hoje teria memória pós-turno.
+
+**O QUE JÁ FOI PROVADO.** `public.analise_pendentes` filtra
+`c.agente in ('treble','treble-inbound-agent')`. A distribuição real de `engagement.conversas` é:
+`treble` 6.896 (400 com mensagem de lead), `treble-inbound-agent` 5 (4 com lead),
+`agente = null` + canal `mindagent-web` 23 (19 com lead), `mindagent-chat` 13 (0 com lead).
+**As 19 conversas web com mensagem de lead nunca entraram na fila de análise**, e uma rota de
+concierge que não grave `agente` como Treble também não entrará.
+
+**ESTADO ATUAL.** Todas as 395 análises são `analise_vendas_summit`. Os slots
+`analise_concierge`, `analise_atendimento`, `analise_contexto_geral`, `analise_vendas_institute` e
+`analise_vendas_dash` existem em `agentes.prompts` com `conteudo` vazio e `ativo = false`
+(confirmado: `length = 0`). `analise_prompt` só devolve prompt ativo e não-vazio, e o
+`analisar-conversa` cai no fallback `analise_contexto_geral` — que também está vazio.
+
+**POR QUE FOI DEFERIDO.** Alargar o filtro **sozinho** não produz análise de concierge: as
+conversas entrariam na fila, o classificador as mandaria para `analise_concierge`, não haveria
+prompt, e o resultado seria chamada de LLM gasta e `sem_prompt`. As duas metades têm de andar
+juntas, e a que falta é conteúdo da Adriana (§3 deste backlog).
+
+**COMO RETOMAR.** Quando `analise_concierge` (ou o fallback `analise_contexto_geral`) estiver
+preenchido e ativo: alargar o filtro de `analise_pendentes` para incluir as conversas da superfície
+de concierge/web, e só então medir a fila. É mudança de uma cláusula `where`.
+
+**DEPENDÊNCIAS / GATILHO.** Prompt de análise do concierge preenchido pela Adriana.
+
+### 14.3 `intelligence.memoria_bloqueios` não é aplicado por ninguém — DEFERIDO em 30/08/2026
+
+**POR QUE APARECEU.** Ao desenhar o coletor de leitura, procurando onde a política de dado sensível
+é aplicada.
+
+**O QUE JÁ FOI PROVADO.** `intelligence.memoria_bloqueios` tem 10 linhas ativas de política LGPD
+(`saude_do_titular`, `diagnostico_titular`, `medicacao_titular`, `afastamento_titular`, `religiao`,
+`opiniao_politica`, `orientacao_sexual`, `origem_racial`, `filiacao_sindical`,
+`saude_de_pessoa_citada`). `intelligence.memoria_regras` tem 10 linhas com `pode_inferir`,
+`confianca_minima` e `ttl_dias`. **Nenhuma das duas é lida por nenhuma função do banco** —
+`analise_projetar_memoria` não as consulta: ela deriva `tipo` de `category`, `chave` de
+`tipo || ':' || mind_slug(texto)` e `status` de `scope`/`confidence`, e nada mais.
+
+**ESTADO ATUAL.** O vocabulário de `chave` das duas tabelas **não se cruza**: os bloqueios usam
+chaves conceituais (`saude_do_titular`), a memória gravada usa `identidade` / `cargo_atual` /
+`empresa_atual` / `tipo:slug`. Um filtro por igualdade de `chave` não casaria com nada hoje. Também
+não há TTL em uso: `valido_ate` está nulo nas 886 linhas, embora `memoria_regras.estado_momentaneo`
+preveja `ttl_dias = 1`.
+
+**POR QUE FOI DEFERIDO.** Ligar um filtro que não casa com nada seria mecanismo inventado. Fazer as
+duas tabelas valerem exige decidir o vocabulário canônico e como o analisador o emite — conteúdo e
+política, não encanamento. É gate de segurança/dado sensível.
+
+**COMO RETOMAR.** Decidir de onde vem a classificação de sensibilidade (categoria emitida pelo
+analisador × derivação determinística), e então aplicá-la **na escrita** (`analise_projetar_memoria`)
+— não só na leitura, porque na leitura o dado sensível já teria sido persistido.
+
+**DEPENDÊNCIAS / GATILHO.** Decisão da Adriana. Gatilho natural: antes de a memória passar a
+alimentar resposta ao cliente em volume.
+
+### 14.4 Silence — o D1 do §2 deste backlog piorou de 33% para 67%
+
+**O QUE MUDOU.** O §2 registrou `stopped` com sentido errado travando **13 de 39** oportunidades.
+Medido agora em `intelligence.continuidade_comercial` (395 linhas):
+
+| `continuation_status` | `next_review_policy` | linhas | com `next_review_at` |
+|---|---|---|---|
+| `stopped` | `none` | **264** | 0 |
+| `silence` | `timing_matrix` | 128 | 128 |
+| `commitment_pending` | `commitment_due` | 2 | 2 |
+| `dormant` | `event_trigger_only` | 1 | 0 |
+
+`silence_claim_pendentes` exclui `stopped` e `dormant` por construção. Ou seja: **265 de 395
+oportunidades (67%) estão fora da fila de continuidade**, contra os 33% registrados em 28/08.
+`followup_count` continua em 0 em todas as 395 — coerente com o D3 (ninguém envia), então o
+`DORMANT por followup_exhausted` do D2 segue sem poder acontecer de verdade.
+
+**ESTADO ATUAL.** Nada mudou no motor. Cron 13 continua `active = false`; zero chamada de IA, zero
+custo, zero mensagem enviada.
+
+**POR QUE FOI DEFERIDO.** D1, D2 e D3 do §2 continuam sendo decisões da Adriana (prompt, regra e
+autorização de envio). D3 é gate sensível de outbound.
+
+**COMO RETOMAR.** Sem mudança de investigação: as três perguntas do §2 continuam idênticas, só o
+número de D1 mudou. Este bloco existe para que a magnitude não seja redescoberta.
+
+### 14.5 Write-back de lead no HubSpot (Passo 15B) — evidência atual, decisão inalterada
+
+Complementa o §6 deste backlog, que continua valendo integralmente. O que existe **hoje** de
+write-back operacional é só um caminho: `treble_status_ciclo` (crons 10 e 11) →
+`treble_status_pendentes` / `treble_status_confirmar` → Edge Function `treble-status-hubspot`, com
+`crm.status_summit_hs` (67 linhas: `hubspot_id`, `valor`, `motivo`, `escrito_em`) como ledger de
+idempotência. É a trava do "exclusão de disparo do Summit" já registrada nos RESOLVIDOS.
+
+**Nada escreve propriedade de lead, cria card ou move estágio de pipeline.** Continua faltando o
+mapeamento `buyer_state` → `hs_pipeline_stage`, que é conteúdo/regra comercial da Adriana, e a
+escrita em si é gate sensível (source of truth do CRM). Não foi implementado nesta lane por isso.
+O padrão a reusar quando for construído é o do ledger acima.
