@@ -9765,6 +9765,576 @@ REVOKE ALL ON FUNCTION public.treble_sessao_backfill(p_poll_id text, p_sessions 
 
 REVOKE ALL ON FUNCTION public.treble_sessao_encerrada_gravar(p_payload jsonb) FROM PUBLIC;
 
+REVOKE ALL ON SCHEMA agentes FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA api FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA catalogo FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA concierge FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA credenciamento_summit_2026 FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA crm FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA dash FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA ecossistema FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA eduzz FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA engagement FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA eventos FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA institute FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA intelligence FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA mind FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA pessoas FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA platform FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA public FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA summit_2026 FROM anon, authenticated;
+
+REVOKE ALL ON SCHEMA treble FROM anon, authenticated;
+
+REVOKE ALL ON TABLE agentes.kit_blocos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE agentes.prompts FROM anon, authenticated;
+
+REVOKE ALL ON TABLE catalogo.produtos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.ciclo_estado FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.config FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.config_auditoria FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.config_revisao FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.feature_flags FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.ferramenta_chamadas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.ferramentas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.integracao_logs FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.proativo_fila FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.prompts FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.regras_proativas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.templates FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.tutorial_passos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.v_aderencia_por_area FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.v_funil_valor FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.v_operacao_agora FROM anon, authenticated;
+
+REVOKE ALL ON TABLE concierge.v_sessoes_avaliadas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE credenciamento_summit_2026.participantes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE credenciamento_summit_2026.v_participantes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE credenciamento_summit_2026.yazo_envio_fila FROM anon, authenticated;
+
+REVOKE ALL ON TABLE credenciamento_summit_2026.yazo_espelho FROM anon, authenticated;
+
+REVOKE ALL ON TABLE credenciamento_summit_2026.yazo_sync_state FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.acessos FROM anon, authenticated;
+
+REVOKE ALL ON SEQUENCE crm.acessos_id_seq FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.consents FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.contato_espelho FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.empenho_summit_2026 FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.leads_capturados FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.mapa_produtos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.negocio_contatos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.pessoa_nps FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.pessoa_produtos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.pessoas_interno FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.pipeline_de_vendas_summit FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.pipeline_leads_inbound FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.status_summit_hs FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.sync_estado FROM anon, authenticated;
+
+REVOKE ALL ON TABLE crm.vendas_historicas_mind_summit FROM anon, authenticated;
+
+REVOKE ALL ON TABLE dash.knowledge_chunks FROM anon, authenticated;
+
+REVOKE ALL ON TABLE dash.knowledge_documents FROM anon, authenticated;
+
+REVOKE ALL ON TABLE ecossistema.palestrantes_especialistas FROM anon, authenticated;
+
+REVOKE ALL ON SEQUENCE ecossistema.palestrantes_especialistas_id_seq FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.hubspot_stage_config FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.ingressos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.produto_catalogo FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.produtos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.v_ingressos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.v_vendas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eduzz.vendas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.agent_sessions FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.agente_eventos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.avaliacao_execucoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.avaliacoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.contatos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.conversas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.data_requests FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.dispositivos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.evento_feedback FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.feedbacks FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.identidade_fusoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.identidades FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.janela_24h FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.jornada_eventos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.jornada_sessao FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.mensagens FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.nps FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.origens FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.pessoa_perfil FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.sessao_feedback FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.session_interests FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.treble_eventos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.utm_sessoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.v_pessoa FROM anon, authenticated;
+
+REVOKE ALL ON TABLE engagement.verificacoes_email FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eventos.knowledge_chunks FROM anon, authenticated;
+
+REVOKE ALL ON TABLE eventos.knowledge_documents FROM anon, authenticated;
+
+REVOKE ALL ON TABLE institute.knowledge_chunks FROM anon, authenticated;
+
+REVOKE ALL ON TABLE institute.knowledge_documents FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.acessos_dado_pessoal FROM anon, authenticated;
+
+REVOKE ALL ON SEQUENCE intelligence.acessos_dado_pessoal_id_seq FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.analise_conversa FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.config FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.continuidade_comercial FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.dossies FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.intencoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.memoria_bloqueios FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.memoria_regras FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.participante_contexto FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.participante_memoria FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.participante_objetivos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.perguntas_feitas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.recomendacoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE intelligence.sinais_comerciais FROM anon, authenticated;
+
+REVOKE ALL ON TABLE mind.organization_content FROM anon, authenticated;
+
+REVOKE ALL ON TABLE mind.policies FROM anon, authenticated;
+
+REVOKE ALL ON TABLE mind.produtos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE pessoas.pessoas FROM anon, authenticated;
+
+REVOKE ALL ON TABLE platform.embeddings_config FROM anon, authenticated;
+
+REVOKE ALL ON TABLE platform.integracoes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE platform.llm_calls FROM anon, authenticated;
+
+REVOKE ALL ON TABLE platform.llm_models FROM anon, authenticated;
+
+REVOKE ALL ON TABLE platform.llm_providers FROM anon, authenticated;
+
+REVOKE ALL ON TABLE platform.llm_routes FROM anon, authenticated;
+
+REVOKE ALL ON TABLE public.espelho_estado FROM anon, authenticated;
+
+REVOKE ALL ON TABLE public.mind_admin_audit FROM anon, authenticated;
+
+REVOKE ALL ON TABLE public.mind_admin_editorial FROM anon, authenticated;
+
+REVOKE ALL ON TABLE public.mind_admin_event_details FROM anon, authenticated;
+
+REVOKE ALL ON TABLE public.mind_admin_users FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.commercial_rules FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.coupons FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.event_rules FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.events FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.exhibitors FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.experiencias FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.knowledge_chunks FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.knowledge_documents FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.locations FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.offers FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.registrations FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.route_edges FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.session_speakers FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.sessions FROM anon, authenticated;
+
+REVOKE ALL ON TABLE summit_2026.venues FROM anon, authenticated;
+
+REVOKE ALL ON TABLE treble.config FROM anon, authenticated;
+
+REVOKE ALL ON TABLE treble.polls FROM anon, authenticated;
+
+REVOKE ALL ON TABLE treble.status_da_conversa FROM anon, authenticated;
+
+REVOKE ALL ON TABLE treble.status_hs_contatos FROM anon, authenticated;
+
+REVOKE ALL ON TABLE treble.status_hs_leads FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.changed_since(p_desde timestamp with time zone) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.contact(p_token text, p_nome text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.event(p_slug text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.knowledge(p_pergunta text, p_embedding vector, p_agent text, p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.me(p_token text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.mindagent_bootstrap(p_event_slug text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.my_agenda(p_token text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.my_context(p_token text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.my_data(p_token text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.quem_sou(p_token text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.sessions(p_event text, p_dia date, p_tema text, p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.speakers(p_event text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.treble_event_bundle(p_event_slug text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.treble_find_location(p_event_slug text, p_query text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION api.treble_route(p_event_slug text, p_from_slug text, p_to_slug text, p_accessible boolean) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION concierge.aplicar_evento_jornada() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION concierge.bump_config_revisao() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION concierge.resumo_do_dia(p_participante uuid, p_dia date) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION credenciamento_summit_2026.normalizar_contato() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION crm.buscar_pessoa(p_email text, p_whatsapp text, p_agente text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION crm.contexto_comercial(p_email text, p_whatsapp text, p_agente text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION crm.normalizar_pessoa() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION crm.registrar_lead(p_email text, p_whatsapp text, p_primeiro_nome text, p_sobrenome text, p_empresa text, p_cargo text, p_agente text, p_contexto jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION ecossistema.palestrantes_slug_bi() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION ecossistema.slugify(txt text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION eduzz.normalizar_contato() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION intelligence.vertical_da_entrada(p_site text, p_url text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION mind.esquecer_participante(p_participante uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION mind.pessoa_atual() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION mind.tocar() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION pessoas.resolver_por_telefone(p_tel text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.analise_config() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.analise_gravar(p_conversa_id uuid, p_analisador text, p_funcao text, p_vertical text, p_dados jsonb, p_modelo text, p_prompt_versao integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.analise_montar_contexto(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.analise_pendentes(p_limite integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.analise_projetar_memoria(p_participante uuid, p_analisador text, p_memorias jsonb, p_analise_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.analise_prompt(p_chave text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.espelho_config() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.espelho_estado_set(p_fonte text, p_status text, p_total_origem integer, p_lidos integer, p_gravados integer, p_erro text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.espelho_gravar(p_fonte text, p_linhas jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_admin_dashboard_counts() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_admin_mutate_resource(p_action text, p_resource text, p_id uuid, p_payload jsonb, p_expected_updated_at text, p_actor_id uuid, p_request_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_admin_read_resource(p_resource text, p_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_agent_context(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_calendario(p_produto text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_checkout_url(p_url text, p_utm jsonb, p_origem text, p_conversa text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_conflito_registrar(p_pessoa uuid, p_tipo text, p_motivo text, p_outra uuid, p_evidencia jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_conteudo(p_produto text, p_tipo text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_conversa_estado(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_conversa_resolver(p_evento jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_crm_comercial(p_pessoa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_crm_fatos(p_pessoa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_crm_sync_frescor() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_crm_vincular_pessoa(p_pessoa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_engagement_fatos(p_pessoa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_espelho_carga_inicial() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_espelho_disparar() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_espelho_gravar(p_fonte text, p_registros jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_espelho_ligar() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_foto_url(p_asset_path text, p_fallback text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_identidade_resolver(p_identificadores jsonb, p_nome text, p_canal text, p_pessoa_ancora uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_identificadores_normalizar(p_ids jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_inbound(p_evento jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_materiais_para(p_canal text, p_audiencia text, p_icp text, p_origem text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_material_link(p_url text, p_codigo text, p_utm_campaign text, p_canal text, p_origem text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_mensagem_registrar(p_conversa_id uuid, p_papel text, p_conteudo text, p_id_externo text, p_blocos jsonb, p_origem text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_nome_bate(p_nome text, p_sobrenome text, q_nome text, q_sobrenome text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_nome_conflita(p_nome text, p_sobrenome text, q_nome text, q_sobrenome text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_nome_simples(p text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_origem(p_codigo text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_pendencia_resolver(p_id uuid, p_status text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_pendencias_listar(p_status text, p_tipo text, p_limite integer, p_offset integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_pessoa_completar(p_pessoa_id uuid, p_sobrenome text, p_empresa text, p_cargo text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_pessoa_fatos(p_pessoa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_precos_por_volume() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_rota_capacidade(p_rota text, p_canal text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_slug(p_texto text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_sync_abrir(p_fonte text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_sync_marcar(p_fonte text, p_marca timestamp with time zone, p_lidos integer, p_gravados integer, p_status text, p_erro text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_sync_marcar(p_fonte text, p_marca timestamp with time zone, p_lidos integer, p_gravados integer, p_status text, p_erro text, p_cursor text, p_completou boolean) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_turno_registrar(p_conversa_id uuid, p_resposta text, p_estado jsonb, p_meta jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_urlencode(p text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_utm_registrar(p_dados jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mind_virada_de_lote() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_bootstrap(p_event_slug text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_chat_bind_identity(p_auth_user_id uuid, p_session_id uuid, p_conversation_id uuid, p_token_hash text, p_email text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_chat_get_context(p_auth_user_id uuid, p_session_id uuid, p_conversation_id uuid, p_token_hash text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_chat_save_interests(p_auth_user_id uuid, p_session_id uuid, p_token_hash text, p_interests jsonb, p_evidence_message_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_chat_save_message(p_auth_user_id uuid, p_session_id uuid, p_conversation_id uuid, p_token_hash text, p_role text, p_content text, p_client_message_id text, p_blocks jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_chat_search(p_event_slug text, p_query text, p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_chat_start(p_auth_user_id uuid, p_device_key text, p_user_agent text, p_token_hash text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_sync_offers(p_vigente integer, p_lotes jsonb, p_tiers jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_treble_claim_event(p_event_key text, p_session_external_id text, p_request_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.mindagent_treble_complete_event(p_event_key text, p_status text, p_error_code text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.normalizar_telefone_trigger() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.pessoa_vincular_hubspot(p_pessoa_id uuid, p_hubspot_id text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_calcular_next_review(p_conversa_id uuid, p_dados jsonb, p_followup_count integer, p_last_followup_at timestamp with time zone, p_action text, p_piso timestamp with time zone) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_chave_timing(p_dados jsonb, p_pos_followup boolean) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_claim_pendentes(p_limite integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_compra_summit_2026(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_liberar_lock(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_montar_contexto(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_registrar_decisao(p_conversa_id uuid, p_decisao jsonb, p_followup_enviado boolean) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_sync_from_analysis(p_analise_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_ts(p_texto text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.silence_ultimo_evento(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.summit_contato_criar_pendentes(p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.summit_motivo_exclusao(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.summit_status_confirmar(p_pares jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.summit_status_pendentes(p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.telefone_normalizar(p_tel text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_config() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_context(p_audience text, p_origem text, p_utm jsonb, p_conversa text, p_produto text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_context_base() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_identificar(p_session_external_id text, p_email text, p_nome text, p_sobrenome text, p_mesma_pessoa boolean) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_prompt(p_audience text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_resposta_repetida(p_conversation_id uuid, p_mensagem text, p_janela_segundos integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_start(p_session_external_id text, p_contact jsonb, p_origem text, p_utm_token text, p_mensagem jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_agent_token() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_cta_da_conversa(p_conversa_id uuid) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_evento_gravar(p_payload jsonb, p_tipo text, p_direcao text, p_telefone text, p_ocorreu_em timestamp with time zone) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_find_location(p_event_slug text, p_query text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_materiais(p_audience text, p_origem text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_momento() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_origem_da_cta(p_cta text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_poll_sincronizado(p_poll_id text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_sessao_backfill(p_poll_id text, p_sessions jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_sessao_encerrada_gravar(p_payload jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_ciclo() FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_confirmar(p_pares jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_confirmar_contato(p_pares jsonb) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_marcar(p_telefone text, p_status text, p_quando timestamp with time zone, p_session_external_id text) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_pendentes(p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_pendentes_contato(p_limit integer) FROM anon, authenticated;
+
+REVOKE ALL ON FUNCTION public.treble_status_recompute() FROM anon, authenticated;
+
 GRANT USAGE ON SCHEMA api TO anon;
 
 GRANT USAGE ON SCHEMA api TO authenticated;

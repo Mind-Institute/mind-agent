@@ -377,6 +377,35 @@ frag(sec, k, stmt) as (
   where f.proacl is not null
     and not exists (select 1 from aclexplode(f.proacl) a where a.grantee = 0::oid)
 
+  -- 16a3 ── normalização de anon/authenticated -------------------------------
+  -- O bootstrap da branch traz ALTER DEFAULT PRIVILEGES em `public` (papéis
+  -- postgres e supabase_admin, para r/f/S → anon, authenticated, service_role).
+  -- Num banco reconstruído do zero esses defaults concedem privilégio a
+  -- anon/authenticated no momento do CREATE — privilégio que produção não tem.
+  -- GRANT não expressa ausência, e "revogar só quando o papel está ausente do
+  -- ACL" não basta: o papel pode existir em produção com privilégio PARCIAL e
+  -- ainda assim ganhar privilégio extra do default ACL. Então zeramos os dois
+  -- papéis em todo o escopo antes de 16b/16c/16d, que reaplicam o ACL real de
+  -- produção — inclusive os EXECUTE legítimos. `service_role` e PUBLIC não são
+  -- tocados: não estão no delta e a lógica de PUBLIC é a de 16a1/16a2.
+  union all
+  select 16, 'a3:' || n.nspname,
+         format('REVOKE ALL ON SCHEMA %I FROM anon, authenticated;', n.nspname)
+  from pg_namespace n
+  join scope s on s.oid = n.oid
+  union all
+  select 16, 'a4:' || r.nspname || '.' || r.relname,
+         format('REVOKE ALL ON %s %I.%I FROM anon, authenticated;',
+                case when r.relkind = 'S' then 'SEQUENCE' else 'TABLE' end,
+                r.nspname, r.relname)
+  from rel r
+  where r.relkind in ('r','p','v','m','S')
+  union all
+  select 16, 'a5:' || f.nspname || '.' || f.proname || '(' || f.idargs || ')',
+         format('REVOKE ALL ON FUNCTION %I.%I(%s) FROM anon, authenticated;',
+                f.nspname, f.proname, f.idargs)
+  from fn f
+
   -- 16b ── GRANTs de schema ---------------------------------------------------
   union all
   select 16, 'b:' || x.nspname || ':' || x.g,
@@ -498,6 +527,11 @@ where stmt is not null;
 --   sec 10  == counts.indexes menos os índices de constraint
 --   sec 13  == counts.triggers         (referência medida: 18)
 --   sec 15  == counts.policies         (referência medida: 21)
+--   sec 16  inclui 16a3/a4/a5 — a normalização de anon/authenticated:
+--             counts.schemas + relations(r,p,v,m,S) + counts.functions
+--             (referência medida: 19 + 131 + 135 = 285 REVOKE)
+--             Conferir só esse delta:  select count(*) from frag
+--                                      where sec = 16 and k ~ '^a[345]:';  -- 285
 --   sec 17  == counts.comments         (referência medida: 197)
 --             schema + relation/view/sequence + coluna + funcao + INDEX.
 --             Antes do fix eram 192: faltavam os 5 COMMENT ON INDEX.

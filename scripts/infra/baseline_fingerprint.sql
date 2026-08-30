@@ -93,7 +93,13 @@ f_tables as (
   from tbl
 ),
 f_columns as (
-  select r.nspname::text || '.' || r.relname::text || '|' || a.attnum::text
+  -- POSICAO = ordinal RELATIVO (row_number sobre attnum), nao o attnum absoluto.
+  -- attnum absoluto nao sobrevive a um rebuild: coluna dropada deixa buraco
+  -- permanente em producao e nenhum CREATE TABLE reproduz buraco. O ordinal
+  -- relativo mantem a deteccao do que importa — mudanca real na ORDEM das
+  -- colunas continua divergindo o fingerprint.
+  select r.nspname::text || '.' || r.relname::text || '|'
+         || row_number() over (partition by r.oid order by a.attnum)::text
          || '|' || a.attname::text
          || '|' || pg_catalog.format_type(a.atttypid, a.atttypmod)
          || '|notnull=' || a.attnotnull::text
