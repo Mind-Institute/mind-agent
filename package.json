@@ -15,6 +15,7 @@
     "banco:aplicar": "node scripts/alimentar-banco.mjs aplicar",
     "typecheck:admin": "npm run typecheck --prefix admin",
     "test:admin": "npm run test --prefix admin",
+    "test:vendedor": "node tests/vendedor_summit_smoke.mjs",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
