@@ -38,5 +38,5 @@ jobs:
           github_token: ${{ github.token }}
           branch_prefix: claude/
           claude_args: |
-            --max-turns 40
+            --max-turns 60
             --allowedTools Edit,Read,Write,Glob,Grep
