@@ -1,6 +1,14 @@
 -- ============================================================
 -- Lane E — Play: camada de COLETA sobre as casas que já existem
 -- ------------------------------------------------------------
+-- VERSÃO: 20260830231500. Este arquivo nasceu como `20260830223000` e foi
+-- renomeado por COLISÃO CROSS-LANE: a Lane C (PR #50) usa a mesma versão para
+-- `20260830223000_concierge_retrieval_programacao_palestrantes.sql`, e o
+-- Concierge integra antes do Play na ordem canônica. A Lane C fica com
+-- `20260830223000`; a Lane E passa a ser a última da fila, o que também
+-- reflete a ordem de integração C → D → E (D usa `20260830230000`). Só o
+-- número mudou — o conteúdo é o mesmo já validado.
+--
 -- O QUE ESTA MIGRATION É
 --
 --   Os writers que faltavam. As casas do Play já existiam e já apontam para

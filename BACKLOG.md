@@ -672,7 +672,7 @@ Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco 
 ## 14. Play / experiência do Concierge — o que ficou de fora hoje (Lane E, 30/08/2026)
 
 **Status:** investigado e verificado contra o sistema real. A **coleta** do Play foi implementada
-(ver `supabase/migrations/20260830223000_lane_e_play_coleta.sql`); os itens abaixo **não** foram, e
+(ver `supabase/migrations/20260830231500_lane_e_play_coleta.sql`); os itens abaixo **não** foram, e
 cada um tem um motivo factual. **Não reinvestigar do zero.**
 
 ### O que já existe e foi reutilizado (para não ser redescoberto)
@@ -703,10 +703,18 @@ tem 17 linhas e coluna `url`, mas é conhecimento explicativo, não repositório
 **Por que foi deferido:** o `PASSO 11B` proíbe fabricar material inexistente, e não há source real
 para apontar. Criar uma tabela de materiais sem conteúdo aprovado seria inventar requisito.
 
-**Gatilho para retomar:** a Adriana informar ONDE os materiais/slides realmente vivem (Drive, site,
-Yazo, outro Supabase). Aí é `SOURCE → MIRROR` normal, não tabela autoral nova.
+**DECISÃO FECHADA (supervisão, 30/08/2026 — issue #43).** O Drive conectado foi verificado: há
+materiais do Summit espalhados, mas **não existe fonte canônica por sessão/palestra** que possa ser
+ligada com segurança. Portanto:
 
-**Dependência:** decisão de conteúdo/negócio da Adriana.
+- `slides/materiais` fica **deferido até existir source explícito**;
+- **não bloqueia o go-live do Play**;
+- **não criar tabela nem mirror vazio** enquanto não houver source.
+
+**Gatilho para retomar:** aparecer uma fonte canônica por sessão/palestra. Aí é `SOURCE → MIRROR`
+normal, não tabela autoral nova.
+
+**Dependência:** existir o source; não é mais uma pergunta em aberto para a Adriana.
 
 ### 14.2 AMA / perguntas sobre conteúdo — depende da Lane C
 
@@ -761,9 +769,18 @@ e-mail (`chat-service.js` → `auth/v1/signup`), e nesse caso não há `pessoa_i
 Os writers implementados **exigem pessoa** nos quatro casos, por uniformidade e para manter
 idempotência.
 
-**Decisão pendente:** o Play deve aceitar NPS/feedback de quem está anônimo no app? Se sim, é preciso
-definir o que fazer com a UNIQUE por pessoa e como o dado se liga depois que a identidade aparece.
-Enquanto não houver decisão, a coleta é de pessoa identificada.
+**DECISÃO FECHADA — v1 NÃO aceita coleta anônima (supervisão, 30/08/2026 — issue #43).**
+
+Os writers permanecem **person-bound**. Sem `pessoa_id`, a coleta não executa — os writers já
+devolvem `sem_pessoa`/`pessoa_nao_encontrada`, que é exatamente o comportamento decidido.
+
+Explicitamente **fora de escopo em v1**, para não inventar arquitetura em cima de uma decisão
+mínima: device identity, reconciliação posterior de anônimo → pessoa, e segunda idempotência.
+Esta é a menor solução coerente com as casas atuais (`sessao_feedback` e `nps` já têm
+`participante_id NOT NULL`).
+
+**Gatilho para reabrir:** só se a operação do evento provar perda relevante de coleta por causa de
+participante não identificado. Aí volta pelo ritual normal, como decisão nova de produto.
 
 ### 14.7 Drift: `summit_2026.sessions.site_session_id` existe em produção e não na cadeia de migrations
 
