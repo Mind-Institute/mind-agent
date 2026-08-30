@@ -666,3 +666,64 @@ físicas, avaliar:
 **Gatilho para retomar:** quando o modelo operacional deixar de bastar — por exemplo, mais gente
 mergeando, incidente de deploy indevido, ou necessidade de separar ambiente de produção de fato.
 Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco é só memória.
+
+---
+
+## 14. `public.mind_lead_capturar` não existe — DEFERIDO em 30/08/2026, descoberto na Lane B do go-live
+
+**Status:** fato verificado em produção, **fora do escopo da Lane B**. É write-back (Passo 15B /
+PASSO 9 do runbook de go-live), não runtime de venda. Não abrir a frente agora.
+
+### POR QUE APARECEU
+
+A Lane B acrescentou uma chave (`rota`) ao `p_contexto` dessa chamada e foi conferir o contrato da
+função antes de mexer. Ela não tem contrato: não existe.
+
+### O QUE JÁ FOI PROVADO
+
+- `treble-inbound-agent` (v1.3.0, no ar) chama `supabase.rpc("mind_lead_capturar", …)` **em todo
+  turno em que a conversa tem pessoa**, logo depois de `mind_pessoa_completar`.
+- Varredura em `pg_proc` por `proname ilike '%lead%'` em **todos os schemas** devolve apenas
+  `crm.registrar_lead(p_email, p_whatsapp, p_primeiro_nome, p_sobrenome, p_empresa, p_cargo,
+  p_agente, p_contexto)` e as janelas `pg_catalog.lead`. **`public.mind_lead_capturar` não existe.**
+- As 5 conversas do `treble-inbound-agent` têm `participante_id` preenchido — ou seja, o caminho é
+  alcançado sempre, não é ramo raro.
+- O erro é engolido de propósito: o código só faz
+  `console.error({event: "lead_capturar_falhou"})` e segue. Nenhum turno quebra por causa disso;
+  o write-back é que nunca aconteceu.
+- Os logs de Edge só cobrem 24h e a última conversa real é de 29/08 03:35 — a evidência acima é do
+  catálogo, não do log.
+
+### ESTADO ATUAL
+
+O turno responde, persiste mensagem, resolve identidade e completa perfil normalmente. **O que não
+acontece é a captura do lead.** Existe uma candidata plausível ao alvo pretendido —
+`crm.registrar_lead`, com `p_agente` e `p_contexto` na mesma forma —, mas ela vive em `crm`, não é
+exposta pelo PostgREST e **tem outra assinatura**: não recebe `p_pessoa_id` nem `p_referencia`, e
+recebe e-mail/telefone/nome, que o runtime deliberadamente deixou de coletar como formulário.
+Trocar uma pela outra não é renomear.
+
+### DECISÕES JÁ FECHADAS
+
+- Write-back é o **Passo 15B** (`docs/CORE_UNIVERSAL.md` §11) e o **PASSO 9** do runbook de go-live.
+- Item 6 deste backlog (lead no HubSpot) já é a frente dona do assunto.
+- Identidade não vira formulário: qualquer writer novo consome o que já se sabe da pessoa, não pede.
+
+### POR QUE FOI DEFERIDO
+
+A Lane B é o runtime do vendedor: Router → Gate → Kit → Decisioning → Agent → resposta/handoff.
+Criar ou religar um writer é decidir por outra lane e por uma escrita em CRM — que é gate. E o
+vendedor funciona sem isso: nenhuma resposta ao lead depende dessa chamada.
+
+### COMO RETOMAR
+
+Sem reinvestigar: decidir **qual é o alvo** antes de escrever qualquer coisa — (a) criar
+`public.mind_lead_capturar(p_pessoa_id, p_agente, p_referencia, p_contexto)` com a assinatura que o
+runtime já usa, delegando a `crm.registrar_lead` a partir da pessoa; ou (b) mudar a chamada do
+runtime para o writer que a frente de write-back eleger. É decisão da frente de write-back, não do
+runtime de venda. Enquanto isso, a chamada segue inócua.
+
+### DEPENDÊNCIAS / GATILHO
+
+Volta quando o Passo 15B / PASSO 9 for executado, ou antes disso se alguém precisar do lead
+capturado a partir do WhatsApp. A Lane D (pós-turno/write-back) é a dona natural.
