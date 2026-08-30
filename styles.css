@@ -145,9 +145,17 @@ body {
   font: inherit; font-size: 16px; font-weight: 700;
 }
 
-.h-sub { margin-top: 22px; font-size: 14px; font-weight: 600; color: var(--texto-mudo); }
+/* A linha pertence à marca, não à manchete: ela explica o que é o Mind
+   Agent. Por isso encosta no logo e o respiro vai para baixo dela. */
+.h-sub { margin-top: 7px; font-size: 14px; font-weight: 600; color: var(--texto-mudo); }
+/* Saudação pessoal, quando a Yazo diz quem chegou. Some sem deixar
+   buraco: o título retoma o respiro que era dela. */
+.h-ola { margin-top: 26px; font-size: 17px; font-weight: 600; color: var(--texto-suave); }
+.h-ola b { color: var(--verde); font-weight: 700; }
+.h-ola:not([hidden]) + .h-titulo { margin-top: 4px; }
+
 .h-titulo {
-  margin-top: 6px;
+  margin-top: 26px;
   font-size: 42px; font-weight: 900; text-transform: uppercase;
   letter-spacing: -.02em; line-height: .94;
 }

@@ -15,6 +15,17 @@ import { enviarMensagem } from './chat-service.js';
    propósito — importar `config.js` não captura nada. */
 capturarIdentidade();
 
+/* A home cumprimenta pelo nome quando existe um. O nome chega pela URL e
+   `normalizarNome` só apara as pontas e o tamanho — não remove marcação.
+   Por isso entra como texto, nunca por `innerHTML`: um `?nome=` hostil
+   não pode virar HTML dentro da página. */
+(function saudarNaHome() {
+  const nome = PARTICIPANTE.nome && PARTICIPANTE.nome.trim();
+  if (!nome) return;
+  document.getElementById('h-ola-nome').textContent = nome;
+  document.getElementById('h-ola').hidden = false;
+})();
+
 /* ---------- Splash ---------- */
 const splash = document.getElementById('splash');
 function fecharSplash() {
