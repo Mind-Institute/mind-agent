@@ -253,16 +253,44 @@ ela fica no turno, em engagement.mensagens.blocos):
 
   select c.session_external_id,
          m.criado_em,
-         m.blocos->>'rota'         as rota_decidida,
-         m.blocos->>'rota_aplicada' as rota_aplicada,
-         m.blocos->>'gate_reason'   as gate_reason,
-         m.blocos->>'rota_falha'    as rota_falha,
-         left(m.conteudo, 80)       as resposta
+         m.blocos->>'rota'               as rota_decidida,
+         m.blocos->>'rota_aplicada'      as rota_aplicada,
+         m.blocos->>'precisa_esclarecer' as precisa_esclarecer,
+         m.blocos->'candidatas'          as candidatas,
+         m.blocos->>'gate_reason'        as gate_reason,
+         m.blocos->>'rota_falha'         as rota_falha,
+         m.blocos->>'router_ms'          as router_ms,
+         left(m.conteudo, 80)            as resposta
     from engagement.mensagens m
     join engagement.conversas c on c.id = m.conversa_id
    where c.session_external_id like '${prefixo}-%'
      and m.papel = 'agente'
    order by c.session_external_id, m.criado_em;
+
+REGRESSÃO DA CHAMADA REMOVIDA. A v1.4.0 tirou o \`mind_lead_capturar\`, que nunca
+executou (função inexistente, erro engolido). Nada devia se perder: todo campo que ela
+carregava já tem casa canônica no mesmo turno. Esta consulta prova campo a campo —
+nenhuma coluna pode vir vazia num caso que teve turno de agente:
+
+  select c.session_external_id,
+         c.participante_id     is not null as pessoa,
+         c.session_external_id is not null as referencia,
+         c.agente              is not null as agente,
+         c.produto_codigo      is not null as produto,
+         c.audience            is not null as audience,
+         c.stage               is not null as stage,
+         c.variables ? 'intent'            as intent,
+         c.variables ? 'needs_human'       as needs_human,
+         c.variables ? 'checkout_sent'     as checkout_sent,
+         exists (select 1 from engagement.mensagens m
+                  where m.conversa_id = c.id and m.papel = 'agente'
+                    and m.blocos ? 'rota')                 as rota_no_turno
+    from engagement.conversas c
+   where c.session_external_id like '${prefixo}-%'
+   order by c.session_external_id;
+
+  -- \`ticket_interest\`, \`objection\` e \`desfecho\` são nulos por natureza quando não se
+  -- aplicam ao caso; \`origem_codigo\` e \`utm\` vêm vazios do Treble e já vinham antes.
 
 Para apagar as fixtures deste run, depois de conferir:
 

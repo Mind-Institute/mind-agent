@@ -808,27 +808,27 @@ Deno.serve(async (req: Request) => {
       if (errC) console.error(JSON.stringify({ request_id: requestId, event: "completar_falhou", detalhe: errC.message }));
     }
 
-    if (idPessoa) {
-      const { error: errL } = await supabase.rpc("mind_lead_capturar", {
-        p_pessoa_id: idPessoa,
-        p_agente: "treble-inbound-agent",
-        p_referencia: sessionId,
-        p_contexto: {
-          origem: conv.origem_codigo ?? origem ?? null,
-          utm: conv.utm ?? null,
-          produto: conv.produto_codigo ?? null,
-          rota: rotaAplicada,
-          audience: audienceFinal,
-          intent: turn.intent,
-          ticket_interest: turn.ticket_interest,
-          objection: turn.objection,
-          stage: turn.stage,
-          desfecho: turn.desfecho,
-          needs_human: needsHumanFinal,
-        },
-      });
-      if (errL) console.error(JSON.stringify({ request_id: requestId, event: "lead_capturar_falhou", detalhe: errL.message }));
-    }
+    // A CHAMADA A `mind_lead_capturar` FOI REMOVIDA AQUI (30/08/2026).
+    //
+    // Ela nunca funcionou: a função não existe em nenhum schema do banco, e o erro era
+    // engolido com `console.error({event:"lead_capturar_falhou"})` a cada turno com
+    // pessoa. A investigação da #42 (Lane D, dona do write-back) fechou que se trata de
+    // chamada morta, não de função faltante — todo o payload que ela carregava já tem
+    // casa canônica NO MESMO TURNO:
+    //
+    //   pessoa · referência · agente   →  engagement.conversas (participante_id,
+    //                                     session_external_id, agente)
+    //   origem · utm · produto         →  engagement.conversas
+    //   audience · stage               →  engagement.conversas, por mind_turno_registrar
+    //   intent · ticket_interest ·     →  engagement.conversas.variables, idem
+    //   objection · desfecho ·
+    //   needs_human
+    //   rota                           →  engagement.mensagens.blocos, no meta do turno
+    //
+    // Criar a RPC duplicaria estado, e `crm.registrar_lead` não é substituto compatível
+    // (outra assinatura, outro schema, e quebrada). Por isso a chamada sai sem nenhum
+    // writer no lugar. Quando o Passo 15B construir o write-back de verdade, ele nasce
+    // da casa canônica — não daqui.
 
     const state = {
       audience: audienceFinal,
