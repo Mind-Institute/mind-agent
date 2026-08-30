@@ -192,14 +192,24 @@ meses_pt as (
   select array['janeiro','fevereiro','marco','abril','maio','junho',
                'julho','agosto','setembro','outubro','novembro','dezembro']::text[] as m
 ),
+-- A REGIÃO DE DATA. Tudo que vem depois de `dia`/`dias` enquanto forem números
+-- e conectores (espaço, vírgula, "e", barra, hífen). A primeira letra fora
+-- desse conjunto encerra a região — e é isso que separa "dias 16 e 17", que
+-- pede os dois dias, de "dia 16, somos 17 pessoas", onde o 17 já está fora da
+-- região porque o `s` de "somos" a fechou.
+regiao_dia as (
+  select coalesce((regexp_match(p.qn, '\mdias?\M([0-9 ,e/-]{0,24})'))[1], '') as reg
+  from params p
+),
 dia_pedido as (
   select array_agg(distinct d.dia) as dias
   from (select distinct s.dia from summit_2026.sessions s join ev e on e.id = s.event_id) d
   cross join params p
   cross join meses_pt mp
+  cross join regiao_dia rd
   where
-    -- "dia 17", "no dia 17", "dias 16 e 17" (o primeiro número após `dia`)
-    p.qn ~ ('\mdias?\M[^0-9]{0,6}' || to_char(d.dia, 'FMDD') || '([^0-9hH:]|$)')
+    -- "dia 17", "no dia 17", "dias 16 e 17"
+    rd.reg ~ ('(^|[^0-9])' || to_char(d.dia, 'FMDD') || '([^0-9]|$)')
     -- data escrita: 17/09, 17/9, 17-09
     or p.qn ~ ('(^|[^0-9])' || to_char(d.dia, 'FMDD') || '[/-]0?' || to_char(d.dia, 'FMMM') || '([^0-9]|$)')
     -- ISO
@@ -222,25 +232,45 @@ dia_pedido as (
 --                           começou 13:30 e termina 15:00 é exatamente o que a
 --                           pessoa quer saber.
 -- Por isso hora explícita filtra por sobreposição; período, por início.
+-- HORA COM MINUTO É INSTANTE, HORA CHEIA É HORA.
+--   "às 14h"    = a hora das 14. Sessão que roda dentro dela conta.
+--   "às 14:30"  = aquele instante. Uma sessão que terminou 14:10 ou que só
+--                 começa 14:50 não está acontecendo às 14:30, e devolvê-la
+--                 seria responder outra pergunta.
 hora_dita as (
-  select (regexp_match(p.qn, '(?:^|[^0-9])([0-9]{1,2})\s*(?:h|:[0-9]{2}|horas)'))[1]::int as hora
+  select
+    coalesce(
+      (regexp_match(p.qn, '(?:^|[^0-9])([0-9]{1,2})[:h]([0-9]{2})(?![0-9])'))[1],
+      (regexp_match(p.qn, '(?:^|[^0-9])([0-9]{1,2})\s*(?:h|horas)(?![0-9])'))[1]
+    )::int as hora,
+    (regexp_match(p.qn, '(?:^|[^0-9])([0-9]{1,2})[:h]([0-9]{2})(?![0-9])'))[2]::int as minuto
   from params p
 ),
 faixa as (
   select
-    greatest(
-      case when p.qn ~ '\mmanha'            then time '00:00:00'
-           when p.qn ~ '\mtarde'            then time '12:00:00'
-           when p.qn ~ '\m(noite|noturn)'   then time '18:00:00' end,
-      case when hd.hora between 0 and 23    then make_time(hd.hora, 0, 0) end
-    ) as ini,
-    least(
-      case when p.qn ~ '\mmanha'            then time '12:00:00'
-           when p.qn ~ '\mtarde'            then time '18:00:00'
-           when p.qn ~ '\m(noite|noturn)'   then time '23:59:59' end,
-      case when hd.hora between 0 and 23    then make_time(hd.hora, 59, 59) end
-    ) as fim,
-    (hd.hora between 0 and 23) as por_sobreposicao
+    case
+      when hd.hora between 0 and 23 and hd.minuto between 0 and 59 then 'instante'
+      when hd.hora between 0 and 23                                then 'sobreposicao'
+      when p.qn ~ '\m(manha|tarde|noite|noturn)'                   then 'inicio'
+    end as modo,
+    case
+      when hd.hora between 0 and 23 and hd.minuto between 0 and 59
+        then make_time(hd.hora, hd.minuto, 0)
+      else greatest(
+        case when p.qn ~ '\mmanha'          then time '00:00:00'
+             when p.qn ~ '\mtarde'          then time '12:00:00'
+             when p.qn ~ '\m(noite|noturn)' then time '18:00:00' end,
+        case when hd.hora between 0 and 23  then make_time(hd.hora, 0, 0) end)
+    end as ini,
+    case
+      when hd.hora between 0 and 23 and hd.minuto between 0 and 59
+        then make_time(hd.hora, hd.minuto, 0)
+      else least(
+        case when p.qn ~ '\mmanha'          then time '12:00:00'
+             when p.qn ~ '\mtarde'          then time '18:00:00'
+             when p.qn ~ '\m(noite|noturn)' then time '23:59:59' end,
+        case when hd.hora between 0 and 23  then make_time(hd.hora, 59, 59) end)
+    end as fim
   from params p cross join hora_dita hd
 ),
 -- ---------------------------------------------------------- PALESTRANTES
@@ -329,15 +359,17 @@ session_ranked as (
                  join pessoa_nomeada pn on pn.id = ss.speaker_id
                  where ss.sessao_id = sb.id)
       -- ou a pergunta pede a agenda e não tem assunto próprio
-      or ((p.listar or dp.dias is not null or fx.ini is not null) and p.n_foco = 0)
+      or ((p.listar or dp.dias is not null or fx.modo is not null) and p.n_foco = 0)
     )
     and (dp.dias is null or sb.dia = any (dp.dias))
-    and (fx.ini is null or (
-      case when fx.por_sobreposicao
-        then (sb.inicio at time zone e.fuso)::time <  fx.fim
-         and (sb.fim    at time zone e.fuso)::time >  fx.ini
-        else (sb.inicio at time zone e.fuso)::time >= fx.ini
-         and (sb.inicio at time zone e.fuso)::time <  fx.fim
+    and (fx.modo is null or (
+      case fx.modo
+        when 'instante'     then (sb.inicio at time zone e.fuso)::time <= fx.ini
+                             and (sb.fim    at time zone e.fuso)::time >  fx.ini
+        when 'sobreposicao' then (sb.inicio at time zone e.fuso)::time <  fx.fim
+                             and (sb.fim    at time zone e.fuso)::time >  fx.ini
+        else                     (sb.inicio at time zone e.fuso)::time >= fx.ini
+                             and (sb.inicio at time zone e.fuso)::time <  fx.fim
       end))
 ),
 session_items as (
@@ -393,18 +425,20 @@ speaker_ranked as (
     -- Quem a pergunta recortou por dia/faixa só entra se realmente fala nesse
     -- recorte. Mesmo predicado do bloco de sessões, para os dois não
     -- discordarem dentro da mesma resposta.
-    and ((dp.dias is null and fx.ini is null) or exists (
+    and ((dp.dias is null and fx.modo is null) or exists (
       select 1 from summit_2026.session_speakers ss
       join summit_2026.sessions s on s.id = ss.sessao_id
       join ev e3 on e3.id = s.event_id
       where ss.speaker_id = pe.id
         and (dp.dias is null or s.dia = any (dp.dias))
-        and (fx.ini is null or (
-          case when fx.por_sobreposicao
-            then (s.inicio at time zone e3.fuso)::time <  fx.fim
-             and (s.fim    at time zone e3.fuso)::time >  fx.ini
-            else (s.inicio at time zone e3.fuso)::time >= fx.ini
-             and (s.inicio at time zone e3.fuso)::time <  fx.fim
+        and (fx.modo is null or (
+          case fx.modo
+            when 'instante'     then (s.inicio at time zone e3.fuso)::time <= fx.ini
+                                 and (s.fim    at time zone e3.fuso)::time >  fx.ini
+            when 'sobreposicao' then (s.inicio at time zone e3.fuso)::time <  fx.fim
+                                 and (s.fim    at time zone e3.fuso)::time >  fx.ini
+            else                     (s.inicio at time zone e3.fuso)::time >= fx.ini
+                                 and (s.inicio at time zone e3.fuso)::time <  fx.fim
           end))))
 ),
 -- A pessoa vem com as sessões dela. "Que horas fala a Amy" e "onde é a sessão
@@ -435,12 +469,14 @@ speaker_items as (
         -- sessões do dia 16 dela dentro do bloco da pessoa, e o modelo lê duas
         -- verdades diferentes sobre a mesma pergunta na mesma resposta.
         and (dp2.dias is null or s.dia = any (dp2.dias))
-        and (fx2.ini is null or (
-          case when fx2.por_sobreposicao
-            then (s.inicio at time zone e2.fuso)::time <  fx2.fim
-             and (s.fim    at time zone e2.fuso)::time >  fx2.ini
-            else (s.inicio at time zone e2.fuso)::time >= fx2.ini
-             and (s.inicio at time zone e2.fuso)::time <  fx2.fim
+        and (fx2.modo is null or (
+          case fx2.modo
+            when 'instante'     then (s.inicio at time zone e2.fuso)::time <= fx2.ini
+                                 and (s.fim    at time zone e2.fuso)::time >  fx2.ini
+            when 'sobreposicao' then (s.inicio at time zone e2.fuso)::time <  fx2.fim
+                                 and (s.fim    at time zone e2.fuso)::time >  fx2.ini
+            else                     (s.inicio at time zone e2.fuso)::time >= fx2.ini
+                                 and (s.inicio at time zone e2.fuso)::time <  fx2.fim
           end))), '[]'::jsonb)
   ) order by x.score desc, x.nome), '[]'::jsonb) as items
   from (select * from speaker_ranked order by score desc, nome

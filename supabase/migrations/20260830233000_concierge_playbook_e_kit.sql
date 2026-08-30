@@ -47,9 +47,17 @@
 --   de agenda do Treble já usam. Nenhuma segunda base de programação, nenhuma
 --   segunda identidade de palestrante, nenhum RAG paralelo.
 --
+--   E ele resolve o evento pelo SLUG PEDIDO. A Edge viva já aceita
+--   `payload.event_slug` e o repassa ao retrieval; o provider mantém esse
+--   contrato por `p_necessidade->>event_slug`, com `mind-summit-2026` como
+--   default quando ausente. Escolher "o primeiro evento ativo" acertaria hoje
+--   por só existir um, e passaria a responder pelo evento errado no dia em que
+--   houver dois.
+--
 -- 3. NECESSIDADE ATUAL x MEMÓRIA — A SEPARAÇÃO FICA NO CONTRATO
 --   `p_necessidade` carrega as duas coisas em campos separados e com poderes
 --   diferentes, e é o contrato que garante isso:
+--     `event_slug` = de qual evento se está falando. Resolve o escopo.
 --     `pergunta`   = a necessidade atual. É a ÚNICA coisa que SELECIONA.
 --     `interesses` = sinal de personalização. Só REORDENA o que a necessidade
 --                    atual já trouxe. Não admite sessão, não remove sessão,
@@ -185,8 +193,21 @@ stable
 security definer
 set search_path to 'public', 'summit_2026', 'ecossistema'
 as $function$
-  with ev as (
-    select e.* from summit_2026.events e where e.ativo order by e.slug limit 1
+  with
+  -- O EVENTO É RESOLVIDO PELO SLUG PEDIDO, NÃO PELO PRIMEIRO DA LISTA.
+  -- `order by slug limit 1` só acerta enquanto existir um único evento ativo —
+  -- é coincidência, não contrato, e a Edge viva já aceita `event_slug` no
+  -- payload. O slug vem em `p_necessidade->>event_slug`; ausente, cai no
+  -- evento do go-live. Slug que não existe ou não está ativo devolve NULL:
+  -- o bloco se declara indisponível em vez de responder pelo evento errado.
+  alvo as (
+    select coalesce(nullif(btrim(coalesce(p_necessidade->>'event_slug', '')), ''),
+                    'mind-summit-2026') as slug
+  ),
+  ev as (
+    select e.* from summit_2026.events e, alvo a
+    where e.slug = a.slug and e.ativo
+    limit 1
   ),
   -- A verdade mínima do bloco: existe evento ativo, existe programação e
   -- existe vínculo canônico pessoa↔sessão. Sem isso o concierge não tem o que
@@ -205,6 +226,7 @@ as $function$
   need as (
     select
       nullif(btrim(coalesce(p_necessidade->>'pergunta', '')), '') as pergunta,
+      (select slug from alvo) as event_slug,
       least(12, greatest(1, coalesce((p_necessidade->>'limite')::int, 8)))  as limite,
       (select nullif(btrim(string_agg(t, ' ')), '')
          from jsonb_array_elements_text(
@@ -214,8 +236,8 @@ as $function$
   ),
   -- SÓ A PERGUNTA VAI PARA O RETRIEVAL. O interesse não entra aqui.
   busca as (
-    select public.mindagent_chat_search((select slug from ev), n.pergunta, n.limite::int) as r
-    from need n
+    select public.mindagent_chat_search(e.slug, n.pergunta, n.limite::int) as r
+    from need n cross join ev e
     where n.pergunta is not null
   ),
   interesse_q as (
@@ -245,6 +267,7 @@ as $function$
     when (select vinculos from totais) = 0 then null::jsonb
     else jsonb_build_object(
       'bloco', 'programacao',
+      'event_slug', (select slug from ev),
       'evento', (select jsonb_build_object(
                    'slug', e.slug, 'nome', e.nome, 'dias', e.dias,
                    'local', e.local, 'cidade', e.cidade, 'fuso', e.fuso) from ev e),

@@ -44,6 +44,8 @@ declare
   v_conv   uuid;
   v_a      jsonb;
   v_b      jsonb;
+  v_dd1    text;
+  v_dd2    text;
 begin
   select e.fuso into v_fuso from summit_2026.events e where e.slug = v_slug and e.ativo;
   if v_fuso is null then
@@ -360,7 +362,119 @@ begin
     end if;
   end if;
 
-  raise notice 'concierge_summit: 13 contratos OK';
+  -- ----------------------------------------------------------- CONTRATO 14
+  -- DIA MÚLTIPLO SEM CONFUNDIR COM QUANTIDADE. A região de data começa em
+  -- `dia`/`dias` e termina na primeira letra que não é conector: é isso que
+  -- separa "dias 16 e 17" (dois dias) de "dia 16, somos 17 pessoas" (um dia,
+  -- porque o `s` de "somos" fechou a região antes do 17).
+  select to_char(min(s.dia), 'FMDD'), to_char(max(s.dia), 'FMDD') into v_dd1, v_dd2
+  from summit_2026.sessions s
+  join summit_2026.events e on e.id = s.event_id and e.slug = v_slug;
+
+  -- A asserção é sobre o FILTRO, não sobre a página. A lista sai em ordem
+  -- cronológica e o limite corta antes de virar o dia: os dois dias entram no
+  -- escopo, e é `sessions_total` que diz isso — a página mostrar só o primeiro
+  -- dia é truncamento honesto, não filtro perdido.
+  select count(*) into v_n from summit_2026.sessions s
+  join summit_2026.events e on e.id = s.event_id and e.slug = v_slug
+  where to_char(s.dia, 'FMDD') in (v_dd1, v_dd2);
+
+  v := public.mindagent_chat_search(
+         v_slug, format('programação dos dias %s e %s', v_dd1, v_dd2), 12);
+  if (v->>'sessions_total')::int <> v_n then
+    raise exception 'CONTRATO 14: "dias % e %" alcançou % sessões, esperado % (os dois dias)',
+      v_dd1, v_dd2, v->>'sessions_total', v_n;
+  end if;
+  if exists (select 1 from jsonb_array_elements(v->'sessions') x
+             where to_char((x->>'date')::date, 'FMDD') not in (v_dd1, v_dd2)) then
+    raise exception 'CONTRATO 14: "dias % e %" devolveu sessão de um terceiro dia', v_dd1, v_dd2;
+  end if;
+
+  -- E um dia só continua sendo um dia só.
+  v := public.mindagent_chat_search(v_slug, format('programação do dia %s', v_dd2), 12);
+  if (v->>'sessions_total')::int >= v_n then
+    raise exception 'CONTRATO 14: "dia %" alcançou % sessões — não separou do pedido de dois dias',
+      v_dd2, v->>'sessions_total';
+  end if;
+
+  v := public.mindagent_chat_search(
+         v_slug, format('dia %s, somos %s pessoas', v_dd1, v_dd2), 12);
+  if exists (select 1 from jsonb_array_elements(v->'sessions') x
+             where to_char((x->>'date')::date, 'FMDD') <> v_dd1) then
+    raise exception 'CONTRATO 14: "dia %, somos % pessoas" vazou para outro dia', v_dd1, v_dd2;
+  end if;
+  if jsonb_array_length(v->'sessions') = 0 then
+    raise exception 'CONTRATO 14: "dia %, somos % pessoas" perdeu o filtro do dia %', v_dd1, v_dd2, v_dd1;
+  end if;
+
+  -- ----------------------------------------------------------- CONTRATO 15
+  -- HORA COM MINUTO É INSTANTE. Uma sessão que terminou 14:10, ou que só
+  -- começa 14:50, não está acontecendo às 14:30.
+  v := public.mindagent_chat_search(v_slug, 'o que está acontecendo às 14:30?', 12);
+  if exists (
+    select 1 from jsonb_array_elements(v->'sessions') x
+    where (x->>'starts_at_local')::time >  time '14:30'
+       or (x->>'ends_at_local')::time   <= time '14:30'
+  ) then
+    raise exception 'CONTRATO 15: "14:30" devolveu sessão que não está acontecendo no instante';
+  end if;
+
+  -- E o instante é subconjunto da hora cheia: quem responde 14:30 responde 14h.
+  v_a := public.mindagent_chat_search(v_slug, 'o que está acontecendo às 14:30?', 12);
+  v_b := public.mindagent_chat_search(v_slug, 'o que está acontecendo às 14h?', 12);
+  if exists (
+    select 1 from jsonb_array_elements(v_a->'sessions') x
+    where not exists (select 1 from jsonb_array_elements(v_b->'sessions') y
+                      where y->>'id' = x->>'id')
+  ) then
+    raise exception 'CONTRATO 15: 14:30 devolveu sessão que 14h não devolve';
+  end if;
+
+  -- ----------------------------------------------------------- CONTRATO 16
+  -- `event_slug` RESOLVE O ESCOPO, E SLUG DESCONHECIDO FALHA FECHADO.
+  -- O provider não pode escolher "o primeiro evento ativo": hoje há um só, e
+  -- isso faria o teste passar por coincidência.
+  if v_conv is not null then
+    v := public.mind_agent_kit('concierge_summit', v_conv,
+           jsonb_build_object('pergunta', 'me mostra a programação', 'event_slug', v_slug));
+    if v->'structured'->'programacao'->>'event_slug' is distinct from v_slug then
+      raise exception 'CONTRATO 16: bloco resolveu o evento % em vez de %',
+        v->'structured'->'programacao'->>'event_slug', v_slug;
+    end if;
+
+    v := public.mind_agent_kit('concierge_summit', v_conv,
+           jsonb_build_object('pergunta', 'me mostra a programação',
+                              'event_slug', 'evento-que-nao-existe'));
+    if v->'structured' ? 'programacao' then
+      raise exception 'CONTRATO 16: slug inexistente devolveu bloco programacao em vez de indisponivel';
+    end if;
+
+    -- ---------------------------------------------------------- CONTRATO 17
+    -- FAIL-CLOSED DO EXECUTOR. É exatamente o que a Edge tem de exigir antes
+    -- de chamar o modelo: kit sem erro, kit disponível, playbook não-vazio e
+    -- os dois blocos presentes. Com slug inexistente, `programacao` some — e
+    -- é essa ausência que impede a resposta.
+    v_a := public.mind_agent_kit('concierge_summit', v_conv,
+             jsonb_build_object('pergunta', 'me mostra a programação', 'event_slug', v_slug));
+    if (v_a ? 'ok' and (v_a->>'ok')::boolean is false)
+       or coalesce((v_a->'meta'->>'kit_disponivel')::boolean, false) is not true
+       or coalesce(length(v_a->>'playbook'), 0) = 0
+       or v_a->'structured'->'evento' is null
+       or v_a->'structured'->'programacao' is null then
+      raise exception 'CONTRATO 17: kit valido reprovou no fail-closed do executor';
+    end if;
+
+    v_b := public.mind_agent_kit('rota_que_nao_existe', v_conv, '{}'::jsonb);
+    if (v_b->>'ok')::boolean is not false or v_b->>'motivo' <> 'rota_invalida' then
+      raise exception 'CONTRATO 17: rota invalida nao devolveu rota_invalida: %', v_b;
+    end if;
+    v_b := public.mind_agent_kit('concierge_summit', null, '{}'::jsonb);
+    if (v_b->>'ok')::boolean is not false or v_b->>'motivo' <> 'sem_conversa' then
+      raise exception 'CONTRATO 17: conversa nula nao devolveu sem_conversa: %', v_b;
+    end if;
+  end if;
+
+  raise notice 'concierge_summit: 17 contratos OK';
 end $$;
 
 rollback;
