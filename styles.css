@@ -611,30 +611,33 @@ body {
   color: var(--verde);
 }
 .rotulo span {
-  display: block; margin-top: .8cqw;
-  font-size: 3.3cqw; line-height: 1.4; color: var(--texto-suave);
+  display: block; margin-top: .9cqw;
+  font-size: 3.55cqw; line-height: 1.42; color: var(--texto);
 }
 
 /* Balão de instrução */
 .balao {
   position: absolute; left: 4%; right: 4%;
-  background: rgba(11, 11, 15, .93);
+  background: rgba(13, 14, 20, .98);
   backdrop-filter: blur(10px);
-  border: 1px solid var(--hairline);
+  border: 1.5px solid var(--hairline);
   border-radius: 14px;
-  padding: 3cqw 3.6cqw;
+  padding: 3.2cqw 3.8cqw;
   z-index: 4;
-  font-size: 3.5cqw; line-height: 1.45;
-  color: var(--texto-suave);
+  font-size: 3.8cqw; line-height: 1.45;
+  color: var(--texto);
   transition: top .3s ease, bottom .3s ease;
 }
 .balao b { color: var(--texto); }
-.balao.acao { border-color: rgba(62, 155, 255, .55); }
+.balao.acao {
+  border-color: rgba(62, 155, 255, .9);
+  box-shadow: 0 0 0 1px rgba(62, 155, 255, .18), 0 6px 26px rgba(0, 0, 0, .6);
+}
 .balao .rot {
   display: block;
-  font-size: 2.6cqw; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+  font-size: 2.75cqw; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
   color: var(--acao);
-  margin-bottom: 1cqw;
+  margin-bottom: 1.2cqw;
 }
 .balao.topo { top: 15%; bottom: auto; }
 .balao.abaixo { top: 15%; bottom: auto; }
