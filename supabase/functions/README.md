@@ -1,27 +1,34 @@
 # `supabase/functions/`
 
-## Merge em `main` publica Edge Function
+## Merge em `main` NÃO publica esta function — hoje
 
-A integração GitHub do Supabase deste projeto **não roda só migrations**: a branch `main`
-aparece em `list_branches` com status `FUNCTIONS_DEPLOYED`. O que estiver aqui é
-publicado no projeto `ymnmotgglsrxmjmonwjz` quando a PR é mergeada, exatamente como
-`supabase/migrations/` é aplicado.
+A integração GitHub do Supabase deste projeto roda migrations no merge, mas **só publica
+Edge Function declarada em `supabase/config.toml`**, na forma `[functions.<slug>]`. O
+próprio check avisa isso em toda PR:
 
-Isso é o contrato canônico **merge em `main` é boundary de deploy** (`PROJECT_STATE.md`
-§2B) valendo também para runtime, não só para schema. Revisão e teste vêm **antes** do
-merge.
+> ⚠️ Only Functions declared in config.toml will be automatically deployed to branches
+
+**Este repositório não tem `supabase/config.toml`.** Logo, o que está aqui é código
+versionado e revisável, e **a publicação é um passo manual** — `supabase functions
+deploy`, a dashboard ou o MCP.
+
+Isso é uma escolha em aberto, não um esquecimento a corrigir de passagem: declarar as
+functions no `config.toml` colocaria o runtime dentro do contrato **merge em `main` é
+boundary de deploy** (`PROJECT_STATE.md` §2B), junto com as migrations. É decisão de
+infraestrutura, e muda o que um merge faz.
 
 ## Este diretório não é o inventário das functions
 
 O projeto tem mais de vinte Edge Functions ativas; a maioria vive só no Supabase. Uma
 função entra aqui quando passa a ser versionada — e, a partir daí, **o repositório é a
-fonte**: um merge sobrescreve a versão publicada com o que estiver neste arquivo.
+referência**: publicar significa levar este arquivo para o ar, sobrescrevendo o que
+estiver publicado.
 
-Consequência prática, e a única regra que importa aqui:
+Daí a única regra que importa aqui:
 
-> Antes de mergear qualquer mudança neste diretório, **diferencie o arquivo contra a
-> versão que está no ar**. Se alguém publicou pela dashboard ou pelo MCP desde que este
-> arquivo foi escrito, o merge desfaz aquilo silenciosamente.
+> Antes de publicar, **diferencie o arquivo contra a versão que está no ar**. Se alguém
+> publicou pela dashboard ou pelo MCP desde que este arquivo foi escrito, publicar desfaz
+> aquilo silenciosamente.
 
 ```bash
 supabase functions download treble-inbound-agent --project-ref ymnmotgglsrxmjmonwjz

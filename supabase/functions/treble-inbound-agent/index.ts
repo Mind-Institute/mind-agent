@@ -26,9 +26,9 @@
 // sozinha", exatamente a semântica congelada.
 //
 // LIGA/DESLIGA EM DADO, NÃO EM DEPLOY. `treble.config.core_rota_kit = 'true'` ativa o
-// caminho canônico. Ausente ou diferente disso, o runtime é idêntico à v1.3.0. Merge em
-// `main` é boundary de deploy: o caminho novo entra por decisão explícita, e volta pelo
-// mesmo interruptor sem redeploy.
+// caminho canônico. Ausente ou diferente disso, o runtime é idêntico à v1.3.0. Publicar
+// esta versão não muda nada sozinho: o caminho novo entra por decisão explícita e volta
+// pelo mesmo interruptor, sem redeploy.
 //
 // ESCOPO: só `summit_b2c` e `summit_b2b` — as rotas deste vendedor. Toda outra rota
 // continua no caminho legado até a lane dona dela chegar; trocar o caminho de
