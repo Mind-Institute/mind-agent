@@ -764,3 +764,33 @@ idempotência.
 **Decisão pendente:** o Play deve aceitar NPS/feedback de quem está anônimo no app? Se sim, é preciso
 definir o que fazer com a UNIQUE por pessoa e como o dado se liga depois que a identidade aparece.
 Enquanto não houver decisão, a coleta é de pessoa identificada.
+
+### 14.7 Drift: `summit_2026.sessions.site_session_id` existe em produção e não na cadeia de migrations
+
+**Status:** descoberto pelo preview branch da PR #48 (Lane E, 30/08/2026). **Não corrigido — fora do
+escopo da lane.** Registrado para não ser redescoberto.
+
+**Evidência.** `summit_2026.sessions.site_session_id` está presente em produção
+(`ymnmotgglsrxmjmonwjz`) e é tratada em vários documentos como a chave determinística contra
+`programacao.json.id`. Mas `grep -rn site_session_id supabase/migrations/` **não encontra nenhuma
+migration que a crie**. No preview branch da PR #48 (`igyobrssxhfauesxnljx`), montado replicando a
+cadeia versionada, `summit_2026.sessions` **não tem a coluna** — a consulta falha com
+`42703: column s.site_session_id does not exist`.
+
+Ou seja: a coluna entrou em produção fora da cadeia versionada, ou por uma versão que hoje é stub
+histórico no-op. Qualquer banco montado a partir das migrations — preview, ambiente novo, restore —
+não a tem.
+
+**Impacto imediato já tratado:** `public.mind_play_nps_agregado` foi escrita sem depender dela.
+
+**Impacto ainda aberto:** qualquer código que leia `site_session_id` funciona em produção e quebra em
+preview. Vale conferir o que já depende dela antes de assumir que só a Lane E encostou no assunto.
+
+**Por que foi deferido:** `summit_2026.sessions` não é da Lane E; mexer nela aqui seria limpeza
+lateral e conflito com quem é dono da tabela.
+
+**Gatilho para retomar:** quando alguém precisar de `site_session_id` num banco que não seja
+produção, ou na faxina de reconciliação da cadeia de migrations. A correção é uma migration aditiva
+e idempotente (`alter table ... add column if not exists`), não um backfill de dado.
+
+**Dependência:** dono de `summit_2026.sessions` (frente da programação/Concierge).

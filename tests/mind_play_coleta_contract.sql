@@ -26,8 +26,28 @@ begin;
 
 -- ---------------------------------------------------------------- FIXTURES
 -- UUIDs proprios do teste, no prefixo 0e000000-. Nenhum id de producao.
--- A sessao sintetica entra no evento ATIVO de verdade, porque e o evento que
--- mind_play_nps_agregado resolve quando p_event_slug e nulo.
+--
+-- O teste traz o PROPRIO evento. Nao usa o evento real por dois motivos:
+-- preview branch do Supabase nasce com schema e ZERO dado, entao um teste que
+-- dependesse do evento de producao falharia la; e o agregado tem de medir so o
+-- que este arquivo criou, sem somar respostas reais que existam no banco.
+--
+-- O slug comeca com '0' de proposito: `mind_play_nps` e `mind_play_nps_agregado`
+-- resolvem o evento ativo por `order by slug limit 1`, entao o evento sintetico
+-- vence deterministicamente tanto no preview vazio quanto em producao.
+
+insert into summit_2026.events (id, slug, nome, dias, ativo)
+values ('0e000000-0000-4000-8000-0000000000e1',
+        '0-contrato-play-sintetico',
+        'Evento sintetico do contrato do Play',
+        array[current_date]::date[], true),
+       -- Evento sem NENHUMA resposta, so para provar que o agregado devolve
+       -- ausencia em vez de zero. O slug e um sufixo do primeiro, entao o
+       -- primeiro continua vencendo `order by slug limit 1`.
+       ('0e000000-0000-4000-8000-0000000000e2',
+        '0-contrato-play-sintetico-vazio',
+        'Evento sintetico sem nenhuma resposta',
+        array[current_date]::date[], true);
 
 insert into pessoas.pessoas (id, primeiro_nome, sobrenome, empresa, cargo, origem)
 values ('0e000000-0000-4000-8000-000000000001',
@@ -48,11 +68,11 @@ insert into summit_2026.sessions (id, titulo, dia, inicio, fim, event_id)
 values ('0e000000-0000-4000-8000-0000000000a1',
         'Sessao sintetica do contrato do Play',
         current_date, now(), now() + interval '1 hour',
-        (select e.id from summit_2026.events e where e.ativo order by e.slug limit 1)),
+        '0e000000-0000-4000-8000-0000000000e1'),
        ('0e000000-0000-4000-8000-0000000000a2',
         'Sessao sintetica sem nota',
         current_date, now() + interval '2 hours', now() + interval '3 hours',
-        (select e.id from summit_2026.events e where e.ativo order by e.slug limit 1));
+        '0e000000-0000-4000-8000-0000000000e1');
 
 
 -- ============================================================ CONTRATO 1
@@ -237,8 +257,8 @@ begin
   if r.comentario is null then
     raise exception 'CONTRATO 5: reenvio sem comentario nao pode apagar o anterior';
   end if;
-  if r.event_id is null then
-    raise exception 'CONTRATO 5: event_id devia vir do evento ativo';
+  if r.event_id is distinct from '0e000000-0000-4000-8000-0000000000e1'::uuid then
+    raise exception 'CONTRATO 5: event_id devia vir do evento ativo, veio %', r.event_id;
   end if;
 
   select count(*) into v_linhas from engagement.nps n
@@ -368,6 +388,9 @@ begin
   if not coalesce((v->>'ok')::boolean, false) then
     raise exception 'CONTRATO 8: devia resolver o evento ativo, veio %', v;
   end if;
+  if v->'evento'->>'slug' <> '0-contrato-play-sintetico' then
+    raise exception 'CONTRATO 8: devia ter resolvido o evento sintetico, veio %', v->'evento';
+  end if;
 
   -- geral: uma unica resposta, nota 6 (contrato 5) => detrator => NPS -100
   if (v->'geral'->>'respostas')::int <> 1 then
@@ -398,9 +421,28 @@ begin
     raise exception 'CONTRATO 8: sessao sem nota nao pode aparecer em por_sessao';
   end if;
 
+  if v_sessao ? 'site_session_id' then
+    raise exception 'CONTRATO 8: site_session_id nao pode voltar — nao existe na cadeia de migrations';
+  end if;
+
   v := public.mind_play_nps_agregado('evento-que-nao-existe');
   if v->>'motivo' <> 'evento_nao_encontrado' then
     raise exception 'CONTRATO 8: slug inexistente devia dar evento_nao_encontrado, veio %', v;
+  end if;
+
+  -- Evento que existe e nao teve resposta nenhuma: ausencia, nunca zero.
+  v := public.mind_play_nps_agregado('0-contrato-play-sintetico-vazio');
+  if not coalesce((v->>'ok')::boolean, false) then
+    raise exception 'CONTRATO 8: evento sem resposta devia resolver, veio %', v;
+  end if;
+  if (v->'geral'->>'respostas')::int <> 0 then
+    raise exception 'CONTRATO 8: evento sem resposta devia ter respostas=0, veio %', v->'geral';
+  end if;
+  if (v->'geral'->'nps') <> 'null'::jsonb or (v->'geral'->'nota_media') <> 'null'::jsonb then
+    raise exception 'CONTRATO 8: sem resposta, nps e nota_media tem de ser NULL — nunca zero. Veio %', v->'geral';
+  end if;
+  if (v->'por_sessao') <> '[]'::jsonb then
+    raise exception 'CONTRATO 8: evento sem resposta devia ter por_sessao vazio, veio %', v->'por_sessao';
   end if;
 end
 $c8$;

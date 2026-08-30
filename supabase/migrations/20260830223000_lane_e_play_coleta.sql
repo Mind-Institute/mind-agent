@@ -151,6 +151,10 @@ comment on function public.mind_play_feedback_sessao(uuid, jsonb, uuid) is
 --
 -- `retrato` é derivado só de fato já gravado: quantas sessões a pessoa avaliou,
 -- a média dessas notas e o que a jornada dela já registra. Zero inferência.
+--
+-- Sem evento ativo, `event_id` fica nulo (a coluna permite) e o NPS é gravado
+-- assim mesmo. Perder a nota de alguém por causa de uma lacuna de configuração
+-- seria pior do que registrá-la sem o vínculo.
 -- ============================================================
 create or replace function public.mind_play_nps(
   p_pessoa_id   uuid,
@@ -244,7 +248,7 @@ revoke all on function public.mind_play_nps(uuid, jsonb, uuid)
 grant execute on function public.mind_play_nps(uuid, jsonb, uuid) to service_role;
 
 comment on function public.mind_play_nps(uuid, jsonb, uuid) is
-  'Play — coleta do NPS geral do Summit em engagement.nps. p_payload é o objeto literal da ferramenta registrada `registrar_nps` (nota 0..10 obrigatória, comentario opcional). UNIQUE(participante_id): reenviar substitui a nota e RECALCULA o retrato, que é derivado apenas de fato já gravado (sessões avaliadas, média dessas notas, jornada registrada). event_id vem do evento ativo. Motivos de recusa: sem_pessoa > pessoa_nao_encontrada > conversa_nao_encontrada > sem_nota > nota_invalida > nota_fora_da_faixa.';
+  'Play — coleta do NPS geral do Summit em engagement.nps. p_payload é o objeto literal da ferramenta registrada `registrar_nps` (nota 0..10 obrigatória, comentario opcional). UNIQUE(participante_id): reenviar substitui a nota e RECALCULA o retrato, que é derivado apenas de fato já gravado (sessões avaliadas, média dessas notas, jornada registrada). event_id vem do evento ativo; sem evento ativo fica nulo e o NPS é gravado mesmo assim, em vez de perder a nota da pessoa. Motivos de recusa: sem_pessoa > pessoa_nao_encontrada > conversa_nao_encontrada > sem_nota > nota_invalida > nota_fora_da_faixa.';
 
 
 -- ============================================================
@@ -445,6 +449,13 @@ comment on function public.mind_play_feedback(uuid, jsonb) is
 --
 -- Sem resposta, `nps` e `nota_media` vêm NULL e a sessão não aparece na lista.
 -- Zero não é o mesmo que "ninguém respondeu", e esta função não inventa um.
+--
+-- A sessão é identificada por `sessao_id` — o id canônico — mais título/dia/início
+-- para leitura humana. `site_session_id` foi deliberadamente deixado de fora: essa
+-- coluna existe em produção mas NÃO é criada por nenhuma migration do repositório,
+-- então um banco montado a partir da cadeia (preview branch, por exemplo) não a
+-- tem. Depender dela quebraria esta função fora de produção. O drift está
+-- registrado no `BACKLOG.md` §14.7; consertá-lo é de quem é dono da tabela.
 -- ============================================================
 create or replace function public.mind_play_nps_agregado(
   p_event_slug text default null
@@ -499,7 +510,6 @@ begin
              s.titulo as linha_titulo,
              jsonb_build_object(
                'sessao_id',       s.id,
-               'site_session_id', s.site_session_id,
                'titulo',          s.titulo,
                'dia',             s.dia,
                'inicio',          s.inicio,
@@ -516,7 +526,7 @@ begin
         join engagement.sessao_feedback sf
           on sf.sessao_id = s.id and sf.nota is not null
        where s.event_id = v_evento.id
-       group by s.id, s.site_session_id, s.titulo, s.dia, s.inicio
+       group by s.id, s.titulo, s.dia, s.inicio
     ) agrupado;
 
   return jsonb_build_object(
@@ -532,4 +542,4 @@ revoke all on function public.mind_play_nps_agregado(text)
 grant execute on function public.mind_play_nps_agregado(text) to service_role;
 
 comment on function public.mind_play_nps_agregado(text) is
-  'Play — leitura determinística de NPS geral (engagement.nps) e por sessão (engagement.sessao_feedback x summit_2026.sessions) do evento. p_event_slug nulo usa o evento ativo. Faixa NPS padrão: promotor 9-10, neutro 7-8, detrator 0-6. Sem resposta, nps e nota_media vêm NULL e a sessão não entra na lista — zero não é ausência e esta função não fabrica número. Read-only, sem LLM. Motivo de recusa: evento_nao_encontrado.';
+  'Play — leitura determinística de NPS geral (engagement.nps) e por sessão (engagement.sessao_feedback x summit_2026.sessions) do evento. p_event_slug nulo usa o evento ativo. Faixa NPS padrão: promotor 9-10, neutro 7-8, detrator 0-6. Sem resposta, nps e nota_media vêm NULL e a sessão não entra na lista — zero não é ausência e esta função não fabrica número. A sessão é identificada por sessao_id (id canônico) mais título/dia/início; site_session_id fica de fora de propósito, porque existe em produção mas não é criada por nenhuma migration do repositório. Read-only, sem LLM. Motivo de recusa: evento_nao_encontrado.';
