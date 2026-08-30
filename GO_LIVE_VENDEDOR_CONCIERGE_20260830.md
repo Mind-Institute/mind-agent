@@ -90,7 +90,8 @@ Conteúdo:
 - migration `20260830170000_sessions_flags_canonicos.sql`;
 - versiona/reconcilia `lugares_limitados` e `reserva_recomendada`;
 - `precisa_reserva` permanece somente compatibilidade legada;
-- documentação do estado da programação/speakers.
+- documentação do estado da programação/speakers;
+- este runbook de go-live na raiz.
 
 Critério de pronto:
 
@@ -649,6 +650,30 @@ Somente depois dos E2E:
 4. remover ou consolidar documentação temporária que tenha virado duplicata canônica;
 5. registrar SHAs de merges/deploys e estado final de produção;
 6. não fazer limpeza de legado/refactor apenas por estética antes de declarar o produto entregue.
+
+---
+
+# Dependências críticas — não inverter
+
+```text
+#37
+→ #38
+→ backfill 81/81
+→ #36 Kit Loader
+→ Gate
+→ Vendedor Decisioning/Agent
+→ handoff/ação
+→ Treble real
+→ Concierge factual/retrieval
+→ memória
+→ write-back
+→ Silence/continuidade
+→ recomendação + Play
+→ E2E completo
+→ documentação final
+```
+
+Exceções permitidas: investigação somente-leitura do próximo passo pode acontecer durante espera de preview, desde que não altere sistema nem antecipe deploy dependente.
 
 ---
 
