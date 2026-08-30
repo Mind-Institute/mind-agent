@@ -3,10 +3,11 @@
 > **Documento obrigatório de entrada no projeto.**
 > Este arquivo preserva as decisões congeladas, a ordem de trabalho e o checkpoint atual para que uma nova IA ou desenvolvedor consiga continuar o projeto sem depender de conversa anterior.
 >
-> **Versão do checkpoint: v4 — 29/08/2026.**
+> **Versão do checkpoint: v5 — 30/08/2026.**
 > v2 formaliza a mudança de prioridade feita no Passo 12: completar toda a Intelligence do Summit **não bloqueia** o go-live do vendedor. A investigação já feita fica preservada no `BACKLOG.md`; o caminho crítico passa a ser Kit Loader mínimo → vendas Summit → runtime completo → Treble E2E. **Essa decisão continua vigente — v3 e v4 não a substituem.**
 > v3 acrescenta e formaliza o **modo de execução assistida/autônoma** entre Adriana, ChatGPT, Claude Code e GitHub (§2B). É uma decisão sobre como o trabalho é conduzido; não altera arquitetura, runtime nem a ordem do roadmap. **Continua vigente, exceto na premissa corrigida por v4.**
-> v4 corrige **apenas uma premissa incorreta de v3**: a frase `Produção continua separada e controlada.` foi contrariada pelo sistema real. As integrações GitHub da Cloudflare e do Supabase estão ativas e **merge em `main` publica produção**. v4 substitui essa premissa pelo contrato canônico **merge em `main` é boundary de deploy** (§2B). Não muda arquitetura, runtime, roadmap nem PASSO ATUAL; os papéis Adriana / ChatGPT / Claude Code / GitHub de v3 permanecem.
+> v4 corrige **apenas uma premissa incorreta de v3**: a frase `Produção continua separada e controlada.` foi contrariada pelo sistema real. As integrações GitHub da Cloudflare e do Supabase estão ativas e **merge em `main` publica produção**. v4 substitui essa premissa pelo contrato canônico **merge em `main` é boundary de deploy** (§2B). Não muda arquitetura, runtime, roadmap nem PASSO ATUAL. **Esse contrato continua vigente — v5 não o altera.**
+> v5 substitui **somente o modelo operacional de papéis** de v3/v4 (§2B): o ChatGPT-chat sai do caminho crítico operacional e o **supervisor técnico passa a ser o Codex no repositório**. Não altera arquitetura, runtime, roadmap, PASSO ATUAL nem o boundary de deploy; os gates da Adriana permanecem integralmente.
 
 ---
 
@@ -85,24 +86,42 @@ Não criar abstrações, hardening ou proteções para riscos hipotéticos dista
 
 ---
 
-## 2B. Modo operacional de execução — decisão congelada (v3, corrigida em v4)
+## 2B. Modo operacional de execução — decisão congelada (v3, corrigida em v4, papéis substituídos em v5)
 
-Papéis:
+**Papéis vigentes — v5 (30/08/2026).** v5 substitui o modelo de papéis de v3/v4: o ChatGPT-chat sai do caminho crítico operacional e a supervisão técnica passa ao Codex no repositório. Arquitetura, runtime, roadmap e boundary de deploy não mudam.
 
-- **Adriana** = dona das decisões de produto/negócio e das ações manuais que só ela pode executar.
-- **ChatGPT** = arquiteto/orquestrador/reviewer: mantém ordem, decide escopo técnico, instrui Claude, verifica sistema real, revisa mudanças e mantém documentação.
-- **Claude Code** = executor técnico: investiga e implementa apenas o escopo explicitamente delegado, sempre em branch `claude/...`; não decide ampliar escopo.
-- **GitHub** = memória compartilhada + barramento de trabalho entre ChatGPT e Claude.
+- **Adriana** = dona das decisões de produto/negócio e dos gates sensíveis/manuais que só ela pode executar ou autorizar.
+- **Codex** = supervisor técnico operacional: reconstrói o checkpoint pelos documentos canônicos + estado real, mantém a ordem, enquadra as perguntas de investigação, verifica GitHub/Supabase, decide a menor mudança, delega ao Claude quando uma segunda leitura/execução agregar, revisa PR e testes, mergeia quando permitido, verifica produção, documenta o fechamento e **continua para o próximo passo sem esperar a Adriana**.
+- **Claude Code** = investigador + executor complementar, sempre escopado: investigações pequenas e orientadas a uma decisão; implementação em branch `claude/...`; traz leitura independente; **nunca mergeia e não amplia escopo sozinho**.
+- **GitHub** = memória compartilhada + barramento de trabalho/estado.
+
+Workflow operacional:
+
+```
+Codex formula pergunta específica
+→ Claude investiga sem implementar
+→ Codex verifica os fatos-chave contra o sistema real
+→ Codex fecha a menor mudança
+→ Claude implementa a task fechada quando delegado
+→ Codex revisa / testa / mergeia / verifica / documenta
+→ continua
+```
 
 Regras:
 
 - Claude nunca escreve diretamente em `main`; implementação passa por branch/PR e revisão.
 - Descoberta lateral fora do escopo: não corrigir; registrar/relatar para backlog.
-- Investigação e desenho técnico podem ocorrer autonomamente entre ChatGPT e Claude.
-- Código reversível pode seguir Claude → branch/PR → revisão do ChatGPT → testes afetados → documentação → merge.
+- Investigação e desenho técnico podem ocorrer autonomamente entre Codex e Claude.
+- Código reversível pode seguir Claude → branch/PR → revisão do Codex → testes afetados → documentação → merge.
 - Alterações de dados, identidade, segurança/RLS/auth/secrets, preço/desconto/regra comercial, outbound/disparo, source of truth, mudança material de comportamento do produto ou operação irreversível exigem gate explícito da Adriana antes da execução perigosa.
 - Se uma implementação depender de decisão de produto/negócio não congelada, parar e devolver a pergunta em vez de escolher.
 - O ritual INVESTIGAR → DECIDIR → IMPLEMENTAR → TESTAR → DOCUMENTAR → FECHAR continua valendo; a automação só remove Adriana do papel de mensageira.
+
+Autonomia do supervisor:
+
+- **Espera técnica, fim de run, preview, revisão, merge permitido e verificação não são motivo para parar.** São etapas do próprio trabalho do supervisor.
+- O supervisor só para para a Adriana nos **gates já definidos** acima e na §"Boundary de deploy", ou diante de uma **decisão de negócio realmente não congelada**.
+- Fora desses casos, relatar o checkpoint de forma objetiva e seguir para o próximo passo.
 
 ### Boundary de deploy — correção v4 (29/08/2026)
 
@@ -117,7 +136,7 @@ A primeira frase continua verdadeira. **A segunda estava errada** e foi verifica
 - PR que toca runtime Cloudflare pode gerar preview automaticamente; **merge em `main` pode publicar produção**.
 - PR que toca `supabase/` pode gerar preview DB; **merge em `main` pode aplicar migrations/Edge Functions em produção** pela integração Supabase.
 - Portanto **revisão e teste devem acontecer ANTES do merge**, não depois.
-- Mudança aditiva/reversível, com preview/testes afetados aprovados e sem decisão de negócio pendente, pode seguir ChatGPT → merge → verificação pós-deploy **sem pedir aprovação operacional da Adriana a cada PR**.
+- Mudança aditiva/reversível, com preview/testes afetados aprovados e sem decisão de negócio pendente, pode seguir Codex → merge → verificação pós-deploy **sem pedir aprovação operacional da Adriana a cada PR**. (v5 troca apenas o ator supervisor; o contrato de boundary é o mesmo de v4.)
 - Mudanças de dados destrutivas/irreversíveis, identidade, segurança/RLS/auth/secrets, preço/desconto/regra comercial, outbound/disparo, source of truth, mudança material de comportamento do produto ou qualquer decisão de negócio não congelada continuam exigindo **gate explícito da Adriana ANTES DO MERGE**.
 - Se preview/CI relevante não existir ou não puder ser verificado, **não mergear no automático**; relatar a lacuna.
 - Depois do merge, verificar **somente o efeito diretamente afetado** em produção.

@@ -64,8 +64,9 @@ Coletor factual não decide, não pontua, não recomenda e não escreve.
 
 ## Divisão de trabalho
 
-- **Claude faz o encanamento:** edge functions, SQL, RPCs, estrutura de tabela, wiring, retrieval, fluxo de dado.
-- **Adriana é dona do conteúdo e da verdade de negócio:** prompts, playbooks, preço, lote, produto, mapeamentos, posicionamento.
+- **Codex supervisiona a execução técnica:** decide a menor mudança e delega dentro das constraints canônicas.
+- **Claude Code investiga e implementa o escopo delegado:** edge functions, SQL, RPCs, estrutura de tabela, wiring, retrieval, fluxo de dado — trazendo leitura independente. Não decide produto, não mergeia e não amplia escopo.
+- **Adriana é dona do conteúdo, da verdade de negócio e dos gates sensíveis:** prompts, playbooks, preço, lote, produto, mapeamentos, posicionamento.
 
 **Não invente prompt, playbook ou conteúdo de negócio.** Quando o conteúdo tiver sido fornecido ou explicitamente aprovado, implemente-o fielmente. Se depender de conteúdo ainda não definido, não invente para preencher o espaço — deixe-o pronto e vazio.
 
@@ -77,6 +78,8 @@ Conversa já tem casa (`engagement`), coisa aprendida sobre a pessoa já tem cas
 
 ## Como responder
 
-Objetivo, um passo por vez. Explique o essencial em poucas linhas e espere a resposta antes do próximo passo. A Adriana precisa entender a engenharia do próprio sistema — nada opaco.
+Objetivo, um passo por vez. Explique o essencial em poucas linhas. A Adriana precisa entender a engenharia do próprio sistema — nada opaco.
+
+**Autonomia operacional.** Relate conclusões e checkpoints de forma objetiva, mas **continue automaticamente** quando não houver gate da Adriana (§2B do `PROJECT_STATE.md`). Parar é para gate sensível ou decisão de negócio não congelada — não para espera técnica, revisão ou verificação.
 
 **Agilidade > cerimônia.** Quase tudo ainda é teste: deletar costuma ser mais rápido que migrar. Nada de governança pesada sem necessidade real.
