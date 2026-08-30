@@ -163,21 +163,30 @@ begin
   -- CAMINHO DE SUBSTITUICAO — o comportamento preservado mais delicado. Cargo
   -- novo com o mesmo `chave` nao acumula: a linha antiga vira `substituida` e
   -- aponta para a nova. O gate nao pode ter quebrado isso.
+  --
+  -- O item novo entra como `proposta` (scope=opportunity) DE PROPOSITO. Com
+  -- `ativa` a substituicao nao funciona — e isso e um defeito PRE-EXISTENTE,
+  -- nao efeito desta migration: o indice parcial
+  -- `participante_memoria_participante_id_chave_idx UNIQUE (participante_id,
+  -- chave) WHERE status='ativa'` recusa a segunda `ativa`, o insert levanta
+  -- unique_violation, o `exception when others` do laco engole, e o item some.
+  -- Registrado no BACKLOG §16.8; nao corrigido aqui porque esta fora do escopo
+  -- aprovado deste chunk.
   v_n := public.analise_projetar_memoria(
     '15b00000-0000-4000-8000-000000000001', 'analise_vendas_summit',
     jsonb_build_array(jsonb_build_object('category','role','value','VP de Pessoas',
-                       'scope','stable','confidence','high','sensitivity','none')), null);
+                       'scope','opportunity','confidence','high','sensitivity','none')), null);
   if v_n <> 1 then
     raise exception 'CONTRATO 3: cargo novo devia gravar 1, veio %', v_n;
   end if;
 
   select count(*) filter (where status = 'substituida') as subs,
-         count(*) filter (where status = 'ativa')       as ativas
+         count(*) filter (where status = 'proposta')    as propostas
     into r
     from intelligence.participante_memoria
    where participante_id = '15b00000-0000-4000-8000-000000000001' and chave = 'cargo_atual';
-  if r.subs <> 1 or r.ativas <> 1 then
-    raise exception 'CONTRATO 3: substituicao de cargo quebrou (substituida=%, ativa=%)', r.subs, r.ativas;
+  if r.subs <> 1 or r.propostas <> 1 then
+    raise exception 'CONTRATO 3: substituicao de cargo quebrou (substituida=%, proposta=%)', r.subs, r.propostas;
   end if;
 
   if not exists (

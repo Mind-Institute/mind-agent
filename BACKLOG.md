@@ -806,3 +806,44 @@ preservar.
   foi inventado**.
 - **Wiring da leitura:** depende de (a) o legado ser tratado pela §16.6 e (b) B/C fecharem. O
   delta está desenhado na §15.6 (PR #46) e continua desligado.
+
+### 16.8 Substituição de identidade/cargo/empresa perde o dado quando a nova memória é `ativa` — DEFERIDO em 30/08/2026
+
+Defeito **pré-existente**, descoberto ao escrever o teste da §16.3. **Não foi corrigido**: está fora
+do escopo aprovado deste chunk, e a correção muda comportamento de gravação.
+
+**O QUE JÁ FOI PROVADO.** `analise_projetar_memoria` trata `identidade`, `cargo_atual` e
+`empresa_atual` como chaves canônicas: quando chega um texto diferente para a mesma chave, ela
+insere a nova linha e marca a antiga como `substituida`. Mas existe
+
+```
+participante_memoria_participante_id_chave_idx
+  UNIQUE (participante_id, chave) WHERE status = 'ativa'
+```
+
+e a ordem é **inserir a nova antes de rebaixar a antiga**. Quando a nova memória também é `ativa`
+(`scope = stable` + `confidence = high`, que é justamente o caso típico de identidade, cargo e
+empresa), o insert colide com a linha `ativa` que ainda está lá, levanta `unique_violation`, o
+`exception when others` do laço engole com um `raise warning`, e **o item some sem persistir e sem
+erro visível**.
+
+Verificado direto no banco: duas linhas `ativa` com o mesmo `(participante_id, chave)` são recusadas
+pelo índice; das duas inserções da sonda, só a primeira entrou.
+
+**ESTADO ATUAL.** Bate com a produção: das 886 memórias, **uma única** está em `substituida` — e a
+linha que a substituiu é `proposta`, não `ativa`, que é exatamente o caminho que escapa da colisão.
+Ou seja: **troca de cargo ou de empresa com alta confiança está sendo perdida silenciosamente**, e o
+que sobrevive é a primeira versão que a pessoa deu.
+
+**POR QUE FOI DEFERIDO.** A supervisão aprovou, para `analise_projetar_memoria`, exatamente uma
+mudança: o gate de sensibilidade. Inverter a ordem das operações é mudança de comportamento de
+gravação, com efeito sobre qual versão do cargo/empresa fica valendo — e isso merece decisão
+própria, não carona num chunk de segurança.
+
+**COMO RETOMAR.** A correção provável é uma linha de ordem: rebaixar a antiga para `substituida`
+**antes** de inserir a nova, dentro do mesmo bloco. Vale medir antes quantas trocas foram perdidas —
+dá para estimar comparando `dados.customer_memory` de `intelligence.analise_conversa` com o que
+existe em `participante_memoria` para as chaves canônicas, sem chamar LLM.
+
+**DEPENDÊNCIAS / GATILHO.** Independe de D3 e da Lane C. O gatilho natural é o mesmo da §16.6:
+antes de ligar o wiring da leitura, porque memória de identidade errada é pior que memória ausente.
