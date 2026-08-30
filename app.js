@@ -1425,7 +1425,7 @@ const GUIA = [
     aviso: 'Eu mostro o caminho e uso as informações oficiais do evento. Quando uma ação exigir confirmação — como reservar uma vaga — você conclui no próprio app.' },
   { rotulo: 'Agenda', selo: 'A programação', x: 0.30, dur: 11000,
     texto: 'A grade inteira dos dias 16 e 17. Toque no coração e a sessão vai para Minha Agenda.',
-    aviso: '<b>Salvar organiza sua agenda. Reservar garante sua vaga</b> nas sessões com capacidade limitada — a própria sessão avisa quando precisa.' },
+    aviso: '<b>Salvar organiza sua agenda.<br>Reservar garante sua vaga.</b><br>Algumas sessões têm capacidade limitada — a própria sessão avisa quando precisa.' },
   { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
     texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
   { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
