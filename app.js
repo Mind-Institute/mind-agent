@@ -248,6 +248,7 @@ const TELAS = {
   },
   'menu': {
     img: 'menu', aba: 'menu', rotulo: 'Menu',
+    serve: 'Mapa do evento, Área de Networking, e mais!',
     alvos: [
       { id: 'qrmini', x: 90.7, y: 13.9, w: 13, h: 6.5, vai: 'qrcode', modo: 'troca' },
       { id: 'mapa', x: 25.9, y: 28.2, w: 44.4, h: 10.9, vai: 'mapa', modo: 'push', dica: 'Abra o <b>Mapa do evento</b>.' },
@@ -317,8 +318,7 @@ const MISSOES = [
   { id: 'm2', txt: 'Reservar seu lugar na sessão', tela: 'detalhe', alvo: 'reservar' },
   { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
   { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
-  { id: 'm6', txt: 'Adicionar um contato à sua rede', tela: 'rede', alvo: 'add1' },
-  { id: 'm7', txt: 'Falar com o Mind Agent no Chat', tela: 'chat' },
+  { id: 'm5', txt: 'Descobrir o resto no Menu', tela: 'menu' },
 ];
 
 const frame = document.getElementById('frame');
@@ -694,7 +694,7 @@ function concluirMissao(id) {
   feitas.add(id);
   atualizarMissao();
   if (feitas.size === MISSOES.length) {
-    setTimeout(() => document.getElementById('fim-fundo').classList.add('aberto'), 700);
+    setTimeout(() => document.getElementById('fim-fundo').classList.add('aberto'), 2000);
   }
 }
 
