@@ -666,3 +666,101 @@ físicas, avaliar:
 **Gatilho para retomar:** quando o modelo operacional deixar de bastar — por exemplo, mais gente
 mergeando, incidente de deploy indevido, ou necessidade de separar ambiente de produção de fato.
 Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco é só memória.
+
+---
+
+## 14. Play / experiência do Concierge — o que ficou de fora hoje (Lane E, 30/08/2026)
+
+**Status:** investigado e verificado contra o sistema real. A **coleta** do Play foi implementada
+(ver `supabase/migrations/20260830223000_lane_e_play_coleta.sql`); os itens abaixo **não** foram, e
+cada um tem um motivo factual. **Não reinvestigar do zero.**
+
+### O que já existe e foi reutilizado (para não ser redescoberto)
+
+- **Superfície real do Play** = o app público na raiz do repositório (`index.html`, `app.js`,
+  `styles.css`, `config.js`, `chat-service.js`, `data-service.js`), publicado por Cloudflare Workers
+  (`wrangler.jsonc` → `cloudflare/worker.ts`, assets em `dist-cloudflare/`). Ele fala com duas Edge
+  Functions: `mindagent-bootstrap` (programação) e `mindagent-chat` (conversa). **Não existe outro
+  frontend/backend do Play.** O `/admin` é o painel, não o Play.
+- **Casas de coleta** já existiam e já apontam para `pessoas.pessoas(id)`: `engagement.sessao_feedback`
+  (UNIQUE participante_id+sessao_id), `engagement.nps` (UNIQUE participante_id), `engagement.evento_feedback`,
+  `engagement.feedbacks` (tipo/valor/contexto) e `engagement.jornada_sessao`. Todas com zero linha.
+- **Contratos das ferramentas do Play** já existiam congelados em `concierge.ferramentas` (28
+  ferramentas ativas, com `json_schema`), incluindo `registrar_feedback_sessao`, `registrar_nps`,
+  `registrar_feedback_evento`, `registrar_feedback`, `confirmar_presenca` e `enviar_material`.
+  `concierge.config` (23 chaves), `concierge.feature_flags` (13), `concierge.templates` (40) e
+  `concierge.regras_proativas` (18) também já estão povoados.
+- **O que faltava e foi feito:** nenhuma função escrevia nessas casas — `concierge.ferramenta_chamadas`
+  tinha zero linha e não havia runtime executando as ferramentas registradas.
+
+### 14.1 Slides / materiais — SEM FONTE
+
+`public.mind_materiais_para(text,text,text,text)` lê `comum.materiais`, **tabela que não existe**
+neste banco (o schema `comum` virou `ecossistema`, sem tabela de materiais). É uma das 19 funções
+apontando para schemas antigos já registradas na seção 8 deste backlog. `summit_2026.knowledge_documents`
+tem 17 linhas e coluna `url`, mas é conhecimento explicativo, não repositório de slides por sessão.
+
+**Por que foi deferido:** o `PASSO 11B` proíbe fabricar material inexistente, e não há source real
+para apontar. Criar uma tabela de materiais sem conteúdo aprovado seria inventar requisito.
+
+**Gatilho para retomar:** a Adriana informar ONDE os materiais/slides realmente vivem (Drive, site,
+Yazo, outro Supabase). Aí é `SOURCE → MIRROR` normal, não tabela autoral nova.
+
+**Dependência:** decisão de conteúdo/negócio da Adriana.
+
+### 14.2 AMA / perguntas sobre conteúdo — depende da Lane C
+
+`summit_2026.knowledge_chunks` tem **zero linha**; `knowledge_documents` tem 17. O retrieval vivo é
+`public.mindagent_chat_search`, consumido pela `mindagent-chat` — **componente da Lane C** durante o
+paralelo.
+
+**Por que foi deferido:** responder pergunta de conteúdo é retrieval, e o dono do retrieval nesta
+rota é a Lane C. Abrir aqui criaria segundo caminho de busca.
+
+**Gatilho para retomar:** Lane C fechar o retrieval factual do Concierge.
+
+### 14.3 Ofertas contextuais Institute/Dash — falta a regra, não a fonte
+
+`summit_2026.offers` tem 25 linhas; existem `institute.knowledge_documents` e `dash.knowledge_documents`.
+A ferramenta `registrar_sinal_comercial` já está registrada e a flag `sinal_comercial` está **desligada**;
+`concierge.config.sinal_comercial` exige evidência literal e consentimento para contato.
+
+**Por que foi deferido:** `PASSO 11B` só autoriza oferta contextual "baseada em regra aprovada", e a
+regra de quando/como ofertar Institute/Dash dentro do evento não está congelada. Regra comercial é
+gate da Adriana.
+
+**Gatilho para retomar:** a regra de oferta aprovada e registrada.
+
+### 14.4 Humor como camada de copy — é conteúdo
+
+`concierge.prompts` (7) e `concierge.templates` (40) já são a casa da linguagem. Nada foi escrito lá.
+
+**Por que foi deferido:** prompt e copy são conteúdo da Adriana; o agente de código não inventa voz.
+Humor também não pode virar licença para afirmar fato — e a camada factual está fora desta lane.
+
+**Gatilho para retomar:** texto fornecido/aprovado pela Adriana.
+
+### 14.5 Presença em sessão (`confirmar_presenca`) — casa existe, writer não
+
+`engagement.jornada_sessao` existe (PK participante_id+sessao_id, com `planejou`, `compareceu`,
+`fonte_presenca`, `confianca_presenca`, `motivo_ausencia`) e está vazia. A ferramenta
+`confirmar_presenca` já está registrada.
+
+**Por que foi deferido:** presença/jornada é insumo de memória e de resumo do dia, território da
+**Lane D** no paralelo. Escrever aqui arriscaria dois writers para a mesma casa. O `retrato` do NPS
+já lê `jornada_sessao` — quando ela for povoada, o retrato melhora sozinho, sem mudar código.
+
+**Gatilho para retomar:** Lane D definir quem escreve jornada/presença.
+
+### 14.6 Pergunta aberta de produto — coleta anônima
+
+`engagement.evento_feedback.participante_id` e `engagement.feedbacks.participante_id` são **nuláveis**;
+`sessao_feedback` e `nps` são **NOT NULL**. O app abre sessão anônima quando a Yazo não entrega
+e-mail (`chat-service.js` → `auth/v1/signup`), e nesse caso não há `pessoa_id`.
+
+Os writers implementados **exigem pessoa** nos quatro casos, por uniformidade e para manter
+idempotência.
+
+**Decisão pendente:** o Play deve aceitar NPS/feedback de quem está anônimo no app? Se sim, é preciso
+definir o que fazer com a UNIQUE por pessoa e como o dado se liga depois que a identidade aparece.
+Enquanto não houver decisão, a coleta é de pessoa identificada.
