@@ -875,7 +875,32 @@ async function responder(pergunta) {
     campoChat.disabled = false;
     formChat.querySelector('.enviar').disabled = false;
     campoChat.focus();
+    /* Um respiro para a resposta ser lida antes de o convite entrar. */
+    setTimeout(oferecerPalestrantes, 2600);
   }
+}
+
+/* Engajamento proativo, mas ancorado no que está na tela.
+   A versão anterior anunciava, nove segundos depois de abrir o chat, uma
+   reserva na Arena Mind que ninguém tinha feito, e oferecia um aviso que
+   o app não sabe enviar. Duas afirmações falsas para puxar assunto.
+
+   Agora o convite só existe quando existe referente: se a última resposta
+   nomeou alguém da grade, dá para perguntar sobre "os palestrantes
+   mencionados acima". Se ninguém foi citado, o agente fica quieto — é o
+   que ele faria se não tivesse nada a dizer. */
+let jaOfereceuPalestrantes = false;
+
+function citouPalestrante() {
+  if (!DADOS || !DADOS.pessoas) return false;
+  const conversa = mensagens.textContent || '';
+  return DADOS.pessoas.some((pessoa) => pessoa.nome && conversa.includes(pessoa.nome));
+}
+
+function oferecerPalestrantes() {
+  if (jaOfereceuPalestrantes || respostaEmAndamento || !citouPalestrante()) return;
+  jaOfereceuPalestrantes = true;
+  bolha('Quer saber mais sobre os palestrantes mencionados acima?', 'mind');
 }
 
 function perguntar(texto) {
@@ -907,11 +932,8 @@ function iniciarChat() {
   if (chatIniciado) return;
   chatIniciado = true;
   bolha(saudacao() + 'Sou o Mind Agent. Não estou aqui só para responder pergunta: estou para você sair daqui com algo mais concreto do que boas ideias — agenda montada, gente certa, e o que fazer na segunda-feira.', 'mind');
-  /* Engajamento proativo: o agente também começa conversa quando é útil */
-  setTimeout(() => {
-    if (jaPerguntou) return;
-    bolha('A propósito: a sessão que você reservou na Arena Mind começa em 15 minutos. Quer que eu te avise 5 minutos antes? ⏰', 'mind');
-  }, 9000);
+  /* O convite proativo mora em `oferecerPalestrantes`: ele só aparece
+     depois que alguém da grade foi realmente citado na conversa. */
 }
 
 formChat.addEventListener('submit', (e) => {
