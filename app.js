@@ -213,12 +213,17 @@ const TELAS = {
   },
   'confirmada': {
     img: 'confirmada', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão reservada',
-    serve: 'Sua vaga está garantida. Faça o check-in aqui mesmo, no dia da sessão.',
+    /* O modal que abre em cima já explica o check-in; repetir aqui a
+       mesma frase só fazia a tela dizer duas vezes a mesma coisa. */
+    serve: 'Sua vaga está garantida nesta sessão.',
+    /* Mesma página da sessão, agora no estado reservado: a geometria é a
+       de `detalhe`, não a da captura antiga. */
     alvos: [
-      { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true },
-      { id: 'coracao', x: 88.6, y: 68.9, w: 14, h: 5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
-      { id: 'aviso', x: 50, y: 81.5, w: 90, h: 10, brinde: 'O check-in é feito aqui mesmo, no dia da sessão.' },
-      { id: 'cancelar', x: 49.8, y: 95.6, w: 90, h: 6, brinde: 'Aqui você cancelaria — deixa reservado. 🙂' },
+      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
+      { id: 'coracao', x: 90.3, y: 53.9, w: 12, h: 4.5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
+      { id: 'confirmacao', x: 49.9, y: 67.1, w: 88.6, h: 5.5,
+        brinde: 'No dia da sessão, o check-in é feito aqui mesmo.' },
     ],
   },
   'minha-agenda': {
@@ -393,6 +398,10 @@ function abrirFolha(nome, aoConfirmar) {
   const f = FOLHAS[nome];
   if (!f) return;
   folhaObrigatoria = aoConfirmar || null;
+  /* A navegação já pintou a dica antes de o modal abrir. Repinta para
+     apagá-la: com o modal obrigatório em cima, ela não é acionável e só
+     contradiz o botão. `fecharFolha` repinta de novo e ela volta. */
+  if (folhaObrigatoria) pintar();
   focoAntesDaFolha = document.activeElement;
   folhaEl.setAttribute('role', 'dialog');
   folhaEl.setAttribute('aria-modal', 'true');
@@ -519,7 +528,11 @@ function pintar(modo) {
 
   conteudo.querySelectorAll('.alvo, .marca').forEach((el) => el.remove());
 
-  const dica = calcularDica();
+  /* Com um modal obrigatório aberto, a única ação possível é o botão
+     dele. Apontar para a próxima etapa aqui dava duas instruções que se
+     contradizem: o anel mandava voltar para a Agenda — refazer a missão
+     recém-concluída — enquanto o modal bloqueava qualquer toque. */
+  const dica = folhaObrigatoria ? null : calcularDica();
 
   (tela.alvos || []).forEach((a) => {
     const b = document.createElement('button');
