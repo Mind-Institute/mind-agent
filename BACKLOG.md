@@ -1026,10 +1026,23 @@ dia em que o TTL da §15.3 passar a ser gravado o lado da leitura não precisa m
 Com o PR #50 no ar, a superfície do concierge é conhecida e o mapa fica exato:
 
 1. **Quais conversas precisam entrar em `analise_pendentes`.** Hoje o filtro é
-   `agente in ('treble','treble-inbound-agent')`. As conversas do concierge são `canal =
-   'mindagent-web'`, com `agente = 'mindagent-chat'` (13) ou `agente` nulo (23, dessas **19 com
-   mensagem de lead**). São essas 19 + as novas que o filtro precisa alcançar. O `agente` nulo é
-   um segundo defeito: a superfície web não está carimbando quem processou a conversa.
+   `agente in ('treble','treble-inbound-agent')`. As conversas do concierge são
+   `canal = 'mindagent-web'`, e elas se dividem em duas populações com datas que não se
+   sobrepõem:
+
+   | `agente` | conversas | com mensagem de lead | período |
+   |---|---|---|---|
+   | `mindagent-chat` | 14 | 1 | 28/08 → 30/08 |
+   | nulo | 23 | 19 | 21/08 → 27/08 |
+
+   **O `agente` nulo é histórico, não defeito vivo:** a superfície web passou a carimbar
+   `mindagent-chat` em 28/08 e não produziu mais nenhuma linha nula desde então. (Registro
+   anterior desta seção dizia que a superfície "não está carimbando" — estava errado e não deve
+   ser reusado.)
+
+   Consequência prática: o filtro precisa apenas acrescentar `'mindagent-chat'`. As 19 conversas
+   com lead e `agente` nulo são um lote fechado de antes de 28/08 — se entram ou não é decisão
+   à parte, e o volume vivo hoje é pequeno (1 das 14).
 2. **Qual analisador deveria ser escolhido.** O `analisar-conversa` já conhece `analise_concierge`
    na lista fechada `ANALISADORES`, e o `analise_classificador` v2 já pode devolvê-lo — o
    encanamento de seleção **existe e está pronto**.
