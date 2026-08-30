@@ -34,6 +34,16 @@
 // continua no caminho legado até a lane dona dela chegar; trocar o caminho de
 // `cliente_suporte` ou `concierge_summit` aqui seria decidir por lane alheia.
 //
+// O GUARDRAIL DE PREÇO SAIU DAQUI para `guardrail-preco.ts`, e ficou mais estreito no
+// caminho: a lista de valores permitidos passou a sair de CAMPOS MONETÁRIOS do payload
+// em vez de uma varredura de todos os números do JSON. Com o Kit, aquela varredura
+// autorizava data, percentual de desconto, duração e quantidade como se fossem preço.
+//
+// O CONTRATO DE CLARIFY DO ROUTER É PRESERVADO. `rota = null` com `precisa_esclarecer`
+// vem acompanhado das `candidatas`, e elas chegam ao Agent para que ele faça UMA
+// pergunta que as separe. `rota_aplicada` continua null e nenhum Kit é carregado: o
+// classificador do prompt legado não é promovido a rota canônica.
+//
 // v1.3.0 — ÁUDIO É MENSAGEM, NÃO ANEXO À PARTE. A Treble transcreve o áudio dentro de
 // uma sessão em andamento e entrega o texto em `mensagem`, com o arquivo em
 // `mensagem_file_url`. Até a v1.2.0 só o texto era lido: o arquivo era descartado aqui e
@@ -66,6 +76,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
+import { precoInventado, precosOficiais } from "./guardrail-preco.ts";
 
 const VERSION = "1.4.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
@@ -226,13 +237,20 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 //
 // `rota = null` é resposta legítima do Router (ambiguidade real, ou conversa sem fala
 // do lead). Não é erro e não vira rota inventada deste lado.
+//
+// O CONTRATO DE CLARIFY VEM JUNTO. Quando o Router devolve `rota = null` com
+// `precisa_esclarecer = true`, ele também devolve as `candidatas` — e essa lista é a
+// resposta dele, não ruído. Descartá-la aqui empurraria o turno para o classificador
+// legado do prompt exatamente quando o Router disse "ainda não decidi", criando uma
+// segunda autoridade de roteamento no único momento em que ela é mais perigosa.
 async function decidirRota(
   baseUrl: string,
   serviceKey: string,
   token: string,
   conversaId: string,
   timeoutMs: number,
-): Promise<{ rota: string | null; falha: string | null }> {
+): Promise<{ rota: string | null; precisaEsclarecer: boolean; candidatas: string[]; falha: string | null }> {
+  const VAZIO = (falha: string) => ({ rota: null, precisaEsclarecer: false, candidatas: [], falha });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -246,13 +264,20 @@ async function decidirRota(
       body: JSON.stringify({ conversa_id: conversaId }),
       signal: controller.signal,
     });
-    if (!r.ok) return { rota: null, falha: `router_http_${r.status}` };
+    if (!r.ok) return VAZIO(`router_http_${r.status}`);
     const saida = await r.json() as Record<string, unknown>;
-    if (saida?.ok !== true) return { rota: null, falha: String(saida?.motivo ?? saida?.error ?? "router_nao_ok") };
-    return { rota: typeof saida.rota === "string" ? saida.rota : null, falha: null };
+    if (saida?.ok !== true) return VAZIO(String(saida?.motivo ?? saida?.error ?? "router_nao_ok"));
+    return {
+      rota: typeof saida.rota === "string" ? saida.rota : null,
+      precisaEsclarecer: saida.precisa_esclarecer === true,
+      candidatas: Array.isArray(saida.candidatas)
+        ? saida.candidatas.filter((c): c is string => typeof c === "string")
+        : [],
+      falha: null,
+    };
   } catch (e) {
     const isTimeout = e instanceof DOMException && e.name === "AbortError";
-    return { rota: null, falha: isTimeout ? "router_timeout" : "router_indisponivel" };
+    return VAZIO(isTimeout ? "router_timeout" : "router_indisponivel");
   } finally {
     clearTimeout(timeout);
   }
@@ -480,6 +505,8 @@ Deno.serve(async (req: Request) => {
     // runtime conseguiu executar — as duas podem divergir, e a diferença é registrada.
     let rotaDecidida: string | null = null;
     let rotaAplicada: string | null = null;
+    let precisaEsclarecer = false;
+    let candidatas: string[] = [];
     let falhaDaRota: string | null = null;
     let gateReason: string | null = null;
     let needsHumanDoGate = false;
@@ -498,6 +525,8 @@ Deno.serve(async (req: Request) => {
       );
       routerMs = Date.now() - antes;
       rotaDecidida = decisao.rota;
+      precisaEsclarecer = decisao.precisaEsclarecer;
+      candidatas = decisao.candidatas;
       falhaDaRota = decisao.falha;
     }
 
@@ -564,6 +593,7 @@ Deno.serve(async (req: Request) => {
     console.info(JSON.stringify({
       request_id: requestId, event: "rota_do_turno",
       core: usarCore, rota: rotaDecidida, rota_aplicada: rotaAplicada,
+      precisa_esclarecer: precisaEsclarecer, candidatas: candidatas.length,
       gate_reason: gateReason, falha: falhaDaRota, router_ms: routerMs,
     }));
 
@@ -578,6 +608,24 @@ Deno.serve(async (req: Request) => {
     const aiInput = {
       DADOS_OFICIAIS: dadosOficiais,
       AGENDA_E_PALESTRANTES: agendaSegura,
+      // CLARIFY DO ROUTER. Quando ele devolve `rota = null` com candidatas, a resposta
+      // dele é "ainda não dá para saber ENTRE ESTAS" — e é isso que o turno faz: uma
+      // pergunta que separe as candidatas. O classificador do prompt legado não vira
+      // rota canônica por causa disso; `rota_aplicada` continua null e nada de Kit é
+      // carregado. Fora desse caso a chave nem aparece.
+      ...((!rotaAplicada && precisaEsclarecer && candidatas.length > 0)
+        ? {
+          esclarecimento: {
+            situacao: "O Core ainda não decidiu qual competência assume esta necessidade.",
+            candidatas,
+            como_agir: [
+              "Faça UMA pergunta curta que separe essas possibilidades, na linguagem da pessoa.",
+              "Não escolha por ela e não siga como se já soubesse.",
+              "Nunca diga ao lead o nome técnico de uma rota.",
+            ].join(" "),
+          },
+        }
+        : {}),
       estado_da_conversa: {
         // A rota é a competência que este turno está executando. Quando ela vem, o
         // playbook dela já está nas instruções — não é para reclassificar.
@@ -653,44 +701,19 @@ Deno.serve(async (req: Request) => {
     // conclui sozinha neste runtime. Ele soma à leitura do modelo; nunca a subtrai.
     const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
 
-    // Guardrail de preço: valor em R$ fora dos dados oficiais derruba o turno. Ele lê
-    // exatamente o bloco que foi enviado ao modelo — com o Kit, isso passa a incluir
-    // preço por volume e parcelamento com desconto, que antes não existiam aqui.
-    const precosOficiais = new Set<string>(
-      JSON.stringify({ dadosOficiais, agendaSegura }).match(/\d+(?:\.\d+)?/g) ?? [],
-    );
-    const camposDePreco = (obj: unknown, chaves: string[]): number[] => {
-      const saida: number[] = [];
-      const anda = (n: unknown) => {
-        if (Array.isArray(n)) return n.forEach(anda);
-        if (n && typeof n === "object") {
-          for (const [k, v] of Object.entries(n as Record<string, unknown>)) {
-            if (chaves.includes(k) && Number.isFinite(Number(v))) saida.push(Math.round(Number(v)));
-            else anda(v);
-          }
-        }
-      };
-      anda(obj);
-      return saida;
-    };
-    const unitarios = camposDePreco(dadosOficiais, ["valor", "valor_por_ingresso_com_desconto", "valor_cheio_por_ingresso"])
-      .filter((v) => v >= 100 && v <= 100000);
-    const ehMultiploDeOficial = (valor: number) =>
-      unitarios.some((u) => valor % u === 0 && valor / u >= 2 && valor / u <= 60);
-    const precosNaResposta = answer.match(/R\$\s?([\d.]+)/g) ?? [];
-    for (const p of precosNaResposta) {
-      const bruto = p.replace(/R\$\s?/, "").replace(/\./g, "");
-      if (!precosOficiais.has(bruto) && !precosOficiais.has(bruto + ".00") &&
-          !ehMultiploDeOficial(Number(bruto))) {
-        console.error(JSON.stringify({ request_id: requestId, event: "preco_inventado", preco: p }));
-        return json(200, {
-          ok: true, guarded: true,
-          user_session_keys: [
-            { key: "resposta_ia", value: "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌" },
-            { key: "needs_human", value: "true" },
-          ],
-        });
-      }
+    // Guardrail de preço: valor em R$ que não veio de um campo monetário dos dados
+    // oficiais derruba o turno. A lista de permitidos sai de CAMPOS, nunca de uma
+    // varredura do JSON — ver `guardrail-preco.ts` para o porquê.
+    const inventado = precoInventado(answer, precosOficiais(dadosOficiais));
+    if (inventado) {
+      console.error(JSON.stringify({ request_id: requestId, event: "preco_inventado", preco: inventado }));
+      return json(200, {
+        ok: true, guarded: true,
+        user_session_keys: [
+          { key: "resposta_ia", value: "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌" },
+          { key: "needs_human", value: "true" },
+        ],
+      });
     }
 
     // O que o lead contou sobre si — o que ele DISSE, não o que pedimos.
@@ -786,6 +809,7 @@ Deno.serve(async (req: Request) => {
       p_meta: {
         model, request_id: requestId, version: VERSION,
         rota: rotaDecidida, rota_aplicada: rotaAplicada,
+        precisa_esclarecer: precisaEsclarecer, candidatas,
         gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
       },
     });
