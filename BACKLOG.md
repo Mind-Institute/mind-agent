@@ -669,181 +669,134 @@ Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco 
 
 ---
 
-## 16. Memória sensível: contrato no prompt + trava fail closed na escrita — Lane D, 30/08/2026
+## 16. Memória sensível: contrato no prompt + trava fail closed nos dois writers — Lane D
 
 > Numeração: **§14** é da Lane B (`mind_lead_capturar`, PR #47), **§15** é o levantamento das
-> quatro capacidades da Lane D (PR #46) e **§16** é este chunk (PR de memória segura). As três
-> anexam no fim do arquivo e vão conflitar textualmente; a resolução é manter as três, nesta ordem.
+> quatro capacidades da Lane D (PR #46) e **§16** é este chunk (PR #51). As três anexam no fim do
+> arquivo e vão conflitar textualmente; a resolução é manter as três, nesta ordem.
 
-Decisões aprovadas na issue #42 (supervisão de 30/08/2026), implementadas aqui.
+Decisões aprovadas na issue #42 (supervisões de 30/08 e 31/08/2026).
 
 ### 16.1 Correção factual — o scan NÃO provou ausência de dado sensível
 
-O checkpoint anterior desta lane afirmou "**não existe memória sensível persistida hoje**". **Isso
-está errado e não deve ser reusado.**
+O checkpoint do ciclo 2 afirmou "não existe memória sensível persistida hoje". **Está errado.** O
+scan prova apenas que **aquele scan não identificou nenhum caso** — e o próprio achado explica por
+quê: se a distinção entre "é psicóloga clínica" e "está afastada por burnout" não está nas
+palavras, uma varredura por palavra não pode ser exaustiva.
 
-O que o scan realmente fez: varreu as 886 linhas com uma lista de palavras derivada das 10
-categorias de `intelligence.memoria_bloqueios`, achou 11 candidatos e, lidos um a um, os 11 eram
-profissão, nome de empresa ou colisão de substring. O que isso prova é **que aquele scan não
-identificou nenhum caso sensível** — não que não exista nenhum.
+As 886 linhas legadas continuam **sem autorização de exposição ao Agent** — agora garantido por
+construção, e não por disciplina: ver §16.6.
 
-A diferença é material e o próprio achado do scan explica por quê: a distinção entre "é psicóloga
-clínica" e "está afastada por burnout" não está nas palavras, então uma varredura por palavra não
-tem como ser exaustiva. Um caso sensível redigido fora do vocabulário previsto passaria despercebido
-pelo mesmo scan que produziu a afirmação.
+### 16.2 O contrato — `sensitivity` em todo item
 
-**Consequência operacional:** as 886 linhas legadas continuam **sem autorização de exposição ao
-Agent**. O coletor `public.mind_memoria_fatos` (PR #46) segue pronto e desligado.
+`analise_vendas_summit` v2 emite, por item de `customer_memory`, `sensitivity` com exatamente um
+valor: `none` ou uma chave **ativa** de `intelligence.memoria_bloqueios`. Nenhuma taxonomia, tabela
+ou coluna nova; as 10 chaves ativas estão nomeadas no prompt, com a regra de decisão que o scan
+revelou — **o que separa os casos é o sujeito e o que a frase afirma, nunca as palavras**.
 
-### 16.2 O contrato — `sensitivity` em todo item de `customer_memory`
+O mesmo contrato vale para o structured output do `mindagent-chat`, que é da Lane C (coordenado na
+issue #41). O campo viaja dentro do jsonb que a RPC já recebe; nenhuma assinatura muda.
 
-`analise_vendas_summit` v2 passa a emitir, por item, `sensitivity` com **exatamente um** valor:
-`none` ou uma chave **ativa** de `intelligence.memoria_bloqueios`. Nenhuma taxonomia, tabela ou
-coluna nova — o vocabulário é o que já estava no banco, e as 10 chaves ativas estão nomeadas no
-prompt.
+### 16.3 A trava, nos DOIS writers
 
-O prompt ganhou também a regra de decisão que o scan revelou: **o que separa os casos é o sujeito e
-o que a frase afirma, nunca as palavras.** Profissão clínica é `none`; a própria pessoa falando da
-própria condição é a chave correspondente; saúde de terceiro identificável é
-`saude_de_pessoa_citada`. Na dúvida, a chave sensível — perder uma memória comercial é melhor que
-persistir dado do art. 11.
+Existem dois caminhos vivos que escrevem memória, e ambos passaram a ser fail closed.
 
-### 16.3 A trava — `analise_projetar_memoria` fail closed
+**`analise_projetar_memoria`** — só persiste item com `sensitivity = 'none'`. Não persistem: chave
+de bloqueio ativa, rótulo ausente, desconhecido, chave inativa, enum ecoado.
 
-Só persiste o item cujo `sensitivity` for exatamente `none`. Não persistem: chave de bloqueio ativa,
-rótulo ausente, rótulo desconhecido, chave de bloqueio **inativa** (não é `none` nem bloqueio ativo)
-e o caso em que o modelo devolve a linha do enum em vez de escolher.
+O gate é **restrito ao contrato aprovado**, `p_analisador = 'analise_vendas_summit'` — hoje o único
+analisador com análises vivas. Analisador fora do contrato não é barrado (não teria como cumprir um
+contrato que ainda não tem) mas **também não ganha marcador**, então o que ele grava permanece
+invisível ao coletor. `analise_concierge` entra no gate nominalmente quando tiver prompt v2, naquele
+passo — sem registry e sem regra global calada.
+
+**`mindagent_chat_save_interests`** — o segundo writer, apontado pela coordenação cross-lane C→D. O
+gate roda **antes de `engagement.session_interests`**, não só antes da promoção para
+`participante_memoria`/`participante_contexto`: `session_interests` é persistência, inclusive em
+sessão sem participante identificado, e proteger apenas o segundo salto deixaria o dado gravado no
+primeiro. Assinatura preservada; o retorno ganha a chave aditiva `blocked`.
+
+Nos dois: **o gate não lê o texto** — sem regex de conteúdo, sem inferência por `category`/`scope`.
+Ele confere um rótulo declarado e obedece. O log sai com contagem, nunca com o valor barrado.
 
 **Por que a trava existe além do prompt:** o `analisar-conversa` chama a OpenAI com `json_object`,
 não com schema strict — o transporte não obriga o modelo a emitir a chave. O prompt define o
 contrato; o writer é quem garante.
 
-**O gate não lê o texto.** Sem regex de conteúdo, sem inferência por `category` ou `scope`. Ele
-confere um rótulo declarado e obedece. O log sai com contagem, nunca com o valor do item barrado.
-
-**Vale para qualquer analisador**, não só `analise_vendas_summit`. A supervisão especificou o
-comportamento para esse analisador; aplicar só a ele deixaria o próximo passar sem contrato, e isso
-não seria fail closed. Analisador novo adota o contrato v2 antes de ser ativado. **Se essa leitura
-for ampla demais, é uma condição a menos no `if` — mas o efeito de estreitar é abrir o gate.**
-
-**Buraco conhecido, não fechado aqui:** `public.mindagent_chat_save_interests` escreve direto em
-`participante_memoria` **sem passar** por `analise_projetar_memoria`, então não é coberto por esta
-trava. Hoje ela grava só `tipo='interesse'` confirmado explicitamente pelo usuário na superfície
-web, que é o caso menos arriscado — mas o caminho existe. Gatilho para tratar: antes de a superfície
-web passar a extrair memória de forma livre.
-
 ### 16.4 Silence D1 — no contrato
 
-`stopped` passou a ser definido no prompt como **o fim da continuidade, não o fim da mensagem**:
-só vale para opt-out, recusa inequívoca, impossibilidade real ou compra. Conversa encerrada com
+`stopped` passou a ser definido no prompt como **o fim da continuidade, não o fim da mensagem**: só
+vale para opt-out, recusa inequívoca, impossibilidade real ou compra. Conversa encerrada com
 pergunta sem resposta, checkout não concluído, decisão pendente ou compromisso de retorno **não é
-`stopped`**. A frase "a conversa acabou" deixou de ser, sozinha, motivo.
+`stopped`**. Nenhum enum novo.
 
-Nenhum enum novo: os valores continuam sendo os sete que já existiam.
+**Efeito medido nos 113 casos:** 96 entrariam na fila (95 `timing_matrix` + 1 `commitment_pending`),
+17 continuariam fora corretamente (14 sem motivo legítimo de recontato, 3 compraram depois).
 
-**Efeito medido nos 113 casos** (simulação determinística, `tests/silence_d1_decomposicao.sql`):
-96 entrariam na fila (95 `timing_matrix` + 1 `commitment_pending`), 17 continuariam fora
-corretamente (14 sem motivo legítimo de recontato, 3 compraram depois da análise).
-
-**O efeito NÃO é retroativo.** `analise_pendentes` só devolve conversa cuja última mensagem é mais
-nova que a última análise: as 113 linhas antigas **não serão reanalisadas sozinhas**. Elas mudam
-quando a pessoa voltar a falar, ou se alguém reprocessar explicitamente (o `analisar-conversa`
-aceita `conversa_id` no corpo). Reprocessar é decisão de operação, não desta migration.
+**Não é retroativo.** `analise_pendentes` só devolve conversa cuja última mensagem é mais nova que a
+última análise: as 113 não serão reanalisadas sozinhas. Mudam quando a pessoa voltar a falar, ou se
+alguém reprocessar explicitamente (`analisar-conversa` aceita `conversa_id`).
 
 ### 16.5 Silence D2 — guard determinístico no motor
 
 `silence_calcular_next_review`: o ramo `dormant`/`followup_exhausted` passou a exigir
-`followup_count > 0`. Sem retomada feita, nada foi esgotado — e sair da fila por "esgotamento" com
-o contador em zero é perder a oportunidade em silêncio.
+`followup_count > 0`. Sem retomada feita, nada foi esgotado. Com a guarda o turno segue o caminho
+normal e vira `silence`, que continua conservador — `silence` não envia nada.
 
-Com a guarda, o turno segue o caminho normal e vira `silence`, que continua conservador: `silence`
-não envia nada.
+**Efeito hoje:** 1 linha em produção está nesse caso. Como as 395 linhas têm `followup_count = 0`
+(coerente com o D3), o ramo não podia estar certo em nenhuma.
 
-**Efeito hoje:** 1 linha em produção está em `dormant`/`followup_exhausted` com `followup_count = 0`
-— exatamente o caso que o §2 deste backlog registrou em 28/08. Todas as 395 linhas têm
-`followup_count = 0`, coerente com o D3 (ninguém envia), então esse ramo não podia estar certo em
-nenhuma delas.
+**Precedência intocada:** compra e opt-out são testados antes. O outro ponto que emite
+`followup_exhausted` — o fim de `apos_followup_min` — é inalcançável com contador zero por
+construção, e não ganhou guarda.
 
-**Precedência intocada:** compra e opt-out são testados antes e continuam parando a continuidade.
-O outro ponto que emite `followup_exhausted` — o fim da lista `apos_followup_min` — é inalcançável
-com `followup_count = 0` por construção, e não ganhou guarda.
+### 16.6 As 886 legadas — resolvido por MARCADOR, sem apagar nem reescrever
 
-### 16.6 As 886 memórias legadas — proposta mínima, NÃO executada
+A proposta anterior ("reanalisar o recorte vivo") **não bastava**: reanalisar não impede o coletor
+de devolver as linhas v1, que continuam na mesma tabela. A solução aprovada usa o `valor` que já
+existe, sem coluna nova, sem status novo e sem taxonomia nova:
 
-Elas foram gravadas sob o contrato v1, sem `sensitivity`. Não foram apagadas nem reescritas, como
-mandado. Proposta mínima para revalidá-las **antes do wiring**, em ordem de preferência:
+1. item aprovado sob o contrato v2 grava **`valor.sensitivity = 'none'`**;
+2. no caminho "mesmo texto já existe", a linha existente **ganha o marcador** — é revalidação, não
+   duplicata: `text` e `scope` não mudam;
+3. o writer web seguro grava o mesmo marcador no `valor` da memória e no item de perfil;
+4. o coletor `mind_memoria_fatos` (PR #46) expõe **somente** linhas com `valor.sensitivity = 'none'`.
 
-1. **Revalidar pela fonte, sem reprocessar conversa.** Cada linha tem `analise_conversa_id`, e
-   `intelligence.analise_conversa.dados` guarda o `customer_memory` original inteiro. Reprocessar
-   apenas a projeção — passar aquele array pelo `analise_projetar_memoria` v2 — não custa chamada
-   de LLM. Mas o array v1 **não tem `sensitivity`**, então o gate fail closed rejeitaria tudo: essa
-   opção só serve se combinada com (2).
-2. **Reanalisar sob o prompt v2 as conversas que ainda importam.** `analisar-conversa` aceita
-   `conversa_id`, e `analise_gravar` faz `on conflict (conversa_id, analisador) do update` — é
-   idempotente por construção. Custo: uma chamada de LLM por conversa. As 886 memórias vêm de
-   **286 pessoas**; o recorte natural é reanalisar só as conversas com oportunidade viva, não as
-   395 análises inteiras.
-3. **Marcar o legado em vez de apagá-lo.** `participante_memoria.status` já tem o valor
-   `substituida`, usado quando uma memória é trocada por outra. Um lote que mova as linhas v1 para
-   um estado não-exposto **exigiria um valor novo de status** — ou seja, taxonomia nova, que está
-   vedada. Por isso esta opção fica registrada e **não recomendada** sem decisão explícita.
+O legado fica **fisicamente preservado e invisível ao Agent**. Revalidar passa a ser opcional e
+incremental: reanalise só o recorte que interessa, e só aquilo aparece. Nada é apagado.
 
-**Recomendação:** (2), com recorte por oportunidade viva, e o coletor só é ligado depois. Enquanto
-isso o legado fica onde está, sem exposição — que é o estado seguro e o que a supervisão mandou
-preservar.
+Os quatro casos estão testados: v1 sem marcador não sai; revalidada v2 passa a sair sem duplicar;
+sensível não ganha marcador nem sai; web segura ganha marcador e sai.
 
 ### 16.7 O que ainda depende exclusivamente de D3 ou da Lane C
 
-- **D3 (outbound):** ligar o cron 13, escolher o canal (Treble HSM × janela de 24h), decidir se a
-  mensagem sai automática ou com aprovação humana, e quem gera o texto final a partir do
-  `message_brief`. Enquanto `silence_registrar_decisao` não for chamada com
-  `p_followup_enviado := true`, `followup_count` nunca sai de 0 — e o D2 acima é justamente a
-  proteção para esse mundo. Nada disso foi tocado.
-- **Lane C:** o pós-turno do concierge. Quando o runtime do `mindagent-chat` estabilizar, entra
-  **somente ele** no filtro de `analise_pendentes` (`agente = 'mindagent-chat'`, 14 conversas,
-  todas a partir de 28/08); o lote histórico com `agente` nulo (23 conversas, todas anteriores a
-  28/08) fica separado e é decisão à parte. O prompt `analise_concierge` continua vazio e **não
-  foi inventado**.
-- **Wiring da leitura:** depende de (a) o legado ser tratado pela §16.6 e (b) B/C fecharem. O
-  delta está desenhado na §15.6 (PR #46) e continua desligado.
+- **D3 (outbound):** ligar o cron 13, escolher canal (HSM × janela de 24h), decidir se a mensagem
+  sai automática ou com aprovação, e quem gera o texto final. Enquanto
+  `silence_registrar_decisao` não for chamada com `p_followup_enviado := true`, `followup_count`
+  nunca sai de 0 — e o D2 é a proteção para esse mundo.
+- **Lane C:** acrescentar `sensitivity` ao structured output do `mindagent-chat` (coordenado na
+  issue #41). Até lá o writer web fica fail closed, que é o estado seguro — `blocked` no retorno diz
+  exatamente quantos itens caíram. E, para o pós-turno do concierge, entra **só** o runtime vivo
+  (`agente = 'mindagent-chat'`); o lote histórico com `agente` nulo fica separado.
+  `analise_concierge` continua vazio e **não foi inventado**.
+- **Wiring da leitura:** com o marcador, deixou de depender do legado. Depende agora de B/C
+  fecharem e da decisão de ligar. O coletor continua desligado.
 
-### 16.8 Substituição de identidade/cargo/empresa perde o dado quando a nova memória é `ativa` — DEFERIDO em 30/08/2026
+### 16.8 Substituição `ativa → ativa` — CORRIGIDO
 
-Defeito **pré-existente**, descoberto ao escrever o teste da §16.3. **Não foi corrigido**: está fora
-do escopo aprovado deste chunk, e a correção muda comportamento de gravação.
+Era bug de ordem, não decisão de produto: a função já declarava a intenção de substituir
+identidade/cargo/empresa, mas inseria a nova linha **antes** de rebaixar a antiga. O índice parcial
+`UNIQUE (participante_id, chave) WHERE status = 'ativa'` recusava a segunda `ativa`, o
+`exception when others` do laço engolia o `unique_violation`, e a troca sumia sem erro visível.
 
-**O QUE JÁ FOI PROVADO.** `analise_projetar_memoria` trata `identidade`, `cargo_atual` e
-`empresa_atual` como chaves canônicas: quando chega um texto diferente para a mesma chave, ela
-insere a nova linha e marca a antiga como `substituida`. Mas existe
+Bate com a produção: das 886 memórias, **uma única** está em `substituida` — e quem a substituiu é
+`proposta`, o caminho que escapava da colisão.
 
-```
-participante_memoria_participante_id_chave_idx
-  UNIQUE (participante_id, chave) WHERE status = 'ativa'
-```
+**Corrigido:** rebaixa a antiga, insere a nova, liga `substituida_por`. Três passos no mesmo bloco;
+se o insert falhar, o `EXCEPTION` reverte também o rebaixamento, porque em PL/pgSQL um bloco com
+`EXCEPTION` é uma subtransação. A semântica não mudou — só a ordem. Testado nas três chaves
+canônicas.
 
-e a ordem é **inserir a nova antes de rebaixar a antiga**. Quando a nova memória também é `ativa`
-(`scope = stable` + `confidence = high`, que é justamente o caso típico de identidade, cargo e
-empresa), o insert colide com a linha `ativa` que ainda está lá, levanta `unique_violation`, o
-`exception when others` do laço engole com um `raise warning`, e **o item some sem persistir e sem
-erro visível**.
-
-Verificado direto no banco: duas linhas `ativa` com o mesmo `(participante_id, chave)` são recusadas
-pelo índice; das duas inserções da sonda, só a primeira entrou.
-
-**ESTADO ATUAL.** Bate com a produção: das 886 memórias, **uma única** está em `substituida` — e a
-linha que a substituiu é `proposta`, não `ativa`, que é exatamente o caminho que escapa da colisão.
-Ou seja: **troca de cargo ou de empresa com alta confiança está sendo perdida silenciosamente**, e o
-que sobrevive é a primeira versão que a pessoa deu.
-
-**POR QUE FOI DEFERIDO.** A supervisão aprovou, para `analise_projetar_memoria`, exatamente uma
-mudança: o gate de sensibilidade. Inverter a ordem das operações é mudança de comportamento de
-gravação, com efeito sobre qual versão do cargo/empresa fica valendo — e isso merece decisão
-própria, não carona num chunk de segurança.
-
-**COMO RETOMAR.** A correção provável é uma linha de ordem: rebaixar a antiga para `substituida`
-**antes** de inserir a nova, dentro do mesmo bloco. Vale medir antes quantas trocas foram perdidas —
-dá para estimar comparando `dados.customer_memory` de `intelligence.analise_conversa` com o que
-existe em `participante_memoria` para as chaves canônicas, sem chamar LLM.
-
-**DEPENDÊNCIAS / GATILHO.** Independe de D3 e da Lane C. O gatilho natural é o mesmo da §16.6:
-antes de ligar o wiring da leitura, porque memória de identidade errada é pior que memória ausente.
+**Pendência que fica:** quantas trocas de cargo/empresa foram perdidas até aqui. Dá para estimar sem
+LLM, comparando `dados.customer_memory` de `intelligence.analise_conversa` com o que existe em
+`participante_memoria` para as chaves canônicas. Não foi medido neste chunk.

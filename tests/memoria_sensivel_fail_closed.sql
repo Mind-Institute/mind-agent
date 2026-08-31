@@ -18,7 +18,15 @@
 --      fila; com `followup_count > 0` continua tirando;
 --   6. D2 não mexe na precedência: compra continua parando a continuidade;
 --   7. o prompt v2 carrega o contrato (sensitivity no JSON e `stopped` com a
---      regra de open loop).
+--      regra de open loop);
+--   8. o gate vale para o analisador SOB CONTRATO e só para ele — outro
+--      analisador não é barrado, mas também não ganha marcador;
+--   9. o MARCADOR `valor.sensitivity = 'none'` é gravado no insert e ACRESCENTADO
+--      na revalidação de mesmo texto, sem duplicar a linha;
+--  10. substituição `ativa → ativa` de identidade, cargo e empresa funciona —
+--      era o bug de ordem contra o índice parcial;
+--  11. o SEGUNDO WRITER (`mindagent_chat_save_interests`) é fail closed antes de
+--      `session_interests`, e o item aprovado sai com marcador.
 --
 -- Nenhuma mensagem é enviada, nenhum cron é ligado, nada é escrito fora da
 -- transação.
@@ -160,41 +168,13 @@ begin
     raise exception 'CONTRATO 3: derivacao de objetivo mudou: %', row_to_json(r);
   end if;
 
-  -- CAMINHO DE SUBSTITUICAO — o comportamento preservado mais delicado. Cargo
-  -- novo com o mesmo `chave` nao acumula: a linha antiga vira `substituida` e
-  -- aponta para a nova. O gate nao pode ter quebrado isso.
-  --
-  -- O item novo entra como `proposta` (scope=opportunity) DE PROPOSITO. Com
-  -- `ativa` a substituicao nao funciona — e isso e um defeito PRE-EXISTENTE,
-  -- nao efeito desta migration: o indice parcial
-  -- `participante_memoria_participante_id_chave_idx UNIQUE (participante_id,
-  -- chave) WHERE status='ativa'` recusa a segunda `ativa`, o insert levanta
-  -- unique_violation, o `exception when others` do laco engole, e o item some.
-  -- Registrado no BACKLOG §16.8; nao corrigido aqui porque esta fora do escopo
-  -- aprovado deste chunk.
-  v_n := public.analise_projetar_memoria(
-    '15b00000-0000-4000-8000-000000000001', 'analise_vendas_summit',
-    jsonb_build_array(jsonb_build_object('category','role','value','VP de Pessoas',
-                       'scope','opportunity','confidence','high','sensitivity','none')), null);
-  if v_n <> 1 then
-    raise exception 'CONTRATO 3: cargo novo devia gravar 1, veio %', v_n;
-  end if;
-
-  select count(*) filter (where status = 'substituida') as subs,
-         count(*) filter (where status = 'proposta')    as propostas
-    into r
-    from intelligence.participante_memoria
-   where participante_id = '15b00000-0000-4000-8000-000000000001' and chave = 'cargo_atual';
-  if r.subs <> 1 or r.propostas <> 1 then
-    raise exception 'CONTRATO 3: substituicao de cargo quebrou (substituida=%, proposta=%)', r.subs, r.propostas;
-  end if;
-
+  -- O MARCADOR entra junto: item aprovado sob o contrato v2 grava
+  -- `valor.sensitivity = 'none'`. Sem isso o coletor nao expoe a linha.
   if not exists (
-    select 1 from intelligence.participante_memoria a
-     where a.chave = 'cargo_atual' and a.status = 'substituida'
-       and a.substituida_por is not null
-       and a.participante_id = '15b00000-0000-4000-8000-000000000001') then
-    raise exception 'CONTRATO 3: a linha substituida nao aponta para a nova';
+    select 1 from intelligence.participante_memoria
+     where participante_id = '15b00000-0000-4000-8000-000000000001'
+       and chave = 'cargo_atual' and valor->>'sensitivity' = 'none') then
+    raise exception 'CONTRATO 3: item aprovado nao ganhou o marcador no valor';
   end if;
 end
 $c3$;
@@ -316,8 +296,223 @@ end
 $c7$;
 
 
-select 'todos os 7 contratos passaram' as resultado,
-       7 as contratos_verificados,
+-- --------------- CONTRATO 8 - O GATE VALE PARA O ANALISADOR SOB CONTRATO
+-- Hoje o contrato v2 e de `analise_vendas_summit`, e so dele. Outro analisador
+-- nao e barrado (nao teria como cumprir um contrato que ainda nao tem), mas
+-- tambem NAO GANHA MARCADOR — entao o que ele grava continua invisivel para o
+-- coletor. E esse o resultado seguro: o gate nao vira regra global calada, e
+-- ainda assim nada sem contrato chega ao Agent.
+do $c8$
+declare v_n integer; v_marcador text;
+begin
+  v_n := public.analise_projetar_memoria(
+    '15b00000-0000-4000-8000-000000000001', 'analise_concierge',
+    jsonb_build_array(jsonb_build_object('category','interest','value','quer saber de credenciamento',
+                       'scope','opportunity','confidence','high')), null);
+  if v_n <> 1 then
+    raise exception 'CONTRATO 8: analisador fora do contrato devia gravar, veio %', v_n;
+  end if;
+
+  select valor->>'sensitivity' into v_marcador from intelligence.participante_memoria
+   where participante_id = '15b00000-0000-4000-8000-000000000001'
+     and origem = 'analise_concierge';
+  if v_marcador is not null then
+    raise exception 'CONTRATO 8: analisador fora do contrato NAO pode marcar, veio %', v_marcador;
+  end if;
+
+  -- O mesmo item, sob o analisador do contrato, e barrado.
+  v_n := public.analise_projetar_memoria(
+    '15b00000-0000-4000-8000-000000000001', 'analise_vendas_summit',
+    jsonb_build_array(jsonb_build_object('category','interest','value','outro assunto qualquer',
+                       'scope','opportunity','confidence','high')), null);
+  if v_n <> 0 then
+    raise exception 'CONTRATO 8: sob contrato, item sem rotulo devia ser barrado, veio %', v_n;
+  end if;
+end
+$c8$;
+
+
+-- -------- CONTRATO 9 - REVALIDACAO DE LEGADO: MARCA SEM DUPLICAR (caso "b")
+-- Uma linha gravada sob o contrato v1 nao tem marcador. Quando o MESMO texto
+-- volta a ser emitido sob o v2 com `none`, a linha existente ganha o marcador
+-- em vez de nascer uma segunda. E assim que o legado se torna visivel sem ser
+-- reescrito nem apagado.
+do $c9$
+declare v_id uuid; v_n integer; r record;
+begin
+  insert into intelligence.participante_memoria
+    (participante_id, tipo, chave, valor, confianca, origem, status)
+  -- A `chave` tem de ser exatamente a que a funcao deriva do texto
+  -- (`tipo || ':' || mind_slug(texto)`), senao nao ha o que revalidar.
+  values ('15b00000-0000-4000-8000-000000000001', 'preferencia',
+          'preferencia:' || public.mind_slug('prefere sessoes de manha'),
+          jsonb_build_object('text','prefere sessoes de manha','scope','stable'),
+          0.70, 'analise_vendas_summit', 'proposta')
+  returning id into v_id;
+
+  if (select valor ? 'sensitivity' from intelligence.participante_memoria where id = v_id) then
+    raise exception 'CONTRATO 9: a fixture v1 nao devia nascer marcada';
+  end if;
+
+  v_n := public.analise_projetar_memoria(
+    '15b00000-0000-4000-8000-000000000001', 'analise_vendas_summit',
+    jsonb_build_array(jsonb_build_object('category','preference','value','prefere sessoes de manha',
+                       'scope','stable','confidence','high','sensitivity','none')), null);
+
+  -- Revalidacao nao e insercao: nada novo foi gravado.
+  if v_n <> 0 then
+    raise exception 'CONTRATO 9: revalidacao devia atualizar, nao inserir (veio %)', v_n;
+  end if;
+
+  select count(*) as n,
+         count(*) filter (where valor->>'sensitivity' = 'none') as marcadas,
+         min(valor->>'text') as txt
+    into r
+    from intelligence.participante_memoria
+   where participante_id = '15b00000-0000-4000-8000-000000000001'
+     and chave = 'preferencia:' || public.mind_slug('prefere sessoes de manha');
+
+  if r.n <> 1 then
+    raise exception 'CONTRATO 9: revalidacao duplicou a linha (% linhas)', r.n;
+  end if;
+  if r.marcadas <> 1 then
+    raise exception 'CONTRATO 9: a linha revalidada nao ganhou o marcador';
+  end if;
+  if r.txt <> 'prefere sessoes de manha' then
+    raise exception 'CONTRATO 9: a revalidacao reescreveu o texto: %', r.txt;
+  end if;
+end
+$c9$;
+
+
+-- ------------- CONTRATO 10 - SUBSTITUICAO `ativa -> ativa` (o bug da §16.8)
+-- As tres chaves canonicas, uma a uma. Antes da correcao da ordem, o insert
+-- colidia com o indice parcial e o item sumia sem erro.
+do $c10$
+declare
+  v_pessoa constant uuid := '15b00000-0000-4000-8000-000000000002';
+  r record; v_n integer; v_cat text; v_chave text;
+begin
+  insert into pessoas.pessoas (id, primeiro_nome, origem) values (v_pessoa, 'Troca', 'manual');
+
+  for v_cat, v_chave in
+    select * from (values ('identity','identidade'), ('role','cargo_atual'), ('company','empresa_atual')) t(c,k)
+  loop
+    -- primeira versao: entra como `ativa` (stable + high)
+    v_n := public.analise_projetar_memoria(v_pessoa, 'analise_vendas_summit',
+      jsonb_build_array(jsonb_build_object('category', v_cat, 'value', 'primeira versao de ' || v_chave,
+        'scope','stable','confidence','high','sensitivity','none')), null);
+    if v_n <> 1 then raise exception 'CONTRATO 10: % nao gravou a primeira versao', v_chave; end if;
+
+    -- segunda versao, tambem `ativa`: e exatamente o caso que se perdia
+    v_n := public.analise_projetar_memoria(v_pessoa, 'analise_vendas_summit',
+      jsonb_build_array(jsonb_build_object('category', v_cat, 'value', 'segunda versao de ' || v_chave,
+        'scope','stable','confidence','high','sensitivity','none')), null);
+    if v_n <> 1 then
+      raise exception 'CONTRATO 10: % perdeu a troca ativa->ativa (veio %)', v_chave, v_n;
+    end if;
+
+    select count(*) filter (where status = 'ativa')        as ativas,
+           count(*) filter (where status = 'substituida')  as subs,
+           count(*) filter (where status = 'substituida' and substituida_por is not null) as ligadas,
+           max(valor->>'text') filter (where status = 'ativa') as texto_vivo
+      into r
+      from intelligence.participante_memoria
+     where participante_id = v_pessoa and chave = v_chave;
+
+    if r.ativas <> 1 or r.subs <> 1 or r.ligadas <> 1 then
+      raise exception 'CONTRATO 10: % ficou com ativas=%, substituidas=%, ligadas=%',
+        v_chave, r.ativas, r.subs, r.ligadas;
+    end if;
+    if r.texto_vivo <> 'segunda versao de ' || v_chave then
+      raise exception 'CONTRATO 10: % manteve a versao errada viva: %', v_chave, r.texto_vivo;
+    end if;
+  end loop;
+end
+$c10$;
+
+
+-- ------------------ CONTRATO 11 - O SEGUNDO WRITER TAMBEM E FAIL CLOSED
+-- `mindagent_chat_save_interests` grava em `engagement.session_interests` antes
+-- de qualquer promocao — inclusive em sessao sem participante. Por isso o gate
+-- roda ANTES dela: proteger so a promocao deixaria o dado sensivel gravado no
+-- primeiro salto.
+do $c11$
+declare
+  v_disp    constant uuid := '15b00000-0000-4000-8000-0000000000d1';
+  v_sessao  constant uuid := '15b00000-0000-4000-8000-0000000000e1';
+  v_token   constant text := 'hash-de-teste-lane-d';
+  v_auth    uuid;
+  v_out jsonb; r record;
+begin
+  -- `agent_sessions.auth_user_id` tem FK para `auth.users`, entao a sessao de
+  -- teste toma emprestado um usuario que ja existe. E LEITURA: nada em
+  -- auth.users e criado, alterado ou removido, e a sessao criada aqui morre no
+  -- rollback junto com o resto.
+  select u.id into v_auth from auth.users u order by u.id limit 1;
+  if v_auth is null then
+    raise exception 'PRE-CONDICAO: nao ha usuario em auth.users para ancorar a sessao de teste';
+  end if;
+
+  insert into engagement.dispositivos (id, chave) values (v_disp, 'dispositivo-teste-lane-d');
+  insert into engagement.agent_sessions
+    (id, dispositivo_id, participante_id, token_hash, origem_identidade, expira_em, auth_user_id)
+  values (v_sessao, v_disp, '15b00000-0000-4000-8000-000000000001', v_token,
+          'teste', now() + interval '1 hour', v_auth);
+
+  -- (i) sem rotulo: nada e gravado, nem em session_interests
+  v_out := public.mindagent_chat_save_interests(v_auth, v_sessao, v_token,
+    jsonb_build_array(jsonb_build_object('key','burnout','label','burnout','confidence',0.95,'confirmed','true')));
+  if (v_out->>'blocked')::int <> 1 or (v_out->>'saved')::int <> 0 or (v_out->>'promoted')::int <> 0 then
+    raise exception 'CONTRATO 11: item sem rotulo devia ser bloqueado, veio %', v_out;
+  end if;
+
+  -- (ii) chave de bloqueio: idem
+  v_out := public.mindagent_chat_save_interests(v_auth, v_sessao, v_token,
+    jsonb_build_array(jsonb_build_object('key','afastamento','label','afastada por burnout',
+      'confidence',0.95,'confirmed','true','sensitivity','saude_do_titular')));
+  if (v_out->>'blocked')::int <> 1 or (v_out->>'saved')::int <> 0 then
+    raise exception 'CONTRATO 11: chave de bloqueio devia ser barrada, veio %', v_out;
+  end if;
+
+  if exists (select 1 from engagement.session_interests where agent_session_id = v_sessao) then
+    raise exception 'CONTRATO 11: item barrado vazou para session_interests';
+  end if;
+
+  -- (iii) `none` confirmado: grava, promove e SAI MARCADO (caso "d" do legado)
+  v_out := public.mindagent_chat_save_interests(v_auth, v_sessao, v_token,
+    jsonb_build_array(jsonb_build_object('key','lideranca','label','lideranca de equipes',
+      'confidence',0.95,'confirmed','true','sensitivity','none')));
+  if (v_out->>'saved')::int <> 1 or (v_out->>'promoted')::int <> 1 or (v_out->>'blocked')::int <> 0 then
+    raise exception 'CONTRATO 11: item none devia gravar e promover, veio %', v_out;
+  end if;
+
+  if not exists (select 1 from engagement.session_interests
+                  where agent_session_id = v_sessao and chave = 'lideranca') then
+    raise exception 'CONTRATO 11: item aprovado nao chegou em session_interests';
+  end if;
+
+  select valor->>'sensitivity' as marcador, status into r
+    from intelligence.participante_memoria
+   where participante_id = '15b00000-0000-4000-8000-000000000001'
+     and chave = 'lideranca' and origem = 'confirmado_pelo_usuario';
+  if not found or r.marcador is distinct from 'none' then
+    raise exception 'CONTRATO 11: memoria da web saiu sem marcador (%)', r;
+  end if;
+
+  if not exists (
+    select 1 from intelligence.participante_contexto pc,
+                  jsonb_array_elements(pc.temas_relevantes) t
+     where pc.participante_id = '15b00000-0000-4000-8000-000000000001'
+       and t->>'key' = 'lideranca' and t->>'sensitivity' = 'none') then
+    raise exception 'CONTRATO 11: o item de perfil saiu sem marcador';
+  end if;
+end
+$c11$;
+
+
+select 'todos os 11 contratos passaram' as resultado,
+       11 as contratos_verificados,
        (select count(*) from intelligence.participante_memoria
          where participante_id = '15b00000-0000-4000-8000-000000000001') as memorias_gravadas_no_teste;
 
