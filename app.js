@@ -184,10 +184,10 @@ const TELAS = {
     img: 'agenda', aba: 'agenda', rotulo: 'Agenda',
     serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
     alvos: [
-      { id: 'topo', x: 88, y: 4.6, w: 20, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
-      { id: 'card1', x: 50, y: 19.6, w: 92, h: 13, brinde: 'Cada card é uma sessão. Toque para abrir.' },
+      { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
+      { id: 'card1', x: 49.9, y: 15.5, w: 92.4, h: 12.5, brinde: 'Cada card é uma sessão. Toque para abrir.' },
       /* Largura inteira: não há mais coração de salvar dividindo a linha. */
-      { id: 'card', x: 50, y: 71, w: 92, h: 28, vai: 'detalhe', modo: 'push',
+      { id: 'card', x: 49.9, y: 65.7, w: 92.4, h: 28.8, vai: 'detalhe', modo: 'push',
         dica: 'Toque na <b>sessão</b> para abrir os detalhes.' },
     ],
   },
@@ -195,9 +195,10 @@ const TELAS = {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
     serve: 'A página da sessão: descrição, horário, local, palestrantes e a reserva, quando a vaga é limitada.',
     alvos: [
-      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
-      { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'reservar', x: 49.9, y: 67.1, w: 88.6, h: 5.5, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
+      { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
+      { id: 'palestrante', x: 49.9, y: 90.7, w: 88.6, h: 6.9, brinde: 'A bio de quem fala — e o coração salva a pessoa, não a sessão.' },
+      { id: 'reservar', x: 49.9, y: 65.7, w: 88.8, h: 4.9, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
         folha: 'reservado', obrigatoria: true,
         dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
     ],
@@ -210,9 +211,9 @@ const TELAS = {
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [
-      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
-      { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'confirmacao', x: 49.9, y: 67.1, w: 88.6, h: 5.5,
+      { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
+      { id: 'confirmacao', x: 49.9, y: 65.7, w: 88.8, h: 4.9,
         brinde: 'No dia da sessão, o check-in é feito aqui mesmo.' },
     ],
   },
@@ -222,7 +223,7 @@ const TELAS = {
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
-      { id: 'sessao', x: 50, y: 36.9, w: 92, h: 30.7,
+      { id: 'sessao', x: 49.9, y: 36, w: 92.4, h: 29.8,
         brinde: 'A sessão que você reservou. No dia, o check-in é aqui dentro.' },
     ],
   },
@@ -275,10 +276,11 @@ const TELAS = {
   },
   'palestrantes': {
     img: 'palestrantes', aba: 'menu', volta: 'menu', rotulo: 'Palestrantes',
-    serve: 'Todos os nomes do Summit, com bio e as sessões de cada um.',
+    serve: 'Todos os nomes do Summit, com bio e as sessões de cada um. O coração salva a pessoa.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'busca', x: 50, y: 11.5, w: 88, h: 5, brinde: 'Busque pelo nome de quem você quer ver.' },
+      { id: 'fav1', x: 89.7, y: 20.5, w: 12, h: 5, faz: 'favoritar-pal', brinde: 'Palestrante salvo 💚' },
     ],
   },
   'chat': {
@@ -547,7 +549,9 @@ function pintar(modo) {
     el.style.left = alvo.x + '%';
     el.style.top = alvo.y + '%';
     if (tipo === 'pendente' || tipo === 'escolhido') { el.style.width = alvo.w + '%'; el.style.height = (alvo.h * 0.86) + '%'; }
-    if (tipo === 'pendente') {
+    if (tipo === 'coracao') {
+      el.innerHTML = '<svg viewBox="0 0 24 24" fill="#68ee95"><path d="M12 21s-7.5-4.8-9.5-9A5.4 5.4 0 0 1 12 6.4 5.4 5.4 0 0 1 21.5 12c-2 4.2-9.5 9-9.5 9z"/></svg>';
+    } else if (tipo === 'pendente') {
       el.textContent = 'Pendente';
     }
     conteudo.appendChild(el);
@@ -637,6 +641,7 @@ function voltar() {
 
 async function tocar(a) {
   if (emTransicao) return;                       /* nada de toque duplo */
+  if (a.faz === 'favoritar-pal') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
   if (a.faz === 'contato') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'pendente'; }
   if (a.faz === 'filtrar') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'escolhido'; }
 

@@ -583,8 +583,10 @@ body {
   75% { transform: translate(calc(-50% + 6px), -50%); }
 }
 
-/* Marcas desenhadas por cima da foto (contato pendente, filtro escolhido) */
+/* Marcas desenhadas por cima da foto (palestrante salvo, contato pendente,
+   filtro escolhido). O coração é de pessoa: sessão não se salva mais. */
 .marca { position: absolute; transform: translate(-50%, -50%); z-index: 1; pointer-events: none; }
+.marca.coracao svg { width: 6.4cqw; height: 6.4cqw; display: block; }
 .marca.pendente {
   background: #4a4a4a; color: #fff;
   border-radius: 2cqw;
