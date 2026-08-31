@@ -1,85 +1,119 @@
-# Mind — regras para o agente de código
+# Mind — regras para Claude Code / agentes de execução
 
 ## Antes de trabalhar
 
-1. Leia **`PROJECT_STATE.md`** — é o checkpoint operacional versionado: arquitetura congelada, ordem do projeto, passo atual e decisões que não devem ser reabertas.
-2. Leia **`BACKLOG.md`** — investigações, fragilidades e trabalho deliberadamente deferido que não deve ser redescoberto do zero.
-3. Leia **`docs/CORE_UNIVERSAL.md`** — é o documento canônico do sistema real e dos contratos já implementados.
-4. **Investigue o sistema real** relacionado ao passo que você vai executar.
-5. Documentação **descreve** o sistema; ela **não substitui** verificar o sistema.
+Leia, nesta ordem:
 
-Uma IA que entra no projeto sem contexto deve conseguir reconstruir o ponto de trabalho lendo, nessa ordem, `PROJECT_STATE.md` + `BACKLOG.md` + `docs/CORE_UNIVERSAL.md` e só depois verificando o sistema real.
+1. **`CHECKPOINT_ATUAL.md`** — onde estamos exatamente agora.
+2. **`PROJECT_STATE.md`** — arquitetura, gates e decisões congeladas.
+3. **`GO_LIVE_PARALLEL_20260830.md`** — ownership da sua lane e ordem de integração.
+4. **`BACKLOG.md`** — somente o trecho relevante para não repetir investigação.
+5. **`docs/CORE_UNIVERSAL.md`** — o que já está vivo.
+6. Depois, **investigue o sistema real** diretamente relacionado ao seu chunk.
 
-## Ordem de autoridade
+Uma IA nova deve conseguir retomar o projeto sem conversa anterior lendo esses arquivos e conferindo os HEADs das PRs citadas no checkpoint.
 
-1. Decisões explicitamente fechadas com a Adriana **e registradas na documentação versionada**.
-2. Infraestrutura real: Supabase, código, migrations aplicadas.
-3. Documentação canônica atual (`PROJECT_STATE.md` para arquitetura/ordem/checkpoint; `BACKLOG.md` para deferimentos; `docs/CORE_UNIVERSAL.md` para estado e contratos implementados).
+## Ritual obrigatório
 
-**Documentação antiga não é requirement.** Se um documento contradiz o sistema vigente, o sistema vence e o documento precisa ser corrigido. Mas uma decisão congelada nova **não pode ficar só na conversa**: deve ser registrada antes de o passo ser considerado fechado.
-
-### Regra de versão das decisões congeladas
-
-- `CONGELADO` significa: decisão aprovada e registrada no Git.
-- Se uma decisão congelada mudar materialmente o funcionamento ou a ordem do sistema, **não sobrescreva silenciosamente**. Atualize a versão do checkpoint em `PROJECT_STATE.md` (`vN → vN+1`), registre o que foi substituído e por quê, e ajuste somente as seções afetadas do `CORE_UNIVERSAL.md` quando a mudança também alterar o estado/contrato canônico.
-- Git preserva o histórico; a documentação corrente deve preservar **a decisão vigente**, com referência clara ao que ela substituiu.
-
-## Ritual de trabalho
-
-```
+```text
 INVESTIGAR
 → ENTENDER O QUE JÁ EXISTE
 → DECIDIR A MENOR MUDANÇA
 → IMPLEMENTAR
 → TESTAR SÓ O AFETADO
-→ ATUALIZAR A DOCUMENTAÇÃO DO ESTADO FINAL
-→ FECHAR O PASSO
+→ REGISTRAR CHECKPOINT NA ISSUE/PR
+→ CONTINUAR ATÉ E2E OU GATE REAL
 ```
 
-Se algo relevante for descoberto mas deliberadamente deixado para depois, **não abra a frente agora**. Registre no fim do `BACKLOG.md` com: evidência já levantada, estado atual, por que foi deferido, o gatilho para retomar e dependências. Assim ninguém precisa repetir a investigação.
+Não transformar espera de CI, preview ou review em motivo para encerrar a lane.
 
-## Regras
+## Papéis vigentes
 
-- **Menor mudança correta.** Não redesenhe o que já foi aprovado.
-- **Não invente requisitos.** Não crie arquitetura, entidade ou regra de um sistema que não existe. Se falta informação de negócio, pergunte.
-- **Não reabra decisões fechadas.**
-- **Não faça limpeza lateral.** Achou algo quebrado fora do escopo? Registre no `BACKLOG.md` e siga.
-- **Não perca investigação deferida.** Antes de adiar uma frente investigada, registre o checkpoint suficiente para retomá-la sem redescoberta.
-- **Não expanda legado.** O que a §13 do CORE_UNIVERSAL marca como legado não se replica em tabela ou código novo.
-- **Teste só o afetado** e as regressões diretamente atingidas. Não rode suíte completa.
-- **Agente novo consome o Core Universal.** Não reimplementa identidade, contexto, memória nem histórico.
+- **Adriana**: produto/negócio e gates sensíveis.
+- **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, fecha a menor mudança, coordena lanes, revisa PRs, decide integração e registra o checkpoint.
+- **Claude Code**: investiga e implementa o escopo delegado em branch `claude/...`; traz evidência independente; não amplia escopo e não mergeia por conta própria.
+- **GitHub**: memória compartilhada e barramento entre lanes.
 
-## As quatro camadas
+Se houver outro supervisor técnico no repositório, ele deve reconstruir o mesmo checkpoint; não nasce segunda arquitetura.
+
+## Boundary de deploy
+
+**Merge em `main` é boundary de deploy**, mas o efeito depende do componente:
+
+- app/root Cloudflare: merge pode publicar automaticamente;
+- migrations Supabase: merge pode aplicá-las pela integração;
+- Edge Functions versionadas em `supabase/functions/`: **neste repo, sem `supabase/config.toml`, não assumir publicação automática**. As funções críticas atuais (`treble-inbound-agent`, `mindagent-chat`) têm deploy manual controlado depois do merge e comparação com a versão viva.
+
+Por isso revisão/teste vêm antes do merge.
+
+Gate explícito da Adriana antes de execução perigosa quando houver: dado destrutivo/irreversível, identidade, auth/RLS/security/secrets, preço/desconto/regra comercial, source of truth, outbound/disparo, write-back operacional material ou mudança de produto não congelada.
+
+## Arquitetura — uma linguagem só
 
 | camada | papel |
 |---|---|
-| **Intelligence** | factual — o que é verdade agora |
-| **Playbook** | competência — como um excelente profissional pensa |
-| **Decisioning** | estratégia — o que faz sentido agora |
-| **Agent** | execução — o que se diz ou faz |
+| **Intelligence** | o que é verdade agora |
+| **Playbook** | como um excelente profissional pensa/atua |
+| **Decisioning** | qual estratégia faz sentido agora |
+| **Agent** | o que efetivamente diz/faz |
 
 > PLAYBOOK DECIDE COMO PENSAR. INTELLIGENCE INFORMA O QUE É VERDADE AGORA.
 
-Coletor factual não decide, não pontua, não recomenda e não escreve.
+Coletor factual não decide, pontua, recomenda ou escreve.
 
-## Divisão de trabalho
+Runtime canônico:
 
-- **Codex supervisiona a execução técnica:** decide a menor mudança e delega dentro das constraints canônicas.
-- **Claude Code investiga e implementa o escopo delegado:** edge functions, SQL, RPCs, estrutura de tabela, wiring, retrieval, fluxo de dado — trazendo leitura independente. Não decide produto, não mergeia e não amplia escopo.
-- **Adriana é dona do conteúdo, da verdade de negócio e dos gates sensíveis:** prompts, playbooks, preço, lote, produto, mapeamentos, posicionamento.
+```text
+CANAL/ENTRADA
+→ INGESTÃO
+→ IDENTIDADE
+→ AGENT_CONTEXT
+→ ROUTER se necessário
+→ CAPABILITY GATE
+→ KIT DA ROTA
+→ DECISIONING
+→ AGENT
+→ AÇÃO/HANDOFF
+→ PÓS-TURNO/MEMÓRIA
+→ WRITE-BACK/DISPATCH
+→ CONTINUIDADE/SILENCE
+```
 
-**Não invente prompt, playbook ou conteúdo de negócio.** Quando o conteúdo tiver sido fornecido ou explicitamente aprovado, implemente-o fielmente. Se depender de conteúdo ainda não definido, não invente para preencher o espaço — deixe-o pronto e vazio.
+## Regras de implementação
 
-**Antes de criar qualquer tabela, investigue o que já existe.** Se a criação não estiver explicitamente autorizada ou depender de uma decisão material ainda aberta, pergunte. Se a tarefa já autorizou a mudança e a investigação confirmou a necessidade, implemente a menor estrutura correta.
+- menor mudança correta; sem redesign lateral;
+- não invente requisito, prompt, playbook ou conteúdo de negócio;
+- use casas/taxonomias existentes;
+- antes de criar tabela, prove que falta uma casa;
+- não transforme hipótese futura em hardening atual;
+- não exponha memória ao Agent sem o contrato de sensibilidade aprovado;
+- não ligue outbound sem gate;
+- não crie backend/identidade/session lifecycle paralelo para Play/Concierge;
+- structured authoritative first; RAG só para long-tail;
+- preço/checkout/desconto/horário/disponibilidade nunca dependem de vector como fonte da verdade;
+- descoberta lateral: registre e volte ao caminho crítico.
 
-Conversa já tem casa (`engagement`), coisa aprendida sobre a pessoa já tem casa (`intelligence`), identidade já tem casa (`pessoas` + `engagement.identidades`). Só a **config** de uma plataforma nova ganha lugar novo.
+## Ownership atual
 
-**Não popule dado de negócio sem autorização.** Isso não impede seed, backfill ou carga que a própria tarefa tenha mandado fazer — nesses casos, execute e relate. Dado de teste pode, avisando.
+As issues são donas da capacidade, não os PRs:
 
-## Como responder
+- #40 — Vendedor/Treble até E2E WhatsApp;
+- #41 — Concierge até E2E app;
+- #42 — pós-turno/memória/write-back/continuidade até o limite dos gates;
+- #43 — Play/experiência até E2E no app.
 
-Objetivo, um passo por vez. Explique o essencial em poucas linhas. A Adriana precisa entender a engenharia do próprio sistema — nada opaco.
+Consulte `CHECKPOINT_ATUAL.md` para HEAD e próxima ação de cada lane.
 
-**Autonomia operacional.** Relate conclusões e checkpoints de forma objetiva, mas **continue automaticamente** quando não houver gate da Adriana (§2B do `PROJECT_STATE.md`). Parar é para gate sensível ou decisão de negócio não congelada — não para espera técnica, revisão ou verificação.
+## Como responder à supervisão
 
-**Agilidade > cerimônia.** Quase tudo ainda é teste: deletar costuma ser mais rápido que migrar. Nada de governança pesada sem necessidade real.
+Ao terminar um chunk, devolva apenas:
+
+- o que já existia/reutilizou;
+- menor mudança feita;
+- branch/PR/HEAD;
+- arquivos tocados;
+- testes afetados/resultados;
+- divergência material nova;
+- dependência/gate real que restou.
+
+Poste checkpoint/coordenação diretamente na issue dona quando outra lane precisa da informação. Não espere Adriana retransmitir.
