@@ -11,7 +11,7 @@
  * garante é que o código versionado não perdeu, num refactor, a ordem e os
  * limites que a supervisão fechou.
  *
- * Como rodar:  node --test tests/
+ * Como rodar:  npm run test:edge
  * ==========================================================================*/
 
 import { test } from 'node:test';

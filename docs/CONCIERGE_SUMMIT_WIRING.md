@@ -145,30 +145,45 @@ motivo de o E2E do Play depender das duas lanes.
   `mindagent_chat_search` direto no `agendaSegura`, e o contrato de saída do
   retrieval foi preservado para isso.
 
-## 7. O que os testes offline cobrem — e o que não
+## 7. O que os testes provam — e o que só o E2E prova
 
-`npm run test:edge` (19 contratos, `tests/mindagent_chat_wiring.test.mjs`) lê o
-fonte versionado e trava ordem e limites: save antes do Gate/Kit, fail-closed
-antes da OpenAI, ausência de retrieval direto e de Router, separação
-necessidade × memória, o enum de sensibilidade, o repasse intacto, a allowlist
-do Play, a ausência de RPC dinâmica, a ausência de modelo no modo ação e o
-contrato HTTP preservado. `tsc --noEmit` passa limpo com shims de `Deno` e do
-cliente Supabase (não há Deno neste ambiente — `deno.land` é bloqueado pela
-política de egresso).
+`npm run test:edge` roda duas camadas, 39 contratos.
 
-**Isso não substitui o E2E.** Só com a Function publicada se prova:
+**Estrutura** (`tests/mindagent_chat_wiring.test.mjs`, 19) lê o fonte versionado
+e trava as decisões de escrita: a ordem save → Gate → Kit → OpenAI, a ausência
+de retrieval direto e de Router, o enum de sensibilidade, a allowlist do Play.
 
-1. Gate fechado → 503 `rota_indisponivel`, **mensagem do usuário persistida**,
-   nenhuma linha de assistant.
-2. Kit incompleto → mesmo comportamento, e a OpenAI **não** é chamada.
-3. `event_slug` de outro evento → 503, sem responder pelo evento errado.
-4. Turno normal → horário local correto, `sources` vindo do Kit.
-5. Retry com o mesmo `client_message_id` → sem mensagem duplicada.
-6. Interesse profissional → `sensitivity: "none"` e persiste; interesse
-   derivado de condição própria → chave sensível e é descartado quando o gate
-   da Lane D entrar.
-7. Yazo identificado **sem conversa anterior** → Play executa e persiste;
-   sem pessoa → `sem_pessoa`.
+**Comportamento** (`tests/mindagent_chat_comportamento.test.mjs`, 20) **executa
+o handler real**. O harness (`tests/helpers/`) troca só o que não existe no
+Node — `Deno`, o cliente Supabase e a OpenAI — reescrevendo um único
+especificador de import; se esse import mudar, o harness falha alto em vez de
+testar outra coisa. O que ele observa é o que o executor faz:
+
+| caso | contrato provado |
+|---|---|
+| chat normal | ordem exata das RPCs, `pergunta` × `interesses` separados, `instructions` começando pelo playbook do Kit, `sources` vindas do Kit, contrato HTTP intacto |
+| Gate fechado | 503 `rota_indisponivel`, fala do usuário já persistida, Kit e modelo **não** chamados |
+| Kit incompleto | fail-closed nas seis formas (sem bloco, sem playbook, `kit_disponivel:false`, `ok:false`, erro de RPC) — sempre antes da OpenAI |
+| `event_slug` | malformado → 422 sem tocar o banco; de outro evento → repassado intacto, e quem recusa é o Kit |
+| retry | `client_message_id` repassado verbatim, assistant em `<id>:assistant` |
+| sensitivity | `none` e chave sensível repassadas intactas; ausente/inválida vira `desconhecido`, **nunca** `none`; evidência apontando para a fala, não para a resposta |
+| Play sem conversa anterior | `start` → `bind_identity` → `get_context` → ferramenta, sessão canônica devolvida, sem modelo e sem turno de chat |
+| Play sem pessoa | `sem_pessoa` em 200, nenhuma `mind_play_*` executada |
+| fora da allowlist | `mind_play_nps`, `__proto__`, `constructor` e afins → 400 sem abrir sessão |
+
+A suíte foi verificada por mutação: mover o `save_message(user)` para depois do
+Gate, afrouxar o fail-closed e trocar `desconhecido` por `none` fazem os testes
+correspondentes falharem.
+
+`tsc --noEmit` passa limpo com shims de `Deno` e do cliente Supabase (não há
+Deno neste ambiente — `deno.land` é bloqueado pela política de egresso).
+
+**O que continua sendo só do E2E**, porque depende do mundo real e não do
+código: o Gate realmente aberto e o Kit realmente montado no banco vivo; a
+idempotência de fato do `mindagent_chat_save_message` (writer da Lane D); o
+modelo real classificando `sensitivity` bem — o repasse está provado, o
+julgamento não; as `mind_play_*` existindo em produção (PR #48); e o horário
+local correto na resposta que a pessoa lê.
 
 ## 8. Ordem de go-live
 
