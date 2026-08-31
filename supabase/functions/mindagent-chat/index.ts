@@ -64,6 +64,16 @@ const FERRAMENTAS_PLAY: Record<string, { rpc: string; vinculo: "conversa" | "men
   registrar_feedback:        { rpc: "mind_play_feedback",        vinculo: "nenhum" },
 };
 
+// RECUSA DO WRITER — o `motivo` das `mind_play_*` É o código de domínio, e o
+// `play-service.js` já sabe lê-lo em `error.code`. Só passa o que tem forma de
+// código; qualquer outra coisa vira `acao_recusada`, para nunca vazar texto
+// interno do banco na resposta. Nada é traduzido: inventar enum aqui criaria
+// uma segunda taxonomia para a mesma recusa.
+function codigoDeRecusa(saida: Record<string, unknown> | null) {
+  const motivo = typeof saida?.motivo === "string" ? saida.motivo.trim() : "";
+  return /^[a-z][a-z0-9_]{1,39}$/.test(motivo) ? motivo : "acao_recusada";
+}
+
 function readKey(name: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS", fallback: string) {
   const raw = Deno.env.get(name);
   if (raw) {
@@ -491,6 +501,73 @@ Deno.serve(async (req: Request) => {
       }
 
       const alvo = FERRAMENTAS_PLAY[ferramenta];
+      const sessaoDaAcao = {
+        id: sessionId, conversation_id: conversationId, token: sessionToken, expires_at: expiresAt,
+      };
+      const acaoOk = (resultado: unknown) => json(req, 200, {
+        ok: true,
+        resultado,
+        session: sessaoDaAcao,
+        device_id: deviceId,
+        request_id: requestId,
+      }, requestId);
+      const acaoRecusada = (code: string, message: string, status = 200) =>
+        json(req, status, { ok: false, error: { code, message } }, requestId);
+
+      // ------------------------------------------- IDEMPOTÊNCIA DE TRANSPORTE
+      // `client_action_id` chega com um contrato explícito do cliente: "rede
+      // repete; a pessoa não". Os writers já são idempotentes por chave
+      // natural — menos `registrar_feedback_evento` sem mensagem, que é
+      // exatamente como este runtime o chama: ali, um retry vira dois relatos.
+      //
+      // A casa é `concierge.ferramenta_chamadas`, que já existe com
+      // `idempotency_key` e índice UNIQUE parcial. Reservar ANTES de executar
+      // é o que fecha a corrida: quem insere executa, quem colide recebe o que
+      // a primeira tentativa registrou.
+      const chaveAcao = typeof payload.client_action_id === "string" && payload.client_action_id.trim()
+        ? payload.client_action_id.trim().slice(0, 200)
+        : null;
+
+      let chamadaId: string | null = null;
+      if (chaveAcao) {
+        const { data: reserva, error: reservaError } = await admin.rpc("mind_play_chamada_iniciar", {
+          p_ferramenta: ferramenta,
+          p_pessoa_id: pessoaId,
+          p_idempotency_key: chaveAcao,
+          p_entrada: argumentos ?? {},
+        });
+        // Fail closed: o cliente foi prometido deduplicação. Sem o ledger não
+        // dá para cumprir, e executar assim mesmo é o defeito, não o contorno.
+        if (reservaError || reserva?.ok !== true) {
+          const motivo = typeof reserva?.motivo === "string" ? reserva.motivo : null;
+          console.error(JSON.stringify({
+            request_id: requestId, event: "play_reserva_falhou", ferramenta, motivo,
+            detalhe: reservaError?.message ?? null,
+          }));
+          return motivo === "chave_conflitante"
+            ? acaoRecusada("chave_conflitante", "Esta identificação de ação já foi usada em outro registro.", 409)
+            : acaoRecusada("acao_falhou", "Não consegui registrar agora.", 502);
+        }
+        if (reserva.estado === "repetida") {
+          // A MESMA tentativa. Devolve o desfecho gravado; o writer não roda de novo.
+          const saida = (reserva.saida ?? null) as Record<string, unknown> | null;
+          console.info(JSON.stringify({
+            request_id: requestId, event: "play_repetido", ferramenta,
+            status_original: reserva.status ?? null, duration_ms: Date.now() - startedAt,
+          }));
+          if (reserva.status === "concluida") return acaoOk(saida);
+          if (reserva.status === "recusada") {
+            return acaoRecusada(codigoDeRecusa(saida), "Não consegui registrar isso.");
+          }
+          return acaoRecusada("acao_falhou", "Não consegui registrar agora.", 502);
+        }
+        if (reserva.estado === "em_andamento") {
+          // A primeira tentativa ainda não respondeu. Executar agora duplicaria.
+          return acaoRecusada("acao_em_andamento", "Esta ação ainda está sendo registrada.", 409);
+        }
+        chamadaId = typeof reserva.chamada_id === "string" ? reserva.chamada_id : null;
+      }
+
       const args: Record<string, unknown> = {
         p_pessoa_id: pessoaId,
         p_payload: argumentos ?? {},
@@ -499,31 +576,77 @@ Deno.serve(async (req: Request) => {
       if (alvo.vinculo === "mensagem") args.p_mensagem_id = null;
 
       const { data: resultado, error: acaoError } = await admin.rpc(alvo.rpc, args);
+
+      const fecharChamada = async (
+        status: "concluida" | "recusada" | "falhou",
+        saida: unknown,
+        httpStatus: number,
+        erro: string | null,
+      ) => {
+        if (!chamadaId) return;
+        const { error } = await admin.rpc("mind_play_chamada_concluir", {
+          p_chamada_id: chamadaId,
+          p_status: status,
+          p_saida: saida ?? null,
+          p_http_status: httpStatus,
+          p_latencia_ms: Date.now() - startedAt,
+          p_erro: erro,
+        });
+        // O writer já rodou: não dá para desfazer, e reexecutar é o que não se
+        // quer. A reserva fica em andamento e o retry recebe `acao_em_andamento`
+        // — pessimista, nunca duplicado.
+        if (error) {
+          console.warn(JSON.stringify({
+            request_id: requestId, event: "play_ledger_nao_fechou", ferramenta, chamada_id: chamadaId,
+          }));
+        }
+      };
+
       if (acaoError) {
+        await fecharChamada("falhou", null, 502, acaoError.message);
         console.error(JSON.stringify({
           request_id: requestId, event: "play_falhou", ferramenta, rpc: alvo.rpc,
           detalhe: acaoError.message,
         }));
-        return json(req, 502, {
-          ok: false,
-          error: { code: "acao_falhou", message: "Não consegui registrar agora." },
-        }, requestId);
+        return acaoRecusada("acao_falhou", "Não consegui registrar agora.", 502);
       }
+
+      // RECUSA DO WRITER É RECUSA, NÃO SUCESSO.
+      // As `mind_play_*` devolvem erro de domínio como DADO —
+      // `{ok:false, motivo:"sem_nota"}` — e não como exception. Olhar só o
+      // `acaoError` fazia a Edge responder top-level `ok:true` carregando uma
+      // recusa dentro, e o `play-service.js` lê o top-level: a tela diria que
+      // registrou o que o banco recusou. Sucesso agora exige as duas coisas.
+      const escrita = (resultado ?? null) as Record<string, unknown> | null;
+      if (escrita?.ok !== true) {
+        const recusa = escrita?.ok === false;
+        await fecharChamada(
+          recusa ? "recusada" : "falhou",
+          escrita,
+          recusa ? 200 : 502,
+          recusa ? null : "writer sem contrato ok",
+        );
+        console.warn(JSON.stringify({
+          request_id: requestId, event: recusa ? "play_recusado" : "play_sem_contrato",
+          ferramenta, rpc: alvo.rpc, motivo: escrita?.motivo ?? null,
+          duration_ms: Date.now() - startedAt,
+        }));
+        // Recusa de negócio não é erro de servidor; contrato quebrado é.
+        return recusa
+          ? acaoRecusada(codigoDeRecusa(escrita), "Não consegui registrar isso.")
+          : acaoRecusada("acao_falhou", "Não consegui registrar agora.", 502);
+      }
+
+      await fecharChamada("concluida", escrita, 200, null);
 
       console.info(JSON.stringify({
         request_id: requestId, status: 200, event: "play_executado",
         ferramenta, rpc: alvo.rpc, session_id: sessionId, new_session: newSession,
-        client_action_id: typeof payload.client_action_id === "string" ? payload.client_action_id : null,
+        client_action_id: chaveAcao,
         duration_ms: Date.now() - startedAt,
       }));
 
-      return json(req, 200, {
-        ok: true,
-        resultado,
-        session: { id: sessionId, conversation_id: conversationId, token: sessionToken, expires_at: expiresAt },
-        device_id: deviceId,
-        request_id: requestId,
-      }, requestId);
+      return acaoOk(escrita);
     }
 
     // ==================================================== MODO CHAT

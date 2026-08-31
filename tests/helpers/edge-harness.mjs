@@ -103,6 +103,10 @@ function respostasPadrao() {
     mind_rota_capacidade: { ok: true, pode_executar: true, reason: null },
     mind_agent_kit: KIT_COMPLETO,
     mindagent_chat_save_interests: { ok: true, saved: 1 },
+    // Ledger de idempotência do Play. O padrão é o caminho sem repetição;
+    // quem testa retry passa um ledger com estado (ver `ledgerEmMemoria`).
+    mind_play_chamada_iniciar: () => ({ ok: true, estado: 'nova', chamada_id: randomUUID() }),
+    mind_play_chamada_concluir: { ok: true },
     mind_play_feedback_sessao: { ok: true, id: randomUUID() },
     mind_play_nps: { ok: true, id: randomUUID() },
     mind_play_feedback_evento: { ok: true, id: randomUUID() },

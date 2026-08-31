@@ -125,9 +125,54 @@ da `OPENAI_API_KEY` não a derruba.
 `{ ok:false, error:{ code:"sem_pessoa" } }` em HTTP 200, porque é regra de
 produto e não erro de servidor — a tela precisa poder dizer isso.
 
-As `mind_play_*` vivem na PR #48 e ainda não estão em produção: até ela
-mergear, a ação responde `acao_falhou`. É o comportamento correto, e é o
-motivo de o E2E do Play depender das duas lanes.
+**Idempotência de transporte.** `client_action_id` chega com um contrato
+explícito do cliente — *"rede repete; a pessoa não"* — e antes era só log. Os
+writers da Lane E já são idempotentes por **chave natural**: upsert por
+(participante, sessão), UNIQUE por pessoa no NPS, `(pessoa, tipo, valor,
+contexto)` no feedback tipado. A exceção é `registrar_feedback_evento` sem
+mensagem — que é exatamente como este runtime o chama: ali um retry vira dois
+relatos.
+
+A casa já existia: `concierge.ferramenta_chamadas`, com `idempotency_key` e
+índice UNIQUE parcial, vazia e sem consumidor. A migration
+`20260831010000` acrescenta só as duas funções que faltavam para escrever
+nela — `mind_play_chamada_iniciar` e `..._concluir`. Nada de tabela, coluna,
+identidade ou lifecycle novo.
+
+```
+reserva (insert … on conflict do nothing)
+  ├ nova         → executa o writer → conclui (concluida | recusada | falhou)
+  ├ repetida     → devolve o desfecho gravado, sem executar
+  ├ em_andamento → 409 acao_em_andamento (a primeira ainda não respondeu)
+  └ conflito     → 409 chave_conflitante
+```
+
+Reservar **antes** de executar é o que fecha a corrida: o índice UNIQUE decide
+quem executa, não o relógio. Checar-depois-escrever deixaria as duas tentativas
+simultâneas passarem — que é o defeito. Sem `client_action_id` nada muda: o
+índice é parcial, NULL não colide, e a chamada executa como hoje. Se o ledger
+não estiver disponível, a ação **falha fechado**: foi prometida deduplicação, e
+executar assim mesmo é o defeito, não o contorno. Por isso a Edge só é
+publicada depois desta migration.
+
+**Recusa do writer é recusa, não sucesso.** As `mind_play_*` devolvem erro de
+domínio como **dado** — `{ok:false, motivo:"sem_nota"}` — e não como exception,
+então `acaoError` vem nulo. Olhar só o `acaoError` fazia a Edge responder
+top-level `ok:true` carregando um `{ok:false}` dentro; o `play-service.js` lê o
+top-level e a tela diria que registrou o que o banco recusou. Sucesso agora
+exige as duas coisas: sem `acaoError` **e** `resultado.ok === true`.
+
+O `motivo` do writer **é** o código de domínio que volta em `error.code` — nada
+é traduzido, porque inventar enum aqui criaria uma segunda taxonomia para a
+mesma recusa. Só passa o que tem forma de código (`^[a-z][a-z0-9_]{1,39}$`);
+qualquer outra coisa vira `acao_recusada`, para não vazar texto interno. Recusa
+de negócio responde **200 com `ok:false`**, igual ao `sem_pessoa`; contrato
+quebrado (writer sem `ok`) é 502.
+
+As `mind_play_*` vivem na PR #48 e ainda não estão em produção — conferido: 0
+funções `mind_play_*` no banco vivo. Até ela mergear, a ação responde
+`acao_falhou`. É o comportamento correto, e é o motivo de o E2E do Play
+depender das duas lanes.
 
 ## 6. O que NÃO muda
 
@@ -147,13 +192,13 @@ motivo de o E2E do Play depender das duas lanes.
 
 ## 7. O que os testes provam — e o que só o E2E prova
 
-`npm run test:edge` roda duas camadas, 39 contratos.
+`npm run test:edge` roda duas camadas, 52 contratos.
 
-**Estrutura** (`tests/mindagent_chat_wiring.test.mjs`, 19) lê o fonte versionado
+**Estrutura** (`tests/mindagent_chat_wiring.test.mjs`, 21) lê o fonte versionado
 e trava as decisões de escrita: a ordem save → Gate → Kit → OpenAI, a ausência
 de retrieval direto e de Router, o enum de sensibilidade, a allowlist do Play.
 
-**Comportamento** (`tests/mindagent_chat_comportamento.test.mjs`, 20) **executa
+**Comportamento** (`tests/mindagent_chat_comportamento.test.mjs`, 31) **executa
 o handler real**. O harness (`tests/helpers/`) troca só o que não existe no
 Node — `Deno`, o cliente Supabase e a OpenAI — reescrevendo um único
 especificador de import; se esse import mudar, o harness falha alto em vez de
@@ -170,10 +215,18 @@ testar outra coisa. O que ele observa é o que o executor faz:
 | Play sem conversa anterior | `start` → `bind_identity` → `get_context` → ferramenta, sessão canônica devolvida, sem modelo e sem turno de chat |
 | Play sem pessoa | `sem_pessoa` em 200, nenhuma `mind_play_*` executada |
 | fora da allowlist | `mind_play_nps`, `__proto__`, `constructor` e afins → 400 sem abrir sessão |
+| idempotência | mesmo `client_action_id` → writer chamado **uma** vez e mesmo resultado; ids diferentes → tentativas distintas; sem chave → comportamento de hoje; em andamento e chave alheia → 409 sem tocar o writer; ledger fora → falha fechado |
+| recusa do writer | `{ok:false,motivo}` sem erro de RPC → top-level `ok:false` com o motivo, em 200; retry devolve a mesma recusa; motivo sem forma de código → `acao_recusada`; writer sem `ok` → 502 |
 
 A suíte foi verificada por mutação: mover o `save_message(user)` para depois do
 Gate, afrouxar o fail-closed e trocar `desconhecido` por `none` fazem os testes
-correspondentes falharem.
+correspondentes falharem. Os dez testes das duas correções acima **falham no
+HEAD anterior** (`b0e5135`) e passam agora — é o que os torna prova, e não
+descrição.
+
+O ledger SQL tem contratos próprios em
+`tests/concierge_play_idempotencia_contract.sql`: 8, validados em
+`BEGIN … ROLLBACK` contra produção, com produção conferida intacta depois.
 
 `tsc --noEmit` passa limpo com shims de `Deno` e do cliente Supabase (não há
 Deno neste ambiente — `deno.land` é bloqueado pela política de egresso).

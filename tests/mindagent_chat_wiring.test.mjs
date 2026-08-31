@@ -151,7 +151,7 @@ test('a assinatura de save_interests não foi tocada', () => {
 /* --------------------------------------------------------------- PLAY */
 
 test('as ferramentas do Play são uma allowlist estática', () => {
-  const bloco = src.slice(pos('const FERRAMENTAS_PLAY'), pos('};\n\nfunction readKey'));
+  const bloco = src.slice(pos('const FERRAMENTAS_PLAY'), pos('// RECUSA DO WRITER'));
   const mapa = Object.fromEntries(
     [...bloco.matchAll(/(\w+):\s*\{\s*rpc:\s*"(\w+)",\s*vinculo:\s*"(\w+)"\s*\}/g)]
       .map((m) => [m[1], { rpc: m[2], vinculo: m[3] }]),
@@ -204,10 +204,36 @@ test('sem pessoa não há coleta, e a recusa é dado — não erro de servidor',
 });
 
 test('a resposta da ação segue o contrato do play-service', () => {
+  // `{ok:true, resultado}` no sucesso; `{ok:false, error:{code,message}}` na
+  // recusa — que é o que o `play-service.js` lê no TOP-LEVEL.
   assert.match(src, /ok: true,\n\s+resultado,/);
-  assert.match(src, /code: "ferramenta_desconhecida"/);
-  assert.match(src, /code: "argumentos_invalidos"/);
-  assert.match(src, /code: "acao_falhou"/);
+  assert.match(src, /json\(req, status, \{ ok: false, error: \{ code, message \} \}, requestId\)/);
+  for (const code of [
+    '"ferramenta_desconhecida"', '"argumentos_invalidos"', '"acao_falhou"',
+    '"sem_pessoa"', '"acao_em_andamento"', '"chave_conflitante"',
+  ]) {
+    assert.ok(src.includes(code), `o contrato precisa manter o código ${code}`);
+  }
+});
+
+test('sucesso do Play exige o contrato do writer, não só a ausência de erro', () => {
+  // As `mind_play_*` devolvem recusa de domínio como DADO. Olhar só o
+  // `acaoError` fazia a Edge responder top-level ok:true carregando um
+  // `{ok:false}` dentro — e o cliente lê o top-level.
+  assert.match(src, /if \(escrita\?\.ok !== true\)/);
+  assert.match(src, /function codigoDeRecusa/);
+  // O motivo do writer vira o código; nada é traduzido nem inventado.
+  assert.match(src, /\/\^\[a-z\]\[a-z0-9_\]\{1,39\}\$\//);
+});
+
+test('a idempotência do Play usa a casa que já existe, e reserva antes de executar', () => {
+  const reserva = pos('"mind_play_chamada_iniciar"');
+  const escrita = pos('admin.rpc(alvo.rpc, args)');
+  assert.ok(reserva < escrita, 'reservar precisa vir antes de executar o writer');
+  assert.match(src, /p_idempotency_key: chaveAcao/);
+  assert.match(src, /"mind_play_chamada_concluir"/);
+  // Sem chave, o comportamento é o de hoje: executa.
+  assert.match(src, /if \(chaveAcao\) \{/);
 });
 
 /* ------------------------------------------------- CONTRATO PRESERVADO */

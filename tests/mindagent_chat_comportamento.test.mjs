@@ -15,6 +15,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { chamar, erroRpc, KIT_COMPLETO, PESSOA_ID } from './helpers/edge-harness.mjs';
 
 const clone = (valor) => structuredClone(valor);
@@ -278,7 +279,9 @@ test('Play: Yazo identificado SEM conversa anterior cria sessão, liga a pessoa 
     'mindagent_chat_start',
     'mindagent_chat_bind_identity',
     'mindagent_chat_get_context',
+    'mind_play_chamada_iniciar',   // reserva antes de executar
     'mind_play_feedback_sessao',
+    'mind_play_chamada_concluir',  // desfecho registrado
   ]);
 
   const acao = r.chamada('mind_play_feedback_sessao');
@@ -364,5 +367,228 @@ test('argumentos inválidos são recusados antes de tocar o banco', async () => 
     assert.equal(r.status, 400, JSON.stringify(argumentos));
     assert.equal(r.corpo.error.code, 'argumentos_invalidos');
     assert.equal(r.chamadas.length, 0);
+  }
+});
+
+/* ============================== 11. IDEMPOTÊNCIA DE TRANSPORTE DO PLAY */
+
+/**
+ * Ledger em memória com o MESMO protocolo de `concierge.ferramenta_chamadas`.
+ * O SQL de verdade é provado pelos 8 contratos de
+ * `tests/concierge_play_idempotencia_contract.sql`, em BEGIN/ROLLBACK contra
+ * produção; o que se prova aqui é o uso que o executor faz do protocolo — e
+ * isso exige estado atravessando duas chamadas HTTP.
+ */
+function ledgerEmMemoria() {
+  const porChave = new Map();
+  const porId = new Map();
+  return {
+    semear: (chave, linha) => {
+      const completa = { id: randomUUID(), saida: null, http_status: null, ...linha };
+      porChave.set(chave, completa);
+      porId.set(completa.id, completa);
+    },
+    linhaDe: (chave) => porChave.get(chave),
+    rpc: {
+      mind_play_chamada_iniciar: ({ p_ferramenta, p_pessoa_id, p_idempotency_key }) => {
+        const chave = String(p_idempotency_key ?? '').trim() || null;
+        const nova = {
+          id: randomUUID(), ferramenta: p_ferramenta, pessoa: p_pessoa_id,
+          status: 'em_andamento', saida: null, http_status: null,
+        };
+        if (!chave) { porId.set(nova.id, nova); return { ok: true, estado: 'nova', chamada_id: nova.id }; }
+        const antiga = porChave.get(chave);
+        if (!antiga) {
+          porChave.set(chave, nova); porId.set(nova.id, nova);
+          return { ok: true, estado: 'nova', chamada_id: nova.id };
+        }
+        if (antiga.ferramenta !== p_ferramenta || antiga.pessoa !== p_pessoa_id) {
+          return { ok: false, motivo: 'chave_conflitante' };
+        }
+        if (antiga.status === 'em_andamento') {
+          return { ok: true, estado: 'em_andamento', chamada_id: antiga.id };
+        }
+        return {
+          ok: true, estado: 'repetida', chamada_id: antiga.id,
+          status: antiga.status, saida: antiga.saida, http_status: antiga.http_status,
+        };
+      },
+      mind_play_chamada_concluir: ({ p_chamada_id, p_status, p_saida, p_http_status }) => {
+        const linha = porId.get(p_chamada_id);
+        if (!linha || linha.status !== 'em_andamento') return { ok: false, motivo: 'chamada_nao_encontrada' };
+        Object.assign(linha, { status: p_status, saida: p_saida ?? null, http_status: p_http_status ?? null });
+        return { ok: true, chamada_id: p_chamada_id, status: p_status };
+      },
+    },
+  };
+}
+
+test('A. mesmo client_action_id executa o writer UMA vez e devolve o mesmo resultado', async () => {
+  const ledger = ledgerEmMemoria();
+  const escritas = [];
+  const rpc = {
+    ...ledger.rpc,
+    mind_play_nps: (args) => {
+      escritas.push(args);
+      return { ok: true, acao: 'criado', nps_id: 'nps-1', nota: 9 };
+    },
+  };
+  const corpo = { ferramenta: 'registrar_nps', argumentos: { nota: 9 }, client_action_id: 'acao-repetida' };
+
+  const primeira = await chamar({ corpo, rpc });
+  const segunda = await chamar({ corpo, rpc });
+
+  assert.equal(primeira.status, 200);
+  assert.equal(primeira.corpo.ok, true);
+  assert.ok(primeira.rpcs.includes('mind_play_nps'));
+
+  // O contrato: a segunda tentativa é sucesso consistente, sem segunda escrita.
+  assert.equal(segunda.status, 200);
+  assert.equal(segunda.corpo.ok, true);
+  assert.deepEqual(segunda.corpo.resultado, primeira.corpo.resultado);
+  assert.equal(escritas.length, 1, 'o writer não pode rodar duas vezes');
+  assert.ok(!segunda.rpcs.includes('mind_play_nps'), 'a repetição não chega ao writer');
+  assert.equal(segunda.evento('play_repetido').status_original, 'concluida');
+
+  // Uma reserva, um desfecho.
+  assert.equal(ledger.linhaDe('acao-repetida').status, 'concluida');
+});
+
+test('A. client_action_id diferente continua sendo tentativa distinta', async () => {
+  const ledger = ledgerEmMemoria();
+  const escritas = [];
+  const rpc = { ...ledger.rpc, mind_play_nps: () => (escritas.push(1), { ok: true, nps_id: 'x' }) };
+
+  await chamar({ corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 9 }, client_action_id: 'a-1' }, rpc });
+  await chamar({ corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 8 }, client_action_id: 'a-2' }, rpc });
+
+  assert.equal(escritas.length, 2);
+});
+
+test('A. sem client_action_id o comportamento de hoje é preservado: executa, sem ledger', async () => {
+  const r = await chamar({ corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 7 } } });
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.ok, true);
+  assert.ok(!r.rpcs.includes('mind_play_chamada_iniciar'), 'sem chave não há reserva');
+  assert.ok(r.rpcs.includes('mind_play_nps'));
+});
+
+test('A. a MESMA tentativa ainda em andamento não executa o writer de novo', async () => {
+  const ledger = ledgerEmMemoria();
+  ledger.semear('acao-voando', { ferramenta: 'registrar_nps', pessoa: PESSOA_ID, status: 'em_andamento' });
+  const r = await chamar({
+    corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 9 }, client_action_id: 'acao-voando' },
+    rpc: ledger.rpc,
+  });
+  assert.equal(r.status, 409);
+  assert.equal(r.corpo.ok, false);
+  assert.equal(r.corpo.error.code, 'acao_em_andamento');
+  assert.ok(!r.rpcs.includes('mind_play_nps'));
+});
+
+test('A. a chave vem do navegador: reusá-la em outra ferramenta não herda o resultado', async () => {
+  const ledger = ledgerEmMemoria();
+  ledger.semear('acao-de-outro', {
+    ferramenta: 'registrar_feedback_evento', pessoa: PESSOA_ID,
+    status: 'concluida', saida: { ok: true, feedback_id: 'segredo' },
+  });
+  const r = await chamar({
+    corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 9 }, client_action_id: 'acao-de-outro' },
+    rpc: ledger.rpc,
+  });
+  assert.equal(r.status, 409);
+  assert.equal(r.corpo.error.code, 'chave_conflitante');
+  assert.ok(!JSON.stringify(r.corpo).includes('segredo'), 'a saída alheia não pode vazar');
+  assert.ok(!r.rpcs.includes('mind_play_nps'));
+});
+
+test('A. ledger indisponível falha fechado: não executa o writer', async () => {
+  // Prometeu deduplicar. Sem a casa, executar assim mesmo é o defeito.
+  const r = await chamar({
+    corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 9 }, client_action_id: 'a-1' },
+    rpc: { mind_play_chamada_iniciar: erroRpc('function mind_play_chamada_iniciar does not exist') },
+  });
+  assert.equal(r.status, 502);
+  assert.equal(r.corpo.error.code, 'acao_falhou');
+  assert.ok(!r.rpcs.includes('mind_play_nps'));
+});
+
+/* ================================== 12. RECUSA DO WRITER NÃO É SUCESSO */
+
+test('B. writer que recusa por domínio NÃO vira top-level ok:true', async () => {
+  // `{ok:false, motivo}` chega SEM erro do Supabase — é dado, não exception.
+  const r = await chamar({
+    corpo: { ferramenta: 'registrar_nps', argumentos: {}, client_action_id: 'a-recusa' },
+    rpc: { mind_play_nps: { ok: false, motivo: 'sem_nota' } },
+  });
+
+  assert.notEqual(r.corpo.ok, true, 'a UI lê o top-level: não pode dizer que registrou');
+  assert.equal(r.corpo.ok, false);
+  assert.equal(r.corpo.error.code, 'sem_nota', 'o motivo do writer é o código de domínio');
+  assert.equal(r.status, 200, 'recusa de negócio não é erro de servidor');
+  assert.equal(r.evento('play_recusado').motivo, 'sem_nota');
+
+  // E o desfecho fica registrado como recusa, para o retry devolver o mesmo.
+  const concluir = r.chamada('mind_play_chamada_concluir');
+  assert.equal(concluir.args.p_status, 'recusada');
+  assert.deepEqual(concluir.args.p_saida, { ok: false, motivo: 'sem_nota' });
+});
+
+test('B. cada recusa real dos writers da Lane E chega ao cliente como recusa', async () => {
+  for (const [ferramenta, rpcNome, motivo] of [
+    ['registrar_feedback_sessao', 'mind_play_feedback_sessao', 'sessao_nao_encontrada'],
+    ['registrar_nps', 'mind_play_nps', 'nota_fora_da_faixa'],
+    ['registrar_feedback_evento', 'mind_play_feedback_evento', 'sem_categoria'],
+    ['registrar_feedback', 'mind_play_feedback', 'sem_tipo'],
+  ]) {
+    const r = await chamar({
+      corpo: { ferramenta, argumentos: {} },
+      rpc: { [rpcNome]: { ok: false, motivo } },
+    });
+    assert.equal(r.corpo.ok, false, ferramenta);
+    assert.equal(r.corpo.error.code, motivo, ferramenta);
+    assert.equal(r.status, 200, ferramenta);
+  }
+});
+
+test('B. o retry de uma recusa devolve a MESMA recusa, sem reexecutar', async () => {
+  const ledger = ledgerEmMemoria();
+  const escritas = [];
+  const rpc = {
+    ...ledger.rpc,
+    mind_play_nps: () => (escritas.push(1), { ok: false, motivo: 'sem_nota' }),
+  };
+  const corpo = { ferramenta: 'registrar_nps', argumentos: {}, client_action_id: 'a-recusa' };
+
+  const primeira = await chamar({ corpo, rpc });
+  const segunda = await chamar({ corpo, rpc });
+
+  assert.equal(escritas.length, 1);
+  assert.equal(segunda.corpo.ok, false);
+  assert.equal(segunda.corpo.error.code, primeira.corpo.error.code);
+  assert.equal(segunda.status, 200);
+});
+
+test('B. motivo sem forma de código não vaza texto interno', async () => {
+  for (const motivo of [undefined, '', 'ERRO: relation "x" does not exist', 42]) {
+    const r = await chamar({
+      corpo: { ferramenta: 'registrar_nps', argumentos: {} },
+      rpc: { mind_play_nps: { ok: false, motivo } },
+    });
+    assert.equal(r.corpo.ok, false);
+    assert.equal(r.corpo.error.code, 'acao_recusada', String(motivo));
+    assert.ok(!JSON.stringify(r.corpo).includes('does not exist'));
+  }
+});
+
+test('B. writer sem o contrato `ok` é falha, não sucesso silencioso', async () => {
+  for (const resposta of [null, {}, { feedback_id: 'x' }, 'texto']) {
+    const r = await chamar({
+      corpo: { ferramenta: 'registrar_nps', argumentos: { nota: 9 } },
+      rpc: { mind_play_nps: resposta },
+    });
+    assert.notEqual(r.corpo.ok, true, JSON.stringify(resposta));
+    assert.equal(r.status, 502);
+    assert.equal(r.corpo.error.code, 'acao_falhou');
   }
 });
