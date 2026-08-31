@@ -516,11 +516,12 @@ body {
   z-index: 2;
 }
 /* Área de toque de no mínimo 44x44, sem mexer no anel visual: o alvo
-   pequeno (coração, filtros) ganha um extensor invisível centrado nele,
+   pequeno (chips de filtro, ícones de topo) ganha um extensor invisível,
    em vez de crescer e passar por cima do elemento destacado. */
 /* O alvo da instrução vem por cima de qualquer outro. Sem isto, um
-   alvo pequeno dentro de um grande — o coração dentro do cartão — perde
-   o toque para o vizinho e a missão nunca fecha. */
+   alvo pequeno dentro de um grande perde o toque para o vizinho e a missão
+   nunca fecha. Foi o que travou o tour quando o cartão da sessão ainda
+   engolia o coração de salvar. */
 .alvo.dica { z-index: 4; }
 
 .alvo::before {
@@ -582,9 +583,8 @@ body {
   75% { transform: translate(calc(-50% + 6px), -50%); }
 }
 
-/* Marcas desenhadas por cima da foto (coração salvo, contato pendente) */
+/* Marcas desenhadas por cima da foto (contato pendente, filtro escolhido) */
 .marca { position: absolute; transform: translate(-50%, -50%); z-index: 1; pointer-events: none; }
-.marca.coracao svg { width: 6.4cqw; height: 6.4cqw; display: block; }
 .marca.pendente {
   background: #4a4a4a; color: #fff;
   border-radius: 2cqw;

@@ -184,13 +184,11 @@ const TELAS = {
     img: 'agenda', aba: 'agenda', rotulo: 'Agenda',
     serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
     alvos: [
-      { id: 'topo', x: 88, y: 4.6, w: 20, h: 4.5, brinde: 'Filtre por trilha, arena ou só os seus favoritos.' },
+      { id: 'topo', x: 88, y: 4.6, w: 20, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
       { id: 'card1', x: 50, y: 19.6, w: 92, h: 13, brinde: 'Cada card é uma sessão. Toque para abrir.' },
-      { id: 'coracao', x: 86.5, y: 61.5, w: 13, h: 5, faz: 'favoritar', missao: 'm1',
-        dica: 'Toque no <b>coração</b> para salvar esta sessão em Minha Agenda.',
-        brinde: 'Salva em Minha Agenda 💚' },
-      { id: 'card', x: 41, y: 71, w: 74, h: 28, vai: 'detalhe', modo: 'push',
-        dica: 'Agora toque na <b>sessão</b> para abrir os detalhes.' },
+      /* Largura inteira: não há mais coração de salvar dividindo a linha. */
+      { id: 'card', x: 50, y: 71, w: 92, h: 28, vai: 'detalhe', modo: 'push',
+        dica: 'Toque na <b>sessão</b> para abrir os detalhes.' },
     ],
   },
   'detalhe': {
@@ -199,7 +197,6 @@ const TELAS = {
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'coracao', x: 90.3, y: 53.9, w: 12, h: 4.5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
       { id: 'reservar', x: 49.9, y: 67.1, w: 88.6, h: 5.5, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
         folha: 'reservado', obrigatoria: true,
         dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
@@ -215,14 +212,13 @@ const TELAS = {
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'coracao', x: 90.3, y: 53.9, w: 12, h: 4.5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
       { id: 'confirmacao', x: 49.9, y: 67.1, w: 88.6, h: 5.5,
         brinde: 'No dia da sessão, o check-in é feito aqui mesmo.' },
     ],
   },
   'minha-agenda': {
     img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
-    serve: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.',
+    serve: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.',
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
@@ -279,11 +275,10 @@ const TELAS = {
   },
   'palestrantes': {
     img: 'palestrantes', aba: 'menu', volta: 'menu', rotulo: 'Palestrantes',
-    serve: 'Todos os nomes do Summit, com bio e sessões. O coração salva quem você quer ver.',
+    serve: 'Todos os nomes do Summit, com bio e as sessões de cada um.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'busca', x: 50, y: 11.5, w: 88, h: 5, brinde: 'Busque pelo nome de quem você quer ver.' },
-      { id: 'fav1', x: 89.7, y: 20.5, w: 12, h: 5, faz: 'favoritar', brinde: 'Palestrante salvo 💚' },
     ],
   },
   'chat': {
@@ -314,8 +309,7 @@ const ROTA = {
 };
 
 const MISSOES = [
-  { id: 'm1', txt: 'Salvar uma sessão na sua agenda', tela: 'agenda', alvo: 'coracao' },
-  { id: 'm2', txt: 'Reservar seu lugar na sessão', tela: 'detalhe', alvo: 'reservar' },
+  { id: 'm2', txt: 'Reservar seu lugar numa sessão', tela: 'detalhe', alvo: 'reservar' },
   { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
   { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
   { id: 'm5', txt: 'Descobrir o resto no Menu', tela: 'menu' },
@@ -553,9 +547,7 @@ function pintar(modo) {
     el.style.left = alvo.x + '%';
     el.style.top = alvo.y + '%';
     if (tipo === 'pendente' || tipo === 'escolhido') { el.style.width = alvo.w + '%'; el.style.height = (alvo.h * 0.86) + '%'; }
-    if (tipo === 'coracao') {
-      el.innerHTML = '<svg viewBox="0 0 24 24" fill="#68ee95"><path d="M12 21s-7.5-4.8-9.5-9A5.4 5.4 0 0 1 12 6.4 5.4 5.4 0 0 1 21.5 12c-2 4.2-9.5 9-9.5 9z"/></svg>';
-    } else if (tipo === 'pendente') {
+    if (tipo === 'pendente') {
       el.textContent = 'Pendente';
     }
     conteudo.appendChild(el);
@@ -645,7 +637,6 @@ function voltar() {
 
 async function tocar(a) {
   if (emTransicao) return;                       /* nada de toque duplo */
-  if (a.faz === 'favoritar' || a.faz === 'favoritar-pal') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
   if (a.faz === 'contato') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'pendente'; }
   if (a.faz === 'filtrar') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'escolhido'; }
 
@@ -755,11 +746,9 @@ let chatIniciado = false;
 /* Passos que o agente sabe mostrar. Espelha a tabela `tutorial_passos` do
    Supabase: chave, a tela do app e o elemento que fica destacado. */
 const PASSOS = {
-  favoritar:    { tela: 'agenda',       alvo: 'coracao',  onde: 'Aba Agenda',
-                  aviso: 'Arena Sextante, Arena LinkedIn, workshops e masterclasses têm vagas limitadas — nesses vale agendar antes.' },
   reservar:     { tela: 'detalhe',      alvo: 'reservar', onde: 'Dentro da sessão',
                   aviso: 'A reserva cai 5 minutos antes do início, para abrir a fila de espera.' },
-  minha_agenda: { tela: 'minha-agenda', alvo: 'card',     onde: 'Aba Minha agenda' },
+  minha_agenda: { tela: 'minha-agenda', alvo: 'sessao',   onde: 'Aba Minha agenda' },
   qr:           { tela: 'qrcode',       alvo: 'escanear', onde: 'Aba QR Code' },
   escanear:     { tela: 'scanner',      alvo: 'meuqr',    onde: 'QR Code → Escanear' },
   mapa:         { tela: 'menu',         alvo: 'mapa',     onde: 'Menu → Mapa do evento' },
@@ -1479,10 +1468,10 @@ const GUIA = [
     tom: 'neutro',
     aviso: 'Eu mostro o caminho e uso as informações oficiais do evento. Quando uma ação exigir confirmação — como reservar uma vaga — você conclui no próprio app.' },
   { rotulo: 'Agenda', selo: 'A programação', x: 0.30, dur: 11000,
-    texto: 'A grade inteira dos dias 16 e 17. Toque no coração e a sessão vai para Minha Agenda.',
-    aviso: '<b>Salvar organiza sua agenda.<br>Reservar garante sua vaga.</b><br>Algumas sessões têm capacidade limitada — a própria sessão avisa quando precisa.' },
+    texto: 'A grade inteira dos dias 16 e 17. Abra uma sessão para ver a descrição, o local e os palestrantes.',
+    aviso: '<b>Reservar garante sua vaga.</b><br>Algumas sessões têm capacidade limitada — a própria sessão avisa quando precisa.' },
   { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
-    texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
+    texto: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
   { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
     texto: 'Sua credencial e sua câmera. Apresente seu QR Code quando solicitado e escaneie o código de outras pessoas para adicioná-las à sua rede.' },
   { rotulo: 'Menu', selo: 'E o resto', x: 0.90,
