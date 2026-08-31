@@ -34,8 +34,33 @@
 // para serem reconhecíveis depois — o rodapé imprime o SQL que lista o que este run
 // criou, com a rota que cada turno realmente executou.
 //
+// ============================================================================
+// O TELEFONE É OBRIGATÓRIO, E TEM DE SER UM WHATSAPP CONTROLADO PARA TESTE.
+//
+// Não há número padrão aqui, de propósito. Até esta versão o script mandava
+// `+5511999990000` fixo — um número que PARECE de teste e não é: em produção, os dez
+// últimos dígitos dele (que é exatamente como `mind_crm_vincular_pessoa` casa telefone)
+// já correspondem a 1 contato em `crm.contato_espelho`, 1 identidade `whatsapp` e
+// 1 pessoa reais.
+//
+// O caminho `treble_agent_start → mind_inbound → mind_identidade_resolver` cria e
+// vincula pessoa e identidade, e o vínculo com o CRM vem junto. Rodar o smoke com um
+// número de outra pessoa gruda conversa de teste na ficha dela.
+//
+// IDENTIDADE É PERSISTENTE E NÃO É LIMPA AUTOMATICAMENTE. A limpeza no rodapé apaga
+// somente mensagens e conversas. Pessoa, identidade e vínculo de CRM NÃO são apagados —
+// e isso é deliberado: quando o número já existir de propósito (o WhatsApp de teste de
+// alguém do time), apagar a pessoa seria destruir dado legítimo, não faxina.
+//
+// Use um número que você controla e sobre o qual pode responder. Se ele já tiver pessoa
+// no Mind, ela vai ganhar as conversas do smoke — e isso é aceitável justamente porque
+// a pessoa é sua.
+// ============================================================================
+//
 //   TREBLE_WEBHOOK_TOKEN=...  \
 //   TREBLE_AGENT_URL=https://<ref>.supabase.co/functions/v1/treble-inbound-agent \
+//   TREBLE_SMOKE_CELLPHONE=+55DDDNNNNNNNN  \
+//   TREBLE_SMOKE_NAME="Smoke Lane B"        # opcional
 //   node tests/vendedor_summit_smoke.mjs
 //
 //   --caso <n>   roda só um caso (1..N)
@@ -44,6 +69,8 @@
 const URL_AGENTE = process.env.TREBLE_AGENT_URL ??
   (process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL}/functions/v1/treble-inbound-agent` : "");
 const TOKEN = process.env.TREBLE_WEBHOOK_TOKEN ?? "";
+const CELULAR = (process.env.TREBLE_SMOKE_CELLPHONE ?? "").trim();
+const NOME = (process.env.TREBLE_SMOKE_NAME ?? "Smoke Lane B").trim();
 
 // Um caso é uma conversa. `turnos` são as falas do lead, na ordem — B2B só vira B2B
 // depois que a pessoa diz que é para o time, e essa é a parte que interessa testar.
@@ -138,8 +165,8 @@ async function turno(sessionId, texto) {
     body: JSON.stringify({
       session_external_id: sessionId,
       mensagem: texto,
-      cellphone: "+5511999990000",
-      name: "Smoke Lane B",
+      cellphone: CELULAR,
+      name: NOME,
       message_id: `${sessionId}-${Date.now()}`,
     }),
   });
@@ -156,6 +183,20 @@ async function main() {
     console.error("Faltam TREBLE_AGENT_URL (ou SUPABASE_URL) e TREBLE_WEBHOOK_TOKEN.");
     return 2;
   }
+  // Antes de qualquer requisição: sem telefone declarado, o script não roda. Um default
+  // aqui viraria conversa de teste grudada na pessoa de outra gente.
+  if (!/^\+?\d{10,15}$/.test(CELULAR.replace(/[\s()-]/g, ""))) {
+    console.error(
+      "TREBLE_SMOKE_CELLPHONE é obrigatório e precisa ser um telefone em formato internacional.\n" +
+      "\n" +
+      "Use um WhatsApp CONTROLADO PARA TESTE. O smoke cria e vincula pessoa e identidade\n" +
+      "pelo caminho de ingestão, e o vínculo com o CRM vem junto — a limpeza do rodapé\n" +
+      "apaga só mensagens e conversas, nunca pessoa, identidade ou CRM.\n" +
+      "\n" +
+      "  TREBLE_SMOKE_CELLPHONE=+5511987654321 node tests/vendedor_summit_smoke.mjs\n",
+    );
+    return 2;
+  }
 
   const so = argv("--caso") ? Number(argv("--caso")) : null;
   const tempos = [];
@@ -163,7 +204,9 @@ async function main() {
   const prefixo = `smoke-laneb-${carimbo}`;
   const falhas = [];
 
-  console.log(`\nVendedor Summit — smoke\nagente: ${URL_AGENTE}\nsessões: ${prefixo}-*\n`);
+  const mascarado = CELULAR.replace(/\d(?=\d{4})/g, "•");
+  console.log(`\nVendedor Summit — smoke\nagente:   ${URL_AGENTE}\nsessões:  ${prefixo}-*` +
+    `\ntelefone: ${mascarado} (${NOME}) — pessoa e identidade NÃO são apagadas depois\n`);
 
   for (const [i, caso] of CASOS.entries()) {
     const n = i + 1;
@@ -298,6 +341,12 @@ Para apagar as fixtures deste run, depois de conferir:
    where conversa_id in (select id from engagement.conversas
                           where session_external_id like '${prefixo}-%');
   delete from engagement.conversas where session_external_id like '${prefixo}-%';
+
+O QUE ISSO NÃO APAGA, DE PROPÓSITO: pessoa, identidade e vínculo de CRM. A ingestão cria
+e vincula identidade pelo telefone, e esse é dado permanente — apagar automaticamente
+seria destruir a ficha de alguém quando o número já existir por um motivo legítimo, que é
+justamente o caso do WhatsApp de teste de quem rodou. Se precisar desfazer um vínculo,
+faça à mão, olhando o que existia antes.
 `);
   return falhas.length ? 1 : 0;
 }
