@@ -61,20 +61,39 @@ const KIT = {
   },
   inclusoes: {
     bloco: "inclusoes",
-    experiencias: [{
-      chave: "vip", nome: "VIP", ordem: 2,
-      inclusoes: {
-        grupos: [
+    // Produção tem as TRÊS experiências aqui, cada uma com sua oferta vigente. O bloco
+    // é também o que reusa a chave `valor` para texto de comparativo — a armadilha que
+    // faz "4 à sua escolha" não virar R$ 4.
+    experiencias: [
+      { chave: "mind", nome: "Mind", ordem: 1,
+        inclusoes: { grupos: [
           { grupo: "experiencias_exclusivas", itens: [
-            // `valor` aqui é TEXTO de comparativo, não dinheiro.
+            { item: "Workshops VIP de 2 horas", valor: "—" },
+            { item: "Masterclasses Prime de 90 min", valor: "—" },
+          ] },
+          { grupo: "gravacoes", itens: [{ item: "Gravações por 90 dias", valor: "—" }] },
+        ] },
+        ofertas_vigentes: [{ codigo: "mind-lote-6", moeda: "BRL", valor: 1647.0 }] },
+      { chave: "vip", nome: "VIP", ordem: 2,
+        inclusoes: { grupos: [
+          { grupo: "experiencias_exclusivas", itens: [
             { item: "Workshops VIP de 2 horas", valor: "4 à sua escolha" },
             { item: "Masterclasses Prime de 90 min", valor: "—" },
           ] },
           { grupo: "gravacoes", itens: [{ item: "Gravações por 90 dias", valor: "Arenas" }] },
-        ],
-      },
-      ofertas_vigentes: [{ codigo: "vip-lote-6", moeda: "BRL", valor: 2647.0 }],
-    }],
+        ] },
+        ofertas_vigentes: [{ codigo: "vip-lote-6", moeda: "BRL", valor: 2647.0 }] },
+      { chave: "prime", nome: "Prime", ordem: 3,
+        inclusoes: { grupos: [
+          { grupo: "experiencias_exclusivas", itens: [
+            { item: "Workshops VIP de 2 horas", valor: "4 à sua escolha" },
+            { item: "Masterclasses Prime de 90 min", valor: "Até 4" },
+            { item: "Prime Lounge", valor: "✓" },
+          ] },
+          { grupo: "gravacoes", itens: [{ item: "Gravações por 90 dias", valor: "Arenas + Prime" }] },
+        ] },
+        ofertas_vigentes: [{ codigo: "prime-lote-6", moeda: "BRL", valor: 6297.0 }] },
+    ],
   },
   precos_por_volume: {
     bloco: "precos_por_volume",
@@ -242,7 +261,19 @@ for (const a of afirmacoes("Para 10 pessoas o Mind fica R$ 1.318 por pessoa, tot
   console.log(`  ${a.texto.padEnd(12)} papel=${String(a.papel).padEnd(11)} qtd=${a.quantidade} exp=[${a.experiencias}]`);
 }
 
-console.log(`\nFatos lidos do Kit: ${KIT_OF.fatos.length} · faixas: ${new Set(KIT_OF.faixas.map((f) => f.aPartirDe)).size}` +
-  ` · linhas de volume na fixture: ${KIT.precos_por_volume.precos_por_volume.length}`);
+// Fidelidade da fixture ao Kit vivo, conferida contra produção em 30/08/2026.
+const FORMA_DE_PRODUCAO = { ofertas: 3, experiencias: 3, ofertas_vigentes: 3, linhas_volume: 12 };
+const forma = {
+  ofertas: KIT.ofertas.ofertas.length,
+  experiencias: KIT.inclusoes.experiencias.length,
+  ofertas_vigentes: KIT.inclusoes.experiencias.reduce((n, e) => n + e.ofertas_vigentes.length, 0),
+  linhas_volume: KIT.precos_por_volume.precos_por_volume.length,
+};
+const fiel = JSON.stringify(forma) === JSON.stringify(FORMA_DE_PRODUCAO);
+if (!fiel) falhas++;
+console.log(`\n${fiel ? "✓" : "✗"} fixture espelha a forma do Kit vivo: ` +
+  Object.entries(forma).map(([k, v]) => `${k}=${v}/${FORMA_DE_PRODUCAO[k]}`).join(" · "));
+console.log(`  fatos monetários extraídos: ${KIT_OF.fatos.length}` +
+  `  (3 ofertas × [preço + parcela] + 3 ofertas vigentes + 12 faixas × [unitário + cheio + economia + parcela] = 57)`);
 console.log(`\n${CASOS.length - falhas}/${CASOS.length} casos passaram.`);
 process.exit(falhas ? 1 : 0);
