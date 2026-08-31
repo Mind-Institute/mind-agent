@@ -1,5 +1,26 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.5.0 — O CORE CANÔNICO É O ÚNICO CAMINHO. O legado saiu do runtime: não há mais
+// fallback para o comportamento v1.3.0, `treble_agent_context` não é mais chamado, e a
+// flag `core_rota_kit` deixou de existir aqui — ela decidia entre duas inteligências, e
+// agora só existe uma.
+//
+// A decisão que isso implementa: quando o Core não serve o turno, este runtime NÃO
+// improvisa. Ele encerra de forma controlada, com `needs_human`, e a fala da pessoa
+// continua persistida desde a ingestão. Responder com dado antigo era pior que não
+// responder — o piso factual do legado nunca soube diferenciar Mind/VIP/Prime nem
+// entregar preço por volume, então "degradar" para ele era degradar a venda.
+//
+// UMA EXCEÇÃO, E ELA NÃO É QUEDA: o CLARIFY. `rota = null` com candidatas é o Router
+// dizendo "ainda não dá para saber ENTRE ESTAS", e a resposta certa é uma pergunta. Esse
+// turno segue sem Kit e sem DADOS_OFICIAIS — e, portanto, sem poder falar de preço, o
+// que o guardrail garante sozinho quando o payload oficial vem vazio.
+//
+// O QUE ISSO CUSTA, dito com todas as letras: sem legado, uma falha técnica do Router
+// vira transferência para humano em vez de resposta degradada. É penhasco, não rampa.
+// Medido antes da mudança: o caminho legado havia atendido 7 conversas na história do
+// canal, todas de teste — não havia tráfego real caindo nele.
+//
 // v1.4.0 — O TURNO PASSA A ATRAVESSAR O CORE: Router → Capability Gate → Kit Loader.
 // Até a v1.3.0 este runtime decidia sozinho: a competência saía do próprio prompt
 // (`playbook_router` classificava `audience` dentro da resposta) e os DADOS_OFICIAIS
@@ -19,21 +40,15 @@
 // rota. A chave continua no payload do Treble e em engagement.conversas porque é
 // contrato público e estado persistido — mas quem manda é a rota, não o modelo.
 //
-// NADA DISSO PODE CUSTAR O TURNO. Router indisponível, Gate fechado ou Kit ausente
-// derrubam o turno de volta para o caminho legado (v1.3.0, byte a byte) em vez de deixar
-// a pessoa sem resposta. Mas quando o Gate fecha a rota, `needs_human` é forçado pelo
-// runtime: o Gate é a autoridade sobre "esta necessidade não se conclui sozinha", e essa
-// resposta é determinística — não fica a cargo da leitura do modelo.
+// QUANDO O GATE FECHA, `needs_human` é forçado pelo runtime: o Gate é a autoridade
+// sobre "esta necessidade não se conclui sozinha", e essa resposta é determinística —
+// não fica a cargo da leitura do modelo.
 //
-// LIGA/DESLIGA EM DADO, NÃO EM DEPLOY. `treble.config.core_rota_kit = 'true'` ativa o
-// caminho canônico. Ausente ou diferente disso, o runtime é idêntico à v1.3.0. Publicar
-// esta versão não muda nada sozinho: o caminho novo entra por decisão explícita e volta
-// pelo mesmo interruptor, sem redeploy.
-//
-// ESCOPO DE EXECUÇÃO: só `summit_b2c` e `summit_b2b` — as rotas deste vendedor. Toda
-// outra rota responde pelo caminho legado até a lane dona dela chegar; carregar Kit ou
-// playbook de `cliente_suporte`/`concierge_summit` aqui seria decidir por lane alheia.
-// O Gate, porém, é consultado para todas (ver abaixo): capacidade não é execução.
+// ESCOPO DE EXECUÇÃO: só `summit_b2c` e `summit_b2b` — as rotas deste vendedor.
+// Carregar Kit ou playbook de `cliente_suporte`/`concierge_summit` aqui seria decidir
+// por lane alheia; desde a v1.5.0, uma rota de outra lane encerra o turno com
+// transferência em vez de ser respondida por um vendedor que não é dono dela. O Gate,
+// porém, é consultado para TODAS (ver abaixo): capacidade não é execução.
 //
 // O GUARDRAIL DE PREÇO SAIU DAQUI para `guardrail-preco.ts`, e ficou mais estreito no
 // caminho: a lista de valores permitidos passou a sair de CAMPOS MONETÁRIOS do payload
@@ -85,7 +100,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { precoInventado, precosOficiais } from "./guardrail-preco.ts";
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -107,6 +122,12 @@ const AUDIENCE_DA_ROTA: Record<string, string> = {
 // Orçamento do Router. Curto de propósito: estourar significa cair no caminho legado,
 // não perder o turno. Ajustável por `treble.config.router_timeout_ms`.
 const ROUTER_TIMEOUT_MS = 6000;
+
+// Transferência. É a MESMA copy já aprovada no caminho de erro deste runtime: não se
+// inventa mensagem para o lead aqui. Quando a rota decidida não é atendida por este
+// canal, a frase certa é de produto e cabe à Adriana escrevê-la.
+const RESPOSTA_HANDOFF =
+  "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!";
 
 const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind Summit 2026.
 Use somente os dados oficiais recebidos no JSON; nunca invente preço, palestrante ou política.
@@ -433,10 +454,9 @@ Deno.serve(async (req: Request) => {
   const timeoutMs = Number(cfg.timeout_ms) > 0 ? Number(cfg.timeout_ms) : 8500;
   const routerTimeoutMs = Number(cfg.router_timeout_ms) > 0 ? Number(cfg.router_timeout_ms) : ROUTER_TIMEOUT_MS;
 
-  // O interruptor do caminho canônico. Sem a chave ligada — ou sem o token do Router —
-  // este runtime é a v1.3.0.
+  // O token do Router. Sem ele o Core não decide rota — e não existe mais um segundo
+  // caminho para onde cair: o turno encerra de forma controlada.
   const routerToken = typeof cfgCore?.analise_token === "string" ? cfgCore.analise_token : "";
-  const usarCore = cfg.core_rota_kit === "true" && Boolean(routerToken);
 
   // ============================================================ INGESTÃO
   const telefoneHash = whatsapp ? await sha256(whatsapp) : null;
@@ -525,7 +545,7 @@ Deno.serve(async (req: Request) => {
     // emitiu um de ~5,96 s. Medir aqui é o que transforma isso em número em vez de
     // suposição — por isso `router_ms` sai no log de todo turno.
     let routerMs: number | null = null;
-    if (usarCore) {
+    if (routerToken) {
       const antes = Date.now();
       const decisao = await decidirRota(
         supabaseUrl, serviceKey, routerToken, String(conv.conversation_id), routerTimeoutMs,
@@ -599,28 +619,52 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Caminho legado — idêntico à v1.3.0. Vale quando o Core está desligado, quando o
-    // Router não decidiu, quando a rota é de outra lane e quando o Gate/Kit não servem.
-    if (!rotaAplicada) {
-      const audienciaAtual = typeof conv.audience === "string" && conv.audience ? conv.audience : "desconhecido";
-      const [{ data: contexto, error: ctxError }, { data: promptComposto }] = await Promise.all([
-        supabase.rpc("treble_agent_context", {
-          p_audience: null,
-          p_origem: conv.origem_codigo ?? origem ?? null,
-          p_utm: conv.utm ?? null,
-          p_conversa: conv.conversation_id ?? null,
-          p_produto: conv.produto_codigo ?? null,
-        }),
-        supabase.rpc("treble_agent_prompt", { p_audience: audienciaAtual }),
-      ]);
-      if (ctxError || !contexto) throw new Error("contexto_falhou");
-      dadosOficiais = contexto;
-      if (typeof promptComposto === "string" && promptComposto.trim()) instructions = promptComposto;
+    // NÃO EXISTE SEGUNDA INTELIGÊNCIA. Quando o Core não serve o turno, este runtime
+    // não improvisa com dado antigo nem com prompt genérico: encerra de forma
+    // controlada. A fala da pessoa já está persistida desde a ingestão — o que se
+    // perde é a resposta, nunca o registro.
+    //
+    // O CLARIFY NÃO É QUEDA. `rota = null` com candidatas é o Router dizendo "ainda não
+    // dá para saber ENTRE ESTAS", e a resposta certa é uma pergunta. O turno segue sem
+    // Kit e sem DADOS_OFICIAIS — e, por isso, sem poder falar de preço: o guardrail
+    // barra qualquer valor quando o payload oficial está vazio.
+    const ehClarify = precisaEsclarecer && candidatas.length > 0;
+    if (!rotaAplicada && !ehClarify) {
+      const motivo = falhaDaRota ?? (routerToken ? "rota_indefinida" : "router_sem_token");
+      const audienceSem = rotaDecidida
+        ? (AUDIENCE_DA_ROTA[rotaDecidida] ?? (conv.audience ?? "desconhecido"))
+        : (conv.audience ?? "desconhecido");
+      console.warn(JSON.stringify({
+        request_id: requestId, event: "turno_sem_execucao",
+        rota: rotaDecidida, gate_reason: gateReason, motivo, router_ms: routerMs,
+      }));
+      const { error: errSem } = await supabase.rpc("mind_turno_registrar", {
+        p_conversa_id: conv.conversation_id,
+        p_resposta: RESPOSTA_HANDOFF,
+        p_estado: { audience: audienceSem, needs_human: true, stage: conv.stage ?? null },
+        p_meta: {
+          request_id: requestId, version: VERSION,
+          rota: rotaDecidida, rota_aplicada: null,
+          precisa_esclarecer: precisaEsclarecer, candidatas,
+          gate_reason: gateReason, rota_falha: motivo, router_ms: routerMs,
+        },
+      });
+      if (errSem) {
+        console.error(JSON.stringify({ request_id: requestId, event: "save_falhou", detalhe: errSem.message }));
+      }
+      return json(200, {
+        ok: true, sem_execucao: true, motivo,
+        user_session_keys: [
+          { key: "resposta_ia", value: RESPOSTA_HANDOFF },
+          { key: "needs_human", value: "true" },
+        ],
+        request_id: requestId,
+      });
     }
 
     console.info(JSON.stringify({
       request_id: requestId, event: "rota_do_turno",
-      core: usarCore, rota: rotaDecidida, rota_aplicada: rotaAplicada,
+      rota: rotaDecidida, rota_aplicada: rotaAplicada,
       precisa_esclarecer: precisaEsclarecer, candidatas: candidatas.length,
       gate_reason: gateReason, falha: falhaDaRota, router_ms: routerMs,
     }));
