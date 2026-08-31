@@ -60,6 +60,16 @@ async function authRequest(caminho, body) {
   return auth;
 }
 
+/* A sessão anônima do Supabase Auth tem UM dono, e é este arquivo. O Play
+   precisa dela para executar uma ferramenta, e reimplementar signup/refresh
+   lá seria um segundo lifecycle da mesma sessão — pior do que não coletar.
+   Por isso a função é exportada em vez de copiada. Ela continua fazendo o
+   mesmo: reaproveita o token válido, renova pelo refresh_token, e só abre
+   sessão nova quando não há nenhuma. */
+export async function garantirAutenticacao() {
+  return autenticar();
+}
+
 async function autenticar(forcarNova = false) {
   if (forcarNova) remover(CHAVES.auth);
   const atual = ler(CHAVES.auth);

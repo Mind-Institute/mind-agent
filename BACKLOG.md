@@ -666,3 +666,201 @@ físicas, avaliar:
 **Gatilho para retomar:** quando o modelo operacional deixar de bastar — por exemplo, mais gente
 mergeando, incidente de deploy indevido, ou necessidade de separar ambiente de produção de fato.
 Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco é só memória.
+
+---
+
+## 14. Play / experiência do Concierge — o que ficou de fora hoje (Lane E, 30/08/2026)
+
+**Status:** investigado e verificado contra o sistema real. A **coleta** do Play foi implementada
+(ver `supabase/migrations/20260830231500_lane_e_play_coleta.sql`); os itens abaixo **não** foram, e
+cada um tem um motivo factual. **Não reinvestigar do zero.**
+
+### O que já existe e foi reutilizado (para não ser redescoberto)
+
+- **Superfície real do Play** = o app público na raiz do repositório (`index.html`, `app.js`,
+  `styles.css`, `config.js`, `chat-service.js`, `data-service.js`), publicado por Cloudflare Workers
+  (`wrangler.jsonc` → `cloudflare/worker.ts`, assets em `dist-cloudflare/`). Ele fala com duas Edge
+  Functions: `mindagent-bootstrap` (programação) e `mindagent-chat` (conversa). **Não existe outro
+  frontend/backend do Play.** O `/admin` é o painel, não o Play.
+- **Casas de coleta** já existiam e já apontam para `pessoas.pessoas(id)`: `engagement.sessao_feedback`
+  (UNIQUE participante_id+sessao_id), `engagement.nps` (UNIQUE participante_id), `engagement.evento_feedback`,
+  `engagement.feedbacks` (tipo/valor/contexto) e `engagement.jornada_sessao`. Todas com zero linha.
+- **Contratos das ferramentas do Play** já existiam congelados em `concierge.ferramentas` (28
+  ferramentas ativas, com `json_schema`), incluindo `registrar_feedback_sessao`, `registrar_nps`,
+  `registrar_feedback_evento`, `registrar_feedback`, `confirmar_presenca` e `enviar_material`.
+  `concierge.config` (23 chaves), `concierge.feature_flags` (13), `concierge.templates` (40) e
+  `concierge.regras_proativas` (18) também já estão povoados.
+- **O que faltava e foi feito:** nenhuma função escrevia nessas casas — `concierge.ferramenta_chamadas`
+  tinha zero linha e não havia runtime executando as ferramentas registradas.
+
+### 14.1 Slides / materiais — SEM FONTE
+
+`public.mind_materiais_para(text,text,text,text)` lê `comum.materiais`, **tabela que não existe**
+neste banco (o schema `comum` virou `ecossistema`, sem tabela de materiais). É uma das 19 funções
+apontando para schemas antigos já registradas na seção 8 deste backlog. `summit_2026.knowledge_documents`
+tem 17 linhas e coluna `url`, mas é conhecimento explicativo, não repositório de slides por sessão.
+
+**Por que foi deferido:** o `PASSO 11B` proíbe fabricar material inexistente, e não há source real
+para apontar. Criar uma tabela de materiais sem conteúdo aprovado seria inventar requisito.
+
+**DECISÃO FECHADA (supervisão, 30/08/2026 — issue #43).** O Drive conectado foi verificado: há
+materiais do Summit espalhados, mas **não existe fonte canônica por sessão/palestra** que possa ser
+ligada com segurança. Portanto:
+
+- `slides/materiais` fica **deferido até existir source explícito**;
+- **não bloqueia o go-live do Play**;
+- **não criar tabela nem mirror vazio** enquanto não houver source.
+
+**Gatilho para retomar:** aparecer uma fonte canônica por sessão/palestra. Aí é `SOURCE → MIRROR`
+normal, não tabela autoral nova.
+
+**Dependência:** existir o source; não é mais uma pergunta em aberto para a Adriana.
+
+### 14.2 AMA / perguntas sobre conteúdo — depende da Lane C
+
+`summit_2026.knowledge_chunks` tem **zero linha**; `knowledge_documents` tem 17. O retrieval vivo é
+`public.mindagent_chat_search`, consumido pela `mindagent-chat` — **componente da Lane C** durante o
+paralelo.
+
+**Por que foi deferido:** responder pergunta de conteúdo é retrieval, e o dono do retrieval nesta
+rota é a Lane C. Abrir aqui criaria segundo caminho de busca.
+
+**Gatilho para retomar:** Lane C fechar o retrieval factual do Concierge.
+
+### 14.3 Ofertas contextuais Institute/Dash — falta a regra, não a fonte
+
+`summit_2026.offers` tem 25 linhas; existem `institute.knowledge_documents` e `dash.knowledge_documents`.
+A ferramenta `registrar_sinal_comercial` já está registrada e a flag `sinal_comercial` está **desligada**;
+`concierge.config.sinal_comercial` exige evidência literal e consentimento para contato.
+
+**Por que foi deferido:** `PASSO 11B` só autoriza oferta contextual "baseada em regra aprovada", e a
+regra de quando/como ofertar Institute/Dash dentro do evento não está congelada. Regra comercial é
+gate da Adriana.
+
+**Gatilho para retomar:** a regra de oferta aprovada e registrada.
+
+### 14.4 Humor como camada de copy — é conteúdo
+
+`concierge.prompts` (7) e `concierge.templates` (40) já são a casa da linguagem. Nada foi escrito lá.
+
+**Por que foi deferido:** prompt e copy são conteúdo da Adriana; o agente de código não inventa voz.
+Humor também não pode virar licença para afirmar fato — e a camada factual está fora desta lane.
+
+**Gatilho para retomar:** texto fornecido/aprovado pela Adriana.
+
+### 14.5 Presença em sessão (`confirmar_presenca`) — casa existe, writer não
+
+`engagement.jornada_sessao` existe (PK participante_id+sessao_id, com `planejou`, `compareceu`,
+`fonte_presenca`, `confianca_presenca`, `motivo_ausencia`) e está vazia. A ferramenta
+`confirmar_presenca` já está registrada.
+
+**Por que foi deferido:** presença/jornada é insumo de memória e de resumo do dia, território da
+**Lane D** no paralelo. Escrever aqui arriscaria dois writers para a mesma casa. O `retrato` do NPS
+já lê `jornada_sessao` — quando ela for povoada, o retrato melhora sozinho, sem mudar código.
+
+**Gatilho para retomar:** Lane D definir quem escreve jornada/presença.
+
+### 14.6 Pergunta aberta de produto — coleta anônima
+
+`engagement.evento_feedback.participante_id` e `engagement.feedbacks.participante_id` são **nuláveis**;
+`sessao_feedback` e `nps` são **NOT NULL**. O app abre sessão anônima quando a Yazo não entrega
+e-mail (`chat-service.js` → `auth/v1/signup`), e nesse caso não há `pessoa_id`.
+
+Os writers implementados **exigem pessoa** nos quatro casos, por uniformidade e para manter
+idempotência.
+
+**DECISÃO FECHADA — v1 NÃO aceita coleta anônima (supervisão, 30/08/2026 — issue #43).**
+
+Os writers permanecem **person-bound**. Sem `pessoa_id`, a coleta não executa — os writers já
+devolvem `sem_pessoa`/`pessoa_nao_encontrada`, que é exatamente o comportamento decidido.
+
+Explicitamente **fora de escopo em v1**, para não inventar arquitetura em cima de uma decisão
+mínima: device identity, reconciliação posterior de anônimo → pessoa, e segunda idempotência.
+Esta é a menor solução coerente com as casas atuais (`sessao_feedback` e `nps` já têm
+`participante_id NOT NULL`).
+
+**Gatilho para reabrir:** só se a operação do evento provar perda relevante de coleta por causa de
+participante não identificado. Aí volta pelo ritual normal, como decisão nova de produto.
+
+### 14.7 Drift: `summit_2026.sessions.site_session_id` existe em produção e não na cadeia de migrations
+
+**Status:** descoberto pelo preview branch da PR #48 (Lane E, 30/08/2026). **Não corrigido — fora do
+escopo da lane.** Registrado para não ser redescoberto.
+
+**Evidência.** `summit_2026.sessions.site_session_id` está presente em produção
+(`ymnmotgglsrxmjmonwjz`) e é tratada em vários documentos como a chave determinística contra
+`programacao.json.id`. Mas `grep -rn site_session_id supabase/migrations/` **não encontra nenhuma
+migration que a crie**. No preview branch da PR #48 (`igyobrssxhfauesxnljx`), montado replicando a
+cadeia versionada, `summit_2026.sessions` **não tem a coluna** — a consulta falha com
+`42703: column s.site_session_id does not exist`.
+
+Ou seja: a coluna entrou em produção fora da cadeia versionada, ou por uma versão que hoje é stub
+histórico no-op. Qualquer banco montado a partir das migrations — preview, ambiente novo, restore —
+não a tem.
+
+**Impacto imediato já tratado:** `public.mind_play_nps_agregado` foi escrita sem depender dela.
+
+**Impacto ainda aberto:** qualquer código que leia `site_session_id` funciona em produção e quebra em
+preview. Vale conferir o que já depende dela antes de assumir que só a Lane E encostou no assunto.
+
+**Por que foi deferido:** `summit_2026.sessions` não é da Lane E; mexer nela aqui seria limpeza
+lateral e conflito com quem é dono da tabela.
+
+**Gatilho para retomar:** quando alguém precisar de `site_session_id` num banco que não seja
+produção, ou na faxina de reconciliação da cadeia de migrations. A correção é uma migration aditiva
+e idempotente (`alter table ... add column if not exists`), não um backfill de dado.
+
+**Dependência:** dono de `summit_2026.sessions` (frente da programação/Concierge).
+
+### 14.8 `public.mindagent_bootstrap` quebrada bloqueia o vínculo canônico do Play
+
+**Status:** descoberto ao preparar a superfície de coleta no app (Lane E, 30/08/2026).
+**Não corrigido — fora do escopo da lane.** É o bloqueio concreto do Definition of Done do Play.
+
+**Evidência.** Chamar `public.mindagent_bootstrap('mind-summit-2026')` em produção falha com
+`42P01: relation "summit.events" does not exist`. A função lê `summit.events`, `summit.sessions`,
+`summit.locations`, `summit.session_speakers.palestrante_id` (coluna legada), `comum.speakers` e
+`comum.taxonomy` — schemas renomeados (`summit` → `summit_2026`, `comum` → `ecossistema`) e, no caso
+de `comum.taxonomy`, **schema que não existe mais**. É uma das 19 funções já listadas na §8.
+
+**Consequência em cadeia, que é o que importa aqui:**
+
+1. a Edge Function `mindagent-bootstrap` devolve 503;
+2. `data-service.js` cai no `useLocalFallback` e o app roda inteiro no `dados/summit.json`;
+3. esse arquivo tem **53 sessões** (produção tem 77) e ids **slug** (`d1-09_00-abertura`), não uuid;
+4. logo **o app não tem o `sessao_id` canônico** para vincular nada a `summit_2026.sessions`.
+
+Sem esse id, `mind_play_feedback_sessao` recusa com `sessao_nao_encontrada` — corretamente. O
+`play-service.js` antecipa a recusa como `sessao_sem_id_canonico` para a tela poder ser honesta.
+
+**CORREÇÃO (31/08/2026).** Uma primeira versão desta entrada dizia que `'id', coalesce(s.yazo_id,
+s.id::text)` faria o `yazo_id` vencer o uuid, e que por isso "só reapontar os schemas não resolve".
+**Isso estava errado como bloqueio atual e foi medido:** em produção, **77/77 sessões têm `yazo_id`
+NULL**, logo o `coalesce` já devolveria o uuid canônico hoje. É fragilidade futura — se um dia a
+Yazo preencher `yazo_id`, o `id` público muda de natureza — e não deve ser endurecida agora.
+
+**O bloqueio real é outro, e é de conteúdo, não de schema:**
+
+- `summit_2026.sessions.trilhas` está vazia em **77/77**;
+- `summit_2026.sessions.topicos_aprendizado` está vazia em **77/77**;
+- `comum.taxonomy` não existe mais e não há equivalente no banco.
+
+O app usa `DADOS.temas` + `sessoes[].temas` em `palestras`, `agenda`, na afinidade de `pessoas` e no
+fallback do próprio `insight`. Fazer a bootstrap "voltar" transformaria 503 em payload **válido
+porém funcionalmente pior**: a página deixaria de cair no JSON local e esses fluxos quebrariam em
+silêncio. **Não fazer conserto parcial.**
+
+A taxonomia de tema hoje existe **só** em `dados/summit.json`: 10 temas e o mapeamento sessão→tema
+em 49 de 53 sessões. E esse arquivo é uma curadoria **mais antiga** que a produção: casando por
+(dia, hora, título) contra as 77 sessões vivas, só **33/53** têm par único — 20 ficam sem par, 19
+delas com tema. Ou seja, **não existe junção automática segura** entre a taxonomia local e a
+programação atual. Inventar esse mapeamento seria backfill fabricado.
+
+**Caminho que NÃO depende disso:** `public.mindagent_chat_search` já devolve `sessions[].id` como o
+**uuid canônico** — verificado. Quem executa ferramenta do Play é o runtime do Concierge, que
+portanto já sabe resolver a sessão. O vínculo canônico do Play não precisa passar pela bootstrap.
+
+**Gatilho para retomar a bootstrap:** existir uma decisão sobre o que alimenta `temas`. Enquanto não
+houver, mexer nela é regressão.
+
+**Dependência:** decisão de curadoria sobre `temas` (Adriana) + dono da programação/bootstrap.
