@@ -240,11 +240,34 @@ local correto na resposta que a pessoa lê.
 
 ## 8. Ordem de go-live
 
-1. Preview final → merge controlado das migrations e do código.
-2. Confirmar o DB vivo (Gate aberto, Kit disponível).
+A ordem canônica de integração é **B → C → D → E**, e as versões das migrations
+espelham isso:
+
+```
+C 20260830223000  retrieval
+C 20260830233000  playbook + Kit
+C 20260830233500  idempotência do Play
+D 20260830234000
+D 20260830234500
+E (a reordenar pela própria Lane E)
+```
+
+A migration do ledger nasceu `20260831010000` e furava essa ordem: aplicada
+antes, faria a D chegar depois com versão menor. Como nunca rodou em produção
+(max aplicada `20260830220000`, zero funções `mind_play_chamada_*`, zero linhas
+em `concierge.ferramenta_chamadas`), o conserto foi um **rename puro** — R100,
+blob byte a byte idêntico.
+
+1. Merge controlado na ordem das lanes, sem pular nenhuma.
+2. Confirmar o DB vivo: Gate aberto, Kit disponível, ledger presente.
 3. **Publicar a Edge manualmente** a partir do commit aprovado — gate
    explícito da Adriana, porque muda comportamento de produto no canal vivo.
 4. E2E real no app; corrigir somente o afetado.
 
-Inverter 1 e 3 não quebra nada: a Edge nova depende do Gate aberto e do Kit
-registrado, então publicá-la antes deixaria o canal em `rota_indisponivel`.
+Inverter 1 e 3 não quebra nada: a Edge nova depende do Gate aberto, do Kit
+registrado e do ledger, então publicá-la antes deixaria o chat em
+`rota_indisponivel` e a ação em `acao_falhou`.
+
+O Play **completo** ainda depende da Lane E — as `mind_play_*` estão na #48 e
+não em produção. Isso é uma dependência do E2E do Play, **não** uma autorização
+para adiantar a E na frente da D.
