@@ -249,6 +249,7 @@ const TELAS = {
   },
   'menu': {
     img: 'menu', aba: 'menu', rotulo: 'Menu',
+    serve: 'Mapa do evento, Área de Networking, e mais!',
     alvos: [
       { id: 'qrmini', x: 90.7, y: 13.9, w: 13, h: 6.5, vai: 'qrcode', modo: 'troca' },
       { id: 'mapa', x: 25.9, y: 28.2, w: 44.4, h: 10.9, vai: 'mapa', modo: 'push', dica: 'Abra o <b>Mapa do evento</b>.' },
@@ -318,8 +319,7 @@ const MISSOES = [
   { id: 'm2', txt: 'Reservar seu lugar na sessão', tela: 'detalhe', alvo: 'reservar' },
   { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
   { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
-  { id: 'm6', txt: 'Adicionar um contato à sua rede', tela: 'rede', alvo: 'add1' },
-  { id: 'm7', txt: 'Falar com o Mind Agent no Chat', tela: 'chat' },
+  { id: 'm5', txt: 'Descobrir o resto no Menu', tela: 'menu' },
 ];
 
 const frame = document.getElementById('frame');
@@ -695,7 +695,7 @@ function concluirMissao(id) {
   feitas.add(id);
   atualizarMissao();
   if (feitas.size === MISSOES.length) {
-    setTimeout(() => document.getElementById('fim-fundo').classList.add('aberto'), 700);
+    setTimeout(() => document.getElementById('fim-fundo').classList.add('aberto'), 2000);
   }
 }
 
@@ -876,7 +876,32 @@ async function responder(pergunta) {
     campoChat.disabled = false;
     formChat.querySelector('.enviar').disabled = false;
     campoChat.focus();
+    /* Um respiro para a resposta ser lida antes de o convite entrar. */
+    setTimeout(oferecerPalestrantes, 2600);
   }
+}
+
+/* Engajamento proativo, mas ancorado no que está na tela.
+   A versão anterior anunciava, nove segundos depois de abrir o chat, uma
+   reserva na Arena Mind que ninguém tinha feito, e oferecia um aviso que
+   o app não sabe enviar. Duas afirmações falsas para puxar assunto.
+
+   Agora o convite só existe quando existe referente: se a última resposta
+   nomeou alguém da grade, dá para perguntar sobre "os palestrantes
+   mencionados acima". Se ninguém foi citado, o agente fica quieto — é o
+   que ele faria se não tivesse nada a dizer. */
+let jaOfereceuPalestrantes = false;
+
+function citouPalestrante() {
+  if (!DADOS || !DADOS.pessoas) return false;
+  const conversa = mensagens.textContent || '';
+  return DADOS.pessoas.some((pessoa) => pessoa.nome && conversa.includes(pessoa.nome));
+}
+
+function oferecerPalestrantes() {
+  if (jaOfereceuPalestrantes || respostaEmAndamento || !citouPalestrante()) return;
+  jaOfereceuPalestrantes = true;
+  bolha('Quer saber mais sobre os palestrantes mencionados acima?', 'mind');
 }
 
 function perguntar(texto) {
@@ -908,11 +933,8 @@ function iniciarChat() {
   if (chatIniciado) return;
   chatIniciado = true;
   bolha(saudacao() + 'Sou o Mind Agent. Não estou aqui só para responder pergunta: estou para você sair daqui com algo mais concreto do que boas ideias — agenda montada, gente certa, e o que fazer na segunda-feira.', 'mind');
-  /* Engajamento proativo: o agente também começa conversa quando é útil */
-  setTimeout(() => {
-    if (jaPerguntou) return;
-    bolha('A propósito: a sessão que você reservou na Arena Mind começa em 15 minutos. Quer que eu te avise 5 minutos antes? ⏰', 'mind');
-  }, 9000);
+  /* O convite proativo mora em `oferecerPalestrantes`: ele só aparece
+     depois que alguém da grade foi realmente citado na conversa. */
 }
 
 formChat.addEventListener('submit', (e) => {
