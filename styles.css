@@ -145,9 +145,17 @@ body {
   font: inherit; font-size: 16px; font-weight: 700;
 }
 
-.h-sub { margin-top: 22px; font-size: 14px; font-weight: 600; color: var(--texto-mudo); }
+/* A linha pertence à marca, não à manchete: ela explica o que é o Mind
+   Agent. Por isso encosta no logo e o respiro vai para baixo dela. */
+.h-sub { margin-top: 7px; font-size: 14px; font-weight: 600; color: var(--texto-mudo); }
+/* Saudação pessoal, quando a Yazo diz quem chegou. Some sem deixar
+   buraco: o título retoma o respiro que era dela. */
+.h-ola { margin-top: 26px; font-size: 17px; font-weight: 600; color: var(--texto-suave); }
+.h-ola b { color: var(--verde); font-weight: 700; }
+.h-ola:not([hidden]) + .h-titulo { margin-top: 4px; }
+
 .h-titulo {
-  margin-top: 6px;
+  margin-top: 26px;
   font-size: 42px; font-weight: 900; text-transform: uppercase;
   letter-spacing: -.02em; line-height: .94;
 }
@@ -507,6 +515,21 @@ body {
   border-radius: 10px;
   z-index: 2;
 }
+/* Área de toque de no mínimo 44x44, sem mexer no anel visual: o alvo
+   pequeno (coração, filtros) ganha um extensor invisível centrado nele,
+   em vez de crescer e passar por cima do elemento destacado. */
+/* O alvo da instrução vem por cima de qualquer outro. Sem isto, um
+   alvo pequeno dentro de um grande — o coração dentro do cartão — perde
+   o toque para o vizinho e a missão nunca fecha. */
+.alvo.dica { z-index: 4; }
+
+.alvo::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+}
 .alvo:focus-visible { outline: 2px solid var(--acao); outline-offset: 2px; }
 .alvo.dica::after {
   content: '';
@@ -524,6 +547,30 @@ body {
 }
 .alvo.dica.largo::after { display: none; }
 .alvo.erra { animation: tremer .4s; }
+
+/* Véu: tudo escurece menos a próxima ação, para ela não competir com o
+   resto da tela. O buraco é feito por uma sombra enorme em volta do
+   elemento — `.frame` recorta, então ela para na borda do telefone.
+   Fica abaixo do anel (z 4) e abaixo do balão, que precisa continuar
+   legível. */
+.veu {
+  position: absolute; z-index: 3;
+  transform: translate(-50%, -50%);
+  width: 13cqw; height: 13cqw;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(6, 6, 10, .62);
+  pointer-events: none;
+}
+.veu.largo { border-radius: 12px; }
+/* Ação numa aba: a foto inteira escurece e a barra, que fica fora do
+   `.frame`, permanece acesa. */
+.veu.tudo {
+  left: 0; top: 0; right: 0; bottom: 0;
+  width: auto; height: auto;
+  transform: none; border-radius: 0;
+  box-shadow: none;
+  background: rgba(6, 6, 10, .62);
+}
 @keyframes pulso {
   0% { box-shadow: 0 0 0 0 rgba(62, 155, 255, .55); }
   70% { box-shadow: 0 0 0 4cqw rgba(62, 155, 255, 0); }
@@ -550,7 +597,11 @@ body {
 .rotulo {
   position: absolute; left: 0; right: 0; top: 0;
   z-index: 4;
-  background: linear-gradient(to bottom, rgba(11,11,15,.96) 62%, rgba(11,11,15,0));
+  /* Opaco até depois da última linha de texto: a 62% o degradê já estava
+     clareando em cima da segunda linha e deixava o título da própria
+     captura vazar por trás. A dissolvência agora acontece só no respiro
+     de baixo. */
+  background: linear-gradient(to bottom, rgba(11,11,15,.985) 0 78%, rgba(11,11,15,0) 100%);
   padding: 2.6cqw 4cqw 5cqw;
   pointer-events: none;
 }
@@ -560,30 +611,33 @@ body {
   color: var(--verde);
 }
 .rotulo span {
-  display: block; margin-top: .8cqw;
-  font-size: 3.3cqw; line-height: 1.4; color: var(--texto-suave);
+  display: block; margin-top: .9cqw;
+  font-size: 3.55cqw; line-height: 1.42; color: var(--texto);
 }
 
 /* Balão de instrução */
 .balao {
   position: absolute; left: 4%; right: 4%;
-  background: rgba(11, 11, 15, .93);
+  background: rgba(13, 14, 20, .98);
   backdrop-filter: blur(10px);
-  border: 1px solid var(--hairline);
+  border: 1.5px solid var(--hairline);
   border-radius: 14px;
-  padding: 3cqw 3.6cqw;
+  padding: 3.2cqw 3.8cqw;
   z-index: 4;
-  font-size: 3.5cqw; line-height: 1.45;
-  color: var(--texto-suave);
+  font-size: 3.8cqw; line-height: 1.45;
+  color: var(--texto);
   transition: top .3s ease, bottom .3s ease;
 }
 .balao b { color: var(--texto); }
-.balao.acao { border-color: rgba(62, 155, 255, .55); }
+.balao.acao {
+  border-color: rgba(62, 155, 255, .9);
+  box-shadow: 0 0 0 1px rgba(62, 155, 255, .18), 0 6px 26px rgba(0, 0, 0, .6);
+}
 .balao .rot {
   display: block;
-  font-size: 2.6cqw; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+  font-size: 2.75cqw; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
   color: var(--acao);
-  margin-bottom: 1cqw;
+  margin-bottom: 1.2cqw;
 }
 .balao.topo { top: 15%; bottom: auto; }
 .balao.abaixo { top: 15%; bottom: auto; }
@@ -1178,14 +1232,20 @@ body {
 }
 /* Sair é o que a maioria quer no fim do guia; o tour completo é o extra.
    Por isso o preenchido é o Sair, e não o contrário. */
-.guia-fim {
+/* A prática é o convite principal; ir direto ao agente é a saída calma. */
+.guia-praticar {
+  border: 0;
+  background: var(--verde); color: var(--surface-deep);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 8px 16px;
+}
+.guia-praticar span {
+  font-size: 11.5px; font-weight: 600; opacity: .72;
+}
+.guia-ir {
   background: none;
   border: 1px solid var(--hairline);
   color: var(--texto-suave);
-}
-.guia-sair {
-  border: 0;
-  background: var(--verde); color: var(--surface-deep);
 }
 @keyframes guia-surge { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
@@ -1224,4 +1284,69 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .guia-avance .s { animation: none !important; }
+}
+
+/* Marcas das zonas de toque. Uma faixa que atravessa a tela e joga um
+   chevron em cada borda: a da esquerda volta, a da direita avança. Bem
+   apagadas — são um lembrete de que o toque funciona, não um botão. Não
+   recebem ponteiro: o gesto é lido no #guia, e interceptar aqui quebraria
+   a captura do deslize. */
+.guia-lado {
+  position: absolute; left: 0; right: 0; z-index: 3;
+  top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px;
+  pointer-events: none;
+}
+.guia-lado[hidden] { display: none; }
+.guia-lado i {
+  font-style: normal;
+  font-size: 26px; font-weight: 300; line-height: 1;
+  color: var(--texto-mudo);
+  opacity: .28;
+}
+
+/* Nome do primeiro fluxo, logo abaixo da trilha: deixa claro que este é o
+   Tour rápido, e que existe um segundo, prático, no fim dele. */
+.guia-nome {
+  position: relative; z-index: 2;
+  margin-top: 10px; flex: none;
+  font-size: 12px; font-weight: 900;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--verde);
+}
+.guia-nome span {
+  display: block; margin-top: 3px;
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: .02em; text-transform: none;
+  color: var(--texto-mudo);
+}
+
+/* Aviso em tom neutro: para o que é informação, não alerta. O coral fica
+   reservado ao que muda o comportamento (capacidade limitada, reserva). */
+.guia-aviso.neutro {
+  border-left-color: var(--hairline);
+  background: rgba(255, 255, 255, .045);
+  color: var(--texto-suave);
+}
+.guia-aviso.neutro b { color: var(--texto); }
+
+/* Durante a troca de etapa nada aceita toque: é o que impede o toque duplo
+   e o acerto num hotspot da etapa que já saiu. */
+.frame.travado, .fnav.travado { pointer-events: none; }
+.frame.travado .alvo { opacity: .35; }
+
+/* Marca do filtro escolhido no mapa — a ação prática da missão do mapa. */
+.marca.escolhido {
+  border: 2px solid var(--verde);
+  border-radius: var(--raio-pill);
+  background: rgba(104, 238, 149, .16);
+  box-shadow: 0 0 10px rgba(104, 238, 149, .4);
+}
+
+/* Foco visível: navegação por teclado precisa saber onde está. */
+.alvo:focus-visible, .fnav button:focus-visible, .guia button:focus-visible,
+.folha button:focus-visible, .fim-cartao button:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
 }

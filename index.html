@@ -34,6 +34,9 @@
       </header>
 
       <p class="h-sub">Seu concierge dentro do Summit</p>
+      <!-- Só aparece quando a Yazo diz quem abriu a página. Sem nome, sem
+           saudação: o agente não inventa identidade. -->
+      <p class="h-ola" id="h-ola" hidden>Olá, <b id="h-ola-nome"></b></p>
       <h1 class="h-titulo">O que você quer fazer<em>?</em></h1>
 
       <!-- As intenções são montadas a partir dos dados do data-service -->
@@ -71,7 +74,7 @@
     </div>
 
     <div class="mensagens" id="mensagens" aria-live="polite"></div>
-    <p class="aviso-mock">IA conectada à base oficial · e-mail e telefone são mascarados.</p>
+    <p class="aviso-mock">IA conectada à base oficial.</p>
 
     <div class="doca">
       <form id="form-chat">
@@ -148,7 +151,8 @@
       <div class="fim-cartao">
         <img src="./assets/simbolo-mind-verde.png" alt="" />
         <h3>Você mandou bem!</h3>
-        <p>Já sabe salvar uma sessão, reservar seu lugar, ver sua agenda, usar o QR Code, achar o mapa e adicionar contatos. E lembre: no <b>Chat</b> do app eu fico à disposição para dúvidas, sugestão de conteúdo e agenda, bios de palestrantes e logística. O que eu não souber, eu sei quem sabe. 😉</p>
+        <p>Agora você já sabe salvar uma sessão, reservar seu lugar, consultar sua agenda e usar o QR Code. No Menu ficam o mapa, a Área de Networking e o Chat, para você explorar quando quiser.</p>
+        <p>Sempre que precisar de programação, palestrantes, conteúdos, localização ou ajuda com sua jornada, é só me chamar no <b>Chat</b>.</p>
         <button class="btn-verde" type="button" id="btn-concluir">Concluir tour</button>
         <button class="link-mind" type="button" id="tour-para-chat">Perguntar ao Mind Agent →</button>
       </div>
@@ -159,14 +163,14 @@
   <div class="ajuda-fundo" id="ajuda">
     <div class="ajuda-cartao">
       <h2>O que é o Mind Agent?</h2>
-      <p>Mais que um chatbot: uma camada inteligente de navegação do Summit, que reconhece quem é você e acompanha sua jornada nos dois dias.</p>
+      <p>Um concierge do Summit dentro do chat: responde sobre a programação e mostra onde as coisas ficam no app do evento.</p>
       <ul class="ajuda-lista">
-        <li><b>Reconhece você</b> pela plataforma Yazo (ou pelo e-mail) e retoma de onde parou.</li>
-        <li><b>Lembra do contexto</b> — perfil, objetivos, interesses e o que já conversamos — para recomendar as sessões certas.</li>
-        <li><b>Age sozinho quando ajuda</b>: lembra da reserva antes de começar, chama para a enquete na palestra, pede feedback depois e manda o material por WhatsApp.</li>
-        <li><b>Responde com base atualizada</b> (RAG) sobre agenda, palestrantes, salas e horários — sem inventar.</li>
+        <li><b>Sabe quem é você</b> quando você entra pelo seu link do Summit — e chama você pelo nome.</li>
+        <li><b>Responde pela base oficial</b> do evento: programação, palestrantes, salas e horários. Quando o dado não está lá, ele diz que não está, em vez de inventar.</li>
+        <li><b>Sugere o que ver</b> a partir do que você contar sobre o seu desafio.</li>
+        <li><b>Mostra o caminho</b> quando a ação é sua: aponta a tela e o botão de salvar, reservar ou fazer check-in.</li>
       </ul>
-      <p class="ajuda-nota">A IA usa a base oficial. Perfil e histórico não são enviados ao modelo.</p>
+      <p class="ajuda-nota">Quem reserva, faz check-in e monta a agenda é você, no app do evento. Seu nome e e-mail vão para o agente apenas para ele saber com quem fala.</p>
       <button type="button" id="fechar-ajuda">Entendi</button>
     </div>
   </div>
@@ -179,6 +183,7 @@
   <div class="guia" id="guia" hidden>
     <span class="guia-brilho" id="guia-brilho" aria-hidden="true"></span>
     <div class="guia-trilha" id="guia-trilha" aria-hidden="true"></div>
+    <p class="guia-nome">Tour rápido <span>Conheça o essencial em 30 segundos</span></p>
     <button type="button" class="guia-pular" id="guia-pular">Pular</button>
 
     <div class="guia-cena" id="guia-cena" role="dialog" aria-live="polite" aria-labelledby="guia-titulo">
@@ -192,18 +197,23 @@
 
     <svg class="guia-seta" id="guia-seta" aria-hidden="true"></svg>
     <span class="guia-barra" id="guia-barra" aria-hidden="true"></span>
-    <!-- Aparece depois de alguns segundos de tela: dali em diante quem manda
-         é a pessoa. Some no último passo, onde os botões já dizem o que
-         fazer. Só a seta para a frente — voltar existe, mas não é o que se
-         quer sugerir aqui. -->
+    <!-- Fica na tela desde o começo do passo: quem manda no ritmo é a
+         pessoa, e isso vale desde o primeiro instante. Some no último
+         passo, onde os botões já dizem o que fazer. Só a seta para a
+         frente — voltar existe, mas não é o que se quer sugerir aqui. -->
     <div class="guia-avance" id="guia-avance" hidden aria-hidden="true">
       <span>deslize para continuar</span>
-      <span class="s">›</span>
+      <span class="s">→</span>
     </div>
 
+    <!-- As zonas de toque são invisíveis por natureza. Estas marcas dizem
+         que elas existem, sem disputar atenção com o conteúdo. São
+         decorativas: quem lê o toque é o próprio guia, não elas. -->
+    <span class="guia-lado" id="guia-lado" hidden aria-hidden="true"><i>‹</i><i>›</i></span>
+
     <div class="guia-saida" id="guia-saida" hidden>
-      <button type="button" class="guia-fim" id="guia-fim">Ver o tour completo</button>
-      <button type="button" class="guia-sair" id="guia-sair">Sair</button>
+      <button type="button" class="guia-praticar" id="guia-praticar">Aprender usando o app<span>Tour interativo · cerca de 2 minutos</span></button>
+      <button type="button" class="guia-ir" id="guia-ir">Ir para o Mind Agent</button>
     </div>
   </div>
 
