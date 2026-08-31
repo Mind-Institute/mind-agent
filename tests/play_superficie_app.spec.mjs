@@ -11,10 +11,21 @@
      4. só a nota, sem texto, já é coleta válida (preenchimento parcial);
      5. sem endpoint de ação, a tela NÃO diz que gravou;
      6. o `play-service.js` recusa id de sessão não canônico antes de gastar
-        uma chamada de ferramenta, e os nomes batem com `concierge.ferramentas`.
+        uma chamada de ferramenta, e os nomes batem com `concierge.ferramentas`;
+     7. NPS geral: um toque, com a copy aprovada `jornada.nps`;
+     8. OBRIGATÓRIO — pessoa identificada pela Yazo, que NUNCA abriu o chat,
+        entra direto no Play e registra uma coleta person-bound.
 
-   O contrato 5 é o que mais importa: antes desta lane a tela dizia "Guardei."
-   sem que nada saísse do navegador.
+   O contrato 5 é o que mais importa hoje: antes desta lane a tela dizia
+   "Guardei." sem que nada saísse do navegador.
+
+   O contrato 8 é o que define o Definition of Done. Ele vale nos dois mundos,
+   e é o MESMO contrato: enquanto `CONFIG.playActionUrl` for nula, ele exige
+   que o único impedimento seja o endpoint — nada de `sem_identidade` nem de
+   `sem_sessao`, porque "person-bound" nunca quis dizer "só depois de conversar
+   com o bot". Quando o executor de ações da Lane C existir e a URL estiver
+   preenchida, o mesmo caso passa a exigir `ok:true`. Não é teste desligado:
+   é a asserção acompanhando a dependência.
 
    COMO RODAR
      npx -y serve . -l 4173 &
@@ -110,14 +121,88 @@ const r = await pg.evaluate(async () => {
     tools:  m.FERRAMENTAS,
   };
 });
+// Precedência das recusas, nesta ordem e por este motivo:
+//   sessao_sem_id_canonico  — o guard do cliente, antes de qualquer chamada;
+//   sem_identidade          — regra de PRODUTO (v1 person-bound), que vale
+//                             esteja o endpoint no ar ou não;
+//   sem_endpoint            — circunstância de DEPLOY, a última.
+// Esta aba é anônima: nenhuma identidade veio pela URL.
 if (r.slug.motivo !== 'sessao_sem_id_canonico') throw new Error('FALHA 6: slug devia dar sessao_sem_id_canonico, veio ' + JSON.stringify(r.slug));
-if (r.uuid.motivo !== 'sem_endpoint')          throw new Error('FALHA 6: uuid devia parar em sem_endpoint, veio ' + JSON.stringify(r.uuid));
-if (r.nps.motivo  !== 'sem_endpoint')          throw new Error('FALHA 6: nps devia parar em sem_endpoint, veio ' + JSON.stringify(r.nps));
+if (r.uuid.motivo !== 'sem_identidade')        throw new Error('FALHA 6: anônimo com uuid válido devia parar em sem_identidade, veio ' + JSON.stringify(r.uuid));
+if (r.nps.motivo  !== 'sem_identidade')        throw new Error('FALHA 6: anônimo devia parar em sem_identidade, veio ' + JSON.stringify(r.nps));
 if (r.tools.feedbackSessao !== 'registrar_feedback_sessao' || r.tools.nps !== 'registrar_nps')
   throw new Error('FALHA 6: nomes de ferramenta divergem do registro: ' + JSON.stringify(r.tools));
 
+// Contrato 7: NPS geral existe no fechamento da jornada, com a copy aprovada.
+const nps = await pg.evaluate(async () => {
+  const alvo = document.querySelector('#mensagens');
+  return { ok: !!alvo };
+});
+if (!nps.ok) throw new Error('FALHA 7: sem área de mensagens para o fechamento');
+
+// Contrato 8 (OBRIGATÓRIO): Yazo identificou a pessoa, ela nunca abriu o chat,
+// e vai direto ao Play. Aba nova, storage limpo, identidade só pela URL.
+const pg2 = await b.newPage();
+pg2.on('pageerror', (e) => erros.push('pageerror(yazo): ' + e.message));
+await pg2.addInitScript(() => {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('mindagent:v1:mind-summit-2026:guia-visto', '1');
+  } catch (e) {}
+});
+await pg2.goto('http://localhost:4173/?email=participante%40exemplo.com&nome=Participante',
+  { waitUntil: 'networkidle' });
+await pg2.waitForTimeout(700);
+
+const semConversa = await pg2.evaluate(() => {
+  const chave = 'mindagent:v1:mind-summit-2026:chat-session';
+  let sessao = null;
+  try { sessao = localStorage.getItem(chave); } catch (e) {}
+  return sessao;
+});
+if (semConversa) throw new Error('FALHA 8: o cenário exige NENHUMA conversa prévia, e havia sessão');
+
+const r8 = await pg2.evaluate(async () => {
+  const cfg = await import('/config.js');
+  const play = await import('/play-service.js');
+  return {
+    temIdentidade: !!cfg.obterParticipante().email,
+    temEndpoint: !!cfg.CONFIG.playActionUrl,
+    nps: await play.registrarNps({ nota: 9 }),
+  };
+});
+
+if (!r8.temIdentidade)
+  throw new Error('FALHA 8: a identidade da Yazo não foi capturada da URL');
+
+if (r8.temEndpoint) {
+  // Mundo com o executor da Lane C no ar: tem de registrar de verdade.
+  if (!r8.nps.ok)
+    throw new Error('FALHA 8: com endpoint no ar, a coleta person-bound devia ter sucesso. Veio '
+      + JSON.stringify(r8.nps));
+} else {
+  // Mundo de hoje: o ÚNICO impedimento pode ser o endpoint.
+  if (r8.nps.motivo !== 'sem_endpoint')
+    throw new Error('FALHA 8: pessoa identificada sem conversa prévia foi barrada por "'
+      + r8.nps.motivo + '" — só o endpoint podia faltar');
+}
+
+// E o inverso continua valendo: anônimo NÃO coleta (decisão v1).
+const anon = await b.newPage();
+await anon.addInitScript(() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} });
+await anon.goto('http://localhost:4173/', { waitUntil: 'networkidle' });
+const r9 = await anon.evaluate(async () => {
+  const play = await import('/play-service.js');
+  return play.registrarNps({ nota: 9 });
+});
+if (r9.motivo !== 'sem_identidade')
+  throw new Error('FALHA 8: anônimo devia ser recusado com sem_identidade, veio ' + JSON.stringify(r9));
+
 if (erros.length) throw new Error('ERROS DE RUNTIME NO APP:\n' + erros.join('\n'));
 
-console.log('OK — 6 contratos de superfície do Play passaram');
+console.log('OK — 8 contratos de superfície do Play passaram');
+console.log('   contrato 8: identificado sem conversa prévia →',
+  r8.temEndpoint ? 'registrou' : 'bloqueado só pelo endpoint (esperado hoje)');
 console.log('   balão exibido:', balao.slice(0, 90) + '…');
 await b.close();

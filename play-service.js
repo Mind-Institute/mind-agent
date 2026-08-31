@@ -45,24 +45,30 @@
    `{ ok:false, motivo:'sem_endpoint' }` — e quem chama tem de dizer a
    verdade na tela em vez de fingir que gravou.
 
-   IDENTIDADE
-   ----------
-   v1 NÃO aceita coleta anônima (decisão congelada). Sem sessão de
-   concierge estabelecida não há pessoa, e sem pessoa a coleta não
-   executa: devolve `{ ok:false, motivo:'sem_sessao' }`. Este arquivo não
-   abre nem renova sessão — quem faz isso é o `chat-service.js`, e ter
-   dois donos da mesma sessão seria pior do que não coletar.
+   IDENTIDADE — E POR QUE ELA NÃO EXIGE CONVERSA ANTES
+   ---------------------------------------------------
+   v1 NÃO aceita coleta anônima (decisão congelada): sem pessoa, a coleta
+   não executa. Mas "person-bound" NÃO quer dizer "só depois de conversar
+   com o Concierge". Quem chega identificado e vai direto ao Play — sem
+   nunca ter aberto o chat — tem de conseguir registrar.
+
+   Por isso o que viaja é a IDENTIDADE (a mesma que o `chat-service.js`
+   manda para o `mindagent-chat`), e a `session` só quando já existe. Quem
+   resolve identidade → `pessoa_id` e quem estabelece/vincula a sessão é o
+   runtime canônico do Concierge, do lado do servidor. Aqui não há segundo
+   lifecycle de sessão: a autenticação vem do `chat-service.js`, que é o
+   dono dela, por `garantirAutenticacao()`.
+
+   Sem identidade e sem sessão não há pessoa: devolve
+   `{ ok:false, motivo:'sem_identidade' }`.
 */
 
-import { CONFIG } from './config.js';
+import { CONFIG, obterParticipante } from './config.js';
+import { garantirAutenticacao } from './chat-service.js';
 
-/* As mesmas chaves que o `chat-service.js` escreve. Aqui só se LÊ: a
-   sessão tem um dono, e não é este arquivo. */
-const PREFIXO = 'mindagent:v1:' + CONFIG.eventSlug + ':';
-const CHAVES = {
-  auth: PREFIXO + 'auth',
-  session: PREFIXO + 'chat-session',
-};
+/* A sessão de conversa, quando já existe, é lida daqui. Escrever nela é do
+   `chat-service.js`. */
+const CHAVE_SESSAO = 'mindagent:v1:' + CONFIG.eventSlug + ':chat-session';
 
 /* Nomes das ferramentas já registradas em `concierge.ferramentas`.
    Exportado para que a tela nomeie a ferramenta em vez de repetir string
@@ -108,19 +114,35 @@ function limpar(argumentos) {
  * @returns {Promise<{ok:boolean, resultado?:object, motivo?:string, mensagem?:string}>}
  */
 export async function executar(ferramenta, argumentos) {
+  /* Sessão de conversa é opcional: quem nunca falou com o Concierge não tem
+     uma, e ainda assim pode registrar. Quando existe, viaja — a coleta fica
+     ligada à conversa em que aconteceu. */
+  const bruta = ler(CHAVE_SESSAO);
+  const session = (bruta?.id && bruta?.conversation_id && bruta?.token) ? bruta : undefined;
+
+  /* v1 é person-bound: a identidade da Yazo basta, a conversa não é
+     pré-requisito. Esta checagem vem ANTES da do endpoint de propósito —
+     ser anônimo é recusa de produto, e vale esteja o endpoint no ar ou não.
+     Se o endpoint viesse primeiro, a recusa certa ficaria mascarada por uma
+     circunstância de deploy, e o dia em que a URL fosse preenchida mudaria
+     silenciosamente o motivo. */
+  const p = obterParticipante();
+  const identity = p.email ? { email: p.email, name: p.nome || undefined, source: p.origem || 'yazo_url' } : undefined;
+  if (!identity && !session) {
+    return { ok: false, motivo: 'sem_identidade' };
+  }
+
   if (!CONFIG.playActionUrl) {
     return { ok: false, motivo: 'sem_endpoint' };
   }
 
-  const auth = ler(CHAVES.auth);
-  const session = ler(CHAVES.session);
-  const agora = Math.floor(Date.now() / 1000);
-  if (!auth?.access_token || Number(auth.expires_at) <= agora) {
+  let auth;
+  try {
+    auth = await garantirAutenticacao();
+  } catch {
     return { ok: false, motivo: 'sem_sessao' };
   }
-  if (!session?.id || !session?.conversation_id || !session?.token) {
-    return { ok: false, motivo: 'sem_sessao' };
-  }
+  if (!auth?.access_token) return { ok: false, motivo: 'sem_sessao' };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -136,6 +158,9 @@ export async function executar(ferramenta, argumentos) {
         ferramenta,
         argumentos: limpar(argumentos),
         event_slug: CONFIG.eventSlug,
+        /* Quem resolve identidade -> pessoa_id e estabelece/vincula a sessão
+           é o runtime do Concierge. `session` vai só quando já existe. */
+        identity,
         session,
         /* Rede repete; a pessoa não. A chave viaja para o runtime poder
            deduplicar a MESMA tentativa. Os writers já são idempotentes

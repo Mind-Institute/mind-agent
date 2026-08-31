@@ -833,17 +833,34 @@ de `comum.taxonomy`, **schema que não existe mais**. É uma das 19 funções j�
 Sem esse id, `mind_play_feedback_sessao` recusa com `sessao_nao_encontrada` — corretamente. O
 `play-service.js` antecipa a recusa como `sessao_sem_id_canonico` para a tela poder ser honesta.
 
-**Atenção ao consertar:** `'id', coalesce(s.yazo_id, s.id::text)` faz o `yazo_id` ganhar do id
-canônico quando existe. Só reapontar os schemas **não** resolve o Play: o contrato do app precisa
-carregar o uuid canônico de `summit_2026.sessions` (como campo próprio, se `yazo_id` tiver de
-continuar sendo o `id` público). `comum.taxonomy` não existe mais, então `temas` precisa de decisão
-sobre o que passa a alimentá-lo.
+**CORREÇÃO (31/08/2026).** Uma primeira versão desta entrada dizia que `'id', coalesce(s.yazo_id,
+s.id::text)` faria o `yazo_id` vencer o uuid, e que por isso "só reapontar os schemas não resolve".
+**Isso estava errado como bloqueio atual e foi medido:** em produção, **77/77 sessões têm `yazo_id`
+NULL**, logo o `coalesce` já devolveria o uuid canônico hoje. É fragilidade futura — se um dia a
+Yazo preencher `yazo_id`, o `id` público muda de natureza — e não deve ser endurecida agora.
 
-**Por que foi deferido:** a função serve o app inteiro (programação, pessoas, temas), não só o Play;
-consertá-la envolve decidir o destino de `temas` sem `comum.taxonomy`. Fazer isso dentro da Lane E
-seria limpeza lateral e atropelaria quem é dono da programação.
+**O bloqueio real é outro, e é de conteúdo, não de schema:**
 
-**Gatilho para retomar:** é pré-requisito para o Play coletar feedback vinculado a sessão. Deve
-entrar antes do E2E do Play.
+- `summit_2026.sessions.trilhas` está vazia em **77/77**;
+- `summit_2026.sessions.topicos_aprendizado` está vazia em **77/77**;
+- `comum.taxonomy` não existe mais e não há equivalente no banco.
 
-**Dependência:** dono da programação/bootstrap + decisão sobre `temas`.
+O app usa `DADOS.temas` + `sessoes[].temas` em `palestras`, `agenda`, na afinidade de `pessoas` e no
+fallback do próprio `insight`. Fazer a bootstrap "voltar" transformaria 503 em payload **válido
+porém funcionalmente pior**: a página deixaria de cair no JSON local e esses fluxos quebrariam em
+silêncio. **Não fazer conserto parcial.**
+
+A taxonomia de tema hoje existe **só** em `dados/summit.json`: 10 temas e o mapeamento sessão→tema
+em 49 de 53 sessões. E esse arquivo é uma curadoria **mais antiga** que a produção: casando por
+(dia, hora, título) contra as 77 sessões vivas, só **33/53** têm par único — 20 ficam sem par, 19
+delas com tema. Ou seja, **não existe junção automática segura** entre a taxonomia local e a
+programação atual. Inventar esse mapeamento seria backfill fabricado.
+
+**Caminho que NÃO depende disso:** `public.mindagent_chat_search` já devolve `sessions[].id` como o
+**uuid canônico** — verificado. Quem executa ferramenta do Play é o runtime do Concierge, que
+portanto já sabe resolver a sessão. O vínculo canônico do Play não precisa passar pela bootstrap.
+
+**Gatilho para retomar a bootstrap:** existir uma decisão sobre o que alimenta `temas`. Enquanto não
+houver, mexer nela é regressão.
+
+**Dependência:** decisão de curadoria sobre `temas` (Adriana) + dono da programação/bootstrap.

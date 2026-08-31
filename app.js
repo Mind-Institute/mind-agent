@@ -7,7 +7,7 @@
 */
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
-import { registrarFeedbackSessao } from './play-service.js';
+import { registrarFeedbackSessao, registrarNps } from './play-service.js';
 import { carregarDadosSummit } from './data-service.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -1345,6 +1345,35 @@ const FLUXOS = {
       '<small>' + sub + '</small></span></li>').join('');
     alvo.appendChild(ul);
     PERFIL.plano = itens;
+
+    /* NPS DO SUMMIT. O template aprovado `jornada.nps` abre com "Última
+       pergunta": o lugar dele é o fechamento da jornada, e este fluxo só
+       existe para quem já viveu alguma coisa aqui. Um toque, sem formulário.
+       Não depende de sessão nenhuma — por isso funciona antes de o vínculo
+       canônico por sessão existir. */
+    const nps = document.createElement('div');
+    nps.className = 'ins';
+    nps.innerHTML =
+      '<p class="ins-pergunta">Última pergunta, e ela vale muito: de 0 a 10, ' +
+      'quanto você recomendaria o Mind Summit para alguém como você?</p>' +
+      '<div class="chips nota">' + Array.from({ length: 11 }, (_, n) =>
+        '<button type="button" aria-pressed="false" data-n="' + n + '">' + n + '</button>').join('') + '</div>';
+    nps.querySelector('.chips.nota').addEventListener('click', async (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      nps.querySelectorAll('.chips.nota button').forEach((x) => {
+        x.setAttribute('aria-pressed', 'false');
+        x.disabled = true;
+      });
+      b.setAttribute('aria-pressed', 'true');
+      const r = await registrarNps({ nota: Number(b.dataset.n) });
+      bolha(r.ok
+        ? 'Obrigado. Isso chega em quem decide o próximo Summit. 💚'
+        : 'Obrigado por responder. Ainda não consigo registrar isso no sistema do evento — quando essa parte entrar no ar, passa a valer para a organização também.',
+        'mind');
+    });
+    alvo.appendChild(nps);
+
     const ver = document.createElement('button');
     ver.type = 'button'; ver.className = 'avancar';
     ver.textContent = 'Ver o meu Summit inteiro';
