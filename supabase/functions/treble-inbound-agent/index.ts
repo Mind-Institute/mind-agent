@@ -262,7 +262,7 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 
 // ROTA — quem decide é a Edge Function `router` (Passo 10), e só ela. Aqui não há
 // heurística, lista de palavra-chave nem fallback que escolha rota: ou o Router
-// responde, ou não há rota e o turno segue no caminho legado.
+// responde, ou não há rota — e sem rota o turno encerra com transferência.
 //
 // `rota = null` é resposta legítima do Router (ambiguidade real, ou conversa sem fala
 // do lead). Não é erro e não vira rota inventada deste lado.
@@ -600,21 +600,20 @@ Deno.serve(async (req: Request) => {
         dadosOficiais = kit.structured;
         instructions = playbookDaRota as string;
       } else {
-        // O turno continua de qualquer jeito: transferir é o último recurso, não a
-        // primeira resposta. Quem decide se ele também vira necessidade humana é o
+        // O Core não serve este turno. Desde a v1.5.0 não há piso para onde cair: o
+        // turno encerra com transferência logo abaixo. Quem decide `needs_human` é o
         // Gate, e só ele — `needsHumanDoGate` já carrega a resposta, para qualquer rota.
         //
-        // Três motivos distintos caem aqui, e o registro os separa:
+        // Três motivos distintos caem aqui, e o registro os separa em `rota_falha`:
         //   rota_de_outra_lane  a rota é canônica e o Gate já respondeu, mas executá-la
-        //                       não é desta lane; o turno responde pelo piso legado;
-        //   gate fechado        condição estável (missing_playbook, missing_kit): a rota
-        //                       não executa aqui, e isso é necessidade humana de fato;
+        //                       não é desta lane;
+        //   gate fechado        condição estável (missing_playbook, missing_kit,
+        //                       canal_incompativel): a rota não executa aqui, e isso é
+        //                       necessidade humana de fato;
         //   kit_indisponivel    Gate aberto e Kit que não veio — falha passageira de
-        //                       leitura. O turno cai no piso factual do caminho legado
-        //                       (evento e ofertas vigentes, o mesmo com que este agente
-        //                       vende hoje) e NÃO acende handoff: mandar a pessoa para
-        //                       um humano por causa de um soluço de RPC seria pior que
-        //                       responder.
+        //                       leitura. Antes isto caía no piso factual do legado sem
+        //                       acender handoff; agora transfere, porque responder com
+        //                       dado velho deixou de ser uma opção deste runtime.
         falhaDaRota = falhaDaRota ??
           (!ehDoVendedor ? "rota_de_outra_lane" : gateReason ?? "kit_indisponivel");
       }
@@ -771,7 +770,7 @@ Deno.serve(async (req: Request) => {
     //                     deixar o classificador legado escrever `b2c`/`b2b` aqui
     //                     criaria estado que um fallback futuro trataria como decisão.
     //                     Preserva-se o que a conversa já tinha, ou `desconhecido`;
-    //   demais casos    → segue o legado, como na v1.3.0.
+    //   demais casos    → a leitura do modelo, que só chega aqui com Kit aplicado.
     //
     // A chave em si nunca some do payload do Treble.
     const audienceDaConversa = typeof conv.audience === "string" && conv.audience
