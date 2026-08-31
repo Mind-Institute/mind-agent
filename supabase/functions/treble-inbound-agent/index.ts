@@ -107,8 +107,8 @@ const DEFAULT_MODEL = "gpt-5.4-mini";
 // treble-inbound-agent; não há alias.
 const CANAL = "whatsapp";
 
-// As rotas canônicas que ESTE runtime assume pelo Core. Fora delas o turno segue no
-// caminho legado — a rota decidida ainda é registrada no turno, para quem vier depois.
+// As rotas canônicas que ESTE runtime executa. Fora delas o turno encerra com
+// transferência — a rota decidida ainda é registrada, para quem vier depois.
 const ROTAS_DO_VENDEDOR = new Set(["summit_b2c", "summit_b2b"]);
 
 // `audience` é chave pública do payload do Treble e estado persistido em
@@ -119,8 +119,9 @@ const AUDIENCE_DA_ROTA: Record<string, string> = {
   summit_b2b: "b2b",
 };
 
-// Orçamento do Router. Curto de propósito: estourar significa cair no caminho legado,
-// não perder o turno. Ajustável por `treble.config.router_timeout_ms`.
+// Orçamento do Router. Estourar não tem mais para onde cair: o turno encerra com
+// transferência, e o motivo sai como `router_timeout`. Ajustável por
+// `treble.config.router_timeout_ms`.
 const ROUTER_TIMEOUT_MS = 6000;
 
 // Transferência. É a MESMA copy já aprovada no caminho de erro deste runtime: não se
