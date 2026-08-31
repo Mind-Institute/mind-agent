@@ -258,11 +258,14 @@ antes, faria a D chegar depois com versão menor. Como nunca rodou em produção
 em `concierge.ferramenta_chamadas`), o conserto foi um **rename puro** — R100,
 blob byte a byte idêntico.
 
-1. Merge controlado na ordem das lanes, sem pular nenhuma.
-2. Confirmar o DB vivo: Gate aberto, Kit disponível, ledger presente.
-3. **Publicar a Edge manualmente** a partir do commit aprovado — gate
-   explícito da Adriana, porque muda comportamento de produto no canal vivo.
-4. E2E real no app; corrigir somente o afetado.
+1. **C integra** suas migrations e seu código.
+2. Confirmar o **Gate, o Kit e o ledger da C vivos** no banco.
+3. **Publicar o `mindagent-chat` manualmente** — gate explícito da Adriana, porque
+   muda comportamento de produto no canal vivo — e testar o **CHAT** do Concierge
+   ponta a ponta.
+4. **D entra na sequência canônica**, com memória e pós-turno.
+5. **E entra depois**, com os writers do Play e o frontend.
+6. O **E2E completo do modo Play** só fecha depois da Lane E.
 
 Inverter 1 e 3 não quebra nada: a Edge nova depende do Gate aberto, do Kit
 registrado e do ledger, então publicá-la antes deixaria o chat em
@@ -270,4 +273,5 @@ registrado e do ledger, então publicá-la antes deixaria o chat em
 
 O Play **completo** ainda depende da Lane E — as `mind_play_*` estão na #48 e
 não em produção. Isso é uma dependência do E2E do Play, **não** uma autorização
-para adiantar a E na frente da D.
+para adiantar a E na frente da D. **A C não puxa a migration da E**: o executor
+do Play morar dentro desta Edge não muda a propriedade nem a ordem da Lane E.
