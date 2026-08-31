@@ -76,7 +76,12 @@ export type Oficiais = {
 // ─────────────────────────────────────────────────────────────── leitura do texto
 
 // Captura os centavos de propósito: `R$ 1.318,99` não pode passar por "1.318".
-const MOEDA = /R\$\s?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/g;
+//
+// O `+` no grupo de milhar não é decorativo. Com `*`, a primeira alternativa casava com
+// ZERO grupos e vencia cedo: `R$ 1647` virava "164", `R$ 6297` virava "629". Toda
+// resposta legítima que escrevesse o valor sem ponto de milhar era barrada. Agora o
+// ramo de milhar exige ao menos um `.ddd`; sem ponto, cai no ramo `\d+`.
+const MOEDA = /R\$\s?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/g;
 const PERCENTUAL = /(\d{1,3})\s*%/g;
 
 // Quantidade de ingressos que a resposta afirma. Só conta número colado num substantivo
@@ -215,37 +220,99 @@ export type Afirmacao = {
   experiencias: string[];
 };
 
-/** Divide em orações para que o contexto de uma não vaze para a outra. */
-function oracoes(answer: string): string[] {
-  return answer.split(/(?<=[.!?;])\s+|\n+/).filter((s) => s.trim());
+// ────────────────────────────────────────────────────────── contexto por VALOR
+//
+// Experiência e quantidade pertencem ao VALOR, não à oração. Ligá-las à oração inteira
+// deixava passar troca semântica dentro de uma frase só:
+//
+//   "Mind R$ 2.647 e VIP R$ 1.647."
+//        os dois valores recebiam [mind, vip], então cada um achava um fato oficial e
+//        passava — apesar de estarem trocados.
+//
+//   "5 pessoas: R$ 1.318 por pessoa e 10 pessoas: R$ 1.318 por pessoa."
+//        Math.max([5,10]) = 10 validava os dois contra o tier de 10, embora o primeiro
+//        esteja errado para 5.
+//
+// A regra é de proximidade, determinística e sem parser de português: vale a ÚLTIMA
+// menção antes do valor. "Último antes" respeita a ordem da leitura e já separa orações
+// sozinho — o que veio depois do ponto final está mais perto que o que veio antes.
+//
+// Só quando nada antecede o valor é que se olha adiante, numa janela curta cortada na
+// primeira conjunção ou pontuação — sem esse corte, "Mind R$ 2.647 e VIP" devolveria
+// `vip` para o primeiro valor e o contrato voltaria a falhar.
+
+const CORTE_ADIANTE = /\s+(?:e|ou)\s+|[,;:.!?]/;
+
+function recorteAdiante(depois: string): string {
+  const janela = depois.slice(0, 30);
+  const corte = janela.search(CORTE_ADIANTE);
+  return corte === -1 ? janela : janela.slice(0, corte);
+}
+
+function ultimaQuantidade(texto: string): number | null {
+  const todas = [...texto.matchAll(QUANTIDADE)];
+  if (!todas.length) return null;
+  const n = Number(todas[todas.length - 1][1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** A menção de experiência mais próxima do fim do trecho. */
+function ultimaExperiencia(texto: string): string | null {
+  const t = texto.toLowerCase();
+  let achado: string | null = null;
+  let melhor = -1;
+  for (const e of EXPERIENCIAS) {
+    for (const m of t.matchAll(new RegExp(`\\b${e}\\b`, "g"))) {
+      if ((m.index ?? -1) > melhor) {
+        melhor = m.index ?? -1;
+        achado = e;
+      }
+    }
+  }
+  return achado;
+}
+
+function primeiraExperiencia(texto: string): string | null {
+  const t = texto.toLowerCase();
+  let achado: string | null = null;
+  let melhor = Infinity;
+  for (const e of EXPERIENCIAS) {
+    const m = t.match(new RegExp(`\\b${e}\\b`));
+    if (m && (m.index ?? Infinity) < melhor) {
+      melhor = m.index ?? Infinity;
+      achado = e;
+    }
+  }
+  return achado;
 }
 
 export function afirmacoes(answer: string): Afirmacao[] {
-  const qtdGeral = quantidadesDitas(answer);
-  const expGeral = experienciasDitas(answer);
+  const expDaResposta = experienciasDitas(answer);
   const saida: Afirmacao[] = [];
 
-  for (const oracao of oracoes(answer)) {
-    const qtdLocal = quantidadesDitas(oracao);
-    const expLocal = experienciasDitas(oracao);
-    const quantidades = qtdLocal.length ? qtdLocal : qtdGeral;
-    const experiencias = expLocal.length ? expLocal : expGeral;
-    const quantidade = quantidades.length ? Math.max(...quantidades) : null;
+  const registrar = (texto: string, valor: number, i: number, ehPercentual: boolean) => {
+    const antes = answer.slice(0, i);
+    const adiante = recorteAdiante(answer.slice(i + texto.length));
 
-    for (const m of oracao.matchAll(MOEDA)) {
-      const i = m.index ?? 0;
-      saida.push({
-        texto: m[0],
-        valor: numeroBR(m[1]),
-        papel: papelDaAfirmacao(oracao.slice(Math.max(0, i - 40), i), oracao.slice(i + m[0].length, i + m[0].length + 30), quantidade !== null),
-        quantidade,
-        experiencias,
-      });
-    }
-    for (const m of oracao.matchAll(PERCENTUAL)) {
-      saida.push({ texto: m[0], valor: Number(m[1]), papel: "percentual", quantidade, experiencias });
-    }
-  }
+    const quantidade = ultimaQuantidade(antes) ?? ultimaQuantidade(adiante);
+    const perto = ultimaExperiencia(antes) ?? primeiraExperiencia(adiante);
+    // Sem nenhuma menção próxima, cai para o que a resposta inteira nomeia — é a regra
+    // "se a resposta nomear uma experiência, o valor não pode vir de outra".
+    const experiencias = perto ? [perto] : expDaResposta;
+
+    saida.push({
+      texto,
+      valor,
+      papel: ehPercentual
+        ? "percentual"
+        : papelDaAfirmacao(answer.slice(Math.max(0, i - 40), i), answer.slice(i + texto.length, i + texto.length + 30), quantidade !== null),
+      quantidade,
+      experiencias,
+    });
+  };
+
+  for (const m of answer.matchAll(MOEDA)) registrar(m[0], numeroBR(m[1]), m.index ?? 0, false);
+  for (const m of answer.matchAll(PERCENTUAL)) registrar(m[0], Number(m[1]), m.index ?? 0, true);
   return saida;
 }
 

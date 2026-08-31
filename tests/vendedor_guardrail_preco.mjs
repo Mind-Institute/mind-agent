@@ -183,7 +183,30 @@ const CASOS = [
   ["agenda não autoriza R$ 45", "Sai R$ 45.", COM_AGENDA_OF, "rejeita"],
   ["agenda não autoriza R$ 3", "Sai R$ 3.", COM_AGENDA_OF, "rejeita"],
 
-  // ── 10. Bordas ─────────────────────────────────────────────────────────────
+  // ── 10. Valor oficial SEM separador de milhar ──────────────────────────────
+  // A regex de moeda aceitava a alternativa de milhar com ZERO grupos `.ddd` e vencia
+  // cedo: `R$ 1647` virava "164". Resposta legitima sem ponto era barrada.
+  ["aceita R$ 1647 sem ponto de milhar", "O Mind está R$ 1647.", KIT_OF, "aceita"],
+  ["aceita R$ 2647 sem ponto de milhar", "O VIP está R$ 2647.", KIT_OF, "aceita"],
+  ["aceita R$ 6297 sem ponto de milhar", "O Prime está R$ 6297.", KIT_OF, "aceita"],
+  ["aceita R$ 1318 sem ponto (unitário do tier de 10)", "Para 10 pessoas, R$ 1318 por pessoa.", KIT_OF, "aceita"],
+  ["aceita total sem ponto (10 × 1318)", "Para 10 pessoas fica R$ 13180.", KIT_OF, "aceita"],
+  ["rejeita R$ 1648 sem ponto (não existe)", "O Mind está R$ 1648.", KIT_OF, "rejeita"],
+  ["rejeita R$ 164 (o que a regex quebrada capturava)", "O Mind está R$ 164.", KIT_OF, "rejeita"],
+  ["formatado e não formatado valem o mesmo", "O Mind está R$ 1.647 ou R$ 1647.", KIT_OF, "aceita"],
+
+  // ── 11. Contexto pertence ao VALOR, não à oração ───────────────────────────
+  // Ligado à oração inteira, os dois valores recebiam [mind, vip] e cada um achava um
+  // fato oficial — apesar de trocados.
+  ["REJEITA 'Mind R$ 2.647 e VIP R$ 1.647' (trocados na mesma oração)", "Mind R$ 2.647 e VIP R$ 1.647.", KIT_OF, "rejeita"],
+  ["aceita 'Mind R$ 1.647 e VIP R$ 2.647' (na ordem certa)", "Mind R$ 1.647 e VIP R$ 2.647.", KIT_OF, "aceita"],
+  // Math.max([5,10]) validava os dois contra o tier de 10.
+  ["REJEITA duas quantidades com o mesmo unitário", "5 pessoas: R$ 1.318 por pessoa e 10 pessoas: R$ 1.318 por pessoa.", KIT_OF, "rejeita"],
+  ["aceita duas quantidades com os unitários certos", "5 pessoas: R$ 1.482 por pessoa e 10 pessoas: R$ 1.318 por pessoa.", KIT_OF, "aceita"],
+  ["rejeita segunda quantidade errada", "5 pessoas: R$ 1.482 por pessoa e 10 pessoas: R$ 1.482 por pessoa.", KIT_OF, "rejeita"],
+  ["experiência posterior não vaza para o valor anterior", "R$ 1.647 é o Mind; o VIP é outro.", KIT_OF, "aceita"],
+
+  // ── 12. Bordas ─────────────────────────────────────────────────────────────
   ["aceita resposta sem valor em R$", "O Summit é nos dias 16 e 17 de setembro, no São Paulo Expo.", KIT_OF, "aceita"],
   ["rejeita quando mistura oficial e inventado", "Mind por R$ 1.647 e VIP por R$ 2.000.", KIT_OF, "rejeita"],
   ["aceita unitário e total certos na mesma frase", "Para 10 pessoas, R$ 1.318 cada, total de R$ 13.180.", KIT_OF, "aceita"],
