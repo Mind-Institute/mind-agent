@@ -1,5 +1,13 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.5.2 — O CANAL VAI AO ROUTER. Ate aqui a chamada mandava so `conversa_id`, e o
+// Router escolhia entre as seis rotas globais sem saber onde estava. Duas perguntas
+// banais de lead ("Quando sera o evento?", "quais palestrantes estarao no summit?")
+// foram para `concierge_summit`, que este canal nao serve, e viraram transferencia.
+// Agora o canal segue junto e o Router monta o enum da resposta a partir da politica
+// em `agentes.canal_competencia`: rota proibida deixa de ser possivel no schema, nao
+// apenas desaconselhada no prompt. O Gate continua validando depois.
+//
 // v1.5.1 — RESPOSTA PRONTA NAO SE CORTA POR CARACTERE. Ate a v1.5.0 havia tres tetos
 // empilhados em 700: `answer.maxLength` no schema, `max_output_tokens` e um
 // `.slice(0, 700)` no runtime. Um turno real chegou ao WhatsApp com exatamente 700
@@ -108,7 +116,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { precoInventado, precosOficiais } from "./guardrail-preco.ts";
 
-const VERSION = "1.5.1";
+const VERSION = "1.5.2";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -305,7 +313,10 @@ async function decidirRota(
         "apikey": serviceKey,
         "Authorization": `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ conversa_id: conversaId }),
+      // O canal vai EXPLICITO. O Router filtra as competencias possiveis por ele
+      // antes de decidir, entao ele nao pode devolver uma rota que este canal nao
+      // serve. `CANAL` e a constante deste runtime — nunca inferida da conversa.
+      body: JSON.stringify({ conversa_id: conversaId, canal: CANAL }),
       signal: controller.signal,
     });
     if (!r.ok) return VAZIO(`router_http_${r.status}`);
