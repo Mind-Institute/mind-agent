@@ -1,66 +1,70 @@
-# Mind Intelligence
+# Mind Agent / Mind Intelligence
 
-Repositório do **Core Universal do Mind** — o núcleo compartilhado que serve todos os agentes
-(vendas, atendimento, concierge) e todos os canais (WhatsApp/Treble, app do Summit, site).
+Repositório do **Core Universal do Mind** e das superfícies que o consomem: vendedor Summit via Treble/WhatsApp, Concierge/Play do Summit no app e futuros agentes.
 
-Canal é adapter, não arquitetura. Agente novo **não** reimplementa identidade, contexto, memória
-ou histórico: ele consome o Core.
+Canal é adapter, não arquitetura. Agente novo não reimplementa identidade, histórico, memória, Router, Gate ou Intelligence.
 
-## Documentação canônica
+## Comece aqui
 
-**[`docs/CORE_UNIVERSAL.md`](docs/CORE_UNIVERSAL.md)** — comece por aqui. Descreve o sistema como
-ele é hoje, verificado contra o Supabase real: identidade canônica, fontes da verdade comerciais,
-catálogo, o que já está implementado e o que é roadmap.
+Se você está entrando sem contexto:
 
-Se algum documento divergir do banco, **o banco vence**.
+1. **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)** — ponto exato onde o go-live está agora.
+2. **[`PROJECT_STATE.md`](PROJECT_STATE.md)** — arquitetura/gates/decisões congeladas.
+3. **[`GO_LIVE_PARALLEL_20260830.md`](GO_LIVE_PARALLEL_20260830.md)** — lanes e ordem de integração.
+4. **[`BACKLOG.md`](BACKLOG.md)** — investigação deferida; leia só a frente relevante.
+5. **[`docs/CORE_UNIVERSAL.md`](docs/CORE_UNIVERSAL.md)** — contratos e componentes já vivos.
 
-## Estado atual
+Se documentação divergir do sistema real, verifique o sistema e reconcilie a documentação. **HEAD de PR ativo é mais fresco que qualquer checkpoint escrito.**
 
-Passos **1 a 11 fechados**: ingestão e identidade universal · ponte pessoa ↔ HubSpot · fila de
-resolução de conflito · coletor factual de CRM · coletor da realidade comercial · coletor factual
-de Engagement · normalização de áudio · normalização determinística da pessoa · AGENT_CONTEXT
-universal · contrato do AGENT_CONTEXT coberto por teste · Router universal · Capability Gate.
+## Estado atual resumido
 
-O **Router** decide qual das seis competências assume a necessidade atual; o **Capability Gate**
-diz se o canal atual consegue executá-la. Os dois estão deliberadamente **fora do runtime**:
-existem, são chamáveis e estão cobertos por teste, mas nada em produção depende deles ainda.
+Core já em `main`/produção:
 
-O Registry não ganhou tabela — o mapa rota → playbook é a convenção `playbook_<rota>` em
-`agentes.prompts`, e a ausência da linha já significa `missing_playbook`.
+- ingestão/identidade/CRM/Engagement e `AGENT_CONTEXT` universal;
+- Router universal com seis rotas;
+- Capability Gate;
+- Kit Loader mínimo;
+- speakers/session links canônicos completos (81/81);
+- `mind_kit_evento` corrigido para produto correspondente (#49, main `a226e288...`).
 
-A fonte canônica de preço, lote e desconto é o projeto **`mind-summit-propostas`**; `summit_2026`
-é espelho. Um hotfix restaurou o sync de preço e o retrieval live, que apontavam para schemas
-renomeados.
+Go-live em lanes:
 
-**Próximo passo: 12A — Auditoria e reforma de Product Intelligence / Knowledge**, e depois
-**12B — Kit Loader universal**. Construir o loader antes de auditar o que ele carrega seria encanar
-uma fonte que ninguém verificou. Princípio fechado: **estruturado autoritativo primeiro, RAG para
-long-tail** — preço, checkout, desconto e horário não dependem de vetor.
+- **B / #47** — Vendedor Summit: runtime/guardrail preparados; falta correção operacional final do telefone de smoke, depois merge + deploy manual + flag + E2E WhatsApp.
+- **C / #50** — Concierge: retrieval/Kit/playbook + `mindagent-chat` versionado/wired; SQL 17 contratos, Edge 19/19; falta review/merge, deploy manual da Edge e E2E app.
+- **D / #46 + #51** — memória segura/Silence: código preparado e desligado; faltam renames de migration, integração depois de C e gates de write-back/outbound.
+- **E / #48** — Play: writers/UI preparados, person-bound; falta rename de migration, integrar ao executor C e E2E real.
 
-Kit Loader, Decisioning e memória universal seguem como arquitetura congelada, ainda não
-implementados.
+Detalhe, HEADs e ordem exata: **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 
-```bash
-psql "$DATABASE_URL" -f tests/mind_agent_context_contract.sql   # contrato do AGENT_CONTEXT
+## Arquitetura em uma linha
+
+```text
+CANAL → INGESTÃO → IDENTIDADE → AGENT_CONTEXT → ROUTER? → GATE → KIT → DECISIONING → AGENT → AÇÃO → PÓS-TURNO/MEMÓRIA → WRITE-BACK → SILENCE
 ```
 
-## O que mais vive aqui
+Camadas:
 
-| | onde | o que é |
-|---|---|---|
-| **Chat público** | raiz (`index.html`, `app.js`, …) | o Mind Agent do Summit — ver [`docs/MIND_AGENT_FRONTEND.md`](docs/MIND_AGENT_FRONTEND.md) |
-| **Painel admin** | `admin/` | manutenção do conteúdo que o chat usa — ver [`admin/README.md`](admin/README.md) |
-| **Contratos compartilhados** | [`shared/CONTRATOS.md`](shared/CONTRATOS.md) | o que liga chat, admin e Edge Functions — leitura obrigatória antes de mexer no banco ou nas functions |
+- **INTELLIGENCE** = verdade atual;
+- **PLAYBOOK** = como pensar/atuar bem;
+- **DECISIONING** = estratégia do turno;
+- **AGENT** = execução.
 
-## Trabalhando aqui
+## Superfícies
 
-[`CLAUDE.md`](CLAUDE.md) tem as regras de trabalho e a ordem de autoridade.
-[`BACKLOG.md`](BACKLOG.md) tem as decisões de negócio pendentes e a dívida conhecida.
+| superfície | onde |
+|---|---|
+| app/Concierge/Play | raiz (`index.html`, `app.js`, `chat-service.js`, etc.) |
+| painel admin | `admin/` |
+| Edge Functions versionadas | `supabase/functions/` |
+| migrations/testes SQL | `supabase/migrations/`, `tests/` |
+| contratos do Core | `docs/CORE_UNIVERSAL.md` |
 
-```bash
-npx serve .          # chat público em http://localhost:3000
-npm run dev:admin    # painel admin na porta 5174
-npm run build        # monta dist/ (chat na raiz, admin em /admin)
-```
+Supabase: projeto `ymnmotgglsrxmjmonwjz`.
 
-Supabase: projeto `mind-agent` (`ymnmotgglsrxmjmonwjz`).
+## Deploy
+
+`main` é boundary de deploy. Cloudflare/root e migrations Supabase podem reagir ao merge.
+
+**Não presuma que Edge Function versionada é publicada automaticamente:** neste repo não há `supabase/config.toml`; as funções críticas do go-live têm publicação manual controlada após merge.
+
+Antes de mergear, confira a lane e os gates em `CHECKPOINT_ATUAL.md`.

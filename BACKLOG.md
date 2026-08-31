@@ -669,6 +669,60 @@ Enquanto isso não acontecer, a regra operacional v4 é a resposta e este bloco 
 
 ---
 
+## 14. `public.mind_lead_capturar` — RESOLVIDO em 30/08/2026: era chamada morta, foi removida
+
+**Status:** **fechado.** Descoberto pela Lane B do go-live, investigado pela Lane D na #42,
+removido na #47. Não é frente aberta. Não reinvestigar.
+
+### POR QUE APARECEU
+
+A Lane B ia acrescentar uma chave (`rota`) ao `p_contexto` dessa chamada e foi conferir o
+contrato da função antes de mexer. Ela não tem contrato: não existe.
+
+### O QUE FOI PROVADO
+
+- `treble-inbound-agent` chamava `public.mind_lead_capturar` em todo turno com pessoa.
+  Varredura em `pg_proc` por `proname ilike '%lead%'` em **todos os schemas** devolve
+  apenas `crm.registrar_lead(...)` e as janelas `pg_catalog.lead`. **A função nunca
+  existiu.**
+- O erro era engolido de propósito (`console.error({event:"lead_capturar_falhou"})` e
+  segue), então nenhum turno quebrava — o write-back é que nunca acontecia.
+- A investigação da **#42 (Lane D, dona do write-back)** fechou que é **chamada morta,
+  não função faltante**: todo o payload já tem casa canônica **no mesmo turno**. Criar a
+  RPC duplicaria estado, e `crm.registrar_lead` não é substituto compatível — outra
+  assinatura, outro schema, e quebrada.
+- Conferido contra as 5 conversas reais do agente em produção: `participante_id`,
+  `session_external_id`, `agente` e `produto_codigo` em 5/5; `audience`, `stage`,
+  `variables.intent` e `variables.needs_human` em 4/5 — a quinta nunca teve turno de
+  agente. `ticket_interest`, `objection` e `desfecho` são nulos por natureza quando não
+  se aplicam. `origem_codigo` e `utm` estão em zero conversas do agente vivo, ou seja, a
+  chamada morta carregava null para eles de qualquer forma.
+
+Mapa de destino de cada campo que ela carregava:
+
+| campo | casa canônica |
+|---|---|
+| pessoa · referência · agente | `engagement.conversas` (`participante_id`, `session_external_id`, `agente`) |
+| origem · utm · produto | `engagement.conversas` |
+| audience · stage | `engagement.conversas`, por `mind_turno_registrar` |
+| intent · ticket_interest · objection · desfecho · needs_human | `engagement.conversas.variables`, idem |
+| rota | `engagement.mensagens.blocos`, no meta do turno (a partir da v1.4.0) |
+
+### O QUE FOI FEITO
+
+A chamada saiu do `treble-inbound-agent` na PR #47, **sem nenhum writer no lugar** —
+essa foi a instrução da Lane D. O comentário no runtime preserva o mapa acima, para que
+ninguém "conserte" a ausência criando a RPC. `tests/vendedor_summit_smoke.mjs` traz a
+consulta que prova campo a campo, no E2E, que a superfície persistida não perdeu nada.
+
+### O QUE ISSO NÃO RESOLVE
+
+Write-back de verdade continua sendo o **Passo 15B / PASSO 9** do runbook, com a Lane D
+como dona, e o item 6 deste backlog como levantamento. Quando ele for construído, nasce
+da casa canônica — não de uma função com a assinatura desta chamada morta.
+
+---
+
 ## 15. Lane D — pós-turno / memória / write-back / continuidade
 
 Investigação da issue #42 (go-live, execução paralela). **Não reinvestigar estes fatos do zero.**
