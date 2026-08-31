@@ -6,7 +6,7 @@
 --
 -- COMO RODAR (sem tocar produção):
 --   begin;
---     \i supabase/migrations/20260831010000_concierge_play_idempotencia.sql
+--     \i supabase/migrations/20260830233500_concierge_play_idempotencia.sql
 --     \i tests/concierge_play_idempotencia_contract.sql
 --   rollback;
 --

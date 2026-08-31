@@ -135,7 +135,7 @@ relatos.
 
 A casa já existia: `concierge.ferramenta_chamadas`, com `idempotency_key` e
 índice UNIQUE parcial, vazia e sem consumidor. A migration
-`20260831010000` acrescenta só as duas funções que faltavam para escrever
+`20260830233500` acrescenta só as duas funções que faltavam para escrever
 nela — `mind_play_chamada_iniciar` e `..._concluir`. Nada de tabela, coluna,
 identidade ou lifecycle novo.
 
