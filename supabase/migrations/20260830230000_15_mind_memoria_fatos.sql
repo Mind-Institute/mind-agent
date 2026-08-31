@@ -79,10 +79,23 @@ bruto as (
    where pm.participante_id = p_pessoa_id
 ),
 
+-- MARCADOR DE VALIDAÇÃO. Só sai daqui a linha que carrega
+-- `valor.sensitivity = 'none'` — a prova de que o item foi avaliado sob o
+-- contrato v2 e aprovado, gravada pelos dois writers seguros
+-- (`analise_projetar_memoria` e `mindagent_chat_save_interests`).
+--
+-- É isso que mantém as 886 memórias gravadas sob o contrato v1 FISICAMENTE
+-- PRESERVADAS e ao mesmo tempo INVISÍVEIS ao Agent, sem apagar, reescrever nem
+-- inventar status novo. Revalidar o legado passa a ser incremental: reanalisar
+-- uma conversa sob o v2 acrescenta o marcador à linha que já existe, e só então
+-- ela aparece aqui.
+--
+-- Ausência de marcador NÃO é erro e não é silenciosa: vira contagem em `meta`.
 viva as (
   select * from bruto b
    where b.status in ('ativa', 'proposta')
      and not b.expirada
+     and b.valor->>'sensitivity' = 'none'
 ),
 
 item as (
@@ -122,6 +135,10 @@ meta as (
     -- o que existe mas não sai, dito em voz alta.
     'expiradas_ignoradas',    (select count(*) from bruto b where b.expirada),
     'substituidas_ignoradas', (select count(*) from bruto b where b.status = 'substituida'),
+    -- legado v1 e qualquer coisa gravada fora do contrato v2: existe, não sai.
+    'sem_marcador_ignoradas', (select count(*) from bruto b
+                                where b.status in ('ativa','proposta') and not b.expirada
+                                  and b.valor->>'sensitivity' is distinct from 'none'),
     'origens',                (select coalesce(jsonb_agg(distinct v.origem), '[]'::jsonb) from viva v),
     'ultima_atualizacao',     (select max(v.atualizado_em) from viva v)) as j
 )
@@ -145,4 +162,4 @@ revoke all on function public.mind_memoria_fatos(uuid) from public, anon, authen
 grant execute on function public.mind_memoria_fatos(uuid) to service_role;
 
 comment on function public.mind_memoria_fatos(uuid) is
-  'Passo 15 — coletor de memoria da pessoa a partir de intelligence.participante_memoria. Devolve memorias (status=ativa) e propostas (status=proposta) em listas SEPARADAS: proposta e inferencia nao promovida e nunca vira fato por fusao. substituida e memoria expirada nunca saem; viram contagem em meta. valor e devolvido cru e texto = coalesce(text,label), as duas formas realmente gravadas pelos dois writers vivos. Nao usa LLM, nao escreve, nao pontua, nao recomenda, nao le CRM, Product Intelligence, Kit nem continuidade. Nao e chamado por mind_agent_context: o wiring do runtime e do passo de integracao.';
+  'Passo 15 — coletor de memoria da pessoa a partir de intelligence.participante_memoria. Expoe SOMENTE linhas com valor.sensitivity = none, o marcador gravado pelos writers seguros: legado v1 e memoria fora do contrato v2 ficam preservados na tabela e invisiveis ao Agent (contagem em meta.sem_marcador_ignoradas). Devolve memorias (status=ativa) e propostas (status=proposta) em listas SEPARADAS: proposta e inferencia nao promovida e nunca vira fato por fusao. substituida e memoria expirada nunca saem; viram contagem em meta. valor e devolvido cru e texto = coalesce(text,label), as duas formas realmente gravadas pelos dois writers vivos. Nao usa LLM, nao escreve, nao pontua, nao recomenda, nao le CRM, Product Intelligence, Kit nem continuidade. Nao e chamado por mind_agent_context: o wiring do runtime e do passo de integracao.';

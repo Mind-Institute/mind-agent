@@ -722,6 +722,12 @@ arquitetura paralela.
 de `tests/mind_agent_context_contract.sql` trava o conjunto **exato** de chaves do topo, e aquele é
 o caminho síncrono compartilhado. O coletor entra pronto e desligado.
 
+**Atualização (31/08/2026) — o coletor passou a filtrar pelo marcador.** Ele expõe **somente**
+linhas com `valor.sensitivity = 'none'`, o marcador que os dois writers seguros gravam (§16). Assim
+as 886 memórias do contrato v1 ficam fisicamente preservadas e invisíveis ao Agent, sem apagar nem
+reescrever nada, e revalidar o legado vira incremental. Ausência de marcador não é silenciosa: vira
+`meta.sem_marcador_ignoradas`.
+
 **Como retomar (o wiring).** Determinado na **§15.6** contra os runtimes reais de B e C; a trava é
 a política da §15.3. Registro original: quem integrar o runtime decide onde a memória entra —
 `mind_agent_context` (e aí o CONTRATO 3 e o comentário da função precisam ser atualizados no mesmo

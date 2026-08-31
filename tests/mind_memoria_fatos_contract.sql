@@ -22,10 +22,12 @@ begin;
 --
 -- Uma pessoa com as SEIS situacoes que o contrato precisa distinguir:
 --   1 ativa    (forma {text,scope} — writer analise_projetar_memoria)
---   1 ativa    (forma {label,confirmed} — writer mindagent_chat_save_interests)
+--   1 ativa    (forma {label,confirmed} — writer mindagent_chat_save_interests,
+--              o caso "web segura sai")
 --   2 proposta (uma delas com valido_ate no FUTURO: continua viva)
 --   1 proposta EXPIRADA  -> nao sai, vira contagem
 --   1 substituida        -> nao sai, vira contagem
+--   1 LEGADO v1 sem marcador -> viva e nao expirada, e ainda assim NAO SAI
 -- E uma segunda pessoa SEM memoria nenhuma, para provar as listas vazias.
 
 insert into pessoas.pessoas (id, primeiro_nome, sobrenome, empresa, cargo, origem)
@@ -48,38 +50,45 @@ values
   -- ATIVA, forma do analisador
   ('15000000-0000-4000-8000-0000000000a1',
    '15000000-0000-4000-8000-000000000001', 'cargo', 'cargo_atual',
-   jsonb_build_object('text', 'diretora de RH', 'scope', 'stable'),
+   jsonb_build_object('text', 'diretora de RH', 'scope', 'stable', 'sensitivity', 'none'),
    0.90, 'analise_vendas_summit', 'ativa', null, 0.80),
 
   -- ATIVA, forma da superficie de chat: tem label, NAO tem text nem scope
   ('15000000-0000-4000-8000-0000000000a2',
    '15000000-0000-4000-8000-000000000001', 'interesse', 'burnout',
-   jsonb_build_object('label', 'burnout', 'confirmed', true),
+   jsonb_build_object('label', 'burnout', 'confirmed', true, 'sensitivity', 'none'),
    0.95, 'confirmado_pelo_usuario', 'ativa', null, 0.95),
 
   -- PROPOSTA sem prazo
   ('15000000-0000-4000-8000-0000000000b1',
    '15000000-0000-4000-8000-000000000001', 'objetivo', 'objetivo:levar_o_time',
-   jsonb_build_object('text', 'quer levar o time', 'scope', 'opportunity'),
+   jsonb_build_object('text', 'quer levar o time', 'scope', 'opportunity', 'sensitivity', 'none'),
    0.70, 'analise_vendas_summit', 'proposta', null, 0.50),
 
   -- PROPOSTA com prazo ainda no futuro: continua viva
   ('15000000-0000-4000-8000-0000000000b2',
    '15000000-0000-4000-8000-000000000001', 'outro', 'outro:com_pressa',
-   jsonb_build_object('text', 'com pressa hoje', 'scope', 'moment'),
+   jsonb_build_object('text', 'com pressa hoje', 'scope', 'moment', 'sensitivity', 'none'),
    0.60, 'analise_vendas_summit', 'proposta', now() + interval '1 day', 0.30),
 
   -- PROPOSTA EXPIRADA: prazo no passado
   ('15000000-0000-4000-8000-0000000000c1',
    '15000000-0000-4000-8000-000000000001', 'outro', 'outro:estado_de_ontem',
-   jsonb_build_object('text', 'estado de ontem', 'scope', 'moment'),
+   jsonb_build_object('text', 'estado de ontem', 'scope', 'moment', 'sensitivity', 'none'),
    0.60, 'analise_vendas_summit', 'proposta', now() - interval '1 day', 0.30),
 
   -- SUBSTITUIDA: historico
   ('15000000-0000-4000-8000-0000000000d1',
    '15000000-0000-4000-8000-000000000001', 'empresa', 'empresa_antiga',
-   jsonb_build_object('text', 'empresa antiga', 'scope', 'stable'),
-   0.90, 'analise_vendas_summit', 'substituida', null, 0.50);
+   jsonb_build_object('text', 'empresa antiga', 'scope', 'stable', 'sensitivity', 'none'),
+   0.90, 'analise_vendas_summit', 'substituida', null, 0.50),
+
+  -- LEGADO v1: gravada antes do contrato v2, sem marcador. Viva, nao expirada,
+  -- nao substituida — e ainda assim NAO PODE SAIR. E o caso (a) da revalidacao.
+  ('15000000-0000-4000-8000-0000000000e2',
+   '15000000-0000-4000-8000-000000000001', 'interesse', 'interesse:legado_v1',
+   jsonb_build_object('text', 'memoria gravada sob o contrato v1', 'scope', 'stable'),
+   0.90, 'analise_vendas_summit', 'ativa', null, 0.50);
 
 
 -- ------------------------------------------------- CONTRATO 1 - TAXONOMIA DE ERRO
@@ -172,6 +181,16 @@ begin
   if (v->'meta'->>'ativas')::int <> 2 or (v->'meta'->>'propostas')::int <> 2 then
     raise exception 'CONTRATO 4: meta nao bate com as listas: %', v->'meta';
   end if;
+
+  -- LEGADO SEM MARCADOR: existe, esta viva, e nao sai. A ausencia e contada.
+  if exists (select 1 from jsonb_array_elements(v->'memorias' || v->'propostas') x
+              where x->>'chave' = 'interesse:legado_v1') then
+    raise exception 'CONTRATO 4: memoria v1 SEM MARCADOR vazou para o payload';
+  end if;
+  if (v->'meta'->>'sem_marcador_ignoradas')::int <> 1 then
+    raise exception 'CONTRATO 4: sem_marcador_ignoradas devia ser 1, veio %',
+      v->'meta'->>'sem_marcador_ignoradas';
+  end if;
 end
 $c4$;
 
@@ -203,8 +222,9 @@ begin
     raise exception 'CONTRATO 5: escopo devia ser nulo quando o writer nao grava scope, veio %',
       v_chat->>'escopo';
   end if;
-  if v_chat->'valor' <> jsonb_build_object('label','burnout','confirmed',true) then
-    raise exception 'CONTRATO 5: valor devia sair cru, veio %', v_chat->'valor';
+  -- `valor` sai CRU, com o marcador incluso: e ele que autorizou a linha a sair.
+  if v_chat->'valor' <> jsonb_build_object('label','burnout','confirmed',true,'sensitivity','none') then
+    raise exception 'CONTRATO 5: valor devia sair cru (com o marcador), veio %', v_chat->'valor';
   end if;
 
   select array_agg(k order by k) into v_chaves from jsonb_object_keys(v_analise) k;
@@ -228,6 +248,7 @@ begin
       v->'memorias', v->'propostas';
   end if;
   if (v->'meta'->>'ativas')::int <> 0 or (v->'meta'->>'propostas')::int <> 0
+     or (v->'meta'->>'sem_marcador_ignoradas')::int <> 0
      or v->'meta'->'origens' <> '[]'::jsonb
      or v->'meta'->>'ultima_atualizacao' is not null then
     raise exception 'CONTRATO 6: meta de pessoa vazia esta errada: %', v->'meta';
