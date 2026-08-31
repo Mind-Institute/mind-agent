@@ -1,5 +1,13 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.5.1 — RESPOSTA PRONTA NAO SE CORTA POR CARACTERE. Ate a v1.5.0 havia tres tetos
+// empilhados em 700: `answer.maxLength` no schema, `max_output_tokens` e um
+// `.slice(0, 700)` no runtime. Um turno real chegou ao WhatsApp com exatamente 700
+// caracteres, partido no meio de "Mind". O gatilho foi o playbook pedir as tres
+// experiencias com preco, 12x e proposta de valor: nao cabia, e o teto ganhava do
+// prompt. Agora o limite de tamanho e CONDUTA (esta na `description` do campo), nao
+// tesoura: mensagem completa vale mais que frase mutilada.
+//
 // v1.5.0 — O CORE CANÔNICO É O ÚNICO CAMINHO. O legado saiu do runtime: não há mais
 // fallback para o comportamento v1.3.0, `treble_agent_context` não é mais chamado, e a
 // flag `core_rota_kit` deixou de existir aqui — ela decidia entre duas inteligências, e
@@ -922,6 +930,7 @@ Deno.serve(async (req: Request) => {
       needs_human: needsHumanFinal, gate_reason: gateReason,
       desfecho: turn.desfecho, identificada: idConhecida,
       email_proprio: emailDito != null,
+      chars_resposta: answer.length,
       duration_ms: Date.now() - startedAt,
     }));
 
