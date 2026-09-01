@@ -294,6 +294,8 @@ body {
    Precisa se distinguir da linha de aviso de relance, senão vira mais um
    recado na pilha. Fundo tingido de verde, ícone sólido e seta no fim. */
 .v3-tour {
+  position: relative;
+  margin-top: 16px;
   appearance: none; cursor: pointer; text-align: left;
   border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
   background: color-mix(in srgb, var(--verde) 9%, transparent);
@@ -303,6 +305,15 @@ body {
   min-height: 68px;
   display: flex; align-items: center; gap: 14px;
   transition: border-color .18s ease, background .18s ease;
+}
+/* Um fio quase invisível marca onde os avisos terminam e o convite
+   começa. Some nas pontas de propósito: régua de ponta a ponta seria
+   mais uma divisória na tela, e a ideia é só dar o respiro. */
+.v3-tour::before {
+  content: '';
+  position: absolute; left: 10%; right: 10%; top: -9px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--hairline), transparent);
 }
 .v3-tour:active {
   border-color: var(--verde);
