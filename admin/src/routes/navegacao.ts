@@ -58,6 +58,26 @@ export const NAVEGACAO: GrupoNavegacao[] = [
     ],
   },
   {
+    id: 'home-v3',
+    rotulo: 'Home V3',
+    itens: [
+      {
+        id: 'home-visualizacao',
+        rotulo: 'Visualização',
+        caminho: '/home/visualizacao',
+        icone: MonitorSmartphone,
+        descricao: 'Qual das quatro telas está no ar, na mão ou por horário.',
+      },
+      {
+        id: 'home-avisos',
+        rotulo: 'Avisos',
+        caminho: '/home/avisos',
+        icone: Megaphone,
+        descricao: 'O que aparece em "Avisos importantes", agora ou agendado.',
+      },
+    ],
+  },
+  {
     id: 'evento',
     rotulo: 'Evento',
     itens: [
@@ -102,26 +122,6 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/estandes',
         icone: Store,
         descricao: 'Quem expõe e onde.',
-      },
-    ],
-  },
-  {
-    id: 'home-v3',
-    rotulo: 'Home V3',
-    itens: [
-      {
-        id: 'home-visualizacao',
-        rotulo: 'Visualização',
-        caminho: '/home/visualizacao',
-        icone: MonitorSmartphone,
-        descricao: 'Qual das quatro telas está no ar, na mão ou por horário.',
-      },
-      {
-        id: 'home-avisos',
-        rotulo: 'Avisos',
-        caminho: '/home/avisos',
-        icone: Megaphone,
-        descricao: 'O que aparece em "Avisos importantes", agora ou agendado.',
       },
     ],
   },
