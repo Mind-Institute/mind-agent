@@ -100,6 +100,27 @@ export function cardAviso(b, aoAgir) {
   return cardLinha({ ico: a.ico, titulo: a.titulo, texto: a.resumo, acao: 'aviso:' + a.id }, aoAgir);
 }
 
+/* ---------- Tour: convite, não recado ----------
+   Desenho deliberadamente diferente da linha de aviso. O ícone é sólido
+   em vez de vazado, a borda é verde em vez de cinza, e o fecho é seta em
+   vez de chevron: seta é "vai acontecer algo", chevron é "tem mais texto
+   aí dentro". */
+export function cardTour(b, aoAgir) {
+  const el = no('button', 'v3-tour' + CLASSE_ESTADO(b));
+  el.type = 'button';
+  el.innerHTML =
+    '<span class="v3-play"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+      '<path d="M9 6.8v10.4a1 1 0 0 0 1.5.87l8.4-5.2a1 1 0 0 0 0-1.74l-8.4-5.2A1 1 0 0 0 9 6.8z"/>' +
+    '</svg></span>' +
+    '<span class="v3-corpo">' +
+      '<strong>' + b.titulo + '</strong>' +
+      '<small>' + b.texto + (b.duracao ? ' <i>· ' + b.duracao + '</i>' : '') + '</small>' +
+    '</span>' +
+    SETA;
+  el.addEventListener('click', () => aoAgir(b.acao, b));
+  return el;
+}
+
 /* ---------- Título de seção, com atalho à direita ---------- */
 export function tituloSecao(b, aoAgir) {
   const el = no('div', 'v3-secao');
@@ -149,6 +170,7 @@ const COMPONENTES = {
   destaque: cardDestaque,
   linha: cardLinha,
   aviso: cardAviso,
+  tour: cardTour,
   proxima: cardProxima,
   secao: tituloSecao,
   progresso: (b) => barraProgresso(b),

@@ -290,6 +290,33 @@ body {
 .v3-corpo small { font-size: 12.5px; line-height: 1.35; color: var(--texto-mudo); }
 .v3-linha .chevron { width: 17px; height: 17px; flex: none; color: var(--texto-mudo); }
 
+/* ---- Tour: convite ----
+   Precisa se distinguir da linha de aviso de relance, senão vira mais um
+   recado na pilha. Fundo tingido de verde, ícone sólido e seta no fim. */
+.v3-tour {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
+  background: color-mix(in srgb, var(--verde) 9%, transparent);
+  border-radius: 18px;
+  padding: 14px 16px;
+  font: inherit; color: var(--texto);
+  min-height: 68px;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color .18s ease, background .18s ease;
+}
+.v3-tour:active {
+  border-color: var(--verde);
+  background: color-mix(in srgb, var(--verde) 16%, transparent);
+}
+.v3-play {
+  width: 40px; height: 40px; border-radius: 50%; flex: none;
+  background: var(--verde); color: var(--surface-deep);
+  display: grid; place-items: center;
+}
+.v3-play svg { width: 17px; height: 17px; margin-left: 2px; }
+.v3-tour .v3-corpo small i { font-style: normal; color: var(--verde); }
+.v3-tour .seta { width: 18px; height: 18px; flex: none; color: var(--verde); }
+
 /* ---- Título de seção ---- */
 .v3-secao {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
@@ -409,14 +436,17 @@ body {
 }
 .av-vazio { padding: 24px 0; color: var(--texto-mudo); }
 
-/* Contador de não lidos, ao lado do título da seção na home. */
+/* Contador de não lidos, colado no "Ver todos".
+   Vermelho e não verde: o verde é a cor de tudo que está bem no app —
+   marca, ação, confirmação. Um número que existe para incomodar precisa
+   de outra cor, senão vira paisagem. */
+.v3-link { display: inline-flex; align-items: center; gap: 7px; }
 .v3-contador {
   display: inline-grid; place-items: center;
-  min-width: 22px; height: 22px; padding: 0 7px;
-  margin-left: 8px;
+  min-width: 20px; height: 20px; padding: 0 6px;
   border-radius: var(--raio-pill);
-  background: var(--verde); color: var(--surface-deep);
-  font-size: 12px; font-weight: 900; line-height: 1;
+  background: var(--coral); color: #1a0d0a;
+  font-size: 11.5px; font-weight: 900; line-height: 1;
 }
 
 /* ---- Painel da home ----
@@ -509,7 +539,7 @@ body {
 /* Foco visível em tudo que se toca. */
 .v3-destaque:focus-visible, .v3-linha:focus-visible, .v3-proxima:focus-visible,
 .v3-botao:focus-visible, .v3-link:focus-visible, .p-fechar:focus-visible,
-.av-item:focus-visible, .av-acao:focus-visible,
+.av-item:focus-visible, .av-acao:focus-visible, .v3-tour:focus-visible,
 .p-lista button:focus-visible, .p-acao:focus-visible, .p-secundario:focus-visible,
 .v3-momentos button:focus-visible {
   outline: 2px solid var(--acao); outline-offset: 2px;

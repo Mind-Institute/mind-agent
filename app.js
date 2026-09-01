@@ -270,13 +270,16 @@ function atualizarContadorAvisos() {
   const n = naoLidos();
   document.querySelectorAll('#home-v3 .v3-secao').forEach((secao) => {
     const h = secao.querySelector('h2');
-    if (!h || !/avisos/i.test(h.textContent || '')) return;
-    let selo = secao.querySelector('.v3-contador');
+    const link = secao.querySelector('.v3-link');
+    if (!h || !link || !/avisos/i.test(h.textContent || '')) return;
+    let selo = link.querySelector('.v3-contador');
     if (n === 0) { if (selo) selo.remove(); return; }
     if (!selo) {
+      /* Colado no "Ver todos": é o que a pessoa vai tocar. Ao lado do
+         título ele só informava; aqui ele puxa para a ação. */
       selo = document.createElement('span');
       selo.className = 'v3-contador';
-      h.after(selo);
+      link.appendChild(selo);
     }
     selo.textContent = String(n);
     selo.setAttribute('aria-label', n === 1 ? '1 aviso não lido' : n + ' avisos não lidos');
