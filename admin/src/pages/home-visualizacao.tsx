@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Check, Plus, Trash2 } from 'lucide-react';
 import {
   MOMENTOS_HOME,
@@ -12,6 +12,7 @@ import { useArquivar, useAtualizar, useCriar, useLista } from '@/hooks/use-recur
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoVazio } from '@/components/admin/estados';
+import { publicarParaOApp } from '@/features/home-v3/ponte-demonstracao';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,13 @@ function formatarQuando(iso: string): string {
 export function PaginaHomeVisualizacao() {
   const estado = useLista('home_state');
   const trocas = useLista('home_schedule', { porPagina: 200 });
+  /* Espelha para o app do participante no mesmo navegador — trocar o
+     momento aqui muda a home na outra aba. Ver `ponte-demonstracao.ts`. */
+  useEffect(() => {
+    if (estado.data?.itens[0]) {
+      publicarParaOApp({ estado: estado.data.itens[0], trocas: trocas.data?.itens ?? [] });
+    }
+  }, [estado.data, trocas.data]);
   const atualizarEstado = useAtualizar('home_state');
   const criarTroca = useCriar('home_schedule');
   const arquivarTroca = useArquivar('home_schedule');
