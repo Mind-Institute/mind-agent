@@ -67,7 +67,7 @@ export function cardDestaque(b, aoAgir) {
   el.type = 'button';
   el.innerHTML =
     (b.ico ? '<span class="v3-ico">' + b.ico + '</span>' : '') +
-    (b.selo ? '<span class="v3-selo">' + b.selo + '</span>' : '') +
+    (b.selo ? '<span class="v3-selo">' + escapar(b.selo) + '</span>' : '') +
     '<strong class="v3-pergunta">' + b.pergunta + '</strong>' +
     '<span class="v3-cta">' + b.cta + SETA + '</span>';
   el.addEventListener('click', () => aoAgir(b.acao, b));
@@ -89,13 +89,15 @@ export function cardLinha(b, aoAgir) {
 /* ---------- Próxima atividade ----------
    Sem chevron e sem ícone: o que importa aqui é hora, nome e quem fala. */
 export function cardProxima(b, aoAgir) {
-  const el = no('button', 'v3-proxima' + CLASSE_ESTADO(b));
-  el.type = 'button';
+  /* Sem `acao`, sai como bloco de leitura e não como botão: um botão que
+     não faz nada é pior do que texto — ele promete. */
+  const el = no(b.acao ? 'button' : 'div', 'v3-proxima' + (b.acao ? '' : ' parado') + CLASSE_ESTADO(b));
+  if (b.acao) el.type = 'button';
   el.innerHTML =
     '<span class="v3-hora">' + b.hora + '</span>' +
     '<strong>' + b.titulo + '</strong>' +
     (b.texto ? '<small>' + b.texto + '</small>' : '');
-  el.addEventListener('click', () => aoAgir(b.acao, b));
+  if (b.acao) el.addEventListener('click', () => aoAgir(b.acao, b));
   return el;
 }
 

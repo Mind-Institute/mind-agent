@@ -103,7 +103,6 @@ function acaoDaHome(acao) {
   /* Não existe mais tour rápido: o card abre a prática direto. */
   if (acao === 'tour') return abrirTourCompleto();
   if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
-  if (acao === 'proxima') return abrirTutorialEm('detalhe');
   if (acao.startsWith('chat:')) return irParaConversa('desafio');
   if (acao === 'insight') return irParaConversa('insight');
   if (acao === 'entrevista') return irParaConversa('plano');
@@ -155,6 +154,45 @@ function proximaExperiencia() {
   return { sessao: escolhida, minutos: Math.max(0, MINUTOS(cedo) - MINUTOS(agora.hora)) };
 }
 
+/* ============================================================
+   EM QUE PALESTRA A PESSOA ESTÁ
+   ============================================================
+   Não há check-in por sala: o app não tem como saber. Então ele
+   pergunta — e pergunta com o que a grade permite responder, as sessões
+   que estão no ar naquele minuto. A resposta fica guardada na sessão do
+   navegador porque quem anota uma vez costuma anotar de novo na mesma
+   palestra, e perguntar duas vezes a mesma coisa é ruído.
+
+   MOCK: API: hoje é sessionStorage. Vai virar campo do participante
+   quando a home tiver backend — a leitura e a escrita já estão nestas
+   duas funções, e só nelas. */
+const CHAVE_SESSAO = 'mindagent:v1:sessao-do-insight';
+
+function sessoesNoAr() {
+  if (!DADOS || !DADOS.sessoes) return [];
+  const agora = agoraNoEvento();
+  if (!agora) return [];
+  const doDia = DADOS.sessoes.filter((s) => s.dia === agora.dia);
+  const noAr = doDia.filter((s) => s.inicio <= agora.hora && (!s.fim || agora.hora < s.fim));
+  if (noAr.length) return noAr;
+  /* Intervalo, ou o dia ainda não começou: oferece o que está ao redor
+     em vez de deixar a pessoa sem opção nenhuma. */
+  const passou = doDia.filter((s) => s.inicio <= agora.hora).slice(-1);
+  const vem = doDia.filter((s) => s.inicio > agora.hora).slice(0, 2);
+  return [...passou, ...vem];
+}
+
+function sessaoDoInsight() {
+  if (!DADOS || !DADOS.sessoes) return null;
+  let id = null;
+  try { id = sessionStorage.getItem(CHAVE_SESSAO); } catch (e) { /* modo restrito */ }
+  return id ? DADOS.sessoes.find((s) => s.id === id) || null : null;
+}
+
+function definirSessaoDoInsight(id) {
+  try { sessionStorage.setItem(CHAVE_SESSAO, id); } catch (e) { /* modo restrito */ }
+}
+
 /* O que a home não sabe calcular sozinha. */
 function contextoDaHome() {
   const agora = agoraNoEvento();
@@ -162,6 +200,8 @@ function contextoDaHome() {
     hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours(),
     remontar: montarHomeV3,
   };
+  const emCurso = sessaoDoInsight();
+  if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
   const p = proximaExperiencia();
   if (!p) return ctx;
   const m = p.minutos;
@@ -385,6 +425,23 @@ function abrirConversa() {
 
 campoHome.addEventListener('focus', abrirConversa);
 
+/* O "enviar" do teclado do celular tem de mandar a mensagem. Form com
+   campo de texto e botão submit já faz isso por especificação, mas em
+   teclado virtual o caminho passa pelo IME: parte dos Android entrega a
+   tecla como composição (keyCode 229) e não submete nada. Aqui o envio é
+   explícito, e o preventDefault impede o envio dobrado onde o
+   comportamento nativo funciona. */
+function enviarComEnter(form) {
+  const campo = form.querySelector('input[type="text"]');
+  if (!campo) return;
+  campo.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    if (form.requestSubmit) form.requestSubmit();
+    else form.dispatchEvent(new Event('submit', { cancelable: true }));
+  });
+}
+
 /* Continua valendo para quem digitar e mandar sem passar pelo foco —
    autofill, teclado físico, automação. */
 document.getElementById('form-home').addEventListener('submit', (e) => {
@@ -394,8 +451,10 @@ document.getElementById('form-home').addEventListener('submit', (e) => {
   abrirConversa();
   if (v) setTimeout(() => perguntar(v), 200);
 });
-/* O microfone saiu da home: o artefato mostra um botão só no campo, e o
-   nosso não gravava nada — apenas dava foco. Continua no chat. */
+enviarComEnter(document.getElementById('form-home'));
+/* O microfone saiu dos dois campos: ele não gravava nada — na home só
+   dava foco, e no chat não tinha ação nenhuma. Botão que não faz o que
+   desenha é promessa quebrada. */
 
 /* ============================================================
    MOTOR DO TOUR
@@ -1235,6 +1294,7 @@ formChat.addEventListener('submit', (e) => {
   perguntar(campoChat.value);
   campoChat.value = '';
 });
+enviarComEnter(formChat);
 
 /* ============================================================
    DADOS — nenhum conteúdo mora neste arquivo
@@ -1538,43 +1598,48 @@ const FLUXOS = {
   },
 
   insight() {
-    /* Três fontes, nesta ordem: o que a pessoa salvou, o que combina com
-       os temas dela, e — se nada disso existe ainda — o que está
-       acontecendo agora na grade. A última é o que faz o botão da home
-       funcionar para quem acabou de chegar. */
-    const daGrade = () => {
-      const p = proximaExperiencia();
-      const agora = agoraNoEvento();
-      if (!agora || !DADOS) return [];
-      const doDia = DADOS.sessoes.filter((s) => s.dia === agora.dia);
-      const perto = doDia.filter((s) => s.inicio <= agora.hora).slice(-2);
-      return [...(p ? [p.sessao] : []), ...perto].filter(Boolean).slice(0, 3);
-    };
-    const base = PERFIL.sessoes.length ? PERFIL.sessoes
-               : (sessoesPorAfinidade().slice(0, 3).map((x) => x.s).length
-                  ? sessoesPorAfinidade().slice(0, 3).map((x) => x.s)
-                  : daGrade());
+    /* Anotação sobre a palestra que a pessoa está assistindo. Como o app
+       não sabe qual é, a primeira coisa é perguntar — com as sessões no
+       ar agora, não com o que ela salvou algum dia. A escolha é gravada
+       no momento do toque e aparece na home. */
+    const noAr = sessoesNoAr();
+    const jaEscolhida = sessaoDoInsight();
+    /* A guardada entra na lista mesmo fora do horário: se a pessoa disse
+       que está nela, quem manda é ela, não o relógio. */
+    const base = jaEscolhida && !noAr.some((s) => s.id === jaEscolhida.id)
+      ? [jaEscolhida, ...noAr] : noAr;
     if (!base.length) {
-      bolha('Primeiro salve alguma sessão — aí eu tenho onde pendurar o insight. Quer escolher palestras agora?', 'mind');
+      bolha('A grade não tem nada no ar agora. Quando a próxima palestra começar, me chame que eu guardo sua anotação nela.', 'mind');
       return;
     }
-    const alvo = painel('O que ficou');
+    const escolhida = jaEscolhida || base[0];
+    /* Fora de horário a pergunta muda: oferecer o que está ao redor e
+       chamar de "agora" seria mentira pequena, mas mentira. */
+    const alvo = painel(noAr.length
+      ? 'Em que palestra você está?'
+      : 'Nada no ar agora. De que palestra é a anotação?');
     const cx = document.createElement('div');
     cx.className = 'ins';
     cx.innerHTML =
-      '<div class="chips">' + base.map((s, i) =>
-        '<button type="button" aria-pressed="' + (i === 0) + '" data-s="' + s.id + '">' +
+      '<div class="chips">' + base.map((s) =>
+        '<button type="button" aria-pressed="' + (s.id === escolhida.id) + '" data-s="' + s.id + '">' +
         s.titulo.slice(0, 30) + (s.titulo.length > 30 ? '…' : '') + '</button>').join('') + '</div>' +
-      '<textarea placeholder="O que dessa sessão conversou com o que você está tentando resolver?"></textarea>';
+      '<p class="ins-dica">Sua anotação fica guardada nessa palestra.</p>' +
+      '<textarea placeholder="O que essa palestra te trouxe? Escreva do seu jeito."></textarea>';
     const salvar = document.createElement('button');
     salvar.type = 'button';
     salvar.className = 'avancar';
-    salvar.textContent = 'Guardar no meu Summit';
+    salvar.textContent = 'Guardar anotação';
+    /* Grava no toque, não no fim: a home precisa refletir a escolha
+       mesmo que a pessoa desista de escrever agora. */
+    definirSessaoDoInsight(escolhida.id);
     cx.querySelector('.chips').addEventListener('click', (e) => {
       const b = e.target.closest('button');
       if (!b) return;
       cx.querySelectorAll('.chips button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
+      definirSessaoDoInsight(b.dataset.s);
+      montarHomeV3();
     });
     salvar.addEventListener('click', () => {
       const txt = cx.querySelector('textarea').value.trim();
@@ -1582,9 +1647,9 @@ const FLUXOS = {
       const id = cx.querySelector('.chips button[aria-pressed="true"]').dataset.s;
       const sessao = base.find((x) => x.id === id);
       PERFIL.insights.push({ sessao: sessao.titulo, texto: txt, temas: sessao.temas });
-      sessao.temas.forEach((t) => pesoTema(t, 1));
+      (sessao.temas || []).forEach((t) => pesoTema(t, 1));
       cx.remove(); salvar.remove();
-      bolha('Guardei. Isso muda o seu mapa e o que eu vou sugerir daqui pra frente. 💚', 'mind');
+      bolha('Anotado em “' + sessao.titulo + '”. Isso muda o seu mapa e o que eu vou sugerir daqui pra frente. 💚', 'mind');
       tocarPerfil();
     });
     alvo.appendChild(cx); alvo.appendChild(salvar);

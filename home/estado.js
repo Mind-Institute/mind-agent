@@ -70,32 +70,49 @@ export const ICO = {
    Um lugar só: os cards da home mostram os primeiros, e "Ver todos" abre
    a lista inteira. Cada aviso tem a mensagem que aparece ao abrir.
 
-   `quando` existe para ordenar por recência — o mais novo é o que sobe
-   para a home no dia do evento.
+   `em` é o horário de disparo em ISO, e é por ele que a lista é ordenada:
+   guardar a data legível como texto ("16 set, 09:02") daria uma ordem
+   alfabética, que não é ordem nenhuma. O rótulo sai daí, formatado.
 
    MOCK: API: virá da tabela de avisos do Summit. */
-export const AVISOS = [
-  { id: 'sala', ico: ICO.lugar, quando: '16 set, 09:02',
+const CRUS = [
+  { id: 'sala', ico: ICO.lugar, em: '2026-09-16T09:02',
     titulo: 'Masterclass mudou de sala',
     resumo: 'Amy Edmondson, agora na Sala Estratégica.',
     mensagem: 'A masterclass de Amy Edmondson saiu da Arena Mind e passou para a Sala Estratégica. O horário não mudou. Se você tinha reserva, ela continua válida — é só ir para a sala nova.' },
 
-  { id: 'traducao', ico: ICO.fone, quando: '15 set, 18:00',
+  { id: 'traducao', ico: ICO.fone, em: '2026-09-15T18:00',
     titulo: 'Tradução simultânea',
     resumo: 'Leve um documento físico para retirar o fone',
     mensagem: 'As sessões em inglês têm tradução simultânea. O fone é retirado no balcão da arena, e fica um documento físico com foto como garantia — RG ou CNH. Cartão do celular não vale. Devolvendo o fone, você pega o documento de volta.' },
 
-  { id: 'ingresso', ico: ICO.ingresso, quando: '15 set, 17:30',
+  { id: 'ingresso', ico: ICO.ingresso, em: '2026-09-15T17:30',
     titulo: 'Seu ingresso está aqui',
     resumo: 'Acesse agora e evite procurar na entrada',
     mensagem: 'Seu ingresso é o QR Code do app. Ele fica na aba <b>QR Code</b>, na barra de baixo — abra antes de chegar na fila e apresente na entrada. O mesmo código serve para trocar contato com quem você conhecer.',
     verNoApp: 'ingresso', botaoVerNoApp: 'Ver onde fica no app' },
 
-  { id: 'abertura', ico: ICO.sino, quando: '16 set, 20:00',
+  { id: 'abertura', ico: ICO.sino, em: '2026-09-16T20:00',
     titulo: 'Abertura às 9h',
     resumo: 'Chegue às 8h30 para entrar sem pressa.',
     mensagem: 'O segundo dia abre às 9h, na Arena Mind. O credenciamento começa às 8h; chegando às 8h30 você entra sem fila e ainda pega lugar.' },
 ];
+
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "16 set, 09:02" a partir do ISO. Montado em partes, não por `new
+ *  Date(iso)`: string sem fuso é lida como UTC em alguns navegadores. */
+function quandoLegivel(em) {
+  const [data, hora] = em.split('T');
+  const [, mes, dia] = data.split('-');
+  return Number(dia) + ' ' + MESES[Number(mes) - 1] + ', ' + hora;
+}
+
+/* Mais recente em cima. A ordem é do disparo, não a de escrita: no dia do
+   evento o que acabou de sair é o que importa. */
+export const AVISOS = CRUS
+  .map((a) => ({ ...a, quando: quandoLegivel(a.em) }))
+  .sort((a, b) => b.em.localeCompare(a.em));
 
 /* ---------- O conteúdo de cada momento ----------
    `blocos` é uma lista ordenada. Cada bloco tem um `tipo`, que é o nome
@@ -136,10 +153,15 @@ export const CONTEUDO = {
     /* O resumo e o card da próxima saem da grade, não daqui: quem calcula
        é `proximaExperiencia()`, que cruza horário com afinidade. */
     blocos: [
-      { tipo: 'proxima', daGrade: true, acao: 'proxima' },
-      { tipo: 'destaque', variante: 'urgente', ico: ICO.ideia,
+      /* Sem ação por enquanto: ele informa qual é a próxima sessão, e
+         ainda não há para onde levar que valha o toque. */
+      { tipo: 'proxima', daGrade: true },
+      /* `daSessao`: depois que a pessoa diz em que palestra está, a home
+         mostra o nome dela como selo — o registro ganha endereço. */
+      { tipo: 'destaque', variante: 'urgente', ico: ICO.ideia, daSessao: true,
         pergunta: 'Registrar um insight',
-        cta: 'Texto ou voz, conectamos à palestra', acao: 'insight' },
+        cta: 'Anote o que a palestra de agora te trouxe',
+        ctaComSessao: 'Anotar mais sobre esta palestra', acao: 'insight' },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* O mais recente primeiro — no dia do evento é o que importa. */
       { tipo: 'aviso', id: 'sala' },
@@ -154,7 +176,7 @@ export const CONTEUDO = {
     blocos: [
       { tipo: 'destaque', ico: ICO.ciclo, selo: 'Fechamento rápido',
         pergunta: 'O que ficou com você hoje?',
-        cta: 'Registrar por voz ou texto, 2 min', acao: 'insight' },
+        cta: 'Anote o que ficou do dia, em 2 min', acao: 'insight' },
       { tipo: 'linha', ico: ICO.relogio, titulo: 'Diagnóstico concluído',
         texto: 'Seu resultado será liberado depois do Summit', acao: 'em-breve:resultado' },
       { tipo: 'secao', titulo: 'Seu Dia 2', link: 'Ver agenda' },

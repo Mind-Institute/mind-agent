@@ -243,7 +243,14 @@ body {
   margin-bottom: 14px;
 }
 .v3-destaque .v3-ico svg { width: 20px; height: 20px; }
-.v3-selo { font-size: 12px; font-weight: 600; color: var(--texto-mudo); }
+/* Uma linha só: o selo pode ser o nome de uma palestra, e nome de
+   palestra é longo. Cortado com reticências, ele continua sendo
+   referência sem virar parágrafo. */
+.v3-selo {
+  font-size: 12px; font-weight: 600; color: var(--texto-mudo);
+  display: block; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .v3-pergunta { font-size: 19px; font-weight: 700; line-height: 1.25; }
 .v3-cta {
   margin-top: 14px;
@@ -277,6 +284,9 @@ body {
   transition: border-color .18s ease;
 }
 .v3-proxima:active { border-color: var(--verde); }
+/* Parado: sem cursor de mão e sem reação ao toque. */
+.v3-proxima.parado { cursor: default; }
+.v3-proxima.parado:active { border-color: var(--hairline); }
 .v3-hora { font-size: 12.5px; font-weight: 700; color: var(--verde); }
 .v3-proxima strong { font-size: 17px; font-weight: 700; line-height: 1.25; }
 .v3-proxima small { font-size: 13px; color: var(--texto-mudo); }
@@ -576,10 +586,6 @@ body {
   .v3-destaque:active { transform: none; }
 }
 
-/* Campo fixo: pergunte qualquer coisa.
-   Na home há um botão só, então o texto do placeholder tem mais espaço. */
-#vista-home .doca input { padding-right: 62px; }
-
 /* Campo fixo: pergunte qualquer coisa */
 .doca {
   flex: none;
@@ -594,22 +600,17 @@ body {
   border-radius: var(--raio-pill);
   color: var(--texto);
   font: inherit; font-size: 15px;
-  padding: 0 96px 0 20px;
+  padding: 0 62px 0 20px;
   min-height: 54px;
   outline: none;
 }
 .doca input::placeholder { color: var(--texto-mudo); }
 .doca input:focus { border-color: rgba(104, 238, 149, .5); }
-.doca .mic, .doca .enviar {
+.doca .enviar {
   appearance: none; cursor: pointer;
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
-}
-.doca .mic {
-  right: 50px;
-  background: none; border: 0;
-  color: var(--texto-mudo);
 }
 .doca .enviar {
   right: 7px;
@@ -1340,6 +1341,7 @@ body {
   color: var(--texto); font: inherit; font-size: 13.5px; line-height: 1.45;
 }
 .ins textarea:focus { outline: none; border-color: var(--verde); }
+.ins-dica { font-size: 11.5px; color: var(--texto-mudo); line-height: 1.4; }
 
 /* Plano pós-Summit */
 .plano { display: flex; flex-direction: column; gap: 8px; }

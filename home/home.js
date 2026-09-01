@@ -59,11 +59,19 @@ export function montarHome(raiz, aoAgir, contexto) {
     resumo: c.resumo || ctx.resumoDaProxima || null,
   }));
 
-  /* O bloco da próxima é preenchido pela grade. Sem sessão à frente, ele
-     simplesmente não existe — a home não inventa uma. */
+  /* Dois blocos são preenchidos de fora. O da próxima vem da grade: sem
+     sessão à frente ele simplesmente não existe — a home não inventa uma.
+     O de insight ganha o nome da palestra que a pessoa disse estar
+     assistindo; o texto continua sendo do conteúdo, aqui só se escolhe
+     qual dos dois usar. */
   const blocos = (c.blocos || []).map((b) => {
-    if (b.tipo !== 'proxima' || !b.daGrade) return b;
-    return ctx.proxima ? { ...b, ...ctx.proxima } : { ...b, estado: 'oculto' };
+    if (b.tipo === 'proxima' && b.daGrade) {
+      return ctx.proxima ? { ...b, ...ctx.proxima } : { ...b, estado: 'oculto' };
+    }
+    if (b.daSessao && ctx.sessaoDoInsight) {
+      return { ...b, selo: ctx.sessaoDoInsight, cta: b.ctaComSessao || b.cta };
+    }
+    return b;
   });
 
   raiz.appendChild(montarBlocos(blocos, aoAgir));
