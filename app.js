@@ -204,10 +204,9 @@ function contextoDaHome() {
   if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
   const p = proximaExperiencia();
   if (!p) return ctx;
-  const m = p.minutos;
-  ctx.resumoDaProxima = m === 0
-    ? 'Sua próxima experiência está começando agora.'
-    : 'Sua próxima experiência começa em ' + m + (m === 1 ? ' minuto.' : ' minutos.');
+  /* Etiqueta curta, não frase: o card logo abaixo já diz a hora, a sala
+     e o nome. Repetir a contagem em texto é dizer duas vezes. */
+  ctx.resumoDaProxima = p.minutos === 0 ? 'Começando agora:' : 'Começa em breve:';
   ctx.proxima = {
     hora: p.sessao.inicio + (p.sessao.espaco ? ', ' + p.sessao.espaco : ''),
     titulo: p.sessao.titulo,
