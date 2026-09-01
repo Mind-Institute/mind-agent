@@ -190,9 +190,17 @@ body {
   font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
   color: var(--verde);
 }
+/* O relógio da contagem. Tabular para os dígitos não dançarem a cada
+   segundo — sem isso o texto todo treme quando o 1 vira 8. */
+.v3-relogio {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+}
+.v3-relogio::before { content: '· '; }
+
 .v3-ola {
   margin-top: 14px;
-  font-size: 24px; font-weight: 700; line-height: 1.15;
+  font-size: 18.4px; font-weight: 700; line-height: 1.2;
   color: var(--texto-mudo);
 }
 .v3-ola + .v3-titulo { margin-top: 2px; }

@@ -9,6 +9,7 @@
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { montarHome } from './home/home.js';
+import { definirMomento } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -174,6 +175,66 @@ function contextoDaHome() {
 function montarHomeV3() {
   montarHome(document.getElementById('home-v3'), acaoDaHome, contextoDaHome());
   atualizarContadorAvisos();
+  ligarContagem();
+}
+
+/* ---------- Contagem regressiva até a abertura ----------
+   O mesmo instante em que a troca programada do painel leva a home para
+   "no evento": 07:00 do primeiro dia, quando abre o credenciamento. Os
+   dois números precisam bater — se um dia a abertura mudar, muda aqui e
+   na programação do painel.
+
+   API: o alvo virá do evento, junto com a data. */
+const HORA_DE_ABERTURA = 7;
+let relogioContagem = null;
+
+function inicioDoEvento() {
+  const dias = (DADOS && DADOS.evento && DADOS.evento.dias) || [];
+  if (!dias.length) return null;
+  const [ano, mes, dia] = dias[0].split('-').map(Number);
+  if (!ano || !mes || !dia) return null;
+  /* Construído em partes, não por `new Date(iso)`: string sem fuso é
+     lida como UTC em alguns navegadores, e a contagem sairia com três
+     horas de diferença. */
+  return new Date(ano, mes - 1, dia, HORA_DE_ABERTURA, 0, 0, 0);
+}
+
+/** `dd hh:mm:ss`, ou null quando o tempo acabou. */
+function textoDaContagem(restante) {
+  if (restante <= 0) return null;
+  const s = Math.floor(restante / 1000);
+  const dois = (n) => String(n).padStart(2, '0');
+  return Math.floor(s / 86400) + 'd ' +
+    dois(Math.floor((s % 86400) / 3600)) + ':' +
+    dois(Math.floor((s % 3600) / 60)) + ':' +
+    dois(s % 60);
+}
+
+function ligarContagem() {
+  /* Sempre desliga antes: a home é remontada a cada troca de momento, e
+     sem isto os relógios se empilhariam. */
+  if (relogioContagem) { clearInterval(relogioContagem); relogioContagem = null; }
+
+  const alvo = document.getElementById('v3-contagem');
+  if (!alvo) return;                      /* momento sem contagem */
+  const inicio = inicioDoEvento();
+  if (!inicio) { alvo.textContent = ''; return; }
+
+  const bater = () => {
+    const texto = textoDaContagem(inicio.getTime() - Date.now());
+    if (texto === null) {
+      /* Zerou: o evento começou. A home vira sozinha, sem recarregar.
+         API: quem manda nisso passa a ser o estado vindo do painel. */
+      clearInterval(relogioContagem);
+      relogioContagem = null;
+      definirMomento('no-evento');
+      montarHomeV3();
+      return;
+    }
+    alvo.textContent = texto;
+  };
+  bater();
+  relogioContagem = setInterval(bater, 1000);
 }
 
 /* ---------- Painel da home ----------

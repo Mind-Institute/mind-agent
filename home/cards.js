@@ -30,9 +30,16 @@ const CHEVRON = '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="cu
 /* ---------- Cabeçalho: saudação, título, resumo ----------
    A saudação só existe quando há nome. Sem nome, o bloco some inteiro em
    vez de virar "Olá ," — o agente não inventa identidade. */
-export function heroSaudacao({ etiqueta, saudacao, comoTitulo, titulo, resumo, nome, cumprimento }) {
+export function heroSaudacao({ etiqueta, contagem, saudacao, comoTitulo, titulo, resumo, nome, cumprimento }) {
   const el = no('header', 'v3-hero');
-  if (etiqueta) el.appendChild(no('p', 'v3-etq', etiqueta));
+  if (etiqueta) {
+    /* O relógio entra num nó próprio para poder ser atualizado a cada
+       segundo sem redesenhar a home inteira. Sem `aria-live`: um leitor
+       de tela anunciando o segundo seria insuportável. */
+    el.appendChild(no('p', 'v3-etq', contagem
+      ? etiqueta + ' <span class="v3-relogio" id="v3-contagem"></span>'
+      : etiqueta));
+  }
 
   if (comoTitulo) {
     /* Neste momento o cumprimento É o título. */

@@ -104,8 +104,10 @@ export const AVISOS = [
 export const CONTEUDO = {
 
   antes: {
-    /* API: `faltam` sai da diferença entre hoje e a data do evento. */
-    etiqueta: 'Concierge Mind, faltam 15 dias',
+    /* O número não mora aqui: é relógio, e `app.js` o alimenta a cada
+       segundo a partir da data real do evento. */
+    etiqueta: 'Concierge Mind',
+    contagem: true,
     saudacao: true,
     titulo: 'Seu Summit começa antes de chegar.',
     resumo: 'Conte o que você quer resolver e monte uma experiência que faça sentido para você.',
