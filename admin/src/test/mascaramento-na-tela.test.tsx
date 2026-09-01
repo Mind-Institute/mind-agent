@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderizarPainel } from './utils';
+import { criarBanco } from '@/mocks/db';
+import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 
 /* ============================================================
    MASCARAMENTO NA TELA
@@ -50,13 +52,34 @@ describe('mascaramento de dados pessoais nas telas', () => {
   });
 
   it('a listagem de usuários mascara o e-mail', async () => {
-    const { container } = renderizarPainel({ rota: '/usuarios' });
+    /* A semente do painel não tem mais usuário: as cinco pessoas que
+       moravam ali eram inventadas e apareciam na tela como se fossem o
+       time. O mascaramento, porém, continua tendo que valer — quando a
+       API expuser `mind_admin_users`, e-mail de gente real passa por
+       aqui. Então o registro entra só neste teste, não no painel. */
+    const banco = criarBanco();
+    banco.users.push({
+      id: 'usr_teste',
+      nome: 'Pessoa de Teste',
+      email: 'pessoa.teste@exemplo.com.br',
+      papel: 'administrador',
+      ativo: true,
+      ultimoAcessoEm: null,
+      criadoEm: '2026-08-05T10:00:00.000Z',
+      atualizadoEm: '2026-08-05T10:00:00.000Z',
+      atualizadoPor: 'Equipe Mind',
+    });
 
-    await screen.findByTestId('linha-usr_ana');
+    const { container } = renderizarPainel({
+      rota: '/usuarios',
+      provedor: new MockAdminDataProvider({ latenciaMs: 0, banco }),
+    });
+
+    await screen.findByTestId('linha-usr_teste');
     const texto = container.textContent ?? '';
 
-    expect(texto).not.toContain('ana.ribeiro@exemplo.com.br');
-    expect(screen.getByText('an•••@exemplo.com.br')).toBeVisible();
+    expect(texto).not.toContain('pessoa.teste@exemplo.com.br');
+    expect(screen.getByText('pe•••@exemplo.com.br')).toBeVisible();
   });
 
   it('a fila de perguntas mascara contato escrito na pergunta', async () => {

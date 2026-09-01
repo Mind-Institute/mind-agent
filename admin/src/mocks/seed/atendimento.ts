@@ -244,12 +244,12 @@ export function perguntasSemente(agora: number): PerguntaSemResposta[] {
       canal: 'chat_proprio',
       ultimaOcorrenciaEm: menos(agora, 1),
       categoriaSugerida: 'Acessibilidade',
-      responsavel: 'Diego Farias',
+      responsavel: null,
       status: 'em_analise',
       conteudoVinculadoId: null,
       criadoEm: menos(agora, 48),
       atualizadoEm: menos(agora, 1),
-      atualizadoPor: 'Diego Farias',
+      atualizadoPor: 'Equipe Mind',
     },
     {
       id: 'psr_003',
@@ -258,12 +258,12 @@ export function perguntasSemente(agora: number): PerguntaSemResposta[] {
       canal: 'chat_proprio',
       ultimaOcorrenciaEm: menos(agora, 9),
       categoriaSugerida: 'Ingressos',
-      responsavel: 'Bruno Lemos',
+      responsavel: null,
       status: 'em_analise',
       conteudoVinculadoId: null,
       criadoEm: menos(agora, 120),
       atualizadoEm: menos(agora, 9),
-      atualizadoPor: 'Bruno Lemos',
+      atualizadoPor: 'Equipe Mind',
     },
     {
       id: 'psr_004',
@@ -286,12 +286,12 @@ export function perguntasSemente(agora: number): PerguntaSemResposta[] {
       canal: 'widget',
       ultimaOcorrenciaEm: menos(agora, 26),
       categoriaSugerida: 'Ingressos',
-      responsavel: 'Carla Nunes',
+      responsavel: null,
       status: 'respondida',
       conteudoVinculadoId: 'doc_politica_reembolso',
       criadoEm: menos(agora, 300),
       atualizadoEm: menos(agora, 26),
-      atualizadoPor: 'Carla Nunes',
+      atualizadoPor: 'Equipe Mind',
     },
     {
       id: 'psr_006',
@@ -305,7 +305,7 @@ export function perguntasSemente(agora: number): PerguntaSemResposta[] {
       conteudoVinculadoId: null,
       criadoEm: menos(agora, 400),
       atualizadoEm: menos(agora, 60),
-      atualizadoPor: 'Carla Nunes',
+      atualizadoPor: 'Equipe Mind',
     },
   ];
 }
@@ -314,7 +314,7 @@ export function auditoriaSemente(agora: number): RegistroAuditoria[] {
   return [
     {
       id: 'aud_001',
-      usuario: 'Ana Ribeiro',
+      usuario: 'Equipe Mind',
       acao: 'publicar',
       recurso: 'content',
       registroId: 'con_sobre',
@@ -326,7 +326,7 @@ export function auditoriaSemente(agora: number): RegistroAuditoria[] {
     },
     {
       id: 'aud_002',
-      usuario: 'Bruno Lemos',
+      usuario: 'Equipe Mind',
       acao: 'atualizar',
       recurso: 'sessions',
       registroId: 'ses_d1-11_30-decidir_sob_press_o_co',
@@ -338,7 +338,7 @@ export function auditoriaSemente(agora: number): RegistroAuditoria[] {
     },
     {
       id: 'aud_003',
-      usuario: 'Carla Nunes',
+      usuario: 'Equipe Mind',
       acao: 'arquivar',
       recurso: 'offers',
       registroId: 'ofe_lote1',
@@ -350,7 +350,7 @@ export function auditoriaSemente(agora: number): RegistroAuditoria[] {
     },
     {
       id: 'aud_004',
-      usuario: 'Ana Ribeiro',
+      usuario: 'Equipe Mind',
       acao: 'reindexar',
       recurso: 'documents',
       registroId: 'doc_acessibilidade',
@@ -362,7 +362,7 @@ export function auditoriaSemente(agora: number): RegistroAuditoria[] {
     },
     {
       id: 'aud_005',
-      usuario: 'Bruno Lemos',
+      usuario: 'Equipe Mind',
       acao: 'criar',
       recurso: 'content',
       registroId: 'con_produtos',
@@ -371,18 +371,6 @@ export function auditoriaSemente(agora: number): RegistroAuditoria[] {
       depois: { status: 'rascunho', categoria: 'produtos' },
       ocorridoEm: menos(agora, 190),
       requestId: 'req_1de88a35',
-    },
-    {
-      id: 'aud_006',
-      usuario: 'Diego Farias',
-      acao: 'login',
-      recurso: 'users',
-      registroId: 'usr_diego',
-      registroRotulo: 'Diego Farias',
-      antes: null,
-      depois: null,
-      ocorridoEm: menos(agora, 12),
-      requestId: 'req_31ab7700',
     },
   ];
 }
