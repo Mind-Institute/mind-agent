@@ -33,7 +33,14 @@
        pessoa é a saudação, em texto. -->
   <section class="vista ativa" id="vista-home">
     <header class="v3-topo">
-      <span class="v3-marca">mind summit</span>
+      <!-- O arquivo chamado mind-summit-2026 traz só o "mind ✤": o lockup
+           com "summit 2026" não existe como asset. O símbolo é o real; o
+           resto é tipografado, do mesmo jeito que o splash faz. Chegando
+           o PNG do lockup, isto vira uma tag <img> só. -->
+      <span class="v3-marca" role="img" aria-label="Mind Summit 2026">
+        <img src="./assets/mind-summit-2026-branco-horizontal-transp.png" alt="" />
+        <span class="v3-summit">summit<i>2026</i></span>
+      </span>
       <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
       <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
     </header>

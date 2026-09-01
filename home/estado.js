@@ -109,8 +109,8 @@ export const CONTEUDO = {
     etiqueta: 'Concierge Mind',
     contagem: true,
     saudacao: true,
-    titulo: 'Seu Summit começa antes de chegar.',
-    resumo: 'Conte o que você quer resolver e monte uma experiência que faça sentido para você.',
+    titulo: 'Seu summit começa agora.',
+    resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você.',
     blocos: [
       { tipo: 'destaque', ico: ICO.bussola, selo: 'Concierge Mind',
         pergunta: 'O que você quer levar do Summit?',

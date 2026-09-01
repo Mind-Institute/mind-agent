@@ -44,7 +44,11 @@ export function montarHome(raiz, aoAgir, contexto) {
   raiz.dataset.momento = momento;
 
   if (mostrarSeletor()) {
-    raiz.appendChild(seletorDeMomento(momento, () => montarHome(raiz, aoAgir, contexto)));
+    /* Remonta pelo caminho completo de quem chamou — `montarHome` sozinho
+       redesenha os cards, mas não religa o relógio da contagem nem o
+       contador de avisos, que vivem fora dela. */
+    const remontar = ctx.remontar || (() => montarHome(raiz, aoAgir, contexto));
+    raiz.appendChild(seletorDeMomento(momento, remontar));
   }
 
   raiz.appendChild(heroSaudacao({

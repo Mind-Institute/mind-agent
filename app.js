@@ -157,7 +157,10 @@ function proximaExperiencia() {
 /* O que a home não sabe calcular sozinha. */
 function contextoDaHome() {
   const agora = agoraNoEvento();
-  const ctx = { hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours() };
+  const ctx = {
+    hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours(),
+    remontar: montarHomeV3,
+  };
   const p = proximaExperiencia();
   if (!p) return ctx;
   const m = p.minutos;
