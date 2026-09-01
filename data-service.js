@@ -63,6 +63,33 @@ function conferir(dados) {
   return dados;
 }
 
+/* ============================================================
+   HOME V3 — avisos e composição no ar
+   ============================================================
+   Porta separada da programação, e de propósito: quem publica isto é o
+   painel administrativo, não a grade do evento. Falha aqui não derruba
+   a página — o app tem lista embutida e cai nela.
+
+   carregarHomeDoEvento() → Promise<{ avisos, home } | null>
+
+   `null` quer dizer "a API não respondeu por isso", e é diferente de
+   `{ avisos: [] }`, que quer dizer "não há aviso nenhum em circulação".
+   O app trata os dois casos de forma diferente, então esta função não
+   pode inventar lista vazia quando dá erro. */
+export async function carregarHomeDoEvento() {
+  if (!CONFIG.homeApiUrl) return null;
+  const raiz = String(CONFIG.homeApiUrl).replace(/\/+$/, '');
+  const url = raiz + '/publico?event_slug=' + encodeURIComponent(CONFIG.eventSlug);
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const dados = await r.json();
+    return dados && typeof dados === 'object' && Array.isArray(dados.avisos) ? dados : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function carregarDadosSummit() {
   const fontes = origens();
   if (!fontes.length) {

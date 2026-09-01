@@ -1,148 +1,117 @@
-# Antes de aplicar qualquer coisa aqui
+# Home V3 em produção — o que aplicar
 
-Estado em 2026-09-01. Cinco arquivos SQL, um arquivo de Edge Function e
-uma linha no painel. **Nada foi aplicado.**
+Estado em 2026-09-01. **Nada foi aplicado**: o ambiente bloqueia escrita
+em produção, então os passos são seus.
 
----
+## A regra que desenhou tudo isto
 
-## O que está quebrado hoje
+**Nada que já existe é tocado.** Nenhuma tabela, função ou Edge Function
+da programação do evento muda. Tudo aqui é objeto novo, ao lado.
 
-`GET /functions/v1/mindagent-bootstrap` responde **503 em toda chamada**,
-desde 24/08. A Edge Function é só um proxy; quem falha é a função SQL:
-
-```
-POST /rest/v1/rpc/mindagent_bootstrap
-→ 404  {"code":"42P01","message":"relation \"summit.events\" does not exist"}
-```
-
-### Causa
-
-| Migração (24/08) | O que fez |
+| | |
 |---|---|
-| `20260824160343 summit_vira_summit_2026` | `summit` → `summit_2026` |
-| `20260824173701 comum_vira_ecossistema` | `comum` → `ecossistema` |
+| tabela nova | `concierge.avisos` |
+| linha nova numa tabela existente | chave `home` em `concierge.config` |
+| funções novas | 5, todas com nome próprio |
+| Edge Function nova | `mindagent-home` |
+| **modificado** | **nada** |
 
-`api.mindagent_bootstrap` continuou lendo de `summit.*` e `comum.*`.
-Confirmado: `select count(*) from pg_namespace where nspname in
-('summit','comum')` devolve zero. A migração
-`20260825050201 repointa_cinco_funcoes_vivas_para_pessoas` consertou
-cinco funções; o bootstrap não estava entre elas.
-
-### Por que ninguém viu
-
-`CONFIG.useLocalFallback` é `true` e `data-service.js` cai para
-`dados/summit.json` quando a API falha. O app funciona — com a
-programação congelada num arquivo. Há nove dias.
-
-### O que mais depende dos mesmos nomes
-
-`public.mind_admin_read_resource` e `public.mind_admin_mutate_resource`
-leem de `summit.events`, `summit.sessions`, `summit.locations` e
-`comum.speakers`. São as funções que servem os módulos REAIS do painel
-(evento, programação, palestrantes, espaços, temas). Pelo mesmo motivo,
-devem estar respondendo erro. **Não estão consertadas aqui** — o
-`02-bootstrap-app.sql` cuida só do lado do app.
+Desfazer é `drop` no que foi criado e apagar a função. O evento volta
+exatamente ao que era.
 
 ---
 
-## O buraco maior: a grade não tem temas
+## Os quatro arquivos, na ordem
 
-`summit_2026.sessions.topicos_aprendizado` está `[]` nas **77 sessões**,
-e `trilhas` está vazio. Sem tema não há afinidade; sem afinidade o
-Concierge não recomenda nada.
-
-Consertar o bootstrap sozinho deixaria o app **pior** do que está: ele
-ganharia a grade real e perderia a recomendação inteira. Por isso o
-`05-temas-das-sessoes.sql` existe e vem antes.
-
-O 05 recupera a classificação que ainda existe em `dados/summit.json`:
-39 sessões casadas por dia, horário e título. Depois dele, **35 das 59
-sessões de conteúdo têm tema; 24 continuam sem** — e essas o Concierge
-não vai recomendar, porque não sabe do que falam. Classificar as que
-faltam é trabalho de conteúdo, não de migração.
-
----
-
-## O que muda para o participante quando o 02 rodar
-
-| | arquivo local (hoje) | grade viva (depois) |
+| # | Arquivo | O que cria |
 |---|---|---|
-| sessões | 53 | 77, com credenciamento, intervalo e almoço |
-| com tema | 49 | 35 |
-| palestrantes | 39 | 63 |
-| foto | sim | **não** |
-| destaque | sim | **não** |
+| 1 | `01-concierge-avisos.sql` | tabela `concierge.avisos`, com os quatro avisos que hoje estão no código do app |
+| 2 | `04-visualizacao-home.sql` | chave `home` em `concierge.config` + 2 funções (estado e trocas) |
+| 3 | `03-admin-home-notices.sql` | 2 funções de leitura e escrita de avisos |
+| 4 | `06-funcao-publica.sql` | `api.mindagent_home_publico()` — o que o app lê |
 
-`ecossistema.palestrantes_especialistas` não tem `foto`, `destaque` nem
-`temas` — decisão de 01/09: foto e destaque deixam de existir, e os
-temas passam a ser **derivados das sessões em que a pessoa fala**. Muda o
-significado: antes era "sobre o que essa pessoa trabalha", agora é "sobre
-o que ela fala neste evento". Para recomendar dentro do Summit, serve
-melhor.
+Rodar no SQL Editor do Supabase, um de cada vez, nessa ordem. Nenhum
+deles muda nada visível: até aqui o app segue com os avisos embutidos e
+o painel segue em memória.
 
-`cardPessoa()` já foi ajustado: sem retrato, mostra as iniciais.
+## Depois, a Edge Function
 
-A etiqueta da sessão também perde qualidade: vinha da taxonomia (que
-morava em `comum`) e passa a sair do próprio tipo. "Masterclass Prime"
-vira "Masterclass"; "Workshop VIP" vira "Workshop".
-
----
-
-## Os arquivos, e o que cada um destrava
-
-| Arquivo | Onde roda | O que passa a existir |
-|---|---|---|
-| `01-concierge-avisos.sql` | banco | tabela `concierge.avisos` com os quatro avisos de hoje |
-| `04-visualizacao-home.sql` | banco | chave `home` em `concierge.config` e as funções de estado/trocas |
-| `05-temas-das-sessoes.sql` | banco | 39 sessões voltam a ter tema |
-| `03-admin-home-notices.sql` | banco | leitura e escrita de avisos para o painel |
-| `02-bootstrap-app.sql` | banco | **conserta o 503** e entrega `avisos` e `home` ao app |
-| `docs/edge/mindagent-admin/index.ts` | deploy | as três rotas do painel: avisos, estado, trocas |
-| `RECURSOS_REAIS` no painel | build do admin | as páginas param de falar com o mock |
-
-### Ordem
-
-```text
-01 · 04 · 05 · 03   (banco, podem ir juntos — nada muda para ninguém)
-       ↓
-02                  (liga o app: sai o arquivo local, entra a grade viva)
-       ↓
-deploy da mindagent-admin
-       ↓
-RECURSOS_REAIS      (liga o painel)
+```bash
+npx supabase functions deploy mindagent-home --project-ref ymnmotgglsrxmjmonwjz --no-verify-jwt
 ```
 
-Os quatro primeiros são invisíveis: o app continua no arquivo local e o
-painel continua no mock. **O 02 é a virada do app** e o
-`RECURSOS_REAIS` é a virada do painel. Até o 02, tudo é reversível sem
-ninguém ver.
+O `--no-verify-jwt` é necessário e não é frouxidão: a rota `/publico` é
+lida pelo app do participante, que não tem sessão, e a rota `/admin`
+verifica o token e o papel por conta própria, na mesma tabela
+`mind_admin_users` que a `mindagent-admin` usa. É a mesma configuração
+que a `mindagent-admin` e a `mindagent-bootstrap` já têm.
 
-Publicar a Edge Function antes do `03`/`04` faz as páginas do módulo
-responderem 503. Ligar `RECURSOS_REAIS` antes do deploy faz responderem
-404.
+O código está em `supabase/functions/mindagent-home/index.ts`.
 
-### Como voltar atrás
+## E o painel aponta para ela
 
-| Arquivo | Desfazer |
-|---|---|
-| 01 | `drop table concierge.avisos;` |
-| 04 | `drop function` nas duas + `delete from concierge.config where chave='home'` |
-| 05 | não tem desfazer automático — mas só preenche campo que estava vazio |
-| 03 | `drop function` nas duas |
-| 02 | reaplicar a v17 (está no histórico do git deste arquivo) |
-| deploy | republicar a versão anterior da função |
+Em `admin/.env.local` (já preenchido nesta máquina):
+
+```
+VITE_HOME_API_BASE_URL=https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-home
+```
+
+Sem essa variável, avisos e visualização continuam em memória. Com ela,
+falam com a função. É o interruptor, e por isso é o último passo.
 
 ---
 
-## O que o app já sabe fazer
+## Por que uma Edge Function nova
 
-Sem depender de nada acima:
+O caminho óbvio seria acrescentar rotas à `mindagent-admin` e chaves ao
+`mindagent-bootstrap`. Os dois são de outra lane, e o segundo está
+quebrado desde 24/08 (ver abaixo). Rota nova para conteúdo novo custa
+uma função e não custa risco nenhum.
 
-- `home/estado.js` usa `DADOS.avisos` quando o payload traz a chave, e os
-  avisos embutidos quando não traz;
-- `definirMomentoDoServidor()` obedece `DADOS.home.momento`, e o seletor
-  local continua ganhando dele em desenvolvimento;
-- com o painel no comando, a contagem regressiva para de virar a tela
-  sozinha — duas autoridades decidindo a mesma coisa é como se perde o
-  controle no dia do evento;
-- `cardPessoa()` desenha palestrante sem foto.
+O contrato é o mesmo da `mindagent-admin` — mesmos formatos, mesmos
+códigos de erro, mesma verificação de papel — porque o painel usa o
+mesmo cliente HTTP para as duas.
+
+## Sem cron
+
+Aviso `agendado` entra em circulação sozinho quando o horário chega, e a
+troca de composição também: **quem lê aplica a regra**. Nada depende de
+uma rotina que pode não rodar às 9h do dia 16.
+
+---
+
+## O que NÃO está aqui, e por quê
+
+### O bootstrap do app está quebrado
+
+`GET /functions/v1/mindagent-bootstrap` responde **503 desde 24/08**:
+ele lê de `summit.*` e `comum.*`, schemas renomeados naquele dia
+(`summit_vira_summit_2026`, `comum_vira_ecossistema`). O app vive de
+`dados/summit.json` desde então, porque tem fallback local.
+
+**Isso não atrapalha os avisos.** Eles vêm por outra porta. A
+programação continua vindo do arquivo local, como já vem há nove dias.
+
+O reparo está escrito em `reparo-do-bootstrap/`, com um custo que
+precisa de decisão: a grade viva tem 77 sessões **sem tema nenhum**
+(`topicos_aprendizado` está `[]`), e sem tema não há recomendação. O
+`05` de lá recupera 39 classificações do arquivo local; 24 sessões de
+conteúdo continuariam sem. É outra conversa, e é da lane do evento.
+
+### As funções administrativas do evento também
+
+`mind_admin_read_resource`, `mind_admin_mutate_resource` e
+`mind_admin_dashboard_counts` leem dos mesmos schemas renomeados.
+Confirmado: `mind_admin_dashboard_counts` estoura em
+`relation "summit.sessions" does not exist`.
+
+Por isso a **Visão geral** do painel não abre, e os módulos de evento,
+programação, palestrantes e espaços devem estar no mesmo estado. O
+módulo Home V3 não depende de nenhuma delas.
+
+### A API administrativa recusa origens
+
+`mindagent-admin` só aceita `localhost:5174`, `127.0.0.1:5174` e o
+worker publicado. Abrir o painel em qualquer outra porta dá **"A API
+administrativa não respondeu"** — não é login, é CORS. A `mindagent-home`
+aceita também a porta do app, para não repetir a armadilha.

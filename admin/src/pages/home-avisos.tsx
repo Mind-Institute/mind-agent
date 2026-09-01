@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import {
   ICONES_AVISO,
@@ -11,7 +11,6 @@ import { useArquivar, useAtualizar, useCriar, useLista } from '@/hooks/use-recur
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoVazio } from '@/components/admin/estados';
-import { publicarParaOApp } from '@/features/home-v3/ponte-demonstracao';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -53,12 +52,6 @@ function formatarQuando(iso: string): string {
 
 export function PaginaHomeAvisos() {
   const avisos = useLista('home_notices', { porPagina: 200 });
-  /* Espelha para o app do participante no mesmo navegador. Enquanto o
-     banco não responde por avisos, é assim que dá para ver o ciclo
-     inteiro funcionando. Ver `ponte-demonstracao.ts`. */
-  useEffect(() => {
-    if (avisos.data) publicarParaOApp({ avisos: avisos.data.itens });
-  }, [avisos.data]);
   const criar = useCriar('home_notices');
   const atualizar = useAtualizar('home_notices');
   const arquivar = useArquivar('home_notices');

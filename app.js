@@ -7,7 +7,7 @@
 */
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
-import { carregarDadosSummit } from './data-service.js';
+import { carregarDadosSummit, carregarHomeDoEvento } from './data-service.js';
 import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
@@ -1341,65 +1341,20 @@ const INTENCOES = [
    arquivo. */
 async function carregarDados() {
   DADOS = await carregarDadosSummit();
-  /* Se o payload fala de avisos, ele é a origem — inclusive quando a
-     lista vem vazia. Sem a chave, valem os avisos embutidos, que é o
-     caso do arquivo local e de qualquer versão anterior da API. */
-  definirAvisos(DADOS.avisos);
-  /* E qual das quatro composições está no ar. Sem a chave, continua
-     valendo o padrão local — é o caso de qualquer payload anterior. */
-  definirMomentoDoServidor(DADOS.home && DADOS.home.momento);
-  /* Último recurso, e só quando a API não respondeu por isso. */
-  if (!DADOS.avisos || !DADOS.home) aplicarPonteDeDemonstracao(DADOS);
-}
 
-/* ============================================================
-   PONTE DE DEMONSTRAÇÃO
-   ============================================================
-   O painel administrativo e este app são servidos da mesma origem — app
-   em `/`, painel em `/admin/`. Origem igual quer dizer localStorage
-   compartilhado, e é por aí que o painel consegue falar com o app
-   ENQUANTO O BANCO NÃO RESPONDE por avisos e pelo momento da home.
-
-   O QUE ISTO NÃO É: disparo. O que o painel escreve fica no navegador
-   de quem escreveu. No celular do participante, nada — para chegar lá é
-   preciso o Supabase, pelos arquivos em `docs/sql/home-v3/`.
-
-   Por isso ela roda DEPOIS da API e só onde a API ficou calada: assim
-   que o payload trouxer `avisos` ou `home`, a ponte deixa de ser lida
-   naquela parte. Apagar é remover esta função e a chamada acima.
-
-   Quem escreve é `admin/src/features/home-v3/ponte-demonstracao.ts`, e
-   já escreve no vocabulário daqui. */
-const CHAVE_PONTE = 'mindagent:v1:ponte-demonstracao';
-
-function aplicarPonteDeDemonstracao(dados) {
-  let ponte = null;
-  try {
-    const cru = localStorage.getItem(CHAVE_PONTE);
-    ponte = cru ? JSON.parse(cru) : null;
-  } catch (e) { /* aba anônima, storage bloqueado */ }
-  if (!ponte) return;
-
-  if (!dados.avisos && Array.isArray(ponte.avisos)) definirAvisos(ponte.avisos);
-
-  if (!dados.home && ponte.home) {
-    /* Mesma regra do banco: em `programado`, vale a última troca cujo
-       horário já passou. Duplicada aqui de propósito e por pouco tempo —
-       some junto com a ponte. */
-    let momento = ponte.home.momento;
-    if (ponte.home.modo === 'programado' && Array.isArray(ponte.home.trocas)) {
-      const agora = new Date();
-      const p = (n) => String(n).padStart(2, '0');
-      const agoraTexto = agora.getFullYear() + '-' + p(agora.getMonth() + 1) + '-' + p(agora.getDate()) +
-        'T' + p(agora.getHours()) + ':' + p(agora.getMinutes());
-      const passadas = ponte.home.trocas
-        .filter((t) => t && t.quando && String(t.quando) <= agoraTexto)
-        .sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
-      if (passadas.length) momento = passadas[0].momento;
-    }
-    definirMomentoDoServidor(momento);
+  /* Avisos e composição da home vêm de porta própria — o painel publica
+     ali, não no bootstrap. Se ela não responder, valem os avisos
+     embutidos e o momento padrão: a home não fica em branco por causa
+     de uma função fora do ar. */
+  const homeDoEvento = await carregarHomeDoEvento();
+  if (homeDoEvento) {
+    /* Lista vazia é resposta legítima — quer dizer que não há aviso em
+       circulação, e o app respeita em vez de mostrar os embutidos. */
+    definirAvisos(homeDoEvento.avisos);
+    definirMomentoDoServidor(homeDoEvento.home && homeDoEvento.home.momento);
   }
 }
+
 
 /* ============================================================
    PERFIL VIVO — o que o Summit sabe sobre você até agora

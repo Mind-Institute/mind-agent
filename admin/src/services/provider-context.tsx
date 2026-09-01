@@ -13,6 +13,10 @@ import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
 
    - sem `VITE_ADMIN_API_BASE_URL` → `mock`, sempre. Sem endereço o
      painel não inventa um.
+   - `VITE_HOME_API_BASE_URL` é a Edge Function do módulo Home V3, que
+     é separada. Ausente, avisos e visualização ficam em memória; e em
+     modo `http` ela não participa, porque a API do evento não conhece
+     essas rotas.
    - com a URL, `VITE_ADMIN_DATA_MODE` escolhe entre `mock`, `hybrid`
      (núcleo do evento na API, módulos de apoio em memória — quais são
      quais está em `RECURSOS_REAIS`) e `http` (tudo na API). Ausente, o
@@ -50,7 +54,18 @@ export function criarProvedorPadrao(opcoes: OpcoesFabrica = {}): AdminDataProvid
   });
 
   if (modo === 'http') return http;
-  return new HybridAdminDataProvider(http, new MockAdminDataProvider());
+
+  const baseHome = import.meta.env.VITE_HOME_API_BASE_URL?.trim();
+  const home = baseHome
+    ? new HttpAdminDataProvider({
+        baseUrl: baseHome,
+        obterToken: opcoes.obterToken,
+        chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        aoNaoAutorizado: opcoes.aoNaoAutorizado,
+      })
+    : undefined;
+
+  return new HybridAdminDataProvider(http, new MockAdminDataProvider(), home);
 }
 
 const Contexto = createContext<AdminDataProvider | null>(null);

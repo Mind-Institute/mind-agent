@@ -1,11 +1,18 @@
 /* ============================================================
    HybridAdminDataProvider — meio caminho, dito em voz alta
    ============================================================
-   Nesta etapa o núcleo do evento é real: visão geral, evento,
-   programação, palestrantes, espaços e temas vêm da Edge Function, em
-   LEITURA E ESCRITA. Rotas, estandes, ofertas, conteúdo institucional,
-   documentos, conversas, perguntas, usuários e auditoria continuam no
-   banco em memória.
+   Nesta etapa o painel tem TRÊS origens:
+
+   - o núcleo do evento — visão geral, evento, programação, palestrantes,
+     espaços e temas — vem da `mindagent-admin`, em leitura e escrita;
+   - o módulo Home V3 — avisos, composição no ar e trocas programadas —
+     vem da `mindagent-home`, que é função separada. Ela existe porque
+     essas rotas não cabiam na outra sem editar função viva de outra
+     lane, e porque o conteúdo é de outra natureza: o que o painel
+     PUBLICA, não o que a grade informa;
+   - rotas, estandes, ofertas, conteúdo institucional, documentos,
+     conversas, perguntas, usuários e auditoria continuam no banco em
+     memória.
 
    Essa mistura é a coisa mais perigosa do painel: quem edita um
    palestrante real e um estande falso na mesma sessão precisa saber
@@ -40,6 +47,19 @@ export const RECURSOS_REAIS = [
 ] as const satisfies readonly NomeRecurso[];
 
 export type RecursoReal = (typeof RECURSOS_REAIS)[number];
+
+/** Servidos pela `mindagent-home`, não pela `mindagent-admin`. */
+export const RECURSOS_DA_HOME = [
+  'home_notices',
+  'home_state',
+  'home_schedule',
+] as const satisfies readonly NomeRecurso[];
+
+const CONJUNTO_HOME = new Set<string>(RECURSOS_DA_HOME);
+
+export function ehRecursoDaHome(resource: NomeRecurso): boolean {
+  return CONJUNTO_HOME.has(resource);
+}
 
 const CONJUNTO_REAIS = new Set<string>(RECURSOS_REAIS);
 
@@ -105,14 +125,22 @@ export class HybridAdminDataProvider implements AdminDataProvider {
   constructor(
     private readonly http: AdminDataProvider,
     private readonly mock: AdminDataProvider,
+    /* Ausente, o módulo Home V3 continua em memória — é o que acontece
+       nos testes e em qualquer build sem `VITE_HOME_API_BASE_URL`. */
+    private readonly home?: AdminDataProvider,
   ) {}
 
   origemDoRecurso(resource: NomeRecurso): 'http' | 'mock' {
+    if (ehRecursoDaHome(resource)) return this.home ? 'http' : 'mock';
     return ehRecursoReal(resource) ? 'http' : 'mock';
   }
 
   /** Escolhe o destino e, para recurso real, confere se a operação existe. */
   private destino(resource: NomeRecurso, operacao: string): AdminDataProvider {
+    /* A Home V3 tem API própria e todas as operações que as páginas
+       usam — não passa pela tabela de OPERACOES, que existe para
+       descrever as lacunas da API do evento. */
+    if (ehRecursoDaHome(resource)) return this.home ?? this.mock;
     if (!ehRecursoReal(resource)) return this.mock;
 
     const permitidas = OPERACOES[resource as RecursoReal];
