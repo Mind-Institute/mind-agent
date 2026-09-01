@@ -2,7 +2,7 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **30/08/2026 à noite** (GitHub já mostra 31/08 UTC).
+> Atualizado em **01/09/2026** (lane C: o fluxo canônico do App mudou — ver §C, bloco 01/09).
 > `main` no momento desta atualização: **`0f210953fc783aed63ade6ca87b77337b08b6b7c`**.
 >
 > Este é o ponto de retomada operacional. `PROJECT_STATE.md` preserva arquitetura/decisões congeladas; `GO_LIVE_PARALLEL_20260830.md` preserva ownership; `BACKLOG.md` preserva investigações deferidas; `docs/CORE_UNIVERSAL.md` descreve o sistema vivo, mas ainda contém snapshot de 29/08 em alguns trechos. **PRs e issues são mais frescos que este arquivo para trabalho ainda não integrado.**
@@ -153,6 +153,48 @@ Runtime real já versionado na PR:
 Compatibilidade C→D fechada: é correto C começar a enviar `sensitivity` **antes** do gate SQL da D; RPC atual recebe JSON extra e ignora até #51 entrar.
 
 **Próximo movimento C:** revisão final do diff do runtime no HEAD vivo → merge controlado das migrations/código → confirmar DB vivo → **gate/publicação manual da `mindagent-chat`** → E2E real no app. Não insistir em branch Supabase paga/recriada para #50.
+
+#### 01/09 — O FLUXO CANÔNICO DO APP MUDOU
+
+Branch `claude/go-live-vendedor-runtime-hjobov`. **Migrations aplicadas em produção e `mindagent-chat` publicada como version 25 (v1.6.0).** O que estava escrito acima — *"sem Router no app dedicado"*, *"Kit `concierge_summit` = `evento` + `programacao`"* — deixou de valer.
+
+Fluxo do App agora:
+
+```text
+mensagem
+  → identidade/contexto
+  → POLÍTICA DO CANAL (agentes.canal_competencia, canal = mindagent-web)
+  → ROUTER
+  → GATE
+  → KIT DA ROTA ESCOLHIDA
+  → AGENT (com tool loop)
+```
+
+Quatro mudanças:
+
+1. **O nome da URL chega à identidade.** `mindagent_chat_bind_identity` ganhou `p_nome` e repassa ao `mind_identidade_resolver`, que já sabia preencher nome faltante sem sobrescrever nome canônico. Antes o e-mail ligava a pessoa e `pessoas.pessoas` ficava sem nome.
+2. **O App deixou de forçar `concierge_summit`.** A rota vem do Router, com o canal declarado; o universo legal é `concierge_summit` + `cliente_suporte`, e essa lista **não está escrita na Edge** — vem de `agentes.canal_competencia`. Quando o Router não decide, o desempate é a primeira candidata que ele mesmo devolveu; quando o Router não responde, o piso é `concierge_summit` — e os dois casos saem em `rota_origem`, medíveis.
+3. **`cliente_suporte` executa no App.** O Gate devolvia `missing_kit` porque a rota tinha zero linhas em `agentes.kit_blocos` (o playbook sempre existiu). Agora tem `evento` + `programacao` + `inclusoes`, os mesmos providers já vivos. Vale para os dois canais.
+4. **O Concierge ficou agentic.** `mind_agent_kit` parou de devolver `tools: []` fixo: a rota declara em `kit_blocos` (`secao='tools'`) e o descritor vem de `concierge.ferramentas`, filtrado por `escrita = false`. Duas tools, ambas já existentes desde 20260831070000: `buscar_intelligence` e `ler_intelligence`. Tool loop na Responses API, no máximo 2 rodadas por turno, múltiplas chamadas por rodada.
+
+Estado vivo: `mindagent-chat` **version 25**, `router` version 5 (inalterado), `treble-inbound-agent` version 30 (inalterado).
+
+**E2E no runtime real, 8/8** (via `pg_net`, sessão anônima igual à de qualquer visitante):
+
+| teste | resultado |
+|---|---|
+| identidade (email + nome da URL) | nome persistido, 1 pessoa, sem duplicata |
+| memória (persistir → recuperar em turno seguinte) | recuperou sem repetir os temas |
+| Router App → concierge | `concierge_summit` |
+| Router App → atendimento | `cliente_suporte`, **executando**, não `missing_kit` |
+| agentic factual (Maslach) | grounded no `structured`, sem tool desnecessária |
+| agentic por significado | `buscar_intelligence` → `ler_intelligence` → resposta, num turno |
+| sem necessidade de tool | respondeu do `structured` |
+| sem fonte | disse que não encontrou, não inventou |
+
+**Ponto fraco conhecido, não bloqueante:** em 8 turnos a tool disparou 1 vez. Em `"O que combina comigo?"` o Kit voltou com 0 sessions e 0 speakers, as 2 tools estavam expostas e o modelo **não** buscou — respondeu que não conseguia apontar sessões. É afinação de prompt, não arquitetura: o caminho existe e foi provado no teste por significado.
+
+**Divergência pré-existente registrada, não corrigida:** `mind_identidade_resolver` usa `split_part(nome, ' ', 1)` para `primeiro_nome` e não preenche `sobrenome` — "Adriana Teste E2E" virou `primeiro_nome='Adriana'`, `sobrenome=null`. É comportamento anterior a esta entrega e fora do escopo dado ("deixar o resolvedor atual cuidar do preenchimento").
 
 ---
 
