@@ -1506,12 +1506,28 @@ function cardSessao(s, pct, porque) {
   return el;
 }
 
+/* Iniciais de quem não tem retrato: "Amy Edmondson" → "AE". Uma letra
+   quando o nome é só um. */
+function iniciais(nome) {
+  const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return '?';
+  const primeira = partes[0][0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+  return (primeira + ultima).toUpperCase();
+}
+
 function cardPessoa(p, pct, porque) {
   const el = document.createElement('article');
   el.className = 'cs';
   const marcada = PERFIL.pessoas.some((x) => x.nome === p.nome);
+  /* Sem foto, iniciais — e não `./assets/null`, que o navegador desenha
+     como imagem quebrada. A base de palestrantes deixou de ter retrato;
+     card vazio é melhor do que card com defeito. */
+  const retrato = p.foto
+    ? '<img src="./assets/' + p.foto + '" alt="" loading="lazy" />'
+    : '<i class="iniciais">' + iniciais(p.nome) + '</i>';
   el.innerHTML =
-    '<span class="foto"><img src="./assets/' + p.foto + '" alt="" loading="lazy" /></span>' +
+    '<span class="foto">' + retrato + '</span>' +
     '<div class="corpo">' +
       '<p class="quando">' + (p.destaque ? 'Legend' : 'Palestrante') +
         ' <em>' + (p.na_grade ? 'está na grade' : 'no evento') + '</em>' +

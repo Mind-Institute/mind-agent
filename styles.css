@@ -1298,6 +1298,16 @@ body {
   background: rgba(104, 238, 149, .16); border-color: var(--verde); color: var(--verde);
 }
 
+/* Palestrante sem retrato: iniciais no lugar da imagem. */
+.cs .foto .iniciais {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  font-style: normal; font-size: 17px; font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--verde);
+  background: rgba(104, 238, 149, .12);
+}
+
 /* Card de sessão */
 .cs {
   display: grid; grid-template-columns: 54px 1fr; gap: 12px;
