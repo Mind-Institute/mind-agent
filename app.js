@@ -1478,7 +1478,10 @@ const GUIA = [
   { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
     texto: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
   { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
-    texto: 'Sua credencial e sua câmera. Apresente seu QR Code quando solicitado e escaneie o código de outras pessoas para adicioná-las à sua rede.' },
+    texto: 'Sua credencial e sua câmera. Apresente seu QR Code quando solicitado e escaneie o código de outras pessoas para adicioná-las à sua rede.',
+    /* Neutro, como o da primeira tela: é informação, não advertência. */
+    tom: 'neutro',
+    aviso: '<b>Seu QR Code é o seu ingresso.</b><br>Use ele para entrar no evento.' },
   { rotulo: 'Menu', selo: 'E o resto', x: 0.90,
     texto: 'Mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
 ];
