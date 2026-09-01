@@ -15,4 +15,5 @@ export * from './theme';
 export * from './auth';
 export * from './audit';
 export * from './dashboard';
+export * from './home-v3';
 export * from './resources';

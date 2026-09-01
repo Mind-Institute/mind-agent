@@ -12,6 +12,7 @@ import type { PerguntaSemResposta } from './unanswered';
 import type { Usuario } from './user';
 import type { RegistroAuditoria } from './audit';
 import type { Tema } from './theme';
+import type { AvisoHome, EstadoHome, TrocaHome } from './home-v3';
 
 /**
  * O nome do recurso é o mesmo na URL da futura Edge Function
@@ -34,6 +35,10 @@ export interface MapaRecursos {
   users: Usuario;
   audit: RegistroAuditoria;
   themes: Tema;
+  /* Home V3: o que o participante vê agora, e os avisos que ele recebe. */
+  home_state: EstadoHome;
+  home_schedule: TrocaHome;
+  home_notices: AvisoHome;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
@@ -54,6 +59,9 @@ export const NOMES_RECURSOS: NomeRecurso[] = [
   'users',
   'audit',
   'themes',
+  'home_state',
+  'home_schedule',
+  'home_notices',
 ];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
@@ -72,6 +80,9 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   users: 'Usuário',
   audit: 'Auditoria',
   themes: 'Tema',
+  home_state: 'Home do participante',
+  home_schedule: 'Troca programada da home',
+  home_notices: 'Aviso',
 };
 
 /** Recursos que passam pelo fluxo editorial (rascunho → publicado). */

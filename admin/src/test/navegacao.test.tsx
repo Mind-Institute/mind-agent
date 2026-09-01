@@ -5,11 +5,11 @@ import { renderizarPainel } from './utils';
 import { ITENS_NAVEGACAO } from '@/routes/navegacao';
 
 describe('navegação', () => {
-  it('mostra os quinze módulos do menu lateral', async () => {
+  it('mostra os dezessete módulos do menu lateral', async () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO).toHaveLength(15);
+    expect(ITENS_NAVEGACAO).toHaveLength(17);
     for (const item of ITENS_NAVEGACAO) {
       expect(within(menu).getByRole('link', { name: new RegExp(item.rotulo, 'i') })).toBeVisible();
     }
