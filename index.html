@@ -111,7 +111,7 @@
   <section class="vista" id="vista-tour">
     <div class="t-missao">
       <button class="c-voltar" id="fechar-tour" aria-label="Fechar tour">×</button>
-      <p class="t-texto" id="missao-texto"><i>1/4</i>Reservar seu lugar numa sessão</p>
+      <p class="t-texto" id="missao-texto"><i>1/2</i>Reservar seu lugar numa sessão</p>
       <span class="t-prog" id="missao-prog" aria-hidden="true"></span>
       <button class="c-voltar" id="ver-missoes" aria-label="Ver missões">☰</button>
     </div>
@@ -146,7 +146,7 @@
       <div class="fim-cartao">
         <img src="./assets/simbolo-mind-verde.png" alt="" />
         <h3>Você mandou bem!</h3>
-        <p>Agora você já sabe reservar seu lugar numa sessão, consultar sua agenda e usar o QR Code. No Menu ficam o mapa, a Área de Networking e o Chat, para você explorar quando quiser.</p>
+        <p>Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.</p>
         <p>Sempre que precisar de programação, palestrantes, conteúdos, localização ou ajuda com sua jornada, é só me chamar no <b>Chat</b>.</p>
         <button class="btn-verde" type="button" id="btn-concluir">Concluir tour</button>
         <button class="link-mind" type="button" id="tour-para-chat">Perguntar ao Mind Agent →</button>
@@ -187,48 +187,6 @@
       </ul>
       <p class="ajuda-nota">Quem reserva e faz check-in é você, no app do evento. Seu nome e e-mail vão para o agente apenas para ele saber com quem fala.</p>
       <button type="button" id="fechar-ajuda">Entendi</button>
-    </div>
-  </div>
-
-  <!-- ============ GUIA DA BARRA: tela cheia, aponta para a toolbar ============
-       A barra de abas é do aplicativo do evento, não desta página: ela fica
-       logo abaixo da nossa borda inferior. Por isso a seta aponta para fora,
-       na coluna de cada ícone, e a barrinha de aba selecionada é desenhada
-       rente à borda — é o mesmo sinal que o app usa. -->
-  <div class="guia" id="guia" hidden>
-    <span class="guia-brilho" id="guia-brilho" aria-hidden="true"></span>
-    <div class="guia-trilha" id="guia-trilha" aria-hidden="true"></div>
-    <p class="guia-nome">Tour rápido <span>Conheça o essencial em 30 segundos</span></p>
-    <button type="button" class="guia-pular" id="guia-pular">Pular</button>
-
-    <div class="guia-cena" id="guia-cena" role="dialog" aria-live="polite" aria-labelledby="guia-titulo">
-      <span class="guia-selo" id="guia-selo"></span>
-      <h2 class="guia-titulo" id="guia-titulo"></h2>
-      <p class="guia-texto" id="guia-texto"></p>
-      <!-- Bloco à parte para o que muda o comportamento de quem chega,
-           como a regra de reserva das arenas. -->
-      <p class="guia-aviso" id="guia-aviso" hidden></p>
-    </div>
-
-    <svg class="guia-seta" id="guia-seta" aria-hidden="true"></svg>
-    <span class="guia-barra" id="guia-barra" aria-hidden="true"></span>
-    <!-- Fica na tela desde o começo do passo: quem manda no ritmo é a
-         pessoa, e isso vale desde o primeiro instante. Some no último
-         passo, onde os botões já dizem o que fazer. Só a seta para a
-         frente — voltar existe, mas não é o que se quer sugerir aqui. -->
-    <div class="guia-avance" id="guia-avance" hidden aria-hidden="true">
-      <span>deslize para continuar</span>
-      <span class="s">→</span>
-    </div>
-
-    <!-- As zonas de toque são invisíveis por natureza. Estas marcas dizem
-         que elas existem, sem disputar atenção com o conteúdo. São
-         decorativas: quem lê o toque é o próprio guia, não elas. -->
-    <span class="guia-lado" id="guia-lado" hidden aria-hidden="true"><i>‹</i><i>›</i></span>
-
-    <div class="guia-saida" id="guia-saida" hidden>
-      <button type="button" class="guia-praticar" id="guia-praticar">Aprender usando o app<span>Tour interativo · cerca de 2 minutos</span></button>
-      <button type="button" class="guia-ir" id="guia-ir">Ir para o Mind Agent</button>
     </div>
   </div>
 

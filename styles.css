@@ -200,12 +200,9 @@ body {
   font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
   color: var(--verde);
 }
-/* O relógio da contagem. Tabular para os dígitos não dançarem a cada
-   segundo — sem isso o texto todo treme quando o 1 vira 8. */
-.v3-relogio {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: .06em;
-}
+/* A contagem, em dias. Não precisa de tabular: o número muda uma vez por
+   dia, não a cada segundo. */
+.v3-relogio { letter-spacing: .04em; }
 .v3-relogio::before { content: '· '; }
 
 .v3-ola {
@@ -315,8 +312,8 @@ body {
   position: relative;
   margin-top: 16px;
   appearance: none; cursor: pointer; text-align: left;
-  border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
-  background: color-mix(in srgb, var(--verde) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--coral) 55%, transparent);
+  background: color-mix(in srgb, var(--coral) 13%, transparent);
   border-radius: 18px;
   padding: 14px 16px;
   font: inherit; color: var(--texto);
@@ -334,17 +331,17 @@ body {
   background: linear-gradient(to right, transparent, var(--hairline), transparent);
 }
 .v3-tour:active {
-  border-color: var(--verde);
-  background: color-mix(in srgb, var(--verde) 16%, transparent);
+  border-color: var(--coral);
+  background: color-mix(in srgb, var(--coral) 22%, transparent);
 }
 .v3-play {
   width: 40px; height: 40px; border-radius: 50%; flex: none;
-  background: var(--verde); color: var(--surface-deep);
+  background: var(--coral); color: #1a0d0a;
   display: grid; place-items: center;
 }
 .v3-play svg { width: 17px; height: 17px; margin-left: 2px; }
-.v3-tour .v3-corpo small i { font-style: normal; color: var(--verde); }
-.v3-tour .seta { width: 18px; height: 18px; flex: none; color: var(--verde); }
+.v3-tour .v3-corpo small i { font-style: normal; color: var(--coral); }
+.v3-tour .seta { width: 18px; height: 18px; flex: none; color: var(--coral); }
 
 /* ---- Título de seção ---- */
 .v3-secao {
@@ -1416,315 +1413,3 @@ body {
 }
 .erro-dados b { color: var(--coral); display: block; margin-bottom: 6px; }
 
-/* ============================================================
-   GUIA DA BARRA — tela cheia, no desenho do Mind
-   ============================================================
-   A barra de abas pertence ao aplicativo do evento, não a esta
-   página: ela fica logo abaixo da nossa borda inferior. Então o
-   guia faz duas coisas que o app faria por dentro — a seta aponta
-   para fora, na coluna do ícone, e a barrinha de aba selecionada
-   é desenhada rente à borda, igual à que o app acende.
-
-   A arte segue o site do Summit: preto, tipografia enorme em caixa
-   alta, verde como acento e o ponto final depois da palavra. */
-.guia {
-  position: fixed; inset: 0; z-index: 40;
-  background: #06060a;
-  display: flex; flex-direction: column;
-  padding: max(18px, env(safe-area-inset-top)) 24px calc(150px + env(safe-area-inset-bottom));
-  overflow: hidden;
-  animation: guia-abre .45s ease;
-  /* Sem isto o navegador reivindica o arrasto horizontal para o gesto dele
-     (rolagem, voltar) e dispara `pointercancel` — o deslize nunca chegava ao
-     `pointerup`, e só o toque funcionava. */
-  touch-action: none;
-  user-select: none; -webkit-user-select: none;
-}
-.guia[hidden] { display: none; }
-@keyframes guia-abre { from { opacity: 0; } to { opacity: 1; } }
-
-/* Brilho atrás do texto, na cor do passo. Camada própria: borrar o
-   texto é o que deixaria a tipografia sem fio. */
-.guia-brilho {
-  position: absolute; left: 50%; top: 34%;
-  width: 130%; aspect-ratio: 1; transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(104,238,149,.13) 0%, rgba(104,238,149,.04) 38%, transparent 62%);
-  pointer-events: none;
-  transition: opacity .6s ease;
-}
-
-/* Trilha de progresso: um segmento por aba, o atual enchendo sozinho */
-.guia-trilha {
-  position: relative; z-index: 2;
-  display: flex; gap: 5px; flex: none;
-}
-.guia-trilha i {
-  flex: 1; height: 2px; border-radius: 2px;
-  background: rgba(255, 255, 255, .13);
-  overflow: hidden;
-}
-.guia-trilha i span {
-  display: block; height: 100%; width: 0;
-  background: var(--verde);
-  border-radius: 2px;
-}
-.guia-trilha i.ok span { width: 100%; }
-.guia-trilha i.atual span { animation: guia-enche var(--dur, 7s) linear forwards; }
-@keyframes guia-enche { from { width: 0; } to { width: 100%; } }
-
-.guia-pular {
-  position: absolute; top: max(14px, env(safe-area-inset-top)); right: 20px;
-  z-index: 3;
-  appearance: none; cursor: pointer; border: 0; background: none;
-  color: var(--texto-mudo);
-  font: inherit; font-size: 13px; font-weight: 700;
-  padding: 10px 4px;
-}
-
-/* ---- A cena ---- */
-.guia-cena {
-  position: relative; z-index: 2;
-  flex: 1; min-height: 0;
-  display: flex; flex-direction: column; justify-content: center;
-  padding-bottom: 8px;
-}
-
-/* Pílula do site: contorno verde, micro-texto espaçado */
-.guia-selo {
-  align-self: flex-start;
-  border: 1px solid rgba(104, 238, 149, .45);
-  border-radius: var(--raio-pill);
-  color: var(--verde);
-  font-size: 10.5px; font-weight: 900;
-  letter-spacing: .16em; text-transform: uppercase;
-  padding: 6px 13px;
-}
-
-.guia-titulo {
-  margin-top: 20px;
-  font-size: clamp(38px, 13vw, 58px);
-  font-weight: 900; text-transform: uppercase;
-  letter-spacing: -.035em; line-height: .9;
-}
-/* O ponto final verde, como no site */
-.guia-titulo em { font-style: normal; color: var(--verde); }
-
-.guia-texto {
-  margin-top: 20px; max-width: 30em;
-  font-size: 16px; line-height: 1.55;
-  color: var(--texto-suave);
-}
-
-/* Entradas escalonadas: selo, título, texto e aviso surgem em sequência.
-
-   Transição em vez de keyframes de propósito: com `animation`, o estado
-   de repouso é invisível e o conteúdo depende de a animação disparar —
-   se ela não roda, a tela fica em branco. Com transição, o valor final
-   é declarado, e o pior caso é aparecer sem o deslizamento. */
-.guia-cena > * {
-  opacity: 0; transform: translateY(14px);
-  transition: opacity .5s ease, transform .5s cubic-bezier(.16,1,.3,1);
-}
-.guia-cena.mostra > *          { opacity: 1; transform: none; }
-.guia-cena.mostra .guia-selo   { transition-delay: .05s; }
-.guia-cena.mostra .guia-titulo { transition-delay: .16s; }
-.guia-cena.mostra .guia-texto  { transition-delay: .3s; }
-.guia-cena.mostra .guia-aviso  { transition-delay: .46s; }
-
-/* Aviso destacado: o que muda o comportamento de quem chega não pode
-   ficar diluído no meio do parágrafo. Coral porque é a cor que o app já
-   usa para "vaga limitada" nos cards de sessão — mesmo aviso, mesma cor. */
-.guia-aviso {
-  margin-top: 20px;
-  border-left: 2px solid var(--coral);
-  background: rgba(255, 112, 87, .08);
-  border-radius: 0 12px 12px 0;
-  padding: 13px 15px;
-  font-size: 14.5px; line-height: 1.5;
-  color: var(--texto);
-}
-.guia-aviso[hidden] { display: none; }
-.guia-aviso b { color: var(--coral); font-weight: 800; }
-/* Saída: some junto, mais rápido do que entrou */
-/* Saída: some junto, mais rápido do que entrou e sem escalonar */
-.guia-cena.sai > * {
-  opacity: 0; transform: translateY(-10px);
-  transition-duration: .25s; transition-delay: 0s;
-}
-
-/* ---- A seta pontilhada ---- */
-.guia-seta {
-  position: absolute; inset: 0; z-index: 2;
-  width: 100%; height: 100%;
-  pointer-events: none; overflow: visible;
-}
-.guia-seta .trilha {
-  fill: none;
-  stroke: var(--verde);
-  stroke-width: 4.5;
-  stroke-linecap: round;
-  /* traço zero + espaço = bolinha redonda, o pontilhado desenhado à mão */
-  stroke-dasharray: 0 14;
-  filter: drop-shadow(0 0 5px rgba(104, 238, 149, .4));
-}
-.guia-seta .ponta {
-  fill: var(--verde);
-  filter: drop-shadow(0 0 5px rgba(104, 238, 149, .4));
-}
-.guia-seta.desenhando .trilha { animation: guia-risca .7s .35s ease both; }
-.guia-seta.desenhando .ponta  { animation: guia-ponta .3s .95s ease both; }
-@keyframes guia-risca {
-  from { stroke-dashoffset: 260; opacity: .2; }
-  to   { stroke-dashoffset: 0;   opacity: 1; }
-}
-/* Só opacidade. `transform: scale()` num polígono SVG escala a partir da
-   origem do viewBox (0,0), não do centro da forma — a ponta nascia longe
-   e vinha voando até o lugar. */
-@keyframes guia-ponta { from { opacity: 0; } to { opacity: 1; } }
-
-/* ---- A barrinha da aba selecionada ----
-   O app acende uma barra fina no topo da aba ativa. Como a barra dele
-   fica abaixo da nossa borda, desenhamos a nossa rente ao fim da tela,
-   na mesma coluna. */
-.guia-barra {
-  position: absolute; bottom: 0; z-index: 2;
-  height: 3px; border-radius: 3px 3px 0 0;
-  background: var(--verde);
-  box-shadow: 0 0 14px rgba(104, 238, 149, .65);
-  transition: left .6s cubic-bezier(.16,1,.3,1), width .4s ease, opacity .3s ease;
-}
-
-/* As duas saídas do último passo, empilhadas */
-.guia-saida {
-  position: absolute; left: 24px; right: 24px; z-index: 3;
-  bottom: calc(76px + env(safe-area-inset-bottom));
-  display: flex; flex-direction: column; gap: 8px;
-  animation: guia-surge .45s ease both;
-}
-.guia-saida[hidden] { display: none; }
-.guia-saida button {
-  appearance: none; cursor: pointer;
-  border-radius: var(--raio-pill);
-  font: inherit; font-size: 15px; font-weight: 700;
-  min-height: 50px;
-}
-/* Sair é o que a maioria quer no fim do guia; o tour completo é o extra.
-   Por isso o preenchido é o Sair, e não o contrário. */
-/* A prática é o convite principal; ir direto ao agente é a saída calma. */
-.guia-praticar {
-  border: 0;
-  background: var(--verde); color: var(--surface-deep);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  padding: 8px 16px;
-}
-.guia-praticar span {
-  font-size: 11.5px; font-weight: 600; opacity: .72;
-}
-.guia-ir {
-  background: none;
-  border: 1px solid var(--hairline);
-  color: var(--texto-suave);
-}
-@keyframes guia-surge { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .guia, .guia-seta .trilha, .guia-seta .ponta, .guia-fim { animation: none !important; }
-  /* A cena entra por transição: zerar a duração deixa tudo visível de imediato */
-  .guia-cena > * { transition-duration: 0s !important; transition-delay: 0s !important; }
-  .guia-trilha i.atual span { animation: none; width: 100%; }
-  .guia-barra { transition: none; }
-}
-
-/* ---- Convite para avançar ----
-   A barra de cima deixou de avançar sozinha: quando ela enche, quem manda
-   é a pessoa. Este é o sinal de que dá para seguir — e o gesto que ele
-   anuncia funciona de verdade, deslize e toque. */
-.guia-avance {
-  position: absolute; left: 0; right: 0; z-index: 3;
-  /* Acima de onde a seta nasce (150px do rodapé). A 96px ela caía no meio
-     do traçado e os pontos atravessavam o texto. O conteúdo mais alto
-     termina bem antes disso, então sobra folga nos dois lados. */
-  bottom: calc(162px + env(safe-area-inset-bottom));
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  font-size: 12.5px; font-weight: 700;
-  letter-spacing: .09em;
-  color: var(--texto-mudo);
-  pointer-events: none;
-  animation: guia-surge .4s ease both;
-}
-.guia-avance[hidden] { display: none; }
-.guia-avance .s {
-  color: var(--verde);
-  font-size: 18px; font-weight: 900; line-height: 1;
-  animation: guia-respira 1.8s ease-in-out infinite;
-}
-@keyframes guia-respira { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .guia-avance .s { animation: none !important; }
-}
-
-/* Marcas das zonas de toque. Uma faixa que atravessa a tela e joga um
-   chevron em cada borda: a da esquerda volta, a da direita avança. Bem
-   apagadas — são um lembrete de que o toque funciona, não um botão. Não
-   recebem ponteiro: o gesto é lido no #guia, e interceptar aqui quebraria
-   a captura do deslize. */
-.guia-lado {
-  position: absolute; left: 0; right: 0; z-index: 3;
-  top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 10px;
-  pointer-events: none;
-}
-.guia-lado[hidden] { display: none; }
-.guia-lado i {
-  font-style: normal;
-  font-size: 26px; font-weight: 300; line-height: 1;
-  color: var(--texto-mudo);
-  opacity: .28;
-}
-
-/* Nome do primeiro fluxo, logo abaixo da trilha: deixa claro que este é o
-   Tour rápido, e que existe um segundo, prático, no fim dele. */
-.guia-nome {
-  position: relative; z-index: 2;
-  margin-top: 10px; flex: none;
-  font-size: 12px; font-weight: 900;
-  letter-spacing: .14em; text-transform: uppercase;
-  color: var(--verde);
-}
-.guia-nome span {
-  display: block; margin-top: 3px;
-  font-size: 11.5px; font-weight: 600;
-  letter-spacing: .02em; text-transform: none;
-  color: var(--texto-mudo);
-}
-
-/* Aviso em tom neutro: para o que é informação, não alerta. O coral fica
-   reservado ao que muda o comportamento (capacidade limitada, reserva). */
-.guia-aviso.neutro {
-  border-left-color: var(--hairline);
-  background: rgba(255, 255, 255, .045);
-  color: var(--texto-suave);
-}
-.guia-aviso.neutro b { color: var(--texto); }
-
-/* Durante a troca de etapa nada aceita toque: é o que impede o toque duplo
-   e o acerto num hotspot da etapa que já saiu. */
-.frame.travado, .fnav.travado { pointer-events: none; }
-.frame.travado .alvo { opacity: .35; }
-
-/* Marca do filtro escolhido no mapa — a ação prática da missão do mapa. */
-.marca.escolhido {
-  border: 2px solid var(--verde);
-  border-radius: var(--raio-pill);
-  background: rgba(104, 238, 149, .16);
-  box-shadow: 0 0 10px rgba(104, 238, 149, .4);
-}
-
-/* Foco visível: navegação por teclado precisa saber onde está. */
-.alvo:focus-visible, .fnav button:focus-visible, .guia button:focus-visible,
-.folha button:focus-visible, .fim-cartao button:focus-visible {
-  outline: 2px solid var(--verde);
-  outline-offset: 2px;
-}

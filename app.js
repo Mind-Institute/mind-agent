@@ -100,7 +100,8 @@ function irParaConversa(intencao) {
 
 function acaoDaHome(acao) {
   if (!acao) return;
-  if (acao === 'tour') return abrirGuia();
+  /* Não existe mais tour rápido: o card abre a prática direto. */
+  if (acao === 'tour') return abrirTourCompleto();
   if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
   if (acao === 'proxima') return abrirTutorialEm('detalhe');
   if (acao.startsWith('chat:')) return irParaConversa('desafio');
@@ -202,15 +203,20 @@ function inicioDoEvento() {
   return new Date(ano, mes - 1, dia, HORA_DE_ABERTURA, 0, 0, 0);
 }
 
-/** `dd hh:mm:ss`, ou null quando o tempo acabou. */
+/** Só os dias na tela, ou null quando o tempo acabou.
+ *
+ *  A conta continua ao segundo por dentro: é ela que vira a tela na hora
+ *  exata. O que muda é o que se mostra — hora e minuto correndo na
+ *  manchete puxavam o olho para o relógio em vez do conteúdo.
+ *
+ *  Conta os dias inteiros que ainda faltam, e não as frações: com 14 dias
+ *  e meio pela frente, faltam 14 dias. No último dia não existe "faltam 0
+ *  dias" — vira "é hoje". */
 function textoDaContagem(restante) {
   if (restante <= 0) return null;
-  const s = Math.floor(restante / 1000);
-  const dois = (n) => String(n).padStart(2, '0');
-  return Math.floor(s / 86400) + 'd ' +
-    dois(Math.floor((s % 86400) / 3600)) + ':' +
-    dois(Math.floor((s % 3600) / 60)) + ':' +
-    dois(s % 60);
+  const dias = Math.floor(restante / 86400000);
+  if (dias === 0) return 'é hoje';
+  return dias === 1 ? 'falta 1 dia' : 'faltam ' + dias + ' dias';
 }
 
 function ligarContagem() {
@@ -237,7 +243,10 @@ function ligarContagem() {
     alvo.textContent = texto;
   };
   bater();
-  relogioContagem = setInterval(bater, 1000);
+  /* De meio em meio minuto: o texto só muda uma vez por dia, mas a virada
+     da tela precisa acontecer perto do horário — meio minuto de atraso é
+     aceitável, uma hora não. */
+  relogioContagem = setInterval(bater, 30000);
 }
 
 /* ---------- Painel da home ----------
@@ -557,11 +566,12 @@ const ROTA = {
   'chat': { de: 'menu', alvo: 'chat' },
 };
 
+/* Duas missões, e nada além: reservar uma sessão e encontrá-la em Minha
+   Agenda. Era isso que a pessoa precisava saber fazer no dia 1 — o resto
+   do app ela descobre usando. */
 const MISSOES = [
   { id: 'm2', txt: 'Reservar seu lugar numa sessão', tela: 'detalhe', alvo: 'reservar' },
-  { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
-  { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
-  { id: 'm5', txt: 'Descobrir o resto no Menu', tela: 'menu' },
+  { id: 'm3', txt: 'Ver a reserva na sua agenda', tela: 'minha-agenda' },
 ];
 
 const frame = document.getElementById('frame');
@@ -964,8 +974,8 @@ document.getElementById('sair-tour').addEventListener('click', () => { missoesFu
 
 /* Abrir / fechar o tour */
 /* O tour completo — as telas do app com as sete missões. Deixou de ser o
-   primeiro contato: quem chega vê antes o guia da barra (final do arquivo),
-   e chega aqui pelo botão de lá ou por `?tutorial=`. */
+   primeiro contato: quem chega vê a home, e entra aqui pelo card de como
+   reservar ou por `?tutorial=`. */
 function abrirTourCompleto() {
   telaAtual = 'agenda'; pilha = []; feitas = new Set();
   Object.keys(marcas).forEach((k) => delete marcas[k]);
@@ -1692,333 +1702,3 @@ carregarDados().then(montarHomeV3).catch((e) => {
     'e a leitura falhou (' + e.message + '). Recarregue em um instante.';
   document.getElementById('home-v3').prepend(aviso);
 });
-
-/* ============================================================
-   GUIA DA BARRA — tela cheia, passando sozinho
-   ============================================================
-   A barra de abas é do aplicativo do evento, não desta página: ela mora
-   logo abaixo da nossa borda inferior. Não dá para destacar um elemento
-   fora do nosso DOM, então o guia faz por fora o que o app faz por
-   dentro — a seta aponta para a coluna do ícone e a barrinha de aba
-   selecionada é desenhada rente à borda, igual à que o app acende.
-
-   As colunas são frações da largura: é como uma barra de cinco abas se
-   divide, em qualquer tela. Muda o número de abas, muda só esta lista.
-
-   A navegação é a de stories: toque à esquerda volta, à direita avança,
-   e segurar pausa. A trilha no alto já sugeria isso — agora cumpre.
-
-   Aparece no primeiro acesso e pelo botão "Fazer tour do app". */
-
-/* Mesma convenção de chave do chat-service, para tudo desta pessoa
-   viver sob o mesmo prefixo. */
-const GUIA_VISTO = 'mindagent:v1:' + CONFIG.eventSlug + ':guia-visto';
-
-/* Devagar de propósito: é para ler sem correr, não para despachar. */
-const GUIA_DURACAO = 7000;
-/* Abaixo disso é toque; acima, é segurar para pausar. */
-const GUIA_SEGURAR = 220;
-/* Faixa da esquerda que volta um passo — o resto avança. */
-const GUIA_ZONA_VOLTA = 0.3;
-/* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
-const GUIA_ARRASTO = 45;
-
-const GUIA = [
-  /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
-  { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false, dur: 11000,
-    texto: 'Pergunte qualquer coisa sobre o evento: programação, palestrantes, salas e horários. Respondo na hora, com a informação oficial. E se me contar o que te interessa, sugiro conteúdo para você.',
-    tom: 'neutro',
-    aviso: 'Eu mostro o caminho e uso as informações oficiais do evento. Quando uma ação exigir confirmação — como reservar uma vaga — você conclui no próprio app.' },
-  { rotulo: 'Agenda', selo: 'A programação', x: 0.30, dur: 11000,
-    texto: 'A grade inteira dos dias 16 e 17. Abra uma sessão para ver a descrição, o local e os palestrantes.',
-    aviso: '<b>Reservar garante sua vaga.</b><br>Algumas sessões têm capacidade limitada — a própria sessão avisa quando precisa.' },
-  { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
-    texto: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
-  { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
-    texto: 'Sua credencial e sua câmera. Apresente seu QR Code quando solicitado e escaneie o código de outras pessoas para adicioná-las à sua rede.',
-    /* Neutro, como o da primeira tela: é informação, não advertência. */
-    tom: 'neutro',
-    aviso: '<b>Seu QR Code é o seu ingresso.</b><br>Use ele para entrar no evento.' },
-  { rotulo: 'Menu', selo: 'E o resto', x: 0.90,
-    texto: 'Mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
-];
-
-const guia = document.getElementById('guia');
-const guiaSeta = document.getElementById('guia-seta');
-const guiaCena = document.getElementById('guia-cena');
-const guiaBarra = document.getElementById('guia-barra');
-const guiaPraticar = document.getElementById('guia-praticar');
-const guiaSaida = document.getElementById('guia-saida');
-const guiaAvance = document.getElementById('guia-avance');
-const guiaLado = document.getElementById('guia-lado');
-let guiaPasso = 0;
-
-/* ---- Relógio do passo ----
-   A barra de cima continua enchendo, mas ela não avança mais nada: quando
-   termina, o guia apenas diz que dá para seguir e espera. Quem decide o
-   ritmo é quem lê.
-
-   Guarda o que falta em vez de só um timer: sem isso, segurar e soltar
-   reiniciaria o passo do zero. */
-let guiaRelogio = null;
-let guiaRestante = GUIA_DURACAO;
-let guiaDesde = 0;
-let guiaPausado = false;
-let guiaPronto = false;
-
-/* Passo com texto mais longo respira mais; o resto usa o padrão. */
-function duracaoDoPasso() { return GUIA[guiaPasso].dur || GUIA_DURACAO; }
-
-function trilhaAtiva() { return document.querySelector('#guia-trilha i.atual span'); }
-
-function tocarRelogio(ms) {
-  clearTimeout(guiaRelogio);
-  guiaRestante = ms;
-  guiaDesde = Date.now();
-  guiaPronto = false;
-  guiaRelogio = setTimeout(() => { guiaPronto = true; }, ms);
-}
-
-/* O convite fica na tela desde o começo do passo. Ele não anuncia que o
-   tempo acabou — anuncia que existe um gesto, e isso vale desde o
-   primeiro instante. Some no último passo, onde os botões já dizem o
-   que fazer. */
-function mostrarDica() {
-  guiaAvance.hidden = guiaPasso >= GUIA.length - 1;
-  guiaLado.hidden = guiaAvance.hidden;   /* as marcas seguem o convite */
-}
-
-function pausarGuia() {
-  if (guiaPausado || guiaPronto) return;   /* barra cheia: não há o que pausar */
-  guiaPausado = true;
-  clearTimeout(guiaRelogio);
-  guiaRestante = Math.max(guiaRestante - (Date.now() - guiaDesde), 300);
-  const s = trilhaAtiva();
-  if (s) s.style.animationPlayState = 'paused';
-}
-
-function retomarGuia() {
-  if (!guiaPausado) return;
-  guiaPausado = false;
-  const s = trilhaAtiva();
-  if (s) s.style.animationPlayState = 'running';
-  tocarRelogio(guiaRestante);
-}
-
-/* A seta: curva do texto até a coluna do ícone, desenhada com bolinhas
-   (traço zero + espaço, ponta redonda) e ponta cheia. O ângulo da ponta
-   vem da tangente da curva, senão ela aponta torto. */
-function desenharSeta() {
-  const L = innerWidth, A = innerHeight;
-  const alvo = GUIA[guiaPasso];
-  const r = guiaCena.getBoundingClientRect();
-
-  const ax = alvo.x * L;                                  /* coluna do ícone */
-  const ay = A - 12;                                      /* rente à borda: o ícone fica abaixo */
-
-  /* A seta sempre nasce no meio da tela e deságua no ícone. A variação
-     entre os passos vem daí sozinha — a distância até cada coluna é
-     diferente — em vez de números escolhidos a dedo. */
-  const px = L / 2;
-  const py = Math.min(r.bottom + 18, A - 150);
-
-  /* Onde o tracejado realmente termina. A ponta tem de sair DAQUI, não do
-     alvo: antes o ângulo vinha da direção até (ax, ay) e a ponta ficava
-     13px abaixo na vertical, enquanto a curva chega inclinada — dava a
-     impressão de ponta torta e solta do tracejado.
-
-     Numa Bézier quadrática a tangente no fim é `P2 - P1`, ou seja, do
-     ponto de controle para o ponto final. */
-  const fimX = ax, fimY = ay - 13;
-
-  /* Controle perto do alvo na horizontal e perto da origem na vertical: a
-     curva anda de lado primeiro e só então mergulha no ícone, em vez de
-     descer em diagonal de régua.
-
-     Quando o alvo está no próprio meio não há lado para onde ir e o traço
-     sairia uma reta; uma barriga leve mantém a cara de desenho à mão. */
-  const desvio = fimX - px;
-  const barriga = Math.abs(desvio) < 40 ? 34 : 0;
-  const cx = px + desvio * 0.85 + barriga;
-  const cy = py + (fimY - py) * 0.22;
-
-  const ang = Math.atan2(fimY - cy, fimX - cx);
-  const P = 10, ABERT = 0.44;
-  /* A ponta continua a curva, no mesmo rumo, em vez de descer reto. */
-  const pontaX = fimX + Math.cos(ang) * 12;
-  const pontaY = fimY + Math.sin(ang) * 12;
-  const ponta = [
-    [pontaX, pontaY],
-    [pontaX - P * Math.cos(ang - ABERT), pontaY - P * Math.sin(ang - ABERT)],
-    [pontaX - P * Math.cos(ang + ABERT), pontaY - P * Math.sin(ang + ABERT)],
-  ].map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-
-  guiaSeta.setAttribute('viewBox', '0 0 ' + L + ' ' + A);
-  guiaSeta.innerHTML =
-    '<path class="trilha" d="M' + px.toFixed(1) + ' ' + py.toFixed(1) +
-      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + fimX.toFixed(1) + ' ' + fimY.toFixed(1) + '"/>' +
-    '<polygon class="ponta" points="' + ponta + '"/>';
-
-  guiaSeta.classList.remove('desenhando');
-  void guiaSeta.offsetWidth;
-  guiaSeta.classList.add('desenhando');
-
-  /* A barrinha da aba: mesma proporção do app — pouco menos de um quinto
-     da tela, centrada na coluna.
-
-     No primeiro passo ela não existe: a aba do Mind Agent é onde a pessoa
-     já está, e o app não acende barra para dizer isso. Enquanto escondida
-     ela fica estacionada na coluna seguinte, para entrar já no lugar em
-     vez de deslizar de longe. */
-  const larguraBarra = L * 0.19;
-  const mostraBarra = GUIA[guiaPasso].barra !== false;
-  const coluna = (mostraBarra ? alvo.x : GUIA[1].x) * L;
-  guiaBarra.style.width = larguraBarra + 'px';
-  guiaBarra.style.left = (coluna - larguraBarra / 2) + 'px';
-  guiaBarra.style.opacity = mostraBarra ? '1' : '0';
-}
-
-function pintarGuia(primeiro) {
-  const p = GUIA[guiaPasso];
-  const ultimo = guiaPasso === GUIA.length - 1;
-
-  document.getElementById('guia-trilha').innerHTML = GUIA.map((_, i) =>
-    '<i class="' + (i < guiaPasso ? 'ok' : i === guiaPasso ? 'atual' : '') + '"><span></span></i>').join('');
-  document.getElementById('guia-trilha').style.setProperty('--dur', duracaoDoPasso() + 'ms');
-
-  document.getElementById('guia-selo').textContent = p.selo;
-  /* O ponto final verde, como no site do Summit */
-  document.getElementById('guia-titulo').innerHTML =
-    p.rotulo.replace(/[<>&]/g, '') + '<em>.</em>';
-  document.getElementById('guia-texto').textContent = p.texto;
-
-  /* O aviso é o único texto do guia que aceita marcação, e ela vem daqui
-     de dentro — nunca de dado externo. */
-  const elAviso = document.getElementById('guia-aviso');
-  elAviso.innerHTML = p.aviso || '';
-  elAviso.hidden = !p.aviso;
-  /* Informação usa o tom neutro; alerta de comportamento fica no coral. */
-  elAviso.classList.toggle('neutro', p.tom === 'neutro');
-
-  guiaCena.classList.remove('sai', 'mostra');
-  void guiaCena.offsetWidth;
-  guiaCena.classList.add('mostra');
-
-  /* Sem transição na primeira pintura: a barra tem de nascer no lugar,
-     não vir voando da esquerda. */
-  if (primeiro) guiaBarra.style.transition = 'none';
-  desenharSeta();
-  if (primeiro) setTimeout(() => { guiaBarra.style.transition = ''; }, 30);
-
-  guiaSaida.hidden = !ultimo;
-}
-
-/* Troca de passo com a cena saindo antes de a próxima entrar — a troca
-   não pode ser corte seco. */
-function guiaIrPara(n) {
-  const destino = Math.min(Math.max(n, 0), GUIA.length - 1);
-  if (destino === guiaPasso) return;
-  clearTimeout(guiaRelogio);
-  guiaAvance.hidden = true;
-  guiaLado.hidden = true;
-  guiaPausado = false;
-  guiaCena.classList.add('sai');
-  setTimeout(() => {
-    guiaPasso = destino;
-    pintarGuia();
-    tocarRelogio(duracaoDoPasso());
-    mostrarDica();
-  }, 240);
-}
-
-function abrirGuia() {
-  guiaPasso = 0;
-  guiaPausado = false;
-  guia.hidden = false;
-  pintarGuia(true);
-  tocarRelogio(duracaoDoPasso());
-  mostrarDica();
-}
-
-function fecharGuia() {
-  clearTimeout(guiaRelogio);
-  guia.hidden = true;
-  try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
-}
-
-/* ---- Navegação ----
-   Deslizar para o lado anda; toque à esquerda volta, à direita avança;
-   segurar pausa a barra. O deslize existe porque a dica na tela promete
-   ele — afordância que não funciona é pior que dica nenhuma. */
-let guiaSegurou = false;
-let guiaEspera = null;
-let guiaArrastou = false;
-let guiaX0 = 0;
-
-function dosBotoes(e) {
-  return !!(e.target.closest('#guia-pular') || e.target.closest('#guia-saida'));
-}
-
-guia.addEventListener('pointerdown', (e) => {
-  if (dosBotoes(e)) return;
-  guiaX0 = e.clientX;
-  guiaArrastou = false;
-  guiaSegurou = false;
-  /* Prende o ponteiro: sem captura, o dedo que passa por cima de um filho
-     ou sai da borda leva os `pointermove` embora no meio do gesto. */
-  try { guia.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já solto */ }
-  clearTimeout(guiaEspera);
-  guiaEspera = setTimeout(() => { guiaSegurou = true; pausarGuia(); }, GUIA_SEGURAR);
-});
-
-/* Assim que o dedo anda de lado, deixa de ser toque ou apoio: é gesto. */
-guia.addEventListener('pointermove', (e) => {
-  if (guiaArrastou || !e.buttons && e.pointerType === 'mouse') return;
-  if (Math.abs(e.clientX - guiaX0) <= 12) return;
-  guiaArrastou = true;
-  clearTimeout(guiaEspera);
-  if (guiaSegurou) { retomarGuia(); guiaSegurou = false; }
-});
-
-guia.addEventListener('pointerup', (e) => {
-  if (dosBotoes(e)) return;
-  clearTimeout(guiaEspera);
-  const dx = e.clientX - guiaX0;
-  if (guiaArrastou) {
-    /* Deslize curto demais não conta: evita virar passo por tremida de dedo. */
-    if (Math.abs(dx) >= GUIA_ARRASTO) guiaIrPara(guiaPasso + (dx < 0 ? 1 : -1));
-    return;
-  }
-  if (guiaSegurou) { retomarGuia(); return; }
-  if (e.clientX < innerWidth * GUIA_ZONA_VOLTA) guiaIrPara(guiaPasso - 1);
-  else guiaIrPara(guiaPasso + 1);
-});
-
-/* Dedo que sai da tela ou gesto cancelado pelo sistema não pode deixar
-   o guia parado para sempre. */
-['pointercancel', 'pointerleave'].forEach((ev) =>
-  guia.addEventListener(ev, () => {
-    clearTimeout(guiaEspera);
-    guiaArrastou = false;   /* gesto abortado não pode virar deslize no próximo toque */
-    retomarGuia();
-  }));
-
-document.getElementById('guia-pular').addEventListener('click', fecharGuia);
-/* Uma saída abre a experiência prática, a outra encerra o onboarding. */
-guiaPraticar.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });
-document.getElementById('guia-ir').addEventListener('click', fecharGuia);
-addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
-
-/* O botão da home abre o guia; o tour completo fica no último passo. */
-
-/* Primeiro acesso: espera o splash sair para não competir com ele. */
-(function guiaNoPrimeiroAcesso() {
-  let visto = false;
-  try { visto = !!localStorage.getItem(GUIA_VISTO); } catch (e) { visto = false; }
-  if (visto) return;
-  const tentar = () => {
-    if (document.getElementById('splash')) return setTimeout(tentar, 400);
-    if (guia.hidden && vistas.home.classList.contains('ativa')) abrirGuia();
-  };
-  setTimeout(tentar, 600);
-})();

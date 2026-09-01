@@ -120,11 +120,11 @@ export const CONTEUDO = {
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       { tipo: 'aviso', id: 'traducao' },
       { tipo: 'aviso', id: 'ingresso' },
-      /* Fecha a lista, no lugar de sempre. O que o separava dos avisos
-         era o desenho, não a posição — com o cartão próprio ele já não
-         se confunde com eles. */
-      { tipo: 'tour', titulo: 'Tour rápido do app',
-        texto: 'Como reservar e encontrar sua agenda', duracao: '1 min', acao: 'tour' },
+      /* É aviso, e o mais importante deles: quem não reserva não entra
+         nas sessões de vaga limitada. Por isso fecha a lista em coral, e
+         não em verde como o resto do app. */
+      { tipo: 'tour', titulo: 'Como reservar sua vaga',
+        texto: 'Abra a sessão, reserve e veja em Minha Agenda', duracao: '1 min', acao: 'tour' },
     ],
   },
 
