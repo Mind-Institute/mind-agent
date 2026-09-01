@@ -24,37 +24,25 @@
     <button class="splash-pular" id="pular" type="button">Pular</button>
   </div>
 
-  <!-- ============ HOME: o Mind Agent ============ -->
+  <!-- ============ HOME V3: a central do participante ============
+       Cabeçalho, corpo e barra são três camadas fixas; só o miolo rola.
+       O conteúdo do miolo é montado por `home/home.js` a partir do
+       momento do evento — não há card escrito aqui dentro.
+
+       Sem foto e sem avatar, por decisão do handoff: quem identifica a
+       pessoa é a saudação, em texto. -->
   <section class="vista ativa" id="vista-home">
-    <div class="home-rolagem">
-      <header class="h-topo">
-        <span class="h-marca"><img src="./assets/simbolo-mind-verde.png" alt="" />Mind Agent</span>
-        <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
-        <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
-      </header>
+    <header class="v3-topo">
+      <span class="v3-marca">mind summit</span>
+      <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
+      <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
+    </header>
 
-      <p class="h-sub">Seu concierge dentro do Summit</p>
-      <!-- Só aparece quando a Yazo diz quem abriu a página. Sem nome, sem
-           saudação: o agente não inventa identidade. -->
-      <p class="h-ola" id="h-ola" hidden>Olá, <b id="h-ola-nome"></b></p>
-      <h1 class="h-titulo">O que você quer fazer<em>?</em></h1>
-
-      <!-- As intenções são montadas a partir dos dados do data-service -->
-      <div class="h-intencoes" id="intencoes"></div>
-
-      <div class="h-divisor"></div>
-      <span class="h-etq">Conheça o aplicativo</span>
-      <button class="h-tour" id="abrir-tour" type="button"><span class="play">▶</span> Fazer tour do app</button>
-
-      <p class="h-rodape">Mind Summit 2026 · 16–17 set · São Paulo Expo</p>
-    </div>
+    <div class="v3-rolagem" id="home-v3"></div>
 
     <div class="doca">
       <form id="form-home">
-        <input type="text" id="campo-home" placeholder="Ou escreva o que você precisa…" autocomplete="off" enterkeyhint="send" />
-        <button type="button" class="mic" id="btn-mic" aria-label="Perguntar por voz">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg>
-        </button>
+        <input type="text" id="campo-home" placeholder="Pergunte qualquer coisa ao Concierge" autocomplete="off" enterkeyhint="send" />
         <button type="submit" class="enviar" aria-label="Enviar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
         </button>

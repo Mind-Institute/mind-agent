@@ -8,23 +8,13 @@
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
+import { montarHome } from './home/home.js';
 import { enviarMensagem } from './chat-service.js';
 
 /* Quem abriu a página, antes de qualquer tela: a Yazo manda `email` e
    `nome` na URL, e a saudação depende disso. Chamada explícita de
    propósito — importar `config.js` não captura nada. */
 capturarIdentidade();
-
-/* A home cumprimenta pelo nome quando existe um. O nome chega pela URL e
-   `normalizarNome` só apara as pontas e o tamanho — não remove marcação.
-   Por isso entra como texto, nunca por `innerHTML`: um `?nome=` hostil
-   não pode virar HTML dentro da página. */
-(function saudarNaHome() {
-  const nome = PARTICIPANTE.nome && PARTICIPANTE.nome.trim();
-  if (!nome) return;
-  document.getElementById('h-ola-nome').textContent = nome;
-  document.getElementById('h-ola').hidden = false;
-})();
 
 /* ---------- Splash ---------- */
 const splash = document.getElementById('splash');
@@ -96,13 +86,32 @@ document.getElementById('btn-ajuda').addEventListener('click', () => ajuda.class
 document.getElementById('fechar-ajuda').addEventListener('click', () => ajuda.classList.remove('aberto'));
 ajuda.addEventListener('click', (e) => { if (e.target === ajuda) ajuda.classList.remove('aberto'); });
 
-/* Intenções da home → chat, já no fluxo daquela intenção */
-document.getElementById('intencoes').addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
+/* ---------- Home V3: as ações dos cards ----------
+   Os cards não navegam nem chamam backend: avisam o que foi pedido e a
+   decisão mora aqui. É o único ponto que conhece as duas pontas, e é por
+   ele que a integração real vai entrar. */
+function irParaConversa(intencao) {
   abrirVista('chat');
-  setTimeout(() => abrirIntencao(btn.dataset.intencao), 200);
-});
+  if (intencao) setTimeout(() => abrirIntencao(intencao), 200);
+}
+
+function acaoDaHome(acao) {
+  if (!acao) return;
+  if (acao === 'tour') return abrirGuia();
+  if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
+  if (acao.startsWith('chat:')) return irParaConversa('desafio');
+  if (acao === 'insight') return irParaConversa('insight');
+  if (acao === 'entrevista') return irParaConversa('plano');
+  if (acao === 'insights') return abrirVista('summit');
+  /* PLACEHOLDER: diagnóstico, avisos e os atalhos de seção ainda não têm
+     destino próprio — o backend deles não existe. Abrir a conversa é
+     melhor que um toque que não faz nada. */
+  return irParaConversa(null);
+}
+
+function montarHomeV3() {
+  montarHome(document.getElementById('home-v3'), acaoDaHome);
+}
 document.getElementById('btn-perfil').addEventListener('click', () => abrirVista('summit'));
 
 /* Campo da home → chat */
@@ -137,7 +146,8 @@ document.getElementById('form-home').addEventListener('submit', (e) => {
   abrirConversa();
   if (v) setTimeout(() => perguntar(v), 200);
 });
-document.getElementById('btn-mic').addEventListener('click', () => campoHome.focus());
+/* O microfone saiu da home: o artefato mostra um botão só no campo, e o
+   nosso não gravava nada — apenas dava foco. Continua no chat. */
 
 /* ============================================================
    MOTOR DO TOUR
@@ -971,14 +981,6 @@ const INTENCOES = [
     dica: 'O que você faz na segunda-feira com tudo isso' },
 ];
 
-function montarIntencoes() {
-  document.getElementById('intencoes').innerHTML = INTENCOES.map((i) =>
-    '<button type="button" data-intencao="' + i.id + '">' +
-      '<span class="ic">' + ICONES[i.id] + '</span>' +
-      '<span class="tx"><b>' + i.titulo + '</b><small>' + i.dica + '</small></span>' +
-    '</button>').join('');
-}
-
 /* Quem sabe de onde vem a programação é o data-service. Aqui só se guarda
    o que ele entregou — trocar arquivo local por API não passa por este
    arquivo. */
@@ -1427,13 +1429,16 @@ function desenharSummit() {
 }
 
 /* ---------- Partida ---------- */
-carregarDados().then(() => {
-  montarIntencoes();
-}).catch((e) => {
-  document.getElementById('intencoes').innerHTML =
-    '<p class="erro-dados"><b>Não consegui carregar a programação.</b>' +
+/* A home V3 não depende da programação para existir: ela sobe primeiro,
+   e os dados chegam para quem precisa deles (o chat, o tour). */
+montarHomeV3();
+carregarDados().catch((e) => {
+  const aviso = document.createElement('p');
+  aviso.className = 'erro-dados';
+  aviso.innerHTML = '<b>Não consegui carregar a programação.</b>' +
     'Esta página não guarda conteúdo dentro do código — ela lê da camada de dados, ' +
-    'e a leitura falhou (' + e.message + '). Recarregue em um instante.</p>';
+    'e a leitura falhou (' + e.message + '). Recarregue em um instante.';
+  document.getElementById('home-v3').prepend(aviso);
 });
 
 /* ============================================================
@@ -1753,7 +1758,6 @@ document.getElementById('guia-ir').addEventListener('click', fecharGuia);
 addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
 
 /* O botão da home abre o guia; o tour completo fica no último passo. */
-document.getElementById('abrir-tour').addEventListener('click', abrirGuia);
 
 /* Primeiro acesso: espera o splash sair para não competir com ele. */
 (function guiaNoPrimeiroAcesso() {

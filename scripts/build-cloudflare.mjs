@@ -43,6 +43,8 @@ const DO_CHAT = [
   'config.js',
   'data-service.js',
   'chat-service.js',
+  /* Os componentes da home V3 */
+  'home',
   'assets',
   'dados',
 ];
