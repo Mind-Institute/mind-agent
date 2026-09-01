@@ -14,6 +14,11 @@
 -- qual chamar. As funções antigas não são tocadas.
 --
 -- Reversível: `drop function` nas duas.
+--
+-- SCHEMA: usa `summit_2026`, não `summit`. O schema `summit` deixou de
+-- existir em 24/08 (migração `summit_vira_summit_2026`), e as funções
+-- administrativas vivas ficaram apontando para o nome antigo — é por isso
+-- que elas estão quebradas hoje. Ver 00-LEIA-ANTES.md.
 
 -- ------------------------------------------------------------
 -- Leitura
@@ -22,7 +27,7 @@ create or replace function public.mind_admin_read_home_notices(p_id uuid default
  returns jsonb
  language sql
  stable security definer
- set search_path to 'pg_catalog', 'public', 'summit'
+ set search_path to 'pg_catalog', 'public', 'summit_2026'
 as $function$
   select coalesce(jsonb_agg(x.obj order by x.ordem desc nulls last), '[]'::jsonb)
   from (
@@ -40,7 +45,7 @@ as $function$
         -- Formato do <input type="datetime-local"> do painel.
         'disparoEm', coalesce(
           to_char(a.disparo_em at time zone coalesce(
-            (select e.fuso from summit.events e order by e.ativo desc, e.atualizado_em desc limit 1),
+            (select e.fuso from summit_2026.events e order by e.ativo desc, e.atualizado_em desc limit 1),
             'America/Sao_Paulo'), 'YYYY-MM-DD"T"HH24:MI'), ''),
         'situacao', a.situacao
       ) obj
@@ -66,7 +71,7 @@ create or replace function public.mind_admin_mutate_home_notice(
  returns jsonb
  language plpgsql
  security definer
- set search_path to 'pg_catalog', 'public', 'summit'
+ set search_path to 'pg_catalog', 'public', 'summit_2026'
 as $function$
 declare
   v_role text;
@@ -115,7 +120,7 @@ begin
   end if;
 
   select coalesce(e.fuso, 'America/Sao_Paulo') into v_fuso
-  from summit.events e order by e.ativo desc, e.atualizado_em desc limit 1;
+  from summit_2026.events e order by e.ativo desc, e.atualizado_em desc limit 1;
   v_fuso := coalesce(v_fuso, 'America/Sao_Paulo');
 
   if p_action in ('criar','atualizar') then
@@ -152,7 +157,7 @@ begin
       coalesce(p_payload->>'subtitulo',''),
       p_payload->>'descricao',
       v_imediato, v_disparo, v_situacao,
-      (select e.id from summit.events e order by e.ativo desc, e.atualizado_em desc limit 1),
+      (select e.id from summit_2026.events e order by e.ativo desc, e.atualizado_em desc limit 1),
       clock_timestamp(), clock_timestamp(), p_actor_id
     );
 

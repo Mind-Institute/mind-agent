@@ -11,6 +11,13 @@
 -- O corpo abaixo é a v17 em produção, palavra por palavra, com uma
 -- chave nova no fim do jsonb_build_object. Nada mais mudou.
 --
+-- ATENÇÃO — ESTA FUNÇÃO ESTÁ QUEBRADA EM PRODUÇÃO HOJE, E ESTE ARQUIVO
+-- REPRODUZ A QUEBRA DE PROPÓSITO. Ela lê de `summit.*` e `comum.speakers`,
+-- schemas que deixaram de existir em 24/08. O endpoint responde 503 desde
+-- então, e o app vive do arquivo local. Aplicar este arquivo NÃO conserta
+-- isso: acrescenta os avisos e mantém o resto como está, para o reparo ser
+-- uma decisão separada e visível. Ver 00-LEIA-ANTES.md.
+--
 -- REGRA DE CIRCULAÇÃO
 --   no-ar     → está na rua agora, independente do relógio (é o disparo
 --               imediato, e é o que o painel liga na mão)

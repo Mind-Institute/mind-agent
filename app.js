@@ -1266,6 +1266,9 @@ function perguntar(texto) {
      para o fluxo não terminar em parágrafo. */
   if (esperandoDesafio) {
     esperandoDesafio = false;
+    /* O desafio é sinal de jornada e já era pedido aqui: guardar custa
+       uma linha e evita perguntar de novo lá dentro. */
+    PERFIL.jornada.desafio = limpo;
     return responder(limpo).then(() => cardsDoDesafio(limpo));
   }
   responder(limpo);
@@ -1348,7 +1351,23 @@ async function carregarDados() {
    Cresce por AÇÃO, nunca por palpite: tema escolhido, sessão salva, pessoa
    marcada, insight escrito. É a mesma separação do banco — o que a pessoa faz
    é fato; o que o agente conclui é leitura. */
-const PERFIL = { temas: {}, sessoes: [], pessoas: [], insights: [], plano: [] };
+/* `temas` continua sendo objeto de PESOS (código → peso), não lista: é o
+   que `afinidade()` consome, e é o sinal principal do motor. A jornada
+   fica ao lado, como sinal que COMPLEMENTA — nenhuma resposta dela é
+   convertida em tema artificialmente. */
+const PERFIL = {
+  temas: {}, sessoes: [], pessoas: [], insights: [], plano: [],
+  jornada: {
+    objetivos: [],
+    desafio: null,
+    perfilProfissional: null,
+    experiencias: [],
+    palestrantesImperdiveis: [],
+    ritmo: 'equilibrado',
+    disponibilidade: null,
+    observacoes: null,
+  },
+};
 
 function pesoTema(codigo, quanto) {
   PERFIL.temas[codigo] = (PERFIL.temas[codigo] || 0) + quanto;
@@ -1424,7 +1443,13 @@ function anelAfinidade(pct) {
     '<b>' + pct + '%</b></span>';
 }
 
-const DIA_CURTO = (iso) => (iso === DADOS.evento.dias[0] ? '16 set' : '17 set');
+/* '16 set' a partir do ISO. Montado em partes, não por `new Date(iso)`:
+   string sem fuso é lida como UTC em alguns navegadores e volta um dia. */
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const DIA_CURTO = (iso) => {
+  const [, mes, dia] = String(iso).split('-');
+  return Number(dia) + ' ' + (MESES_CURTOS[Number(mes) - 1] || '');
+};
 
 function fotoDe(nome) {
   const p = DADOS.pessoas.find((x) => nome && nome.startsWith(x.nome));
@@ -1553,6 +1578,46 @@ function comTemas(depois) {
 
 /* ---------- Os seis fluxos ---------- */
 /* ============================================================
+   ROTEIRO — uma montagem só, dois fluxos
+   ============================================================
+   `FLUXOS.agenda()` e a jornada montam o MESMO roteiro; o que muda são
+   os sinais que entram. A nota continua vindo de `afinidade()`, que
+   continua vindo de `PERFIL.temas`. Nada aqui mexe na nota.
+
+     filtro    → quem nem entra na conta (dia em que a pessoa não vem)
+     fixas     → entram antes de todo mundo (palestrante imperdível)
+     formatos  → que tipos de sessão a pessoa quer; sem isso, o padrão
+                 histórico continua valendo (tudo menos experiência)
+     porDia    → quantas por dia (ritmo); `total` corta o conjunto
+
+   Nenhuma sessão entra se colide com uma que já entrou. */
+function montarRoteiro(opcoes) {
+  const o = opcoes || {};
+  const roteiro = [];
+  const cabe = (s) => !roteiro.some((x) => choca(x.s, s));
+
+  /* Vontade declarada não é desempatada por afinidade: se a pessoa disse
+     que não quer perder alguém, esse alguém entra primeiro. */
+  (o.fixas || []).forEach((s) => { if (cabe(s)) roteiro.push({ s, a: afinidade(s.temas) }); });
+
+  const doFormato = o.formatos && o.formatos.length
+    ? (s) => o.formatos.includes(s.formato)
+    : (s) => s.formato !== 'experiencia';
+
+  sessoesPorAfinidade((s) => doFormato(s) && (!o.filtro || o.filtro(s)))
+    .forEach(({ s, a }) => { if (cabe(s)) roteiro.push({ s, a }); });
+
+  roteiro.sort((x, y) => (x.s.dia + x.s.inicio).localeCompare(y.s.dia + y.s.inicio));
+
+  if (!o.porDia) return roteiro.slice(0, o.total || 6);
+  const conta = {};
+  return roteiro.filter(({ s }) => {
+    conta[s.dia] = (conta[s.dia] || 0) + 1;
+    return conta[s.dia] <= o.porDia;
+  });
+}
+
+/* ============================================================
    JORNADA — perguntas rápidas, roteiro no fim
    ============================================================
    A entrada do card "Monte sua jornada no Summit". Não é formulário e
@@ -1570,7 +1635,7 @@ function comTemas(depois) {
    `campo` é onde a resposta fica guardada em `JORNADA`. */
 const PERGUNTAS_JORNADA = [
   {
-    campo: 'goals',
+    campo: 'objetivos',
     tipo: 'multipla',
     max: 2,
     pergunta: 'O que faria você sair do Mind pensando “valeu muito a pena”?',
@@ -1586,11 +1651,89 @@ const PERGUNTAS_JORNADA = [
       'Ainda não sei — quero explorar',
     ],
   },
+
+  /* O SINAL PRINCIPAL. Reaproveita `pedirTemas()`, que é quem escreve em
+     `PERFIL.temas` — a jornada não cria um segundo caminho para o que o
+     motor já consome. */
+  {
+    campo: 'temas',
+    tipo: 'temas',
+    pergunta: 'Em que você está mexendo agora? Isso é o que mais pesa no que eu vou sugerir.',
+  },
+
+  {
+    campo: 'disponibilidade',
+    tipo: 'unica',
+    pergunta: 'Em quais dias você vem?',
+    /* Os dias saem da base, não daqui. */
+    opcoes: () => {
+      const dias = (DADOS.evento.dias || []);
+      return [
+        ...dias.map((d, i) => ({ valor: d, rotulo: 'Dia ' + (i + 1) + ' — ' + DIA_CURTO(d) })),
+        { valor: 'todos', rotulo: dias.length > 1 ? 'Os dois dias' : 'Vou ao evento' },
+      ];
+    },
+  },
+
+  {
+    campo: 'ritmo',
+    tipo: 'unica',
+    pergunta: 'Que ritmo você quer nesses dias?',
+    /* COPY PROVISÓRIA — o número de sessões por dia de cada ritmo está em
+       `SESSOES_POR_DIA`, logo abaixo, e é chute honesto até você dizer. */
+    opcoes: [
+      { valor: 'leve', rotulo: 'Leve — poucas sessões, tempo para conversar' },
+      { valor: 'equilibrado', rotulo: 'Equilibrado — um meio-termo' },
+      { valor: 'intenso', rotulo: 'Intenso — quero aproveitar cada horário' },
+    ],
+  },
+
+  {
+    campo: 'palestrantesImperdiveis',
+    tipo: 'multipla',
+    max: 3,
+    opcional: true,
+    pergunta: 'Tem alguém que você não quer perder?',
+    micro: 'Até 3. Se não tiver, pode pular.',
+    /* Os nomes vêm da base: os destaques primeiro, depois quem mais
+       combina com os temas que a pessoa acabou de marcar. Nenhuma lista
+       escrita à mão. */
+    opcoes: () => {
+      const naGrade = (DADOS.pessoas || []).filter((p) => p.na_grade);
+      const destaques = naGrade.filter((p) => p.destaque);
+      const porAfinidade = naGrade
+        .filter((p) => !p.destaque)
+        .map((p) => ({ p, a: afinidade(p.temas) }))
+        .filter((x) => x.a !== null)
+        .sort((x, y) => y.a - x.a)
+        .map((x) => x.p);
+      return [...destaques, ...porAfinidade].slice(0, 8)
+        .map((p) => ({ valor: p.nome, rotulo: p.nome }));
+    },
+  },
+
+  {
+    campo: 'experiencias',
+    tipo: 'multipla',
+    opcional: true,
+    pergunta: 'Que tipo de coisa você quer no seu roteiro?',
+    micro: 'Marque quantos quiser, ou pule para eu decidir.',
+    /* Os formatos são os que existem na grade — se a programação mudar,
+       esta pergunta muda junto. */
+    opcoes: () => {
+      const rotulo = { palestra: 'Palestras', painel: 'Painéis', masterclass: 'Masterclasses',
+                       workshop: 'Workshops', experiencia: 'Experiências' };
+      return [...new Set((DADOS.sessoes || []).map((s) => s.formato))]
+        .filter((f) => rotulo[f])
+        .map((f) => ({ valor: f, rotulo: rotulo[f] }));
+    },
+  },
 ];
 
-/* O que a pessoa respondeu. Vive na sessão, como o resto do PERFIL.
-   MOCK: API: vai para o participante quando a home tiver backend. */
-const JORNADA = {};
+/* Quantas sessões por dia cada ritmo pede. PROVISÓRIO: os números são
+   meus, não seus — trocar aqui muda o roteiro inteiro. */
+const SESSOES_POR_DIA = { leve: 2, equilibrado: 3, intenso: 5 };
+
 
 function botaoAvancar(texto, aoTocar) {
   const b = document.createElement('button');
@@ -1610,6 +1753,11 @@ function perguntaDaJornada(indice) {
      caixa alta, e frase inteira em caixa alta não se lê. O painel fica
      só com as escolhas. */
   bolha(q.pergunta, 'mind');
+  /* O tema tem tela própria desde antes da jornada: é a mesma, e ela
+     escreve direto em `PERFIL.temas`. */
+  if (q.tipo === 'temas') {
+    return setTimeout(() => pedirTemas(() => perguntaDaJornada(indice + 1)), 380);
+  }
   setTimeout(() => escolhasDaJornada(q, indice), 380);
 }
 
@@ -1625,8 +1773,8 @@ function escolhasDaJornada(q, indice) {
   if (q.tipo === 'texto') {
     const campo = document.createElement('textarea');
     campo.placeholder = q.placeholder || 'Escreva do seu jeito.';
-    const ok = botaoAvancar('Continuar', () => {
-      JORNADA[q.campo] = campo.value.trim();
+    const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
+      PERFIL.jornada[q.campo] = campo.value.trim() || null;
       ok.remove();
       perguntaDaJornada(indice + 1);
     });
@@ -1639,19 +1787,24 @@ function escolhasDaJornada(q, indice) {
     return;
   }
 
-  const teto = q.tipo === 'unica' ? 1 : (q.max || q.opcoes.length);
+  /* As opções podem ser lista fixa ou função da base — palestrante e dia
+     não se escrevem à mão. Cada uma vira {valor, rotulo}. */
+  const opcoes = (typeof q.opcoes === 'function' ? q.opcoes() : q.opcoes)
+    .map((o) => (typeof o === 'string' ? { valor: o, rotulo: o } : o));
+  const teto = q.tipo === 'unica' ? 1 : (q.max || opcoes.length);
   const escolhidas = [];
   const chips = document.createElement('div');
   chips.className = 'chips';
-  chips.innerHTML = q.opcoes.map((o, i) =>
-    '<button type="button" aria-pressed="false" data-i="' + i + '">' + o + '</button>').join('');
+  chips.innerHTML = opcoes.map((o, i) =>
+    '<button type="button" aria-pressed="false" data-i="' + i + '">' + o.rotulo + '</button>').join('');
 
-  const ok = botaoAvancar('Continuar', () => {
-    JORNADA[q.campo] = escolhidas.map((i) => q.opcoes[i]);
+  const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
+    const valores = escolhidas.map((i) => opcoes[i].valor);
+    PERFIL.jornada[q.campo] = q.tipo === 'unica' ? (valores[0] || null) : valores;
     ok.remove();
     perguntaDaJornada(indice + 1);
   });
-  ok.disabled = true;
+  ok.disabled = !q.opcional;
 
   chips.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-i]');
@@ -1670,7 +1823,10 @@ function escolhasDaJornada(q, indice) {
       escolhidas.push(i);
     }
     b.setAttribute('aria-pressed', escolhidas.includes(i) ? 'true' : 'false');
-    ok.disabled = !escolhidas.length;
+    ok.disabled = !q.opcional && !escolhidas.length;
+    /* Pergunta que pode ser pulada troca o rótulo do botão conforme a
+       pessoa marca: "Pular" vira "Continuar" quando há resposta. */
+    if (q.opcional) ok.textContent = escolhidas.length ? 'Continuar' : 'Pular';
   });
 
   alvo.appendChild(chips);
@@ -1678,13 +1834,48 @@ function escolhasDaJornada(q, indice) {
   mensagens.scrollTop = mensagens.scrollHeight;
 }
 
-/* PROVISÓRIO: com as perguntas que existem hoje, o fim é o roteiro que
-   `FLUXOS.agenda()` já monta a partir dos temas do PERFIL. Quando
-   chegarem as demais perguntas — e com elas o que a jornada deve
-   entregar — é aqui que muda. */
+/* O fim da jornada: o roteiro. A nota de cada sessão continua sendo a
+   afinidade com `PERFIL.temas` — o que a jornada faz é escolher quem
+   entra na conta, quem entra antes de todo mundo e quantas cabem. */
 function fecharJornada() {
-  bolha('Boa. Com isso eu já consigo montar seu roteiro dos dois dias.', 'mind');
-  setTimeout(() => FLUXOS.agenda(), 500);
+  const j = PERFIL.jornada;
+  bolha('Pronto. Montei a partir do que você me contou.', 'mind');
+  setTimeout(() => {
+    const dia = j.disponibilidade && j.disponibilidade !== 'todos' ? j.disponibilidade : null;
+
+    /* Palestrante imperdível vira sessão pelo nome em `quem` — é o que a
+       base entrega ao app; não há id de pessoa na sessão. */
+    const querVer = j.palestrantesImperdiveis || [];
+    const fixas = !querVer.length ? [] : DADOS.sessoes.filter((s) =>
+      (!dia || s.dia === dia) && querVer.some((nome) => String(s.quem || '').includes(nome)));
+
+    const roteiro = montarRoteiro({
+      filtro: dia ? (s) => s.dia === dia : null,
+      fixas,
+      formatos: j.experiencias,
+      porDia: SESSOES_POR_DIA[j.ritmo] || SESSOES_POR_DIA.equilibrado,
+    });
+
+    if (!roteiro.length) {
+      return bolha('Com esses filtros não sobrou nada na grade. Me diz o que quer ver que eu procuro de outro jeito.', 'mind');
+    }
+
+    const alvo = painel('Sua jornada no Summit', roteiro.length + ' sessões, sem choque de horário');
+    /* Os objetivos voltam para a tela como o PORQUÊ do roteiro. É assim
+       que eles complementam: dizendo a intenção que o roteiro serve, sem
+       virar tema nenhum. */
+    if (j.objetivos && j.objetivos.length) {
+      const p = document.createElement('p');
+      p.className = 'ins-dica';
+      p.textContent = 'Montado para: ' + j.objetivos.join(' · ').toLowerCase() + '.';
+      alvo.appendChild(p);
+    }
+    roteiro.forEach(({ s, a }) => alvo.appendChild(cardSessao(s, a,
+      fixas.includes(s) ? 'Você marcou como imperdível.' : null)));
+    alvo.appendChild(blocoRegra(DADOS.evento.regra_reserva +
+      ' Quem reserva é você, no app — eu só mostro onde fica.'));
+    tocarPerfil();
+  }, 550);
 }
 
 const FLUXOS = {
@@ -1711,13 +1902,7 @@ const FLUXOS = {
 
   agenda() {
     comTemas(() => {
-      /* Roteiro sem choque: pega a de maior afinidade e vai encaixando o que
-         não colide com o que já entrou. */
-      const roteiro = [];
-      sessoesPorAfinidade((s) => s.formato !== 'experiencia')
-        .forEach(({ s, a }) => { if (!roteiro.some((x) => choca(x.s, s))) roteiro.push({ s, a }); });
-      roteiro.sort((x, y) => (x.s.dia + x.s.inicio).localeCompare(y.s.dia + y.s.inicio));
-      const corte = roteiro.slice(0, 6);
+      const corte = montarRoteiro({ total: 6 });
       const alvo = painel('Seu roteiro dos dois dias', corte.length + ' sessões, sem choque de horário');
       corte.forEach(({ s, a }) => alvo.appendChild(cardSessao(s, a, null)));
       alvo.appendChild(blocoRegra(DADOS.evento.regra_reserva +
