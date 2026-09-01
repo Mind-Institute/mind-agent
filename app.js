@@ -103,6 +103,7 @@ function acaoDaHome(acao) {
   /* Não existe mais tour rápido: o card abre a prática direto. */
   if (acao === 'tour') return abrirTourCompleto();
   if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
+  if (acao === 'jornada') return irParaConversa('jornada');
   if (acao.startsWith('chat:')) return irParaConversa('desafio');
   if (acao === 'insight') return irParaConversa('insight');
   if (acao === 'entrevista') return irParaConversa('plano');
@@ -1551,7 +1552,152 @@ function comTemas(depois) {
 }
 
 /* ---------- Os seis fluxos ---------- */
+/* ============================================================
+   JORNADA — perguntas rápidas, roteiro no fim
+   ============================================================
+   A entrada do card "Monte sua jornada no Summit". Não é formulário e
+   não é chat vazio: é escolha em botão, uma pergunta por vez, e no fim
+   o roteiro dos dois dias que `FLUXOS.agenda()` já sabe montar.
+
+   AS PERGUNTAS SÃO DADO. Acrescentar a próxima é acrescentar um item
+   nesta lista — nada no motor muda.
+
+   `tipo` diz a forma da resposta:
+     'multipla' → chips, até `max` escolhas
+     'unica'    → chips, uma só
+     'texto'    → campo livre; usar só quando escolher não resolve
+
+   `campo` é onde a resposta fica guardada em `JORNADA`. */
+const PERGUNTAS_JORNADA = [
+  {
+    campo: 'goals',
+    tipo: 'multipla',
+    max: 2,
+    pergunta: 'O que faria você sair do Mind pensando “valeu muito a pena”?',
+    micro: 'Escolha até 2.',
+    opcoes: [
+      'Levar ideias práticas para minha equipe',
+      'Repensar minha forma de liderar',
+      'Estruturar melhor saúde mental e bem-estar',
+      'Conhecer pesquisas e tendências',
+      'Fazer conexões relevantes',
+      'Encontrar inspiração para um desafio atual',
+      'Conhecer grandes referências de perto',
+      'Ainda não sei — quero explorar',
+    ],
+  },
+];
+
+/* O que a pessoa respondeu. Vive na sessão, como o resto do PERFIL.
+   MOCK: API: vai para o participante quando a home tiver backend. */
+const JORNADA = {};
+
+function botaoAvancar(texto, aoTocar) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'avancar';
+  b.textContent = texto;
+  b.addEventListener('click', aoTocar);
+  return b;
+}
+
+/** Uma pergunta da jornada. Chama a próxima quando é respondida. */
+function perguntaDaJornada(indice) {
+  const q = PERGUNTAS_JORNADA[indice];
+  if (!q) return fecharJornada();
+
+  /* A pergunta é fala da Mind, não rótulo de painel: `painel-tit` é
+     caixa alta, e frase inteira em caixa alta não se lê. O painel fica
+     só com as escolhas. */
+  bolha(q.pergunta, 'mind');
+  setTimeout(() => escolhasDaJornada(q, indice), 380);
+}
+
+function escolhasDaJornada(q, indice) {
+  const alvo = painel('');
+  if (q.micro) {
+    const m = document.createElement('p');
+    m.className = 'ins-dica';
+    m.textContent = q.micro;
+    alvo.appendChild(m);
+  }
+
+  if (q.tipo === 'texto') {
+    const campo = document.createElement('textarea');
+    campo.placeholder = q.placeholder || 'Escreva do seu jeito.';
+    const ok = botaoAvancar('Continuar', () => {
+      JORNADA[q.campo] = campo.value.trim();
+      ok.remove();
+      perguntaDaJornada(indice + 1);
+    });
+    const caixa = document.createElement('div');
+    caixa.className = 'ins';
+    caixa.appendChild(campo);
+    alvo.appendChild(caixa);
+    alvo.appendChild(ok);
+    mensagens.scrollTop = mensagens.scrollHeight;
+    return;
+  }
+
+  const teto = q.tipo === 'unica' ? 1 : (q.max || q.opcoes.length);
+  const escolhidas = [];
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  chips.innerHTML = q.opcoes.map((o, i) =>
+    '<button type="button" aria-pressed="false" data-i="' + i + '">' + o + '</button>').join('');
+
+  const ok = botaoAvancar('Continuar', () => {
+    JORNADA[q.campo] = escolhidas.map((i) => q.opcoes[i]);
+    ok.remove();
+    perguntaDaJornada(indice + 1);
+  });
+  ok.disabled = true;
+
+  chips.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-i]');
+    if (!b) return;
+    const i = Number(b.dataset.i);
+    const pos = escolhidas.indexOf(i);
+    if (pos >= 0) {
+      escolhidas.splice(pos, 1);
+    } else {
+      /* No teto, a mais antiga sai para a nova entrar: o toque sempre
+         responde. Ignorar em silêncio parece tela travada. */
+      while (escolhidas.length >= teto) {
+        const saiu = escolhidas.shift();
+        chips.querySelector('[data-i="' + saiu + '"]').setAttribute('aria-pressed', 'false');
+      }
+      escolhidas.push(i);
+    }
+    b.setAttribute('aria-pressed', escolhidas.includes(i) ? 'true' : 'false');
+    ok.disabled = !escolhidas.length;
+  });
+
+  alvo.appendChild(chips);
+  alvo.appendChild(ok);
+  mensagens.scrollTop = mensagens.scrollHeight;
+}
+
+/* PROVISÓRIO: com as perguntas que existem hoje, o fim é o roteiro que
+   `FLUXOS.agenda()` já monta a partir dos temas do PERFIL. Quando
+   chegarem as demais perguntas — e com elas o que a jornada deve
+   entregar — é aqui que muda. */
+function fecharJornada() {
+  bolha('Boa. Com isso eu já consigo montar seu roteiro dos dois dias.', 'mind');
+  setTimeout(() => FLUXOS.agenda(), 500);
+}
+
 const FLUXOS = {
+  jornada() {
+    bolha('Vou montar uma jornada que faça sentido para você. São algumas perguntas rápidas sobre o que você quer levar destes dois dias.', 'mind');
+    const alvo = painel('');
+    alvo.appendChild(botaoAvancar('Começar →', function () {
+      this.remove();
+      perguntaDaJornada(0);
+    }));
+    mensagens.scrollTop = mensagens.scrollHeight;
+  },
+
   palestras() {
     comTemas(() => {
       const lista = sessoesPorAfinidade((s) => s.formato !== 'experiencia').slice(0, 4);
@@ -1697,9 +1843,11 @@ let esperandoDesafio = false;
 
 function abrirIntencao(id) {
   const i = INTENCOES.find((x) => x.id === id);
-  if (!i) return;
-  bolha(i.titulo, 'eu');
-  setTimeout(() => FLUXOS[id](), 550);
+  if (!FLUXOS[id]) return;
+  /* Sem entrada em INTENCOES o fluxo ainda abre — é o caso de quem chega
+     por um card da home, que não escolheu chip nenhum para ecoar. */
+  if (i) bolha(i.titulo, 'eu');
+  setTimeout(() => FLUXOS[id](), i ? 550 : 120);
 }
 
 /* Desafio em texto livre: a leitura passou a vir da IA, que responde antes

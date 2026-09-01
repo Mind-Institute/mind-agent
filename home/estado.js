@@ -180,9 +180,14 @@ export const CONTEUDO = {
     titulo: 'Seu summit começa agora.',
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você.',
     blocos: [
+      /* Este card é a porta da jornada personalizada. O texto diz o que
+         acontece do outro lado — "receber recomendações" não dizia. */
       { tipo: 'destaque', ico: ICO.bussola, selo: 'Concierge Mind',
-        pergunta: 'O que você quer levar do Summit?',
-        cta: 'Receber recomendações', acao: 'chat:recomendacoes' },
+        pergunta: 'Monte sua jornada no Summit.',
+        texto: 'Conte o que você quer aprender, viver e levar do evento. A Mind cria um roteiro de palestras e experiências feito para você.',
+        cta: 'Montar minha jornada',
+        micro: 'Cerca de 1 minuto',
+        acao: 'jornada' },
       { tipo: 'linha', ico: ICO.grafico, titulo: 'Diagnóstico de maturidade',
         texto: 'Entrevista guiada, 7 min', acao: 'em-breve:diagnostico' },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },

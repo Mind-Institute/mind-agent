@@ -69,7 +69,9 @@ export function cardDestaque(b, aoAgir) {
     (b.ico ? '<span class="v3-ico">' + b.ico + '</span>' : '') +
     (b.selo ? '<span class="v3-selo">' + escapar(b.selo) + '</span>' : '') +
     '<strong class="v3-pergunta">' + b.pergunta + '</strong>' +
-    '<span class="v3-cta">' + b.cta + SETA + '</span>';
+    (b.texto ? '<p class="v3-texto">' + b.texto + '</p>' : '') +
+    '<span class="v3-cta">' + b.cta + SETA + '</span>' +
+    (b.micro ? '<span class="v3-micro">' + b.micro + '</span>' : '');
   el.addEventListener('click', () => aoAgir(b.acao, b));
   return el;
 }
