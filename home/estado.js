@@ -115,14 +115,14 @@ export const CONTEUDO = {
         cta: 'Receber recomendações', acao: 'chat:recomendacoes' },
       { tipo: 'linha', ico: ICO.grafico, titulo: 'Diagnóstico de maturidade',
         texto: 'Entrevista guiada, 7 min', acao: 'em-breve:diagnostico' },
-      /* Fica ANTES dos avisos, e não entre eles: é convite para fazer,
-         não recado para ler. Embaixo do título "Avisos importantes" ele
-         era lido como mais um aviso. */
-      { tipo: 'tour', titulo: 'Tour rápido do app',
-        texto: 'Como reservar e encontrar sua agenda', duracao: '1 min', acao: 'tour' },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       { tipo: 'aviso', id: 'traducao' },
       { tipo: 'aviso', id: 'ingresso' },
+      /* Fecha a lista, no lugar de sempre. O que o separava dos avisos
+         era o desenho, não a posição — com o cartão próprio ele já não
+         se confunde com eles. */
+      { tipo: 'tour', titulo: 'Tour rápido do app',
+        texto: 'Como reservar e encontrar sua agenda', duracao: '1 min', acao: 'tour' },
     ],
   },
 
