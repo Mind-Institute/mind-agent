@@ -113,7 +113,7 @@ export const avisosHomeSemente: AvisoHome[] = [
   },
   {
     id: 'aviso_abertura',
-    icone: 'relogio',
+    icone: 'sino',
     titulo: 'Abertura às 9h',
     subtitulo: 'Chegue às 8h30 para entrar sem pressa.',
     descricao:

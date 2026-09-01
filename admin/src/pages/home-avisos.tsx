@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PreviaAviso } from '@/features/home-v3/previa-aviso';
 
 /* ============================================================
    HOME V3 · AVISOS
@@ -116,7 +117,8 @@ export function PaginaHomeAvisos() {
       ) : null}
 
       {aberto ? (
-        <section className="space-y-4 rounded-xl border bg-card p-5">
+        <section className="grid gap-5 rounded-xl border bg-card p-5 lg:grid-cols-[1fr_20rem]">
+          <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="aviso-icone">Ícone</Label>
@@ -195,6 +197,21 @@ export function PaginaHomeAvisos() {
             <Send className="mr-2 size-4" />
             {form.imediato ? 'Disparar agora' : 'Programar aviso'}
           </Button>
+          </div>
+
+          {/* Escrever para uma tela escura olhando um painel claro é
+              escrever no escuro. A prévia acompanha cada tecla. */}
+          <aside aria-label="Prévia do aviso no app">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">
+              Como fica no app
+            </p>
+            <PreviaAviso
+              icone={form.icone}
+              titulo={form.titulo}
+              subtitulo={form.subtitulo}
+              descricao={form.descricao}
+            />
+          </aside>
         </section>
       ) : null}
 

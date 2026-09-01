@@ -96,6 +96,28 @@ describe('Home V3 · avisos', () => {
     expect(await screen.findByText(/horário de disparo ou marque disparo imediato/i)).toBeVisible();
   });
 
+  it('a prévia mostra o card do jeito que o app vai desenhar', async () => {
+    const usuario = userEvent.setup();
+    renderizarPainel({ rota: '/home/avisos' });
+
+    await usuario.click(await screen.findByRole('button', { name: /novo aviso/i }));
+    const previa = screen.getByRole('complementary', { name: /prévia do aviso no app/i });
+
+    /* Antes de digitar, a prévia mostra o esqueleto do card — senão não
+       haveria o que olhar enquanto se escreve. */
+    expect(within(previa).getByText('Na lista de avisos')).toBeVisible();
+    expect(within(previa).getByText('Quando a pessoa toca')).toBeVisible();
+
+    await usuario.type(screen.getByLabelText('Título'), 'Fila da entrada');
+    await usuario.type(screen.getByLabelText('Subtítulo'), 'Entre pela lateral');
+    await usuario.type(screen.getByLabelText('Descrição'), 'A fila da entrada principal está longa.');
+
+    /* O título aparece nos dois estados: no card e no texto aberto. */
+    expect(within(previa).getAllByText('Fila da entrada')).toHaveLength(2);
+    expect(within(previa).getByText('Entre pela lateral')).toBeVisible();
+    expect(within(previa).getByText('A fila da entrada principal está longa.')).toBeVisible();
+  });
+
   it('disparo imediato entra no ar, não fica agendado', async () => {
     const usuario = userEvent.setup();
     renderizarPainel({ rota: '/home/avisos' });
