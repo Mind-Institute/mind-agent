@@ -124,7 +124,7 @@ export const CONTEUDO = {
          nas sessões de vaga limitada. Por isso fecha a lista em coral, e
          não em verde como o resto do app. */
       { tipo: 'tour', titulo: 'Como reservar sua vaga',
-        texto: 'Abra a sessão, reserve e veja em Minha Agenda', duracao: '1 min', acao: 'tour' },
+        texto: 'Abra a sessão, reserve e veja em Minha Agenda', duracao: '30 s', acao: 'tour' },
     ],
   },
 
