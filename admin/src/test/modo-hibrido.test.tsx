@@ -322,19 +322,6 @@ describe('sem queda para o mock', () => {
   });
 });
 
-describe('a faixa do topo', () => {
-  it('nomeia os módulos reais e os simulados', async () => {
-    renderizarHibrido({ rotas: ROTAS_BASICAS });
-
-    const faixa = await screen.findByTestId('faixa-modo');
-    expect(faixa).toHaveTextContent(
-      'Evento, programação, palestrantes e espaços reais · Demais módulos em demonstração.',
-    );
-    expect(faixa).toHaveTextContent(/leem e gravam na API administrativa/i);
-    expect(faixa).toHaveTextContent(/memória do navegador/i);
-  });
-});
-
 describe('o token no modo híbrido', () => {
   it('vai no Authorization das chamadas reais e nunca na URL', async () => {
     const { falso } = renderizarHibrido({ rota: '/programacao', rotas: ROTAS_BASICAS });

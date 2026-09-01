@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { BarraLateral } from './barra-lateral';
 import { BarraSuperior } from './barra-superior';
-import { FaixaDemonstracao } from '@/components/admin/faixa-demonstracao';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 export function AdminLayout() {
@@ -25,7 +24,6 @@ export function AdminLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <BarraSuperior aoAbrirMenu={() => setMenuAberto(true)} />
-        <FaixaDemonstracao />
         <main className="flex-1 p-4 md:p-6">
           <div className="mx-auto max-w-7xl">
             <Outlet />

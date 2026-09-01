@@ -51,10 +51,4 @@ describe('navegação', () => {
       await screen.findByRole('heading', { name: /não existe no painel/i }),
     ).toBeVisible();
   });
-
-  it('avisa em toda página que o painel está em modo demonstração', async () => {
-    renderizarPainel({ rota: '/espacos' });
-    expect(await screen.findByText(/modo demonstração/i)).toBeVisible();
-    expect(screen.getByText(/nada é gravado no supabase/i)).toBeVisible();
-  });
 });

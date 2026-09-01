@@ -37,7 +37,6 @@ export const registroBaseSchema = z.object({
   atualizadoEm: z.string().min(1),
   atualizadoPor: z.string().nullable().default(null),
 });
-export type RegistroBase = z.infer<typeof registroBaseSchema>;
 
 export const registroEditorialSchema = registroBaseSchema.extend({
   /* Obrigatório: o selo editorial e o botão de publicar saem daqui.
@@ -47,7 +46,6 @@ export const registroEditorialSchema = registroBaseSchema.extend({
   publicadoEm: z.string().nullable().default(null),
   publicadoPor: z.string().nullable().default(null),
 });
-export type RegistroEditorial = z.infer<typeof registroEditorialSchema>;
 
 /* ============================================================
    LISTAGEM

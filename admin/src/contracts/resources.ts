@@ -85,12 +85,3 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   home_notices: 'Aviso',
 };
 
-/** Recursos que passam pelo fluxo editorial (rascunho → publicado). */
-export const RECURSOS_EDITORIAIS: NomeRecurso[] = ['sessions', 'speakers', 'content'];
-
-/** Recursos somente leitura no painel. */
-export const RECURSOS_SOMENTE_LEITURA: NomeRecurso[] = [
-  'conversations',
-  'audit',
-  'themes',
-];

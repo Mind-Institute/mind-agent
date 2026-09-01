@@ -124,29 +124,6 @@ export function EstadoErro({
   );
 }
 
-/** Um invólucro só para os quatro estados de uma consulta. */
-export function EstadoConsulta({
-  carregando,
-  erro,
-  vazio,
-  aoTentarNovamente,
-  estadoVazio,
-  linhasCarregando,
-  children,
-}: {
-  carregando: boolean;
-  erro: unknown;
-  vazio: boolean;
-  aoTentarNovamente?: () => void;
-  estadoVazio?: ReactNode;
-  linhasCarregando?: number;
-  children: ReactNode;
-}) {
-  if (carregando) return <EstadoCarregando linhas={linhasCarregando} />;
-  if (erro) return <EstadoErro erro={erro} aoTentarNovamente={aoTentarNovamente} />;
-  if (vazio) return <>{estadoVazio ?? <EstadoVazio />}</>;
-  return <>{children}</>;
-}
 
 export function Salvando({ className }: { className?: string }) {
   return <Loader2 className={cn('size-4 animate-spin', className)} />;

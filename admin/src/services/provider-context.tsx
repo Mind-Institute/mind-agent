@@ -91,10 +91,6 @@ export function useAdminData(): AdminDataProvider {
   return provedor;
 }
 
-/** `true` quando alguma parte do painel ainda mostra dado simulado. */
-export function useModoDemonstracao(): boolean {
-  return useAdminData().modo !== 'http';
-}
 
 export function useModoDados(): ModoDados {
   return useAdminData().modo;

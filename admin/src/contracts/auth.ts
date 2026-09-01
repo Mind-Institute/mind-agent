@@ -38,8 +38,6 @@ export const perfilAdminSchema = z.object({
   permissoes: z.array(z.string()).optional(),
 });
 
-export type PerfilAdminBruto = z.infer<typeof perfilAdminSchema>;
-
 export interface PerfilAdmin {
   id: string | null;
   email: string | null;
