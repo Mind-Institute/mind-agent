@@ -9,7 +9,7 @@
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { montarHome } from './home/home.js';
-import { definirMomento, definirAvisos } from './home/estado.js';
+import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -272,11 +272,13 @@ function ligarContagem() {
   const bater = () => {
     const texto = textoDaContagem(inicio.getTime() - Date.now());
     if (texto === null) {
-      /* Zerou: o evento começou. A home vira sozinha, sem recarregar.
-         API: quem manda nisso passa a ser o estado vindo do painel. */
+      /* Zerou: o evento começou. */
       clearInterval(relogioContagem);
       relogioContagem = null;
-      definirMomento('no-evento');
+      /* Com o painel no comando, a virada é dele — duas autoridades
+         decidindo a mesma tela é como se perde o controle no dia. O
+         relógio só vira sozinho quando ninguém está mandando de fora. */
+      if (!momentoDoServidor()) definirMomento('no-evento');
       montarHomeV3();
       return;
     }
@@ -1343,6 +1345,9 @@ async function carregarDados() {
      lista vem vazia. Sem a chave, valem os avisos embutidos, que é o
      caso do arquivo local e de qualquer versão anterior da API. */
   definirAvisos(DADOS.avisos);
+  /* E qual das quatro composições está no ar. Sem a chave, continua
+     valendo o padrão local — é o caso de qualquer payload anterior. */
+  definirMomentoDoServidor(DADOS.home && DADOS.home.momento);
 }
 
 /* ============================================================

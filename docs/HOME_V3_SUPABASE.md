@@ -9,19 +9,25 @@ são gates da Adriana pelo `CLAUDE.md`. Este é o mapa para fazermos juntos.
 
 ---
 
-## Avisos: pronto para aplicar (2026-09-01)
+## Home V3: pronto para aplicar (2026-09-01)
 
-A parte de **avisos** saiu do plano e virou código. Os arquivos abaixo
-estão escritos, revisáveis e ainda **não aplicados** — a escrita em
-produção é a decisão que falta.
+Os dois módulos saíram do plano e viraram código: **avisos** e
+**visualização**. Os arquivos abaixo estão escritos, revisáveis e ainda
+**não aplicados** — a escrita em produção é a decisão que falta.
+
+Antes de aplicar qualquer coisa, leia
+[00-LEIA-ANTES.md](sql/home-v3/00-LEIA-ANTES.md): o bootstrap do app está
+quebrado desde 24/08 por causa de uma renomeação de schema, e nada chega
+ao participante enquanto isso não for resolvido.
 
 | Arquivo | O que faz | Onde roda |
 |---|---|---|
 | `docs/sql/home-v3/01-concierge-avisos.sql` | Cria `concierge.avisos` e semeia os quatro avisos que estavam no código do app | Banco |
-| `docs/sql/home-v3/02-bootstrap-avisos.sql` | `api.mindagent_bootstrap` passa a devolver `avisos` | Banco |
+| `docs/sql/home-v3/04-visualizacao-home.sql` | Cria a chave `home` em `concierge.config` e as funções de estado e trocas | Banco |
+| `docs/sql/home-v3/02-bootstrap-app.sql` | o app passa a receber `avisos` e `home` | Banco |
 | `docs/sql/home-v3/03-admin-home-notices.sql` | Leitura e escrita do recurso `home_notices` para o painel | Banco |
-| `docs/edge/mindagent-admin/index.ts` | v17 viva + a rota `home_notices` | Deploy da Edge Function |
-| `admin/src/services/hybrid-admin-data-provider.ts` | Acrescentar `home_notices` a `RECURSOS_REAIS` e a `OPERACOES` | Painel — **fazer por último** |
+| `docs/edge/mindagent-admin/index.ts` | A v17 viva + as três rotas do módulo | Deploy da Edge Function |
+| `admin/src/services/hybrid-admin-data-provider.ts` | Acrescentar os três recursos a `RECURSOS_REAIS` e a `OPERACOES` | Painel — **fazer por último** |
 
 O lado do app **já está pronto e no ar em localhost**: `home/estado.js`
 consome `DADOS.avisos` quando o payload traz a chave e continua com a
@@ -62,10 +68,14 @@ responder 404. Fora dessa ordem, cada passo é inofensivo sozinho.
 
 ### O que continua só no plano
 
-`home_state` e `home_schedule` — a página **Visualização** do painel
-segue em banco de demonstração. Trocar o momento lá ainda não muda o que
-o participante vê. As seções 1.1, 1.2 e 4 abaixo continuam valendo como
-mapa.
+Nada dos dois módulos. O que sobrou é o reparo do bootstrap, que tem
+três decisões de produto pendentes (foto, destaque e temas do
+palestrante) — estão no 00-LEIA-ANTES.md.
+
+As seções 1.1, 1.2 e 4 abaixo são o esboço original de `home_state`,
+`home_schedule` e do job de trocas. Ficaram para trás: viraram uma
+chave em `concierge.config` e uma regra aplicada na leitura, sem job
+nenhum. Valem como registro do caminho, não como plano.
 
 ---
 

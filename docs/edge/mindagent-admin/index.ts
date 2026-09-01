@@ -1,7 +1,8 @@
 /* ============================================================
    mindagent-admin — versão 18 (proposta)
    ============================================================
-   ISTO É A v17 QUE ESTÁ NO AR, com uma rota nova: `home_notices`.
+   ISTO É A v17 QUE ESTÁ NO AR, com três rotas novas: `home_notices`,
+   `home_state` e `home_schedule` — o módulo Home V3 inteiro.
    Está aqui, e não em `supabase/functions/`, de propósito: a função não
    é versionada neste repositório, e colocá-la lá mudaria o que um merge
    faz. O caminho é revisar este arquivo, comparar com a v17 viva e
@@ -9,16 +10,18 @@
 
    O QUE MUDOU EM RELAÇÃO À v17 (quatro pontos, todos marcados abaixo
    com "v18"):
-   1. `home_notices` entra em RESOURCES — sem isso a rota devolve 404.
-   2. GET de `home_notices` chama `mind_admin_read_home_notices`.
-   3. POST/PATCH de `home_notices` chama `mind_admin_mutate_home_notice`.
-   4. Busca e ordenação sabem quais são os campos de um aviso.
+   1. Os três recursos entram em RESOURCES — sem isso a rota devolve 404.
+   2. GET vai para `mind_admin_read_home_notices` (avisos) ou
+      `mind_admin_read_home_config` (estado e trocas).
+   3. POST/PATCH vai para `mind_admin_mutate_home_notice` ou
+      `mind_admin_mutate_home_config`.
+   4. Busca e ordenação sabem quais são os campos de cada um.
 
    Os recursos que já existiam continuam chamando exatamente as mesmas
    funções de banco de antes. Nada no caminho deles muda.
 
-   Depende de: docs/sql/home-v3/01 e 03 aplicados no banco. Publicar esta
-   função antes disso faz a página de avisos responder 503.
+   Depende de: docs/sql/home-v3/01, 03 e 04 aplicados no banco. Publicar
+   esta função antes disso faz as páginas do módulo responderem 503.
 */
 
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
@@ -28,8 +31,12 @@ type AccessRecord = { display_name: string | null; role: AdminRole; active: bool
 type DashboardCounts = Record<string, number | string> & { generated_at: string };
 
 const DEFAULT_ORIGINS = new Set(["http://localhost:5174", "http://127.0.0.1:5174", "https://mind-agent.adriana-3eb.workers.dev"]);
-/* v18: `home_notices` — os avisos da Home V3. */
-const RESOURCES = new Set(["event", "sessions", "speakers", "spaces", "themes", "home_notices"]);
+/* v18: o módulo Home V3 — avisos, composição no ar e trocas programadas. */
+const RESOURCES = new Set(["event", "sessions", "speakers", "spaces", "themes",
+  "home_notices", "home_state", "home_schedule"]);
+/* Estes dois vivem na mesma linha de `concierge.config` e são servidos
+   pelo mesmo par de funções — por isso andam juntos aqui. */
+const HOME_CONFIG = new Set(["home_state", "home_schedule"]);
 const ROLE_ACTIONS: Record<AdminRole, Set<string>> = {
   administrador: new Set(["view", "edit", "create", "publish", "archive", "reindex", "manage_users", "view_audit", "view_conversations", "configure"]),
   editor: new Set(["view", "edit", "create", "reindex", "view_conversations"]),
@@ -115,6 +122,7 @@ function matches(resource: string, item: Record<string, unknown>, url: URL) {
       /* v18: aviso não tem `nome` — sem este ramo, buscar em avisos não
          acharia nada e a lista voltaria vazia sem explicação. */
       : resource === "home_notices" ? [item.titulo, item.subtitulo, item.descricao]
+      : resource === "home_schedule" ? [item.nota, item.momento]
       : [item.nome, item.local, item.cidade];
     if (!haystack.some((v) => normalized(v).includes(busca))) return false;
   }
@@ -136,11 +144,15 @@ const SORT_FIELDS: Record<string, Set<string>> = {
   speakers: new Set(["nome", "atualizadoEm"]), spaces: new Set(["nome", "tipo", "atualizadoEm"]), themes: new Set(["codigo", "rotulo"]),
   /* v18 */
   home_notices: new Set(["disparoEm", "titulo", "situacao", "atualizadoEm"]),
+  home_schedule: new Set(["quando", "momento", "atualizadoEm"]),
 };
 function sortItems(resource: string, items: Record<string, unknown>[], requested: string | null) {
   /* v18: o padrão de aviso é o mais recente em cima — é a ordem de
      disparo, que é como o participante vê a lista no app. */
-  const raw = requested || (resource === "sessions" ? "dia" : resource === "themes" ? "codigo" : resource === "home_notices" ? "-disparoEm" : "nome");
+  const raw = requested || (resource === "sessions" ? "dia" : resource === "themes" ? "codigo"
+    : resource === "home_notices" ? "-disparoEm"
+    /* Agenda se lê para a frente: a próxima troca em cima. */
+    : resource === "home_schedule" ? "quando" : "nome");
   const desc = raw.startsWith("-"); const field = desc ? raw.slice(1) : raw;
   if (!SORT_FIELDS[resource]?.has(field)) return items;
   return [...items].sort((a, b) => String(a[field] ?? "").localeCompare(String(b[field] ?? ""), "pt-BR") * (desc ? -1 : 1));
@@ -200,9 +212,11 @@ Deno.serve(async (req: Request) => {
   if (!ROLE_ACTIONS[access.role].has("view")) return json(req, 403, { codigo: "sem_permissao", mensagem: "Sem permissão para visualizar este recurso." }, requestId);
 
   if (req.method === "GET") {
-    /* v18: avisos têm função própria de leitura; o resto segue igual. */
+    /* v18: o módulo Home V3 tem funções próprias; o resto segue igual. */
     const { data, error } = resource === "home_notices"
       ? await adminClient.rpc("mind_admin_read_home_notices", { p_id: id ?? null })
+      : HOME_CONFIG.has(resource)
+      ? await adminClient.rpc("mind_admin_read_home_config", { p_resource: resource, p_id: id ?? null })
       : await adminClient.rpc("mind_admin_read_resource", { p_resource: resource, p_id: id ?? null });
     if (error) return rpcError(req, error, requestId);
     const items = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
@@ -225,11 +239,16 @@ Deno.serve(async (req: Request) => {
   if (resource === "themes") return json(req, 405, { codigo: "validacao", mensagem: "Temas são somente leitura nesta etapa." }, requestId);
 
   const expected = req.headers.get("If-Unmodified-Since-Version") ?? (typeof payload.atualizadoEmEsperado === "string" ? payload.atualizadoEmEsperado : null);
-  /* v18: escrita de aviso vai para a função própria, com as mesmas
-     regras de papel, travamento otimista e auditoria. */
+  /* v18: a escrita do módulo Home V3 vai para as funções próprias, com
+     as mesmas regras de papel, travamento otimista e auditoria. */
   const { data, error } = resource === "home_notices"
     ? await adminClient.rpc("mind_admin_mutate_home_notice", {
         p_action: dbAction, p_id: id ?? null, p_payload: payload,
+        p_expected_updated_at: expected, p_actor_id: userData.user.id, p_request_id: requestId,
+      })
+    : HOME_CONFIG.has(resource)
+    ? await adminClient.rpc("mind_admin_mutate_home_config", {
+        p_action: dbAction, p_resource: resource, p_id: id ?? null, p_payload: payload,
         p_expected_updated_at: expected, p_actor_id: userData.user.id, p_request_id: requestId,
       })
     : await adminClient.rpc("mind_admin_mutate_resource", {

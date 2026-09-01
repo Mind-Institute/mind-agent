@@ -1,30 +1,38 @@
 -- ============================================================
--- 02 · api.mindagent_bootstrap ganha `avisos`
+-- 02 · api.mindagent_bootstrap ganha `avisos` e `home`
 -- ============================================================
 -- Projeto: mind-agent (ymnmotgglsrxmjmonwjz)
--- Depende de: 01-concierge-avisos.sql
+-- Depende de: 01-concierge-avisos.sql e 04-visualizacao-home.sql
 --
 -- A Edge Function `mindagent-bootstrap` é só um proxy: ela chama esta
 -- função e devolve o jsonb inteiro. Por isso o app passa a receber
--- avisos SEM deploy de função nenhuma — é este arquivo e mais nada.
+-- avisos e o momento da home SEM deploy de função nenhuma — é este
+-- arquivo e mais nada.
 --
--- O corpo abaixo é a v17 em produção, palavra por palavra, com uma
--- chave nova no fim do jsonb_build_object. Nada mais mudou.
+-- É UM ARQUIVO SÓ para as duas coisas de propósito: dois arquivos
+-- fazendo `create or replace` da mesma função significa que o segundo
+-- apaga o primeiro. Aqui existe uma definição, e ela é a verdade.
+--
+-- O corpo abaixo é a v17 em produção, palavra por palavra, com duas
+-- chaves novas no fim do jsonb_build_object. Nada mais mudou.
 --
 -- ATENÇÃO — ESTA FUNÇÃO ESTÁ QUEBRADA EM PRODUÇÃO HOJE, E ESTE ARQUIVO
 -- REPRODUZ A QUEBRA DE PROPÓSITO. Ela lê de `summit.*` e `comum.speakers`,
 -- schemas que deixaram de existir em 24/08. O endpoint responde 503 desde
 -- então, e o app vive do arquivo local. Aplicar este arquivo NÃO conserta
--- isso: acrescenta os avisos e mantém o resto como está, para o reparo ser
--- uma decisão separada e visível. Ver 00-LEIA-ANTES.md.
+-- isso: acrescenta as duas chaves e mantém o resto como está, para o
+-- reparo ser uma decisão separada e visível. Ver 00-LEIA-ANTES.md.
 --
--- REGRA DE CIRCULAÇÃO
+-- REGRA DE CIRCULAÇÃO DOS AVISOS
 --   no-ar     → está na rua agora, independente do relógio (é o disparo
 --               imediato, e é o que o painel liga na mão)
 --   agendado  → entra sozinho quando `disparo_em` chega; quem lê aplica
 --               a regra, então não depende de pg_cron nem de rotina
 --   rascunho  → não sai
 --   encerrado → saiu de circulação
+--
+-- O MOMENTO DA HOME segue a mesma ideia: em `modo = 'programado'`, vale
+-- a última troca cujo horário já passou. Sem job, sem cron.
 --
 -- O app aplica exatamente a mesma regra em `home/estado.js`, para a
 -- lista embutida (origem local) se comportar igual à do banco.
@@ -37,6 +45,11 @@ create or replace function api.mindagent_bootstrap(p_event_slug text default 'mi
 as $function$
 with ev as (
   select e.* from summit.events e where e.slug=p_event_slug and e.ativo limit 1
+),
+-- Configuração da home: uma linha em `concierge.config`, chave `home`.
+cfg as (
+  select coalesce(c.valor, '{}'::jsonb) as v
+  from concierge.config c where c.chave = 'home'
 )
 select jsonb_build_object(
   '_meta',jsonb_build_object(
@@ -123,6 +136,29 @@ select jsonb_build_object(
     from concierge.avisos a
     where (a.situacao='no-ar' or (a.situacao='agendado' and a.disparo_em<=now()))
       and (a.event_id is null or a.event_id=(select id from ev))
-  ),'[]'::jsonb)
+  ),'[]'::jsonb),
+  -- NOVO: qual das quatro composições da home está no ar.
+  --
+  -- Em `manual`, vale o que o painel deixou marcado. Em `programado`,
+  -- vale a última troca cujo horário já passou — a regra é aplicada na
+  -- leitura, então às 7h do dia 16 a home vira sozinha sem job nenhum.
+  'home',(
+    select jsonb_build_object(
+      'momento', case
+        when v->>'modo' = 'programado' then coalesce((
+          select troca->>'momento'
+          from jsonb_array_elements(coalesce(v->'trocas','[]'::jsonb)) troca
+          where coalesce((troca->>'arquivada')::boolean, false) is false
+            and (replace(troca->>'quando','T',' '))::timestamp
+                at time zone coalesce((select fuso from ev),'America/Sao_Paulo') <= now()
+          order by troca->>'quando' desc
+          limit 1
+        ), v->>'momento', 'antes')
+        else coalesce(v->>'momento','antes')
+      end,
+      'modo', coalesce(v->>'modo','manual')
+    )
+    from cfg
+  )
 );
 $function$;

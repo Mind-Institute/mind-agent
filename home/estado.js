@@ -25,7 +25,7 @@ export const MOMENTOS = [
    na aba. `?momento=` existe para abrir direto num deles. */
 const CHAVE = 'mindagent:v1:home-momento';
 
-/*  semeia o valor e sai da URL — não fica mandando para
+/* `?momento=` semeia o valor e sai da URL — não fica mandando para
    sempre, senão o seletor não conseguiria trocar de momento depois. */
 (function semearPelaUrl() {
   try {
@@ -38,12 +38,29 @@ const CHAVE = 'mindagent:v1:home-momento';
   } catch (e) { /* sem URL ou aba anônima */ }
 })();
 
+/* O que o painel administrativo deixou no ar. Chega pelo bootstrap e é
+   a verdade em produção — mas perde para o seletor local de propósito:
+   ferramenta de desenvolvimento que não vence o servidor não serve para
+   testar as outras três telas. */
+let momentoServidor = null;
+
+/** Recebe o momento do payload do bootstrap. Ignora o que não conhece. */
+export function definirMomentoDoServidor(id) {
+  if (id && MOMENTOS.some((m) => m.id === id)) momentoServidor = id;
+}
+
+/** Existe alguém mandando de fora? Quem pergunta é a contagem regressiva:
+ *  com o painel no comando, não é ela que vira a tela. */
+export function momentoDoServidor() {
+  return momentoServidor;
+}
+
 export function momentoAtual() {
   try {
     const guardado = sessionStorage.getItem(CHAVE);
     if (guardado && MOMENTOS.some((m) => m.id === guardado)) return guardado;
   } catch (e) { /* aba anônima */ }
-  return 'antes';   /* API: derivar da data do evento e da agenda da pessoa */
+  return momentoServidor || 'antes';
 }
 
 export function definirMomento(id) {

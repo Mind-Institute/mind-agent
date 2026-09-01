@@ -63,15 +63,22 @@ function escapar(txt) {
 
 /* ---------- Destaque: a ação principal do momento ---------- */
 export function cardDestaque(b, aoAgir) {
-  const el = no('button', 'v3-destaque' + (b.variante ? ' ' + b.variante : '') + CLASSE_ESTADO(b));
+  /* Card com corpo de texto fica alto. Nesse caso o cabeçalho vira uma
+     linha só — ícone ao lado do selo, em vez de uma faixa inteira só
+     para o ícone — e a estimativa de tempo sobe para a linha da ação.
+     Os cards curtos continuam empilhados como sempre foram. */
+  const compacto = Boolean(b.texto);
+  const el = no('button', 'v3-destaque' + (compacto ? ' compacto' : '') +
+    (b.variante ? ' ' + b.variante : '') + CLASSE_ESTADO(b));
   el.type = 'button';
+  const ico = b.ico ? '<span class="v3-ico">' + b.ico + '</span>' : '';
+  const selo = b.selo ? '<span class="v3-selo">' + escapar(b.selo) + '</span>' : '';
   el.innerHTML =
-    (b.ico ? '<span class="v3-ico">' + b.ico + '</span>' : '') +
-    (b.selo ? '<span class="v3-selo">' + escapar(b.selo) + '</span>' : '') +
+    (compacto ? '<span class="v3-cabeca">' + ico + selo + '</span>' : ico + selo) +
     '<strong class="v3-pergunta">' + b.pergunta + '</strong>' +
     (b.texto ? '<p class="v3-texto">' + b.texto + '</p>' : '') +
-    '<span class="v3-cta">' + b.cta + SETA + '</span>' +
-    (b.micro ? '<span class="v3-micro">' + b.micro + '</span>' : '');
+    '<span class="v3-cta">' + b.cta +
+      (b.micro ? '<small class="v3-micro">' + b.micro + '</small>' : '') + SETA + '</span>';
   el.addEventListener('click', () => aoAgir(b.acao, b));
   return el;
 }

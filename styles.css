@@ -255,14 +255,29 @@ body {
 /* Corpo do card de destaque: explica o que acontece do outro lado.
    Mesma escala do resto — não é card novo, é o mesmo com mais uma linha. */
 .v3-texto { margin-top: 9px; font-size: 13.5px; line-height: 1.5; color: var(--texto-suave); }
-/* Estimativa de tempo, abaixo da ação. Discreta de propósito: informa
-   sem competir com o verde da chamada. */
-.v3-micro { display: block; margin-top: 7px; font-size: 11.5px; color: var(--texto-mudo); }
+/* Estimativa de tempo, na própria linha da ação: encostada na seta,
+   discreta, sem competir com o verde da chamada — e sem custar uma
+   linha inteira de altura, que era o problema. */
+.v3-micro {
+  margin-left: auto; flex: none;
+  font-size: 11.5px; font-weight: 500; color: var(--texto-mudo);
+}
 .v3-cta {
-  margin-top: 14px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
   font-size: 14px; font-weight: 700; color: var(--verde);
 }
+/* Cabeçalho em linha, para o card que tem corpo de texto. O ícone
+   encolhe junto: sozinho numa faixa ele pedia presença, ao lado do selo
+   ele só identifica. */
+.v3-destaque.compacto .v3-cabeca {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.v3-destaque.compacto .v3-ico {
+  width: 30px; height: 30px; border-radius: 9px; margin-bottom: 0; flex: none;
+}
+.v3-destaque.compacto .v3-ico svg { width: 17px; height: 17px; }
+.v3-destaque.compacto .v3-texto { margin-top: 8px; line-height: 1.45; }
 .v3-cta .seta { width: 18px; height: 18px; flex: none; }
 
 /* A ação urgente do dia do evento usa o coral que já era o token de
