@@ -318,7 +318,9 @@ function abrirAvisos(id) {
     marcarLido(avisoAberto);
     avisosTitulo.textContent = 'Aviso';
     avisosSub.textContent = 'De volta para a lista pelo ‹';
-    avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (tela) => abrirTutorialEm(tela)));
+    /* O aviso aponta para um roteiro, não para uma tela solta: quem toca
+       em "ver onde fica" quer ser levado, não largado numa tela. */
+    avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (roteiro) => abrirTourCompleto(roteiro)));
   } else {
     avisosTitulo.textContent = 'Avisos importantes';
     const n = naoLidos();
@@ -421,7 +423,7 @@ const ABAS = [
   { id: 'agente', rotulo: 'Mind',     nome: 'Mind Agent',   ico: ICO.agente, folha: 'agente' },
   { id: 'agenda', rotulo: 'Agenda',   nome: 'Agenda',       ico: ICO.agenda, vai: 'agenda' },
   { id: 'minha',  rotulo: 'Minha',    nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
-  { id: 'qr',     rotulo: 'QR Code',  nome: 'QR Code',      ico: ICO.qr,     vai: 'qrcode' },
+  { id: 'qr',     rotulo: 'Ingresso', nome: 'Meu ingresso', ico: ICO.qr,     vai: 'scanner' },
   { id: 'menu',   rotulo: 'Menu',     nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
 ];
 
@@ -483,20 +485,24 @@ const TELAS = {
         brinde: 'A sessão que você reservou. No dia, o check-in é aqui dentro.' },
     ],
   },
+  /* O QR do perfil fica atrás do leitor: a aba cai no leitor, e "Meu Qr
+     Code" leva até aqui. Era o contrário no tour, e não é assim no app. */
   'qrcode': {
-    img: 'qrcode', aba: 'qr', rotulo: 'QR Code',
-    serve: 'Sua credencial e seu cartão de visita: quem escaneia seu código vê o seu perfil.',
+    img: 'qrcode', aba: 'qr', volta: 'scanner', rotulo: 'Seu ingresso',
+    serve: 'Este QR Code é o seu ingresso e o seu cartão de visita.',
     alvos: [
-      { id: 'meucodigo', x: 50, y: 40, w: 70, h: 26, brinde: 'Este é o seu código. Apresente quando pedirem.' },
-      { id: 'escanear', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'scanner', modo: 'push', missao: 'm4',
-        dica: 'Toque em <b>Escanear Qr Code</b> para adicionar uma pessoa à sua rede.' },
+      { id: 'meucodigo', x: 50, y: 40, w: 70, h: 26,
+        brinde: 'É este código que você apresenta na entrada.' },
+      { id: 'escanear', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'scanner', modo: 'troca',
+        brinde: 'Daqui você escaneia o código de outra pessoa.' },
     ],
   },
   'scanner': {
-    img: 'scanner', aba: 'qr', volta: 'qrcode', rotulo: 'Leitor de QR',
-    serve: 'Aponte para o QR Code de outra pessoa: o contato entra direto na sua rede.',
+    img: 'scanner', aba: 'qr', rotulo: 'Leitor de QR',
+    serve: 'A aba abre no leitor. O seu ingresso está atrás de "Meu Qr Code".',
     alvos: [
-      { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, volta: true, dica: 'Toque em <b>Meu Qr Code</b> para voltar.' },
+      { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'qrcode', modo: 'push',
+        dica: 'Toque em <b>Meu Qr Code</b> para abrir o seu ingresso.' },
     ],
   },
   'menu': {
@@ -554,25 +560,56 @@ const TELAS = {
 const ROTA = {
   'agenda': { aba: 'agenda' },
   'minha-agenda': { aba: 'minha' },
-  'qrcode': { aba: 'qr' },
+  'scanner': { aba: 'qr' },
   'menu': { aba: 'menu' },
   'detalhe': { de: 'agenda', alvo: 'card' },
   'confirmada': { de: 'detalhe', alvo: 'reservar' },
   'minha-agenda-17': { de: 'minha-agenda', alvo: 'chip17' },
-  'scanner': { de: 'qrcode', alvo: 'escanear' },
+  'qrcode': { de: 'scanner', alvo: 'meuqr' },
   'mapa': { de: 'menu', alvo: 'mapa' },
   'rede': { de: 'menu', alvo: 'rede' },
   'palestrantes': { de: 'menu', alvo: 'palestrantes' },
   'chat': { de: 'menu', alvo: 'chat' },
 };
 
-/* Duas missões, e nada além: reservar uma sessão e encontrá-la em Minha
-   Agenda. Era isso que a pessoa precisava saber fazer no dia 1 — o resto
-   do app ela descobre usando. */
-const MISSOES = [
-  { id: 'm2', txt: 'Reservar seu lugar numa sessão', tela: 'detalhe', alvo: 'reservar' },
-  { id: 'm3', txt: 'Ver a reserva na sua agenda', tela: 'minha-agenda' },
-];
+/* ============================================================
+   ROTEIROS
+   ============================================================
+   Cada roteiro é um tutorial curto e fechado: uma pergunta prática, os
+   passos para respondê-la, e o texto do fim. Nada de tour geral.
+
+   `reserva` é o da home. `ingresso` sai do aviso "Seu ingresso está
+   aqui" e responde só onde fica o QR — de propósito: quem toca ali quer
+   o ingresso, não uma volta pelo app. */
+const ROTEIROS = {
+  reserva: {
+    de: 'agenda',
+    missoes: [
+      { id: 'm2', txt: 'Reservar seu lugar numa sessão', tela: 'detalhe', alvo: 'reservar' },
+      { id: 'm3', txt: 'Ver a reserva na sua agenda', tela: 'minha-agenda' },
+    ],
+    concluido: 'Pronto — você já sabe reservar 💚',
+    fim: {
+      titulo: 'Você mandou bem!',
+      texto: 'Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.',
+    },
+  },
+  ingresso: {
+    /* Começa já no leitor, que é onde a aba cai. Um passo só. */
+    de: 'scanner',
+    missoes: [
+      { id: 'i1', txt: 'Abrir o seu ingresso', tela: 'qrcode' },
+    ],
+    concluido: 'Pronto — o seu ingresso está aí 💚',
+    fim: {
+      titulo: 'É esse o seu ingresso.',
+      texto: 'Apresente esse QR Code na entrada. Ele fica sempre nessa aba, em Meu Qr Code.',
+    },
+  },
+};
+
+let roteiroAtual = 'reserva';
+let MISSOES = ROTEIROS.reserva.missoes;
 
 const frame = document.getElementById('frame');
 const conteudo = document.getElementById('conteudo');
@@ -956,7 +993,7 @@ function atualizarMissao() {
   const i = m ? MISSOES.indexOf(m) : MISSOES.length;
   missaoTexto.innerHTML = m
     ? '<i>' + (i + 1) + '/' + MISSOES.length + '</i>' + m.txt
-    : '<i>✓</i>Tour concluído — você conhece o app 💚';
+    : '<i>✓</i>' + (ROTEIROS[roteiroAtual].concluido || 'Pronto 💚');
   missaoProg.innerHTML = MISSOES.map((x, j) =>
     '<i class="' + (feitas.has(x.id) ? 'ok' : (j === i ? 'atual' : '')) + '"></i>').join('');
 }
@@ -976,9 +1013,15 @@ document.getElementById('sair-tour').addEventListener('click', () => { missoesFu
 /* O tour completo — as telas do app com as sete missões. Deixou de ser o
    primeiro contato: quem chega vê a home, e entra aqui pelo card de como
    reservar ou por `?tutorial=`. */
-function abrirTourCompleto() {
-  telaAtual = 'agenda'; pilha = []; feitas = new Set();
+function abrirTourCompleto(qual) {
+  roteiroAtual = ROTEIROS[qual] ? qual : 'reserva';
+  const roteiro = ROTEIROS[roteiroAtual];
+  MISSOES = roteiro.missoes;
+  telaAtual = roteiro.de; pilha = []; feitas = new Set();
   Object.keys(marcas).forEach((k) => delete marcas[k]);
+  /* O cartão do fim é do roteiro: cada um termina dizendo o que ensinou. */
+  document.getElementById('fim-titulo').textContent = roteiro.fim.titulo;
+  document.getElementById('fim-texto').textContent = roteiro.fim.texto;
   document.getElementById('fim-fundo').classList.remove('aberto');
   abrirVista('tour');
   medirFone();

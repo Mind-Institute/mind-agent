@@ -89,7 +89,7 @@ export const AVISOS = [
     titulo: 'Seu ingresso está aqui',
     resumo: 'Acesse agora e evite procurar na entrada',
     mensagem: 'Seu ingresso é o QR Code do app. Ele fica na aba <b>QR Code</b>, na barra de baixo — abra antes de chegar na fila e apresente na entrada. O mesmo código serve para trocar contato com quem você conhecer.',
-    verNoApp: 'qrcode', botaoVerNoApp: 'Ver onde fica no app' },
+    verNoApp: 'ingresso', botaoVerNoApp: 'Ver onde fica no app' },
 
   { id: 'abertura', ico: ICO.sino, quando: '16 set, 20:00',
     titulo: 'Abertura às 9h',
