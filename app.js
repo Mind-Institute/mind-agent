@@ -9,7 +9,7 @@
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { montarHome } from './home/home.js';
-import { definirMomento } from './home/estado.js';
+import { definirMomento, definirAvisos } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem } from './chat-service.js';
 
@@ -1336,6 +1336,10 @@ const INTENCOES = [
    arquivo. */
 async function carregarDados() {
   DADOS = await carregarDadosSummit();
+  /* Se o payload fala de avisos, ele é a origem — inclusive quando a
+     lista vem vazia. Sem a chave, valem os avisos embutidos, que é o
+     caso do arquivo local e de qualquer versão anterior da API. */
+  definirAvisos(DADOS.avisos);
 }
 
 /* ============================================================

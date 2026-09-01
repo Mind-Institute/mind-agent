@@ -9,6 +9,66 @@ são gates da Adriana pelo `CLAUDE.md`. Este é o mapa para fazermos juntos.
 
 ---
 
+## Avisos: pronto para aplicar (2026-09-01)
+
+A parte de **avisos** saiu do plano e virou código. Os arquivos abaixo
+estão escritos, revisáveis e ainda **não aplicados** — a escrita em
+produção é a decisão que falta.
+
+| Arquivo | O que faz | Onde roda |
+|---|---|---|
+| `docs/sql/home-v3/01-concierge-avisos.sql` | Cria `concierge.avisos` e semeia os quatro avisos que estavam no código do app | Banco |
+| `docs/sql/home-v3/02-bootstrap-avisos.sql` | `api.mindagent_bootstrap` passa a devolver `avisos` | Banco |
+| `docs/sql/home-v3/03-admin-home-notices.sql` | Leitura e escrita do recurso `home_notices` para o painel | Banco |
+| `docs/edge/mindagent-admin/index.ts` | v17 viva + a rota `home_notices` | Deploy da Edge Function |
+| `admin/src/services/hybrid-admin-data-provider.ts` | Acrescentar `home_notices` a `RECURSOS_REAIS` e a `OPERACOES` | Painel — **fazer por último** |
+
+O lado do app **já está pronto e no ar em localhost**: `home/estado.js`
+consome `DADOS.avisos` quando o payload traz a chave e continua com a
+lista embutida quando não traz. Aplicar o banco não quebra nada; não
+aplicar também não.
+
+### Três decisões diferentes do plano original
+
+1. **`concierge.avisos`, não `public.home_notices`.** O schema
+   `concierge` é o da experiência do participante e já tinha treze
+   tabelas com a mesma configuração de RLS. Mais: `concierge.tutorial_passos`
+   já apontava para avisos pela coluna `aviso_chave`, sem tabela do
+   outro lado. A casa faltava ali, não em `public`.
+
+2. **Sem `pg_cron`.** O plano previa uma rotina para virar
+   `agendado` → `no-ar` na hora marcada. Não precisa: quem lê aplica a
+   regra (`situacao='agendado' and disparo_em <= now()`), nos dois
+   lados, com o mesmo critério. Menos peça, menos coisa para falhar às
+   9h do dia 16.
+
+3. **A leitura de aviso continua no dispositivo.** `home_notice_reads`
+   guardaria por pessoa quem leu o quê — e isso é identidade, que é
+   gate. O contador de não lidos funciona hoje em `sessionStorage`,
+   por dispositivo, e `home/avisos.js` já isola essa porta em duas
+   funções. Quando a identidade entrar, muda ali e em nenhum outro
+   lugar.
+
+### Ordem de aplicação
+
+```text
+01 → 02 → conferir o app em produção (avisos continuam iguais)
+   → 03 → deploy da mindagent-admin → RECURSOS_REAIS no painel
+```
+
+Publicar a Edge Function **antes** do 03 faz a página de avisos
+responder 503. Ligar `RECURSOS_REAIS` antes do deploy faz a página
+responder 404. Fora dessa ordem, cada passo é inofensivo sozinho.
+
+### O que continua só no plano
+
+`home_state` e `home_schedule` — a página **Visualização** do painel
+segue em banco de demonstração. Trocar o momento lá ainda não muda o que
+o participante vê. As seções 1.1, 1.2 e 4 abaixo continuam valendo como
+mapa.
+
+---
+
 ## O que já funciona sem backend
 
 | Ponta | Onde | O que faz |
@@ -62,7 +122,10 @@ ainda pode crescer, e enum em Postgres é caro de alterar.
 **Índice** em `(event_slug, quando) WHERE NOT aplicada` — é a consulta do
 job que aplica as trocas.
 
-### 1.3 `home_notices` — os avisos
+### 1.3 `home_notices` — os avisos  ·  SUBSTITUÍDA
+
+> Virou `docs/sql/home-v3/01-concierge-avisos.sql`, com nome e schema
+> diferentes do esboço abaixo. O que vale é o arquivo.
 
 | coluna | tipo | nota |
 |---|---|---|
@@ -81,7 +144,9 @@ job que aplica as trocas.
 O ícone é chave e não SVG de propósito: cada ponta desenha o seu, e trocar
 o traço não exige migração de dado.
 
-### 1.4 `home_notice_reads` — quem leu o quê
+### 1.4 `home_notice_reads` — quem leu o quê  ·  ADIADA
+
+> Depende de identidade, que é gate. Continua em `sessionStorage`.
 
 É a tabela que o app precisa e ainda não tem.
 

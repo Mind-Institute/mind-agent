@@ -64,6 +64,17 @@ export const ICO = {
   relogio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 2"/></svg>',
   sino:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9z"/><path d="M10.5 19a2 2 0 0 0 3 0"/></svg>',
   ciclo:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.9-6.4"/><path d="M20.5 4v4.5H16"/></svg>',
+  megafone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h3l9 4.5V4.5L7 9z"/><path d="M19 9.5a4 4 0 0 1 0 5"/><path d="M7 15v4.5"/></svg>',
+  alerta:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8 2.8 19.5h18.4z"/><path d="M12 9.5v4M12 16.6v.1"/></svg>',
+  estrela: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg>',
+};
+
+/* Os nomes que o painel administrativo usa, e o desenho de cada um aqui.
+   A lista é fechada dos dois lados: ícone livre viraria emoji. */
+const ICO_POR_NOME = {
+  megafone: ICO.megafone, lugar: ICO.lugar, relogio: ICO.relogio,
+  sino: ICO.sino, ingresso: ICO.ingresso, fone: ICO.fone,
+  agenda: ICO.agenda, alerta: ICO.alerta, estrela: ICO.estrela,
 };
 
 /* ---------- Avisos do evento ----------
@@ -76,23 +87,23 @@ export const ICO = {
 
    MOCK: API: virá da tabela de avisos do Summit. */
 const CRUS = [
-  { id: 'sala', ico: ICO.lugar, em: '2026-09-16T09:02',
+  { id: 'sala', ico: ICO.lugar, em: '2026-09-16T09:02', situacao: 'agendado',
     titulo: 'Masterclass mudou de sala',
     resumo: 'Amy Edmondson, agora na Sala Estratégica.',
     mensagem: 'A masterclass de Amy Edmondson saiu da Arena Mind e passou para a Sala Estratégica. O horário não mudou. Se você tinha reserva, ela continua válida — é só ir para a sala nova.' },
 
-  { id: 'traducao', ico: ICO.fone, em: '2026-09-15T18:00',
+  { id: 'traducao', ico: ICO.fone, em: '2026-09-15T18:00', situacao: 'no-ar',
     titulo: 'Tradução simultânea',
     resumo: 'Leve um documento físico para retirar o fone',
     mensagem: 'As sessões em inglês têm tradução simultânea. O fone é retirado no balcão da arena, e fica um documento físico com foto como garantia — RG ou CNH. Cartão do celular não vale. Devolvendo o fone, você pega o documento de volta.' },
 
-  { id: 'ingresso', ico: ICO.ingresso, em: '2026-09-15T17:30',
+  { id: 'ingresso', ico: ICO.ingresso, em: '2026-09-15T17:30', situacao: 'no-ar',
     titulo: 'Seu ingresso está aqui',
     resumo: 'Acesse agora e evite procurar na entrada',
     mensagem: 'Seu ingresso é o QR Code do app. Ele fica na aba <b>QR Code</b>, na barra de baixo — abra antes de chegar na fila e apresente na entrada. O mesmo código serve para trocar contato com quem você conhecer.',
     verNoApp: 'ingresso', botaoVerNoApp: 'Ver onde fica no app' },
 
-  { id: 'abertura', ico: ICO.sino, em: '2026-09-16T20:00',
+  { id: 'abertura', ico: ICO.sino, em: '2026-09-16T20:00', situacao: 'agendado',
     titulo: 'Abertura às 9h',
     resumo: 'Chegue às 8h30 para entrar sem pressa.',
     mensagem: 'O segundo dia abre às 9h, na Arena Mind. O credenciamento começa às 8h; chegando às 8h30 você entra sem fila e ainda pega lugar.' },
@@ -108,11 +119,51 @@ function quandoLegivel(em) {
   return Number(dia) + ' ' + MESES[Number(mes) - 1] + ', ' + hora;
 }
 
-/* Mais recente em cima. A ordem é do disparo, não a de escrita: no dia do
-   evento o que acabou de sair é o que importa. */
-export const AVISOS = CRUS
-  .map((a) => ({ ...a, quando: quandoLegivel(a.em) }))
-  .sort((a, b) => b.em.localeCompare(a.em));
+/** Agora no formato de `em`, montado em partes para a comparação de
+ *  texto valer: '2026-09-16T09:02' < '2026-09-16T20:00'. */
+function agoraTexto() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+         'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/* O que está em circulação, mais recente em cima.
+
+   `no-ar` está na rua independente do relógio — é o disparo imediato e
+   é o que o painel liga na mão. `agendado` entra sozinho quando o
+   horário chega, sem depender de rotina no banco: quem lê aplica a
+   regra. `rascunho` e `encerrado` não aparecem. */
+function ordenar(lista) {
+  const agora = agoraTexto();
+  return lista
+    .filter((a) => a.situacao === 'no-ar' ||
+                   (a.situacao === 'agendado' && String(a.em) <= agora))
+    .map((a) => ({ ...a, quando: quandoLegivel(a.em) }))
+    .sort((a, b) => b.em.localeCompare(a.em));
+}
+
+/* A lista viva. Começa nos avisos embutidos e é trocada pela do banco
+   quando o payload traz `avisos` — inclusive quando vem vazia, que é
+   uma resposta legítima: nenhum aviso em circulação. Sem a chave no
+   payload, a origem continua sendo esta daqui. */
+export let AVISOS = ordenar(CRUS);
+
+/** Recebe os avisos do bootstrap, no formato do banco. */
+export function definirAvisos(doBanco) {
+  if (!Array.isArray(doBanco)) return;
+  AVISOS = ordenar(doBanco.map((a) => ({
+    id: a.id,
+    ico: ICO_POR_NOME[a.icone] || ICO.megafone,
+    em: a.em,
+    situacao: a.situacao,
+    titulo: a.titulo,
+    resumo: a.resumo || '',
+    mensagem: a.mensagem || '',
+    verNoApp: a.verNoApp || undefined,
+    botaoVerNoApp: a.botaoVerNoApp || undefined,
+  })));
+}
 
 /* ---------- O conteúdo de cada momento ----------
    `blocos` é uma lista ordenada. Cada bloco tem um `tipo`, que é o nome
@@ -135,8 +186,9 @@ export const CONTEUDO = {
       { tipo: 'linha', ico: ICO.grafico, titulo: 'Diagnóstico de maturidade',
         texto: 'Entrevista guiada, 7 min', acao: 'em-breve:diagnostico' },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
-      { tipo: 'aviso', id: 'traducao' },
-      { tipo: 'aviso', id: 'ingresso' },
+      /* Os mais recentes em circulação, não avisos escolhidos a dedo:
+         quem dispara um aviso no painel precisa vê-lo aparecer aqui. */
+      { tipo: 'avisos', quantos: 2 },
       /* É aviso, e o mais importante deles: quem não reserva não entra
          nas sessões de vaga limitada. Por isso fecha a lista em coral, e
          não em verde como o resto do app. */
@@ -163,9 +215,7 @@ export const CONTEUDO = {
         cta: 'Anote o que a palestra de agora te trouxe',
         ctaComSessao: 'Anotar mais sobre esta palestra', acao: 'insight' },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
-      /* O mais recente primeiro — no dia do evento é o que importa. */
-      { tipo: 'aviso', id: 'sala' },
-      { tipo: 'aviso', id: 'traducao' },
+      { tipo: 'avisos', quantos: 2 },
     ],
   },
 
@@ -183,7 +233,7 @@ export const CONTEUDO = {
       { tipo: 'linha', ico: ICO.agenda, titulo: 'Preparar meu Dia 2',
         texto: 'Recomendações baseadas no diagnóstico e no Dia 1', acao: 'chat:recomendacoes' },
       { tipo: 'secao', titulo: 'Amanhã, não esqueça', link: 'Ver avisos', acao: 'avisos' },
-      { tipo: 'aviso', id: 'abertura' },
+      { tipo: 'avisos', quantos: 1 },
     ],
   },
 

@@ -103,6 +103,17 @@ export function cardProxima(b, aoAgir) {
 
 /* Aviso: o bloco traz só o id, e o conteúdo sai da lista de `estado.js`.
    Assim o mesmo aviso aparece igual na home e na página de todos. */
+/* Os N avisos mais recentes em circulação. Sem `id`: quem escolhe é a
+   ordem de disparo, e é isso que faz um aviso novo aparecer sozinho. */
+export function cardsDeAvisos(b, aoAgir) {
+  const frag = document.createDocumentFragment();
+  AVISOS.slice(0, b.quantos || 2).forEach((a) => {
+    frag.appendChild(cardLinha(
+      { ico: a.ico, titulo: a.titulo, texto: a.resumo, acao: 'aviso:' + a.id }, aoAgir));
+  });
+  return frag;
+}
+
 export function cardAviso(b, aoAgir) {
   const a = AVISOS.find((x) => x.id === b.id);
   if (!a) return document.createComment('aviso ' + b.id + ' não existe');
@@ -179,6 +190,7 @@ const COMPONENTES = {
   destaque: cardDestaque,
   linha: cardLinha,
   aviso: cardAviso,
+  avisos: cardsDeAvisos,
   tour: cardTour,
   proxima: cardProxima,
   secao: tituloSecao,
