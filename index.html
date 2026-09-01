@@ -147,7 +147,22 @@
     </div>
   </section>
 
-  <!-- Painel da home: avisos e "em breve". Uma folha só, três conteúdos. -->
+  <!-- ============ AVISOS: tela própria ============
+       Vira tela, não gaveta: aviso pode ser longo, e ler texto longo
+       numa folha de meia altura é pior. O voltar é o mesmo botão das
+       outras vistas, no mesmo canto. -->
+  <section class="vista" id="vista-avisos">
+    <div class="c-topo">
+      <button class="c-voltar" id="avisos-voltar" aria-label="Voltar">‹</button>
+      <div>
+        <strong id="avisos-titulo">Avisos importantes</strong>
+        <small id="avisos-sub">Tudo que o evento comunicou</small>
+      </div>
+    </div>
+    <div class="av-rolagem" id="avisos-corpo"></div>
+  </section>
+
+  <!-- Painel da home: só o "em breve". -->
   <div class="painel-fundo" id="painel-fundo">
     <div class="painel-cartao" id="painel-cartao" role="dialog" aria-modal="true" aria-labelledby="painel-titulo"></div>
   </div>

@@ -9,7 +9,7 @@
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { montarHome } from './home/home.js';
-import { AVISOS } from './home/estado.js';
+import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem } from './chat-service.js';
 
 /* Quem abriu a página, antes de qualquer tela: a Yazo manda `email` e
@@ -68,6 +68,7 @@ const FALA = [
 /* ---------- Navegação entre vistas ---------- */
 const vistas = {
   home: document.getElementById('vista-home'),
+  avisos: document.getElementById('vista-avisos'),
   chat: document.getElementById('vista-chat'),
   summit: document.getElementById('vista-summit'),
   tour: document.getElementById('vista-tour'),
@@ -105,8 +106,8 @@ function acaoDaHome(acao) {
   if (acao === 'insight') return irParaConversa('insight');
   if (acao === 'entrevista') return irParaConversa('plano');
   if (acao === 'insights') return abrirVista('summit');
-  if (acao === 'avisos') return painelAvisos();
-  if (acao.startsWith('aviso:')) return painelAviso(acao.slice(6));
+  if (acao === 'avisos') return abrirAvisos();
+  if (acao.startsWith('aviso:')) return abrirAvisos(acao.slice(6));
   if (acao.startsWith('em-breve:')) return painelEmBreve(acao.slice(9));
   return irParaConversa(null);
 }
@@ -172,6 +173,7 @@ function contextoDaHome() {
 
 function montarHomeV3() {
   montarHome(document.getElementById('home-v3'), acaoDaHome, contextoDaHome());
+  atualizarContadorAvisos();
 }
 
 /* ---------- Painel da home ----------
@@ -224,44 +226,61 @@ function painelEmBreve(qual) {
   abrirPainel(c.titulo, corpo);
 }
 
-function painelAvisos() {
-  const lista = document.createElement('ul');
-  lista.className = 'p-lista';
-  AVISOS.forEach((a) => {
-    const li = document.createElement('li');
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.innerHTML = '<span class="p-ico">' + a.ico + '</span>' +
-      '<span class="p-txt"><strong>' + a.titulo + '</strong><small>' + a.resumo + '</small>' +
-      '<em>' + a.quando + '</em></span>';
-    b.addEventListener('click', () => painelAviso(a.id));
-    li.appendChild(b);
-    lista.appendChild(li);
-  });
-  abrirPainel('Avisos importantes', lista);
+/* ---------- Avisos: uma tela, dois níveis ----------
+   Sem id, mostra a lista; com id, mostra o aviso. O voltar sabe onde
+   está: da leitura volta para a lista, da lista volta para a home. */
+const avisosCorpo = document.getElementById('avisos-corpo');
+const avisosTitulo = document.getElementById('avisos-titulo');
+const avisosSub = document.getElementById('avisos-sub');
+let avisoAberto = null;
+
+function abrirAvisos(id) {
+  avisoAberto = id || null;
+  avisosCorpo.innerHTML = '';
+  avisosCorpo.scrollTop = 0;
+
+  if (avisoAberto) {
+    /* Abrir É ler: a marcação acontece aqui, não num botão de "marcar
+       como lido" que ninguém tocaria. */
+    marcarLido(avisoAberto);
+    avisosTitulo.textContent = 'Aviso';
+    avisosSub.textContent = 'De volta para a lista pelo ‹';
+    avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (tela) => abrirTutorialEm(tela)));
+  } else {
+    avisosTitulo.textContent = 'Avisos importantes';
+    const n = naoLidos();
+    avisosSub.textContent = n === 0
+      ? 'Você está em dia'
+      : n === 1 ? '1 não lido' : n + ' não lidos';
+    avisosCorpo.appendChild(listaDeAvisos((escolhido) => abrirAvisos(escolhido)));
+  }
+  abrirVista('avisos');
+  atualizarContadorAvisos();
 }
 
-function painelAviso(id) {
-  const a = AVISOS.find((x) => x.id === id);
-  if (!a) return painelAvisos();
-  const corpo = document.createElement('div');
-  corpo.className = 'p-aviso';
-  corpo.innerHTML = '<p class="p-quando">' + a.quando + '</p><p>' + a.mensagem + '</p>';
-  const rodape = document.createElement('div');
-  rodape.className = 'p-rodape';
-  if (a.verNoApp) {
-    const ir = document.createElement('button');
-    ir.type = 'button'; ir.className = 'p-acao';
-    ir.textContent = a.botaoVerNoApp || 'Ver no app';
-    ir.addEventListener('click', () => { fecharPainel(); abrirTutorialEm(a.verNoApp); });
-    rodape.appendChild(ir);
-  }
-  const todos = document.createElement('button');
-  todos.type = 'button'; todos.className = 'p-secundario';
-  todos.textContent = 'Ver todos os avisos';
-  todos.addEventListener('click', painelAvisos);
-  rodape.appendChild(todos);
-  abrirPainel(a.titulo, corpo, rodape);
+document.getElementById('avisos-voltar').addEventListener('click', () => {
+  if (avisoAberto) return abrirAvisos();   /* leitura → lista */
+  abrirVista('home');                       /* lista → home */
+  montarHomeV3();                           /* o contador acompanha */
+});
+
+/* O contador vive no título da seção de avisos da home. Ele existe para
+   chamar atenção — e some sozinho quando não há o que chamar. */
+function atualizarContadorAvisos() {
+  const n = naoLidos();
+  document.querySelectorAll('#home-v3 .v3-secao').forEach((secao) => {
+    const h = secao.querySelector('h2');
+    if (!h || !/avisos/i.test(h.textContent || '')) return;
+    let selo = secao.querySelector('.v3-contador');
+    if (n === 0) { if (selo) selo.remove(); return; }
+    if (!selo) {
+      selo = document.createElement('span');
+      selo.className = 'v3-contador';
+      h.after(selo);
+    }
+    selo.textContent = String(n);
+    selo.setAttribute('aria-label', n === 1 ? '1 aviso não lido' : n + ' avisos não lidos');
+  });
 }
 document.getElementById('btn-perfil').addEventListener('click', () => abrirVista('summit'));
 
