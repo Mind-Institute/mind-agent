@@ -340,9 +340,97 @@ body {
   min-width: 44px; min-height: 44px;
 }
 
+/* ---- Painel da home ----
+   Sobe de baixo, como folha. Serve para os avisos e para o "em breve" —
+   um lugar só, três conteúdos. */
+.painel-fundo {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(6, 6, 10, .72);
+  display: none; align-items: flex-end; justify-content: center;
+}
+.painel-fundo.aberto { display: flex; animation: entra .2s ease; }
+.painel-cartao {
+  width: 100%; max-width: 460px;
+  max-height: 84vh;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-card) var(--raio-card) 0 0;
+  padding: 18px var(--pad) max(18px, env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 14px;
+  animation: sobe .26s cubic-bezier(.2,.7,.3,1);
+}
+@keyframes sobe { from { transform: translateY(14px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+.p-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.p-topo h3 { font-size: 19px; font-weight: 700; line-height: 1.25; color: var(--texto); }
+.p-fechar {
+  appearance: none; cursor: pointer; flex: none;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: none; border: 1px solid var(--hairline);
+  color: var(--texto-mudo); font: inherit; font-size: 19px; line-height: 1;
+  position: relative;
+}
+.p-fechar::before {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+}
+.p-corpo { overflow-y: auto; min-height: 0; }
+
+/* "Em breve": diz o que a coisa é antes de dizer que ainda não abriu. */
+.p-breve p { font-size: 14.5px; line-height: 1.5; color: var(--texto-suave); margin-top: 12px; }
+.p-breve .p-nota { color: var(--texto-mudo); font-size: 13px; }
+.p-selo {
+  display: inline-block;
+  font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--verde);
+  border: 1px solid color-mix(in srgb, var(--verde) 45%, transparent);
+  border-radius: var(--raio-pill);
+  padding: 6px 12px;
+}
+
+/* Lista de avisos */
+.p-lista { display: flex; flex-direction: column; gap: 8px; list-style: none; }
+.p-lista button {
+  width: 100%; appearance: none; cursor: pointer; text-align: left;
+  background: none; border: 1px solid var(--hairline); border-radius: 16px;
+  padding: 13px 15px; font: inherit; color: var(--texto);
+  display: flex; align-items: center; gap: 13px; min-height: 66px;
+  transition: border-color .18s ease;
+}
+.p-lista button:active { border-color: var(--verde); }
+.p-ico {
+  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  background: var(--surface); color: var(--verde);
+  display: grid; place-items: center;
+}
+.p-ico svg { width: 18px; height: 18px; }
+.p-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.p-txt strong { font-size: 14.5px; font-weight: 700; }
+.p-txt small { font-size: 12.5px; color: var(--texto-mudo); line-height: 1.35; }
+.p-txt em { font-style: normal; font-size: 11px; color: var(--texto-mudo); opacity: .7; margin-top: 2px; }
+
+/* Um aviso aberto */
+.p-aviso p { font-size: 14.5px; line-height: 1.55; color: var(--texto-suave); }
+.p-quando { font-size: 12px; color: var(--texto-mudo); margin-bottom: 10px; }
+.p-aviso b { color: var(--texto); }
+
+.p-rodape { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.p-acao, .p-secundario {
+  appearance: none; cursor: pointer; font: inherit; font-size: 15px; font-weight: 700;
+  min-height: 50px; border-radius: var(--raio-pill);
+}
+.p-acao { border: 0; background: var(--verde); color: var(--surface-deep); }
+.p-secundario { border: 1px solid var(--hairline); background: none; color: var(--texto-mudo); }
+
+@media (prefers-reduced-motion: reduce) {
+  .painel-fundo.aberto, .painel-cartao { animation: none; }
+}
+
 /* Foco visível em tudo que se toca. */
 .v3-destaque:focus-visible, .v3-linha:focus-visible, .v3-proxima:focus-visible,
-.v3-botao:focus-visible, .v3-link:focus-visible,
+.v3-botao:focus-visible, .v3-link:focus-visible, .p-fechar:focus-visible,
+.p-lista button:focus-visible, .p-acao:focus-visible, .p-secundario:focus-visible,
 .v3-momentos button:focus-visible {
   outline: 2px solid var(--acao); outline-offset: 2px;
 }

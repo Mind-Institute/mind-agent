@@ -9,6 +9,7 @@
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
 import { carregarDadosSummit } from './data-service.js';
 import { montarHome } from './home/home.js';
+import { AVISOS } from './home/estado.js';
 import { enviarMensagem } from './chat-service.js';
 
 /* Quem abriu a página, antes de qualquer tela: a Yazo manda `email` e
@@ -99,18 +100,168 @@ function acaoDaHome(acao) {
   if (!acao) return;
   if (acao === 'tour') return abrirGuia();
   if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
+  if (acao === 'proxima') return abrirTutorialEm('detalhe');
   if (acao.startsWith('chat:')) return irParaConversa('desafio');
   if (acao === 'insight') return irParaConversa('insight');
   if (acao === 'entrevista') return irParaConversa('plano');
   if (acao === 'insights') return abrirVista('summit');
-  /* PLACEHOLDER: diagnóstico, avisos e os atalhos de seção ainda não têm
-     destino próprio — o backend deles não existe. Abrir a conversa é
-     melhor que um toque que não faz nada. */
+  if (acao === 'avisos') return painelAvisos();
+  if (acao.startsWith('aviso:')) return painelAviso(acao.slice(6));
+  if (acao.startsWith('em-breve:')) return painelEmBreve(acao.slice(9));
   return irParaConversa(null);
 }
 
+/* ---------- A próxima experiência ----------
+   Lê a grade de verdade: pega o que ainda vai começar hoje, olha o
+   horário mais próximo e, entre as sessões que começam junto, escolhe a
+   que mais conversa com os temas que a pessoa já demonstrou. Sem tema
+   escolhido não há preferência — vale a ordem da grade. */
+const MINUTOS = (h) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+
+/* Fora dos dias do evento não existe "agora" na grade. Para o momento de
+   demonstração, um instante fixo da manhã do primeiro dia.
+   API: no ar, isto é só `new Date()`. */
+const INSTANTE_DEMO = '08:50';
+
+function agoraNoEvento() {
+  const dias = (DADOS && DADOS.evento && DADOS.evento.dias) || [];
+  if (!dias.length) return null;
+  const hoje = new Date();
+  const iso = hoje.getFullYear() + '-' +
+    String(hoje.getMonth() + 1).padStart(2, '0') + '-' +
+    String(hoje.getDate()).padStart(2, '0');
+  if (dias.includes(iso)) {
+    return { dia: iso, hora: String(hoje.getHours()).padStart(2, '0') + ':' +
+                            String(hoje.getMinutes()).padStart(2, '0'), real: true };
+  }
+  return { dia: dias[0], hora: INSTANTE_DEMO, real: false };
+}
+
+function proximaExperiencia() {
+  if (!DADOS || !DADOS.sessoes) return null;
+  const agora = agoraNoEvento();
+  if (!agora) return null;
+  const adiante = DADOS.sessoes.filter((s) => s.dia === agora.dia && s.inicio >= agora.hora);
+  if (!adiante.length) return null;
+  const cedo = adiante.reduce((menor, s) => (s.inicio < menor ? s.inicio : menor), '99:99');
+  /* Empate de horário é onde a preferência decide. */
+  const escolhida = adiante
+    .filter((s) => s.inicio === cedo)
+    .map((s) => ({ s, peso: afinidade(s.temas) || 0 }))
+    .sort((a, b) => b.peso - a.peso)[0].s;
+  return { sessao: escolhida, minutos: Math.max(0, MINUTOS(cedo) - MINUTOS(agora.hora)) };
+}
+
+/* O que a home não sabe calcular sozinha. */
+function contextoDaHome() {
+  const agora = agoraNoEvento();
+  const ctx = { hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours() };
+  const p = proximaExperiencia();
+  if (!p) return ctx;
+  const m = p.minutos;
+  ctx.resumoDaProxima = m === 0
+    ? 'Sua próxima experiência está começando agora.'
+    : 'Sua próxima experiência começa em ' + m + (m === 1 ? ' minuto.' : ' minutos.');
+  ctx.proxima = {
+    hora: p.sessao.inicio + (p.sessao.espaco ? ', ' + p.sessao.espaco : ''),
+    titulo: p.sessao.titulo,
+    texto: p.sessao.quem && !/^(em breve|em curadoria)$/i.test(p.sessao.quem) ? p.sessao.quem : '',
+  };
+  return ctx;
+}
+
 function montarHomeV3() {
-  montarHome(document.getElementById('home-v3'), acaoDaHome);
+  montarHome(document.getElementById('home-v3'), acaoDaHome, contextoDaHome());
+}
+
+/* ---------- Painel da home ----------
+   Uma folha só, três conteúdos: "em breve", a lista de avisos e um aviso
+   aberto. Voltar da lista para o aviso e vice-versa não recarrega nada. */
+const painelFundo = document.getElementById('painel-fundo');
+const painelCartao = document.getElementById('painel-cartao');
+let focoAntesDoPainel = null;
+
+function abrirPainel(titulo, corpo, rodape) {
+  focoAntesDoPainel = document.activeElement;
+  painelCartao.innerHTML =
+    '<div class="p-topo"><h3 id="painel-titulo">' + titulo + '</h3>' +
+    '<button type="button" class="p-fechar" aria-label="Fechar">×</button></div>' +
+    '<div class="p-corpo"></div>';
+  painelCartao.querySelector('.p-corpo').appendChild(corpo);
+  if (rodape) painelCartao.appendChild(rodape);
+  painelCartao.querySelector('.p-fechar').addEventListener('click', fecharPainel);
+  painelFundo.classList.add('aberto');
+  painelCartao.querySelector('.p-fechar').focus();
+}
+
+function fecharPainel() {
+  painelFundo.classList.remove('aberto');
+  if (focoAntesDoPainel && focoAntesDoPainel.isConnected) focoAntesDoPainel.focus();
+  focoAntesDoPainel = null;
+}
+painelFundo.addEventListener('click', (e) => { if (e.target === painelFundo) fecharPainel(); });
+painelFundo.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPainel(); });
+
+const EM_BREVE = {
+  diagnostico: {
+    titulo: 'Diagnóstico de maturidade',
+    texto: 'É uma entrevista guiada de sete minutos sobre como a sua empresa cuida hoje de bem-estar e performance. O resultado sai depois do Summit, cruzado com o que você viveu aqui.',
+    nota: 'Ainda não está no ar. Assim que abrir, ele aparece nesta mesma tela.',
+  },
+  resultado: {
+    titulo: 'Resultado do diagnóstico',
+    texto: 'O resultado reúne as lacunas que a entrevista identificou e sugere por onde começar na sua empresa.',
+    nota: 'Ainda não está no ar. Ele é liberado depois do Summit.',
+  },
+};
+
+function painelEmBreve(qual) {
+  const c = EM_BREVE[qual] || EM_BREVE.diagnostico;
+  const corpo = document.createElement('div');
+  corpo.className = 'p-breve';
+  corpo.innerHTML = '<span class="p-selo">Disponível em breve</span>' +
+    '<p>' + c.texto + '</p><p class="p-nota">' + c.nota + '</p>';
+  abrirPainel(c.titulo, corpo);
+}
+
+function painelAvisos() {
+  const lista = document.createElement('ul');
+  lista.className = 'p-lista';
+  AVISOS.forEach((a) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span class="p-ico">' + a.ico + '</span>' +
+      '<span class="p-txt"><strong>' + a.titulo + '</strong><small>' + a.resumo + '</small>' +
+      '<em>' + a.quando + '</em></span>';
+    b.addEventListener('click', () => painelAviso(a.id));
+    li.appendChild(b);
+    lista.appendChild(li);
+  });
+  abrirPainel('Avisos importantes', lista);
+}
+
+function painelAviso(id) {
+  const a = AVISOS.find((x) => x.id === id);
+  if (!a) return painelAvisos();
+  const corpo = document.createElement('div');
+  corpo.className = 'p-aviso';
+  corpo.innerHTML = '<p class="p-quando">' + a.quando + '</p><p>' + a.mensagem + '</p>';
+  const rodape = document.createElement('div');
+  rodape.className = 'p-rodape';
+  if (a.verNoApp) {
+    const ir = document.createElement('button');
+    ir.type = 'button'; ir.className = 'p-acao';
+    ir.textContent = a.botaoVerNoApp || 'Ver no app';
+    ir.addEventListener('click', () => { fecharPainel(); abrirTutorialEm(a.verNoApp); });
+    rodape.appendChild(ir);
+  }
+  const todos = document.createElement('button');
+  todos.type = 'button'; todos.className = 'p-secundario';
+  todos.textContent = 'Ver todos os avisos';
+  todos.addEventListener('click', painelAvisos);
+  rodape.appendChild(todos);
+  abrirPainel(a.titulo, corpo, rodape);
 }
 document.getElementById('btn-perfil').addEventListener('click', () => abrirVista('summit'));
 
@@ -1248,8 +1399,22 @@ const FLUXOS = {
   },
 
   insight() {
+    /* Três fontes, nesta ordem: o que a pessoa salvou, o que combina com
+       os temas dela, e — se nada disso existe ainda — o que está
+       acontecendo agora na grade. A última é o que faz o botão da home
+       funcionar para quem acabou de chegar. */
+    const daGrade = () => {
+      const p = proximaExperiencia();
+      const agora = agoraNoEvento();
+      if (!agora || !DADOS) return [];
+      const doDia = DADOS.sessoes.filter((s) => s.dia === agora.dia);
+      const perto = doDia.filter((s) => s.inicio <= agora.hora).slice(-2);
+      return [...(p ? [p.sessao] : []), ...perto].filter(Boolean).slice(0, 3);
+    };
     const base = PERFIL.sessoes.length ? PERFIL.sessoes
-               : sessoesPorAfinidade().slice(0, 3).map((x) => x.s);
+               : (sessoesPorAfinidade().slice(0, 3).map((x) => x.s).length
+                  ? sessoesPorAfinidade().slice(0, 3).map((x) => x.s)
+                  : daGrade());
     if (!base.length) {
       bolha('Primeiro salve alguma sessão — aí eu tenho onde pendurar o insight. Quer escolher palestras agora?', 'mind');
       return;
@@ -1432,7 +1597,8 @@ function desenharSummit() {
 /* A home V3 não depende da programação para existir: ela sobe primeiro,
    e os dados chegam para quem precisa deles (o chat, o tour). */
 montarHomeV3();
-carregarDados().catch((e) => {
+/* A grade chega depois: a próxima experiência só existe a partir daqui. */
+carregarDados().then(montarHomeV3).catch((e) => {
   const aviso = document.createElement('p');
   aviso.className = 'erro-dados';
   aviso.innerHTML = '<b>Não consegui carregar a programação.</b>' +

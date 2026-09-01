@@ -9,6 +9,8 @@
    chat e não chamam backend — eles avisam qual ação foi pedida e quem
    monta a home decide. É isso que deixa a integração desacoplada. */
 
+import { AVISOS } from './estado.js';
+
 /* Estados previstos para qualquer card, quando fizer sentido:
    'disponivel' (padrão) · 'ativo' · 'concluido' · e `oculto`, que é a
    ausência do bloco na lista. O motor de regras que escolhe entre eles
@@ -28,15 +30,15 @@ const CHEVRON = '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="cu
 /* ---------- Cabeçalho: saudação, título, resumo ----------
    A saudação só existe quando há nome. Sem nome, o bloco some inteiro em
    vez de virar "Olá ," — o agente não inventa identidade. */
-export function heroSaudacao({ etiqueta, saudacao, saudacaoBomDia, titulo, resumo, nome }) {
+export function heroSaudacao({ etiqueta, saudacao, comoTitulo, titulo, resumo, nome, cumprimento }) {
   const el = no('header', 'v3-hero');
   if (etiqueta) el.appendChild(no('p', 'v3-etq', etiqueta));
 
-  if (saudacaoBomDia) {
+  if (comoTitulo) {
     /* Neste momento o cumprimento É o título. */
-    el.appendChild(no('h1', 'v3-titulo', nome ? 'Bom dia, ' + escapar(nome) + '.' : 'Bom dia.'));
+    el.appendChild(no('h1', 'v3-titulo', nome ? cumprimento + ', ' + escapar(nome) + '.' : cumprimento + '.'));
   } else {
-    if (saudacao && nome) el.appendChild(no('p', 'v3-ola', 'Olá ' + escapar(nome) + '.'));
+    if (saudacao && nome) el.appendChild(no('p', 'v3-ola', 'Olá, ' + escapar(nome) + '.'));
     if (titulo) el.appendChild(no('h1', 'v3-titulo', titulo));
   }
 
@@ -85,9 +87,17 @@ export function cardProxima(b, aoAgir) {
   el.innerHTML =
     '<span class="v3-hora">' + b.hora + '</span>' +
     '<strong>' + b.titulo + '</strong>' +
-    '<small>' + b.texto + '</small>';
+    (b.texto ? '<small>' + b.texto + '</small>' : '');
   el.addEventListener('click', () => aoAgir(b.acao, b));
   return el;
+}
+
+/* Aviso: o bloco traz só o id, e o conteúdo sai da lista de `estado.js`.
+   Assim o mesmo aviso aparece igual na home e na página de todos. */
+export function cardAviso(b, aoAgir) {
+  const a = AVISOS.find((x) => x.id === b.id);
+  if (!a) return document.createComment('aviso ' + b.id + ' não existe');
+  return cardLinha({ ico: a.ico, titulo: a.titulo, texto: a.resumo, acao: 'aviso:' + a.id }, aoAgir);
 }
 
 /* ---------- Título de seção, com atalho à direita ---------- */
@@ -138,6 +148,7 @@ export function cardPainel(b, aoAgir) {
 const COMPONENTES = {
   destaque: cardDestaque,
   linha: cardLinha,
+  aviso: cardAviso,
   proxima: cardProxima,
   secao: tituloSecao,
   progresso: (b) => barraProgresso(b),

@@ -25,10 +25,20 @@ export const MOMENTOS = [
    na aba. `?momento=` existe para abrir direto num deles. */
 const CHAVE = 'mindagent:v1:home-momento';
 
+/*  semeia o valor e sai da URL — não fica mandando para
+   sempre, senão o seletor não conseguiria trocar de momento depois. */
+(function semearPelaUrl() {
+  try {
+    const url = new URL(location.href);
+    const pedido = url.searchParams.get('momento');
+    if (!pedido || !MOMENTOS.some((m) => m.id === pedido)) return;
+    sessionStorage.setItem(CHAVE, pedido);
+    url.searchParams.delete('momento');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  } catch (e) { /* sem URL ou aba anônima */ }
+})();
+
 export function momentoAtual() {
-  let daUrl = null;
-  try { daUrl = new URLSearchParams(location.search).get('momento'); } catch (e) { /* sem URL */ }
-  if (daUrl && MOMENTOS.some((m) => m.id === daUrl)) return daUrl;
   try {
     const guardado = sessionStorage.getItem(CHAVE);
     if (guardado && MOMENTOS.some((m) => m.id === guardado)) return guardado;
@@ -56,6 +66,37 @@ export const ICO = {
   ciclo:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.9-6.4"/><path d="M20.5 4v4.5H16"/></svg>',
 };
 
+/* ---------- Avisos do evento ----------
+   Um lugar só: os cards da home mostram os primeiros, e "Ver todos" abre
+   a lista inteira. Cada aviso tem a mensagem que aparece ao abrir.
+
+   `quando` existe para ordenar por recência — o mais novo é o que sobe
+   para a home no dia do evento.
+
+   MOCK: API: virá da tabela de avisos do Summit. */
+export const AVISOS = [
+  { id: 'sala', ico: ICO.lugar, quando: '16 set, 09:02',
+    titulo: 'Masterclass mudou de sala',
+    resumo: 'Amy Edmondson, agora na Sala Estratégica.',
+    mensagem: 'A masterclass de Amy Edmondson saiu da Arena Mind e passou para a Sala Estratégica. O horário não mudou. Se você tinha reserva, ela continua válida — é só ir para a sala nova.' },
+
+  { id: 'traducao', ico: ICO.fone, quando: '15 set, 18:00',
+    titulo: 'Tradução simultânea',
+    resumo: 'Leve um documento físico para retirar o fone',
+    mensagem: 'As sessões em inglês têm tradução simultânea. O fone é retirado no balcão da arena, e fica um documento físico com foto como garantia — RG ou CNH. Cartão do celular não vale. Devolvendo o fone, você pega o documento de volta.' },
+
+  { id: 'ingresso', ico: ICO.ingresso, quando: '15 set, 17:30',
+    titulo: 'Seu ingresso está aqui',
+    resumo: 'Acesse agora e evite procurar na entrada',
+    mensagem: 'Seu ingresso é o QR Code do app. Ele fica na aba <b>QR Code</b>, na barra de baixo — abra antes de chegar na fila e apresente na entrada. O mesmo código serve para trocar contato com quem você conhecer.',
+    verNoApp: 'qrcode', botaoVerNoApp: 'Ver onde fica no app' },
+
+  { id: 'abertura', ico: ICO.sino, quando: '16 set, 20:00',
+    titulo: 'Abertura às 9h',
+    resumo: 'Chegue às 8h30 para entrar sem pressa.',
+    mensagem: 'O segundo dia abre às 9h, na Arena Mind. O credenciamento começa às 8h; chegando às 8h30 você entra sem fila e ainda pega lugar.' },
+];
+
 /* ---------- O conteúdo de cada momento ----------
    `blocos` é uma lista ordenada. Cada bloco tem um `tipo`, que é o nome
    do componente que sabe desenhá-lo. Acrescentar um card ao evento é
@@ -73,12 +114,10 @@ export const CONTEUDO = {
         pergunta: 'O que você quer levar do Summit?',
         cta: 'Receber recomendações', acao: 'chat:recomendacoes' },
       { tipo: 'linha', ico: ICO.grafico, titulo: 'Diagnóstico de maturidade',
-        texto: 'Preencha agora, resultado após o Summit, 7 min', acao: 'diagnostico' },
-      { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos' },
-      { tipo: 'linha', ico: ICO.fone, titulo: 'Tradução simultânea',
-        texto: 'Leve um documento físico para retirar o fone', acao: 'aviso' },
-      { tipo: 'linha', ico: ICO.ingresso, titulo: 'Seu ingresso está aqui',
-        texto: 'Acesse agora e evite procurar na entrada', acao: 'tour:qrcode' },
+        texto: 'Entrevista guiada, 7 min', acao: 'em-breve:diagnostico' },
+      { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
+      { tipo: 'aviso', id: 'traducao' },
+      { tipo: 'aviso', id: 'ingresso' },
       { tipo: 'linha', ico: ICO.play, titulo: 'Tour rápido do app',
         texto: 'Como reservar e encontrar sua agenda, 1 min', acao: 'tour' },
     ],
@@ -87,21 +126,19 @@ export const CONTEUDO = {
   'no-evento': {
     /* API: dia corrente do evento. */
     etiqueta: 'Hoje, 16 de setembro',
-    saudacaoBomDia: true,
-    /* API: minutos até a próxima sessão reservada. */
-    resumo: 'Sua próxima experiência começa em 25 minutos.',
+    /* Aqui o cumprimento é o título, e ele muda com a hora. */
+    comoTitulo: true,
+    /* O resumo e o card da próxima saem da grade, não daqui: quem calcula
+       é `proximaExperiencia()`, que cruza horário com afinidade. */
     blocos: [
-      { tipo: 'proxima', hora: '09:15, Arena 1',
-        titulo: 'Do benefício à transformação',
-        texto: 'Adriana Drulla, abertura do Mind Summit', acao: 'tour:detalhe' },
+      { tipo: 'proxima', daGrade: true, acao: 'proxima' },
       { tipo: 'destaque', variante: 'urgente', ico: ICO.ideia,
         pergunta: 'Registrar um insight',
         cta: 'Texto ou voz, conectamos à palestra', acao: 'insight' },
-      { tipo: 'secao', titulo: 'Agora importa', link: 'Ver avisos' },
-      { tipo: 'linha', ico: ICO.lugar, titulo: 'Masterclass mudou de sala',
-        texto: 'Amy Edmondson, agora na Sala Estratégica.', acao: 'aviso' },
-      { tipo: 'linha', ico: ICO.agenda, titulo: 'Ver minha agenda',
-        texto: 'Reservas, horários e direções', acao: 'tour:minha-agenda' },
+      { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
+      /* O mais recente primeiro — no dia do evento é o que importa. */
+      { tipo: 'aviso', id: 'sala' },
+      { tipo: 'aviso', id: 'traducao' },
     ],
   },
 
@@ -114,13 +151,12 @@ export const CONTEUDO = {
         pergunta: 'O que ficou com você hoje?',
         cta: 'Registrar por voz ou texto, 2 min', acao: 'insight' },
       { tipo: 'linha', ico: ICO.relogio, titulo: 'Diagnóstico concluído',
-        texto: 'Seu resultado será liberado depois do Summit', acao: 'diagnostico' },
+        texto: 'Seu resultado será liberado depois do Summit', acao: 'em-breve:resultado' },
       { tipo: 'secao', titulo: 'Seu Dia 2', link: 'Ver agenda' },
       { tipo: 'linha', ico: ICO.agenda, titulo: 'Preparar meu Dia 2',
         texto: 'Recomendações baseadas no diagnóstico e no Dia 1', acao: 'chat:recomendacoes' },
-      { tipo: 'secao', titulo: 'Amanhã, não esqueça', link: 'Ver avisos' },
-      { tipo: 'linha', ico: ICO.sino, titulo: 'Abertura às 9h',
-        texto: 'Chegue às 8h30 para entrar sem pressa.', acao: 'aviso' },
+      { tipo: 'secao', titulo: 'Amanhã, não esqueça', link: 'Ver avisos', acao: 'avisos' },
+      { tipo: 'aviso', id: 'abertura' },
     ],
   },
 
@@ -141,7 +177,7 @@ export const CONTEUDO = {
       { tipo: 'painel', etiqueta: 'Seu diagnóstico',
         titulo: 'Maturidade em desenvolvimento',
         texto: 'Use as lacunas identificadas para escolher prioridades e ações para a empresa.',
-        botao: 'Ver resultado e recomendações', acao: 'diagnostico' },
+        botao: 'Ver resultado e recomendações', acao: 'em-breve:resultado' },
       { tipo: 'painel', etiqueta: 'Sem registros? Tudo bem.',
         titulo: 'Construa o plano a partir da memória',
         texto: 'A entrevista recupera situações, ideias e compromissos sem exigir anotações.',

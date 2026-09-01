@@ -9,7 +9,7 @@
    resposta de API. Nada mais precisa mudar. */
 
 import { PARTICIPANTE } from '../config.js';
-import { CONTEUDO, MOMENTOS, PLACEHOLDER_CONCIERGE, momentoAtual, definirMomento } from './estado.js';
+import { CONTEUDO, MOMENTOS, AVISOS, PLACEHOLDER_CONCIERGE, momentoAtual, definirMomento } from './estado.js';
 import { heroSaudacao, montarBlocos } from './cards.js';
 
 
@@ -22,9 +22,20 @@ function nomeDoParticipante() {
   return n || null;
 }
 
-/** Monta a home inteira dentro de `raiz`. `aoAgir(acao, bloco)` recebe
- *  tudo que a pessoa tocar. */
-export function montarHome(raiz, aoAgir) {
+/* Bom dia até meio-dia, boa tarde até as 18h, boa noite depois. */
+export function cumprimentoDaHora(hora) {
+  const h = typeof hora === 'number' ? hora : new Date().getHours();
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+/** Monta a home inteira dentro de `raiz`.
+ *  `aoAgir(acao, bloco)` recebe tudo que a pessoa tocar.
+ *  `contexto` traz o que a home não sabe calcular sozinha — hoje, a
+ *  próxima sessão da grade e a hora do evento. */
+export function montarHome(raiz, aoAgir, contexto) {
+  const ctx = contexto || {};
   const momento = momentoAtual();
   const c = CONTEUDO[momento];
   if (!c) return;
@@ -32,10 +43,39 @@ export function montarHome(raiz, aoAgir) {
   raiz.innerHTML = '';
   raiz.dataset.momento = momento;
 
-  raiz.appendChild(seletorDeMomento(momento, () => montarHome(raiz, aoAgir)));
-  raiz.appendChild(heroSaudacao({ ...c, nome: nomeDoParticipante() }));
-  raiz.appendChild(montarBlocos(c.blocos, aoAgir));
+  if (mostrarSeletor()) {
+    raiz.appendChild(seletorDeMomento(momento, () => montarHome(raiz, aoAgir, contexto)));
+  }
+
+  raiz.appendChild(heroSaudacao({
+    ...c,
+    nome: nomeDoParticipante(),
+    cumprimento: cumprimentoDaHora(ctx.hora),
+    /* No dia do evento o resumo é calculado; nos outros, é o do conteúdo. */
+    resumo: c.resumo || ctx.resumoDaProxima || null,
+  }));
+
+  /* O bloco da próxima é preenchido pela grade. Sem sessão à frente, ele
+     simplesmente não existe — a home não inventa uma. */
+  const blocos = (c.blocos || []).map((b) => {
+    if (b.tipo !== 'proxima' || !b.daGrade) return b;
+    return ctx.proxima ? { ...b, ...ctx.proxima } : { ...b, estado: 'oculto' };
+  });
+
+  raiz.appendChild(montarBlocos(blocos, aoAgir));
 }
+
+/* O seletor de momento é ferramenta de desenvolvimento, não produto:
+   aparece em localhost e quando `?dev=1` pede, nunca no ar. */
+function mostrarSeletor() {
+  try {
+    if (new URLSearchParams(location.search).get('dev') === '1') return true;
+    const h = location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local');
+  } catch (e) { return false; }
+}
+
+export { AVISOS };
 
 /* Seletor de momento — andaime, não produto.
    Existe para percorrer os quatro estados sem depender da data real.
