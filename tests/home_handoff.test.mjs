@@ -172,3 +172,28 @@ test('o título da demonstração é nome de tela, não instrução', () => {
   assert.match(app, /missaoTexto\.textContent = ROTEIROS\[roteiroAtual\]\.nome/,
     'o cabeçalho voltou a escrever a missão com contador no lugar do nome');
 });
+
+test('a descrição da tela é branca e grande o bastante para ler', () => {
+  /* Era 12,5px em `--texto-mudo` — o cinza de apoio. É o único texto do
+     frame que ensina alguma coisa: não é apoio, é o conteúdo. */
+  const i = css.indexOf('.t-rodape p {');
+  const regra = css.slice(i, css.indexOf('\n}', i));
+  assert.match(regra, /color:\s*var\(--texto\)/,
+    'a descrição da tela voltou ao cinza de apoio e ficou difícil de ler');
+  const tam = Number((regra.match(/font-size:\s*([\d.]+)px/) || [])[1]);
+  assert.ok(tam >= 15, 'a descrição encolheu para ' + tam + 'px; abaixo de 15 volta a ser miúda');
+});
+
+test('o quadro não pode passar por cima do rodapé', () => {
+  /* `.fone` tem `aspect-ratio` fixa: sem teto de altura ele calcula um
+     quadro mais alto que o espaço e vaza por baixo, cobrindo o rodapé.
+     Ficou invisível enquanto o rodapé tinha uma linha só — a fonte maior
+     trouxe a terceira linha e a sobreposição apareceu. */
+  const i = css.indexOf('.fone {');
+  const fone = css.slice(i, css.indexOf('\n}', i));
+  assert.match(fone, /max-height:\s*100%/,
+    'o quadro perdeu o teto de altura e volta a vazar para cima do rodapé');
+  const j = css.indexOf('.t-palco {');
+  assert.match(css.slice(j, css.indexOf('\n}', j)), /overflow:\s*hidden/,
+    'o palco parou de recortar, e o que vazar dele cobre o rodapé');
+});

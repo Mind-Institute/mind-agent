@@ -1186,9 +1186,13 @@ html[data-teclado="aberto"] .doca {
   display: flex; align-items: center; gap: 14px;
   padding: 10px 14px max(12px, env(safe-area-inset-bottom));
 }
+/* BRANCA E MAIOR. Era 12,5px em `--texto-mudo` — o cinza de apoio, que
+   serve para uma etiqueta de canto e não para a frase que explica a tela.
+   É o único texto do frame que ensina alguma coisa; ele não é apoio, é o
+   conteúdo. 15,5px em branco, com entrelinha maior para acompanhar. */
 .t-rodape p {
   flex: 1; min-width: 0;
-  font-size: 12.5px; line-height: 1.4; color: var(--texto-mudo);
+  font-size: 15.5px; line-height: 1.45; color: var(--texto);
 }
 .t-rodape button {
   appearance: none; cursor: pointer; flex: none;
@@ -1202,9 +1206,15 @@ html[data-teclado="aberto"] .doca {
 }
 .t-rodape button:active { background: var(--surface-deep); }
 
+/* O PALCO RECORTA. Sem isto o quadro, que tem `aspect-ratio` fixa,
+   calculava uma altura maior que o espaço disponível e vazava por baixo —
+   passando por cima do rodapé. Não aparecia enquanto o rodapé tinha uma
+   linha só; a fonte maior do texto explicativo trouxe a terceira linha e
+   a sobreposição ficou visível. A causa é o quadro, não o rodapé. */
 .t-palco {
   flex: 1; min-height: 0;
   display: flex;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -1221,6 +1231,9 @@ html[data-teclado="aberto"] .doca {
   border: 2px solid var(--verde);
   border-radius: 20px;
   aspect-ratio: 780 / 1570;
+  /* Cabe no palco e deriva a largura da proporção, em vez de estourar a
+     altura para manter a largura. */
+  max-height: 100%; max-width: 100%;
   display: flex; flex-direction: column;
   overflow: hidden;
   background: var(--app-bg);
