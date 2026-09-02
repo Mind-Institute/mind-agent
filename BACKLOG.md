@@ -720,3 +720,437 @@ consulta que prova campo a campo, no E2E, que a superfície persistida não perd
 Write-back de verdade continua sendo o **Passo 15B / PASSO 9** do runbook, com a Lane D
 como dona, e o item 6 deste backlog como levantamento. Quando ele for construído, nasce
 da casa canônica — não de uma função com a assinatura desta chamada morta.
+
+---
+
+## 15. Lane D — pós-turno / memória / write-back / continuidade
+
+Investigação da issue #42 (go-live, execução paralela). **Não reinvestigar estes fatos do zero.**
+O que foi implementado nesta lane está na §15.1; o que ficou deferido, da §15.2 em diante, com o
+gatilho de retomada de cada um.
+
+Retrato do sistema real no momento da investigação (produção, projeto `ymnmotgglsrxmjmonwjz`):
+
+| capacidade | estado | evidência |
+|---|---|---|
+| análise pós-turno | **viva** | `analisar-conversa` + cron 12 (`*/15`, ativo); 395 linhas em `intelligence.analise_conversa`; 9 conversas pendentes no momento da medição |
+| memória universal | **escrita, nunca lida** | 886 linhas em `intelligence.participante_memoria`, 286 pessoas; nenhum leitor no turno |
+| write-back / dispatch | **parcial** | só `status_summit_2026`, via `treble_status_*` + ledger `crm.status_summit_hs` (67 linhas), crons 10/11 |
+| continuidade / Silence | **construída, desligada** | cron 13 `silence_reavaliar` `active = false`; `silence_sync_from_analysis` continua mantendo o estado (395 linhas em `intelligence.continuidade_comercial`) |
+
+O caminho de escrita do pós-turno está inteiro e é este:
+
+```text
+cron 12 → analisar-conversa → analise_montar_contexto
+  → analise_classificador (lista de analisadores)
+  → prompt do analisador → analise_gravar
+       ├── analise_projetar_memoria  → intelligence.participante_memoria
+       └── silence_sync_from_analysis → intelligence.continuidade_comercial
+```
+
+### 15.1 O circuito de memória estava aberto no lado da leitura — FECHADO nesta lane
+
+**O que foi provado.** `intelligence.participante_memoria` tem 886 linhas de 286 pessoas, todas
+projetadas por `analise_projetar_memoria` a partir de `dados.customer_memory`. Buscando em
+`pg_get_functiondef` de todo `public`/`intelligence`/`agentes`/`engagement`, os únicos consumidores
+da tabela são o próprio writer e `mindagent_chat_save_interests` (que também escreve). **Nenhum
+componente do runtime lê a memória.** `mind_agent_context` não a compõe — e o comentário da própria
+função já dizia, desde o Passo 8, `Memory entra no Passo 15`.
+
+**A menor mudança.** Um coletor a mais, na forma dos quatro que já existem:
+`public.mind_memoria_fatos(p_pessoa_id uuid) → jsonb`. Sem tabela nova, sem writer novo, sem
+arquitetura paralela.
+
+**Semântica congelada da leitura** (está no comentário da função e na migration):
+
+- `ativa` e `proposta` saem em listas **separadas** (`memorias` / `propostas`). Fundir as duas
+  transformaria inferência fraca em fato, que é o que o Passo 15 proíbe;
+- `substituida` e memória expirada (`valido_ate` no passado) **nunca saem** — viram contagem em
+  `meta`, para a ausência ser legível;
+- há **dois writers com duas formas de `valor`** — `{text, scope}` do analisador e
+  `{label, confirmed}` da superfície de chat. O coletor devolve `valor` cru e deriva
+  `texto = coalesce(text, label)`; `escopo` fica nulo quando o writer não gravou escopo. Nenhuma
+  terceira forma foi inventada.
+
+**O que ficou de fora de propósito.** A migration **não** altera `mind_agent_context`. O CONTRATO 3
+de `tests/mind_agent_context_contract.sql` trava o conjunto **exato** de chaves do topo, e aquele é
+o caminho síncrono compartilhado. O coletor entra pronto e desligado.
+
+**Atualização (31/08/2026) — o coletor passou a filtrar pelo marcador.** Ele expõe **somente**
+linhas com `valor.sensitivity = 'none'`, o marcador que os dois writers seguros gravam (§16). Assim
+as 886 memórias do contrato v1 ficam fisicamente preservadas e invisíveis ao Agent, sem apagar nem
+reescrever nada, e revalidar o legado vira incremental. Ausência de marcador não é silenciosa: vira
+`meta.sem_marcador_ignoradas`.
+
+**Como retomar (o wiring).** Determinado na **§15.6** contra os runtimes reais de B e C; a trava é
+a política da §15.3. Registro original: quem integrar o runtime decide onde a memória entra —
+`mind_agent_context` (e aí o CONTRATO 3 e o comentário da função precisam ser atualizados no mesmo
+passo) ou direto no Decisioning/Agent, sem tocar o contrato do Passo 8. **Enquanto essa linha não
+existir, memória continua sem voltar no turno seguinte** — o coletor sozinho não fecha o critério
+de pronto do PASSO 8 do go-live.
+
+### 15.2 `analise_pendentes` só enxerga o Treble — DEFERIDO em 30/08/2026
+
+> Superseded em parte pela **§15.7**, que fecha o encanamento do pós-turno do Concierge contra a
+> superfície real da Lane C. Esta seção fica pelo levantamento numérico.
+
+**POR QUE APARECEU.** Verificando se o Concierge de hoje teria memória pós-turno.
+
+**O QUE JÁ FOI PROVADO.** `public.analise_pendentes` filtra
+`c.agente in ('treble','treble-inbound-agent')`. A distribuição real de `engagement.conversas` é:
+`treble` 6.896 (400 com mensagem de lead), `treble-inbound-agent` 5 (4 com lead),
+`agente = null` + canal `mindagent-web` 23 (19 com lead), `mindagent-chat` 13 (0 com lead).
+**As 19 conversas web com mensagem de lead nunca entraram na fila de análise**, e uma rota de
+concierge que não grave `agente` como Treble também não entrará.
+
+**ESTADO ATUAL.** Todas as 395 análises são `analise_vendas_summit`. Os slots
+`analise_concierge`, `analise_atendimento`, `analise_contexto_geral`, `analise_vendas_institute` e
+`analise_vendas_dash` existem em `agentes.prompts` com `conteudo` vazio e `ativo = false`
+(confirmado: `length = 0`). `analise_prompt` só devolve prompt ativo e não-vazio, e o
+`analisar-conversa` cai no fallback `analise_contexto_geral` — que também está vazio.
+
+**POR QUE FOI DEFERIDO.** Alargar o filtro **sozinho** não produz análise de concierge: as
+conversas entrariam na fila, o classificador as mandaria para `analise_concierge`, não haveria
+prompt, e o resultado seria chamada de LLM gasta e `sem_prompt`. As duas metades têm de andar
+juntas, e a que falta é conteúdo da Adriana (§3 deste backlog).
+
+**COMO RETOMAR.** Quando `analise_concierge` (ou o fallback `analise_contexto_geral`) estiver
+preenchido e ativo: alargar o filtro de `analise_pendentes` para incluir as conversas da superfície
+de concierge/web, e só então medir a fila. É mudança de uma cláusula `where`.
+
+**DEPENDÊNCIAS / GATILHO.** Prompt de análise do concierge preenchido pela Adriana.
+
+### 15.3 Política de sensibilidade da memória — investigada a fundo, BLOQUEADA por conteúdo
+
+**POR QUE APARECEU.** Decisão 4 da supervisão: memória não vai ao Agent antes de a política de
+sensibilidade funcionar. Esta seção é a investigação que sustenta essa decisão.
+
+#### Existe memória sensível persistida hoje? O scan NÃO responde isso.
+
+> **CORREÇÃO (30/08/2026).** Este bloco afirmava "não existe memória sensível persistida hoje".
+> **Está errado e não deve ser reusado.** O scan prova apenas que **aquele scan não identificou
+> nenhum caso** — não que não exista nenhum. A diferença é material, e o próprio achado abaixo
+> explica por quê: se a distinção entre "é psicóloga clínica" e "está afastada por burnout" não
+> está nas palavras, então uma varredura por palavra não pode ser exaustiva, e um caso redigido
+> fora do vocabulário previsto passaria despercebido pelo mesmo método.
+>
+> **Consequência:** as 886 linhas legadas continuam **sem autorização de exposição ao Agent**. A
+> proposta mínima de revalidação está na §16.6 (PR de memória segura).
+
+Varredura determinística das 886 linhas contra as 10 categorias de `intelligence.memoria_bloqueios`
+(saúde, diagnóstico, medicação, afastamento, religião, opinião política, orientação sexual, origem
+racial, filiação sindical, saúde de terceiro). **11 candidatos, e os 11 são falso-positivo** — o
+padrão deles é a descoberta que importa:
+
+| o que casou | por quê |
+|---|---|
+| "Coach e Mentora de Carreira / Psicóloga", "estudante de Psicologia" (×2), "é psicóloga clínica com atuação em Terapia Cognitivo-Comportamental", "é estudante de fisioterapia" | **profissão**, não saúde |
+| "Rosane Obino Psicologia", "Agir Com-Ciência Psicologia", "empresa informada: Muito Além do meu Diagnóstico" | **nome de empresa** |
+| "quer entender se o evento é direcionado a psicólogos clínicos" | **interesse comercial** |
+| "é estudante de Psicologia e mencionou que isso influencia a decisão por preço/desconto" | **objeção comercial** |
+| "trocou o ce**lula**r e não encontrou o convite" | colisão de substring com `lula` |
+
+#### Por que um filtro por palavra é a mecânica errada aqui
+
+Este é um evento de saúde mental. **O vocabulário do domínio é o vocabulário da profissão do
+público.** "psicóloga", "terapia", "burnout", "diagnóstico" são exatamente o que o vendedor precisa
+saber sobre a pessoa — e são exatamente as palavras de um gate por regex. Um bloqueio textual
+erraria nos dois sentidos ao mesmo tempo:
+
+- **destruiria memória comercial legítima** — "é psicóloga clínica" é qualificação, não dado de
+  saúde;
+- **não pegaria a divulgação real** — "estou afastada por burnout" é indistinguível de "quero
+  conteúdo sobre burnout" para uma regex, e só a primeira é dado do art. 11 da LGPD.
+
+A diferença entre as duas não está nas palavras: está em **quem é o sujeito e o que a frase afirma**.
+Isso quem sabe no momento da extração é o analisador.
+
+#### Onde a política tem de ser aplicada
+
+**Na escrita, não na leitura.** Filtrar na leitura não protege nada: o dado sensível já teria sido
+persistido em `intelligence.participante_memoria`, e a tabela sobrevive ao filtro. O ponto correto é
+`public.analise_projetar_memoria`, que é o único caminho de entrada da memória do analisador.
+
+Duas metades, e só uma é minha:
+
+1. **Encanamento (determinístico, sem decisão de produto).** `analise_projetar_memoria` hoje **não
+   consulta** `memoria_regras` nem `memoria_bloqueios` — verificado em `pg_get_functiondef`: ela
+   deriva `tipo` de `category`, `chave` de `tipo || ':' || mind_slug(texto)` e `status` de
+   `scope`/`confidence`, e nada mais. Ligar o gate é uma condição a mais no laço.
+2. **Conteúdo (da Adriana).** Para o gate ter o que ler, o analisador precisa **rotular** a
+   sensibilidade. `analise_vendas_summit` v1 já emite `category`, `scope` e `confidence`, mas
+   **não tem nenhuma menção a sensibilidade/LGPD** (verificado por busca no corpo do prompt). O
+   `analise_classificador` v2 também não.
+
+#### Por que a taxonomia existente não pode ser "só tornada funcional"
+
+Instrução era não inventar taxonomia nova se a existente servisse. Ela não serve, e o motivo é
+concreto: as três tabelas usam **três vocabulários que não se cruzam**.
+
+| tabela | vocabulário de `chave` | exemplo |
+|---|---|---|
+| `memoria_bloqueios` | categoria de sensibilidade | `saude_do_titular`, `religiao` |
+| `memoria_regras` | tema de perfil/comportamento | `area_profissional`, `interesses`, `senioridade` |
+| `participante_memoria` (real) | `tipo:slug(texto)` | `identidade`, `cargo_atual`, `interesse:quer_ver_a_grade` |
+
+Um `join` por `chave` entre elas não casa com nada hoje. Fazê-las valerem exige decidir **de onde
+vem a classificação** — categoria emitida pelo analisador × derivação determinística — e isso é
+decisão de política, não de encanamento.
+
+**PERGUNTA EXATA PARA A ADRIANA:** o `analise_vendas_summit` passa a emitir, por item de
+`customer_memory`, um rótulo de sensibilidade no vocabulário que já existe em
+`intelligence.memoria_bloqueios.chave` (`saude_do_titular`, `diagnostico_titular`,
+`medicacao_titular`, `afastamento_titular`, `religiao`, `opiniao_politica`, `orientacao_sexual`,
+`origem_racial`, `filiacao_sindical`, `saude_de_pessoa_citada`, ou nenhum)? Se sim, o encanamento
+que descarta o item na escrita é pequeno e determinístico, e entra sem mais nenhuma decisão.
+
+#### Um TTL que parecia de graça e NÃO é — `scope = 'temporary'` carrega opt-out
+
+`valido_ate` é nulo nas 886 linhas: nenhum TTL é aplicado. `memoria_regras.estado_momentaneo`
+prevê `ttl_dias = 1` ("cansaço, fome, pressa"). O analisador emite `scope` com três valores —
+`stable` (230), `opportunity` (639), `temporary` (17) — e a tentação era mapear
+`temporary → ttl_dias = 1` sem decisão nenhuma.
+
+**Seria um erro grave.** Lidas uma a uma, as 17 linhas `temporary` não são estado momentâneo:
+
+- 11 são **não-participação declarada** ("não pretende participar do Mind Summit neste ano",
+  "declarou que não vai ao Summit este ano", …);
+- 1 é **opt-out explícito** — "solicitou descadastro após a primeira abordagem";
+- 2 são logística de origem (o popup de saída do site), que não é temporário;
+- 1 é um compromisso datado ("pretende falar com o diretor até amanhã");
+- 2 são o resto.
+
+Expirar isso em 24h apagaria justamente o registro de que a pessoa **pediu para não ser
+procurada** — e a memória de opt-out é a que mais precisa durar. É o mesmo defeito do D1 do
+Silence, na mesma origem: **o rótulo do analisador drifou da semântica que o motor espera**.
+
+Nenhum TTL foi ligado. Fica dependente da mesma decisão de conteúdo acima.
+
+### 15.4 Silence — decomposição exata dos `stopped` (CORRIGE um número reportado antes)
+
+**CORREÇÃO.** O checkpoint anterior desta lane disse "264 de 395 (67%) fora da fila" como se fosse
+tudo efeito do D1. **Está errado e não deve ser reusado.** 264 estão fora da fila, mas a maioria
+está fora *corretamente*. `last_decision.calculo.reason_code` guarda o motivo de cada uma, e ele
+decompõe os 264 sem ambiguidade:
+
+| `reason_code` | linhas | o que é |
+|---|---|---|
+| `purchase_confirmed_crm` | 38 | **intencional** — prova de compra no banco |
+| `purchase_declared` | 47 | **intencional** — a pessoa declarou compra |
+| `opt_out` | 66 | **intencional** — `summit_motivo_exclusao` |
+| `stopped` | **113** | **o bug D1** — `dados.continuation_status = 'stopped'` sem razão da seção 22 |
+
+**151 das 264 (57%) estão fora da fila porque devem estar.** O D1 explica **113**, ou 28,6% das
+395 — não 67%.
+
+Isso é estrutural, não coincidência: a precedência da `silence_calcular_next_review` testa compra e
+opt-out **antes** de olhar o `continuation_status` do analisador. Quando a execução chega ao ramo 3,
+já está provado que não houve compra nem opt-out — ou seja, o ramo 3 só vê o caso ambíguo.
+
+#### Quanto custa o D1 — simulação determinística, sem enviar nada
+
+`silence_calcular_next_review` é `STABLE` e recebe `p_dados` por parâmetro. Dá para calcular o que
+cada uma das 113 viraria **se o `stopped` sem razão da seção 22 deixasse de valer**, chamando a
+própria função de produção com `dados - 'continuation_status'`. Leitura pura: nada foi gravado,
+nenhuma mensagem foi enviada, o cron 13 continua desligado.
+
+Resultado das 113:
+
+| viraria | linhas | efeito |
+|---|---|---|
+| `silence` / `timing_matrix` | **95** | **entra na fila de reavaliação** |
+| `commitment_pending` / `commitment_due` | **1** | **entra na fila** |
+| `silence` / `event_trigger_only` (`no_legitimate_recontact_reason`) | 14 | fica fora — correto, não há motivo legítimo de recontato |
+| `stopped` / `purchase_confirmed_crm` | 3 | fica fora — compraram depois da análise |
+
+**96 oportunidades entrariam na fila; 17 continuariam fora, corretamente.** Das 113, 99 têm
+`open_loop` real, 43 têm `purchase_intent` alto/médio e 38 têm `commercial_priority` urgente/alta.
+
+A simulação também prova que as travas funcionam: ninguém que comprou ou pediu descadastro é
+puxado de volta — a precedência os retém antes do ramo do D1.
+
+#### Onde a correção pode ser feita — duas opções, ambas decisão da Adriana
+
+1. **No prompt** (o que o §2 propôs): dizer que `stopped` só vale para a seção 22, e que conversa
+   encerrada com ponto aberto é `silence`.
+2. **No ramo 3 de `silence_calcular_next_review`**: parar de tratar `stopped` sem `reason_code`
+   como parada definitiva.
+
+As duas mudam quem recebe follow-up, então as duas são decisão de produto. **Nada foi alterado.**
+O que esta lane entrega é o número exato e a simulação repetível.
+
+#### O que continua igual
+
+D2 e D3 do §2 seguem abertos e inalterados. `followup_count` é 0 nas 395 — coerente com o D3
+(ninguém envia), então `DORMANT por followup_exhausted` continua não podendo acontecer de verdade.
+Cron 13 `active = false`.
+
+### 15.5 `public.mind_lead_capturar` não existe — e a menor correção é NÃO criá-la
+
+Achado da Lane B (PR #47), que o registrou e passou adiante como write-back. Esta lane investigou o
+que deveria acontecer. **A conclusão é contraintuitiva e vale ler antes de escrever qualquer
+função.**
+
+#### O que está quebrado
+
+- `treble-inbound-agent` v1.3.0 (no ar) chama `supabase.rpc("mind_lead_capturar", {p_pessoa_id,
+  p_agente, p_referencia, p_contexto})` em **todo turno com pessoa identificada**.
+- `public.mind_lead_capturar` **não existe** (`pg_proc` em todos os schemas).
+- O erro é engolido: só `console.error({event:"lead_capturar_falhou"})`.
+- Zero ocorrências no log de Edge das últimas 24h — mas isso **não prova que funciona**: a função
+  teve **0 requisições** na mesma janela. A evidência é o catálogo, não o log.
+
+#### A investigação: para onde esse payload deveria ir?
+
+Campo a campo, contra o que o runtime já persiste:
+
+| campo de `p_contexto` | onde já é persistido | por quem |
+|---|---|---|
+| `origem` | `engagement.conversas.origem_codigo` | `treble_agent_start`, na ingestão |
+| `utm` | `engagement.conversas.utm` | idem |
+| `produto` | `engagement.conversas.produto_codigo` | idem |
+| `audience` | `engagement.conversas.audience` (coluna) | `mind_turno_registrar` |
+| `stage` | `engagement.conversas.stage` (coluna) | `mind_turno_registrar` |
+| `intent`, `ticket_interest`, `objection`, `needs_human`, `desfecho` | `engagement.conversas.variables` | `mind_turno_registrar` |
+| `rota` (acrescentado pela Lane B) | `engagement.mensagens.blocos` da mensagem do agente | `mind_turno_registrar` → `mind_mensagem_registrar(p_blocos := p_meta)` |
+| `p_pessoa_id` | `engagement.conversas.participante_id` | ingestão |
+| `p_agente` | `engagement.conversas.agente` | ingestão |
+| `p_referencia` (sessionId) | `engagement.conversas.session_external_id` | ingestão |
+
+**Não sobra um único campo.** E `mind_turno_registrar` é chamada **no mesmo turno, poucas linhas
+depois**, com exatamente o mesmo estado. Inclusive a `rota` que a Lane B acrescentou: o comentário
+dela no PR #47 diz, com todas as letras, que a rota fica em `blocos` da mensagem do agente —
+"nenhuma coluna nova, nenhuma segunda casa".
+
+#### Conclusão
+
+`mind_lead_capturar` é **chamada morta**, não função ausente. Criá-la construiria uma segunda casa
+para um estado que já tem casa canônica — exatamente o que o `CLAUDE.md` proíbe ("uma casa por
+conceito"). **A menor correção correta é remover a chamada**, não implementá-la.
+
+A remoção é em `supabase/functions/treble-inbound-agent/index.ts`, que é **arquivo da Lane B**.
+Esta lane não o tocou: passou o achado adiante.
+
+**RESOLVIDO em 30/08/2026 — a Lane B removeu a chamada** na v1.4.0 do `treble-inbound-agent`
+(PR #47, head `8401faf`), com o comentário no lugar do bloco citando esta investigação e a tabela
+de casas canônicas acima. Não há writer novo no lugar, que é o correto: o estado já estava sendo
+persistido. Quando o Passo 15B construir o write-back de verdade, ele nasce da casa canônica.
+
+**O que continua aberto:** o 15B em si (mapeamento `buyer_state` → `hs_pipeline_stage`, gate da
+Adriana) e a dupla órfã abaixo.
+
+**Se a intenção original era outra** (enfileirar o lead para criação de card no HubSpot, que é o
+Passo 15B), então a chamada está no lugar errado de qualquer forma: o payload é estado de turno,
+não dado de lead (não tem e-mail, telefone, `utm_source`, `fbclid`), e não corresponde à forma de
+`crm.leads_capturados`. O 15B continua precisando do mapeamento `buyer_state` → `hs_pipeline_stage`,
+que é gate da Adriana.
+
+#### Descoberta lateral: `crm.registrar_lead` também está quebrada
+
+Não é escopo desta lane e **não foi corrigida** — registrada para não ser redescoberta:
+
+- `crm.registrar_lead(...)` insere em `crm.leads_capturados (email, whatsapp, primeiro_nome,
+  sobrenome, empresa, cargo, agente, contexto)`;
+- a tabela real tem `(id, firstname, lastname, email, phone, company, perfil_d_cliente,
+  botao_selecionado_no_site, utm_*, fbclid, gclid, msclkid, li_fat_id, estado, criado_em,
+  enviado_em)`;
+- executá-la falha com `42703: column "whatsapp" of relation "leads_capturados" does not exist`
+  (verificado);
+- `crm.leads_capturados` tem **0 linhas** e **nenhuma outra função a lê**.
+
+A forma da tabela (utm/fbclid/gclid/`estado` pendente→`enviado_em`) é de **fila de captação do
+site para o HubSpot**, não de sinal comercial de conversa. Função e tabela estão órfãs juntas.
+
+---
+
+### 15.6 Onde `mind_memoria_fatos` entra no runtime — delta preparado, NÃO ativado
+
+Determinado contra os runtimes reais das Lanes B e C, não contra a arquitetura imaginada.
+
+**Superfícies vivas, depois de B e C:**
+
+| runtime | rota | o que monta o contexto |
+|---|---|---|
+| `treble-inbound-agent` (Lane B, PR #47) | vendedor B2C/B2B | `treble_agent_context` + `mind_agent_kit` + Router/Gate |
+| `mindagent-chat` (Lane C, PR #50) | concierge | `mindagent_chat_get_context` + `mindagent_chat_search` |
+
+A Lane C **não criou superfície nova**: o PR #50 troca o corpo de `public.mindagent_chat_search`
+mantendo assinatura e chaves, e os consumidores continuam sendo `mindagent-chat` e o bloco de
+agenda do `treble-inbound-agent`.
+
+**Onde a memória deve entrar.** Não em `mind_agent_context`: o CONTRATO 3 de
+`tests/mind_agent_context_contract.sql` trava o conjunto exato de chaves do topo, e mexer nele
+altera o caminho síncrono compartilhado pelas duas lanes no mesmo dia. O ponto certo é **um por
+runtime, aditivo**:
+
+- vendedor → junto do Kit, no `aiInput` do `treble-inbound-agent`, como bloco próprio
+  (`memoria: mind_memoria_fatos(pessoa_id)`), ao lado de `quem_esta_falando`;
+- concierge → em `mindagent_chat_get_context`, que **já lê `intelligence.participante_contexto`**
+  (tabela com 0 linhas) e é o lugar natural: a memória real está em `participante_memoria`, não em
+  `participante_contexto`.
+
+**Nada disso foi ativado.** Duas travas, nesta ordem: a política de sensibilidade da §15.3 (decisão
+4 da supervisão) e o fechamento dos runtimes de B e C. O coletor está pronto, testado e desligado
+desde o PR #46.
+
+Uma observação que vale para quem ligar: `mind_memoria_fatos` já ignora memória expirada, então no
+dia em que o TTL da §15.3 passar a ser gravado o lado da leitura não precisa mudar.
+
+---
+
+### 15.7 Pós-turno do Concierge — encanamento definido, conteúdo faltando
+
+Com o PR #50 no ar, a superfície do concierge é conhecida e o mapa fica exato:
+
+1. **Quais conversas precisam entrar em `analise_pendentes`.** Hoje o filtro é
+   `agente in ('treble','treble-inbound-agent')`. As conversas do concierge são
+   `canal = 'mindagent-web'`, e elas se dividem em duas populações com datas que não se
+   sobrepõem:
+
+   | `agente` | conversas | com mensagem de lead | período |
+   |---|---|---|---|
+   | `mindagent-chat` | 14 | 1 | 28/08 → 30/08 |
+   | nulo | 23 | 19 | 21/08 → 27/08 |
+
+   **O `agente` nulo é histórico, não defeito vivo:** a superfície web passou a carimbar
+   `mindagent-chat` em 28/08 e não produziu mais nenhuma linha nula desde então. (Registro
+   anterior desta seção dizia que a superfície "não está carimbando" — estava errado e não deve
+   ser reusado.)
+
+   Consequência prática: o filtro precisa apenas acrescentar `'mindagent-chat'`. As 19 conversas
+   com lead e `agente` nulo são um lote fechado de antes de 28/08 — se entram ou não é decisão
+   à parte, e o volume vivo hoje é pequeno (1 das 14).
+2. **Qual analisador deveria ser escolhido.** O `analisar-conversa` já conhece `analise_concierge`
+   na lista fechada `ANALISADORES`, e o `analise_classificador` v2 já pode devolvê-lo — o
+   encanamento de seleção **existe e está pronto**.
+3. **Que contrato de saída já existe.** `analise_gravar` deriva `funcao='concierge'` e
+   `vertical=null` do nome do analisador (`mapear()` na Edge Function), grava em
+   `intelligence.analise_conversa` e projeta `dados.customer_memory` em `participante_memoria` pelo
+   mesmo caminho do vendedor. `silence_sync_from_analysis` ignora `funcao <> 'comercial'`, então
+   análise de concierge **não contamina a fila de continuidade comercial** — já está correto.
+4. **O que realmente falta.** Só o conteúdo: `agentes.prompts` tem `analise_concierge` v1 com
+   `conteudo` vazio e `ativo = false`, e o fallback `analise_contexto_geral` também. `analise_prompt`
+   só devolve prompt ativo e não-vazio, então hoje a conversa entraria na fila, o classificador a
+   mandaria para `analise_concierge`, e o resultado seria chamada de LLM gasta e `sem_prompt`.
+
+**Nada de prompt foi inventado.** Ordem correta quando o conteúdo existir: preencher/ativar o
+prompt → alargar o filtro de `analise_pendentes` (uma cláusula `where`) → medir a fila. As duas
+metades não andam separadas.
+
+---
+
+### 15.8 Decisão congelada — memória não vai ao Agent antes da política
+
+Registro da decisão 4 da supervisão na issue #42, para não ficar só em comentário de GitHub:
+
+> **Memória NÃO deve ser exposta ao Agent em produção antes de a política de sensibilidade estar
+> funcionando na escrita.** O coletor `public.mind_memoria_fatos` pode continuar pronto e
+> desligado.
+
+Sustentada pela §15.3: `memoria_bloqueios` e `memoria_regras` não são aplicados por nenhum writer, e
+o gate correto é na escrita, dependente de um rótulo que o analisador ainda não emite.
+
+**Atualização (30/08/2026):** a pergunta da §15.3 foi respondida e aprovada. O contrato
+(`sensitivity` no prompt v2) e a trava fail closed em `analise_projetar_memoria` estão implementados
+na PR de memória segura — ver **§16**. A decisão acima **continua valendo para o legado**: as 886
+linhas gravadas sob o contrato v1 não são expostas ao Agent até serem revalidadas (§16.6).
