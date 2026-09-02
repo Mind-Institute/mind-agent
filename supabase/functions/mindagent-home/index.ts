@@ -40,13 +40,19 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 type AdminRole = "administrador" | "editor" | "aprovador" | "atendimento" | "analista";
 type AccessRecord = { display_name: string | null; role: AdminRole; active: boolean };
 
-/* O painel em desenvolvimento, o painel publicado, e o app — que chama
-   `/publico` do próprio navegador do participante. */
+/* O painel em desenvolvimento e o app, nas portas de sempre. */
 const DEFAULT_ORIGINS = new Set([
   "http://localhost:5174", "http://127.0.0.1:5174",
   "http://localhost:4321", "http://127.0.0.1:4321",
-  "https://mind-agent.adriana-3eb.workers.dev",
 ]);
+
+/* O worker publicado E os previews. O Cloudflare publica cada branch num
+   subdomínio com hash — `11967bf4-mind-agent.adriana-3eb.workers.dev` —,
+   e uma lista fixa só com o domínio final recusaria todos eles. É o que
+   acontece hoje com a `mindagent-admin`: preview nenhum consegue falar
+   com ela, e a tela diz "a API não respondeu" como se fosse queda.
+   Aqui o domínio do projeto vale com ou sem prefixo, e nada além dele. */
+const WORKER = /^https:\/\/(?:[a-z0-9][a-z0-9-]*-)?mind-agent\.adriana-3eb\.workers\.dev$/;
 
 const RECURSOS = new Set(["home_notices", "home_state", "home_schedule"]);
 /* Estes dois vivem na mesma linha de `concierge.config`. */
@@ -73,10 +79,12 @@ function lerChave(nome: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS", al
   return Deno.env.get(alternativa) ?? "";
 }
 
-function origensPermitidas() {
-  const extra = (Deno.env.get("ADMIN_ALLOWED_ORIGINS") ?? "")
-    .split(",").map((v) => v.trim()).filter(Boolean);
-  return new Set([...DEFAULT_ORIGINS, ...extra]);
+function origemPermitida(origem: string | null) {
+  if (!origem) return true;
+  if (WORKER.test(origem)) return true;
+  if (DEFAULT_ORIGINS.has(origem)) return true;
+  return (Deno.env.get("ADMIN_ALLOWED_ORIGINS") ?? "")
+    .split(",").map((v) => v.trim()).filter(Boolean).includes(origem);
 }
 
 function cabecalhosCors(req: Request, publico: boolean) {
@@ -84,7 +92,7 @@ function cabecalhosCors(req: Request, publico: boolean) {
   /* `/publico` é lido pelo app, que pode estar em qualquer origem — é
      conteúdo público, e restringir origem aqui só quebraria o app sem
      proteger nada. O caminho administrativo continua fechado. */
-  const liberado = publico || !origem || origensPermitidas().has(origem);
+  const liberado = publico || origemPermitida(origem);
   return {
     "Access-Control-Allow-Origin": publico ? "*" : (liberado && origem ? origem : "null"),
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, if-unmodified-since-version",
@@ -211,7 +219,7 @@ Deno.serve(async (req: Request) => {
 
   /* ---------- A porta do painel ---------- */
   const origem = req.headers.get("Origin");
-  if (origem && !origensPermitidas().has(origem)) {
+  if (!origemPermitida(origem)) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
   }
 
