@@ -421,6 +421,77 @@ resolve a sessão e recusa com o código certo. Os writers são da lane E/#43.
 do repo em exatamente dois pontos: `/[\u0300-\u036f]/g` no repo aparece como a classe literal
 equivalente no bundle publicado. Mesma faixa de caracteres, nenhuma diferença semântica.
 
+
+#### 02/09, mais tarde — REVISÃO, INCIDENTE E O TECLADO
+
+Quatro coisas depois do bloco acima. Branch `claude/go-live-vendedor-runtime-hjobov`.
+
+**Os 3 deltas da revisão da Adriana** (`292f2f0`, `mindagent-chat` version 30 / v1.9.1):
+
+1. **O App estava fora do pós-turno.** `analise_pendentes` filtrava
+   `c.agente in ('treble','treble-inbound-agent')` — só WhatsApp. Todas as análises daquele
+   dia vieram de `agente='treble'`; nenhuma do App. Ou seja, o contrato de memória durável
+   do Passo 5 nunca era exercido numa conversa do App. `20260902120000` acrescenta uma
+   palavra ao universo; quem escolhe o analisador continua sendo o `analise_classificador`,
+   que já é canal-agnóstico. Registro de erro meu: o comentário anterior dizia
+   "`analise_concierge` também roda no WhatsApp" porque juntei `participante_memoria` a
+   `conversas` por `participante_id` — isso conta qualquer conversa da pessoa, não a que
+   produziu a análise. O caminho certo é por `analise_conversa`.
+2. **Evidência do interesse** — `20260902...`/runtime: a correção do PR #52 (`27af67a`)
+   trazida verbatim, `userMessage.mensagem_id` no lugar de `.id`, mais o stub do harness
+   passando a espelhar a forma real. Antes: 19/19 interesses com `evidencia_message_id`
+   nulo, e zero linhas com evidência em toda a tabela.
+3. **Menus e reserva no playbook** — `20260902130000`. O menu chama-se `Programação`,
+   nunca "Agenda"; ao recomendar Arena LinkedIn, Arena Sextante, workshop ou Masterclass,
+   lembrar de agendar e conferir em `Minha Agenda`; Arena Mind é exceção e não exige
+   reserva.
+
+**A home passa a trocar de tela pela data** (`da5c77a`). A regra JÁ EXISTIA e estava
+desligada: `api.mindagent_home_publico`, em `modo='programado'`, resolve o momento pegando
+a última troca cujo horário já passou, no fuso do evento, sem cron. Faltava o dado —
+`trocas` vazio e `modo` em `manual`, com a home pregada em `no-evento` desde 01/09. A
+programação está em `docs/sql/home-v3/07-programacao-das-telas.sql`; a tela própria do Dia 2
+não existe e está em `BACKLOG.md` §15.
+
+**INCIDENTE — o App e o vendedor ficaram fora do ar** (`f0c9dd5`). Às 06:58,
+`mindagent-chat` devolvendo `503 official_data_unavailable` em toda conversa.
+`public.mind_customer_intelligence`, da entrega de Customer Intelligence
+(`20260902140000`), ordenava a identidade de HubSpot por `i.atualizado_em` — coluna que
+`engagement.identidades` não tem. PL/pgSQL só resolve nomes de coluna na execução, então a
+função foi criada sem erro e o `BEGIN/ROLLBACK` estrutural não podia pegar.
+
+O bloco `customer_intelligence` entrou nos Kits das QUATRO rotas, e como `mind_agent_kit`
+monta todos os blocos, a exceção derrubava o Kit inteiro — App (Concierge e Atendimento) e
+vendedor no WhatsApp. **O fail-closed funcionou como projetado**: foi ele que transformou
+um erro de coluna em indisponibilidade visível em vez de resposta inventada sem dado
+oficial. Corrigido em `20260902150000` trocando um token para `i.criado_em`; as outras
+referências a `atualizado_em` no corpo são válidas e ficaram. Varreduras depois: 60 pessoas
+de perfis variados e 30 conversas reais nos dois canais, zero exceções.
+
+**Lição para o dia do evento, não resolvida:** qualquer bloco de Kit que levante exceção
+derruba o Kit inteiro e cala o agente. Se um bloco OPCIONAL pudesse falhar sozinho sem
+levar junto `evento` e `programacao`, um erro assim viraria degradação em vez de queda. É
+mudança no contrato do fail-closed — decisão da Adriana, não feita.
+
+**O teclado deixou de empurrar a tela do Concierge** (`c044d4b`). Causa: a tela é uma
+coluna flex de `height: 100dvh`, e no iOS o teclado não encolhe o viewport de layout nem
+muda `100dvh`/`innerHeight` — encolhe só o VISUAL. A página continuava desenhada com a
+altura inteira e o Safari rolava o viewport de LAYOUT para trazer o campo focado à área
+visível: quem subia era a página, não o campo. `teclado.js` publica `visualViewport.height`
+em `--app-altura` e o body virou `position: fixed` com essa altura.
+
+Segundo defeito no mesmo sintoma: ao enviar, o código fazia `campoChat.disabled = true` —
+desabilitar um campo focado tira o foco, e no iOS isso fecha o teclado; o `focus()` de
+volta, fora de um toque, o iOS ignora. O teclado fechava a cada mensagem e não voltava.
+Quem impede envio duplicado é `respostaEmAndamento`.
+
+Medido em navegador em 393×852, 852×393 e 375×667, nos quatro estados: header imóvel,
+composer no fim da área visível, distância até o fim da conversa zero, `scrollY` zero, foco
+preservado inclusive durante o envio. **Não testado em iPhone real** — o critério de aceite
+que pede isso continua aberto. A bottom navigation do diagrama da Adriana **não existe
+nesta tela** (o `#fnav` é o telefone simulado do tour); a regra que a esconde está escrita e
+inerte, e falta saber se a barra é do app hospedeiro.
+
 ---
 
 ### D — pós-turno / memória / write-back / Silence
