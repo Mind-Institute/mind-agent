@@ -131,14 +131,23 @@ export function cardDestaque(b, aoAgir) {
    o tile tem altura mínima em vez de altura fixa: fixar cortaria o texto
    de um e deixaria o outro oco. */
 export function gradeDeAtalhos(b, aoAgir) {
-  const el = no('div', 'v3-atalhos');
-  (b.itens || []).forEach((t) => {
+  const itens = b.itens || [];
+  /* O número de colunas vem da quantidade, não de um número escrito no
+     CSS: com três atalhos eles cabem lado a lado; com quatro, dois a dois.
+     Assim tirar ou pôr um item não exige lembrar de mexer na folha. */
+  const el = no('div', 'v3-atalhos' + (itens.length === 3 ? ' trio' : ''));
+  el.style.gridTemplateColumns = 'repeat(' + Math.min(itens.length, 3) + ', minmax(0, 1fr))';
+  itens.forEach((t) => {
     const bt = no('button', 'v3-atalho');
     bt.type = 'button';
-    bt.innerHTML =
-      '<span class="v3-atalho-topo"><span class="v3-ico">' + t.ico + '</span>' + CHEVRON + '</span>' +
-      '<strong>' + t.titulo + '</strong>' +
-      '<small>' + t.texto + '</small>';
+    /* Em trio o tile fica com ~98px num aparelho de 360: a descrição não
+       cabe sem virar quatro linhas de palavra picada, e o título sozinho
+       já diz para onde vai. O chevron sai pelo mesmo motivo. */
+    bt.innerHTML = itens.length === 3
+      ? '<span class="v3-ico">' + t.ico + '</span><strong>' + t.titulo + '</strong>'
+      : '<span class="v3-atalho-topo"><span class="v3-ico">' + t.ico + '</span>' + CHEVRON + '</span>' +
+        '<strong>' + t.titulo + '</strong>' +
+        '<small>' + t.texto + '</small>';
     bt.addEventListener('click', () => aoAgir(t.acao, t));
     el.appendChild(bt);
   });

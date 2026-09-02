@@ -279,16 +279,14 @@ export const CONTEUDO = {
           texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
         { ico: ICO.brilho, titulo: 'Reserve suas experiências',
           texto: 'Garanta suas escolhas agora', acao: 'tour' },
-        /* `roteiro:` e não `tour:`: o mapa mora dentro do Menu, e mostrar a
-           tela pronta esconderia justamente o caminho que precisa ser
-           ensinado. Aqui a demonstração começa no Menu e pede o toque. */
-        { ico: ICO.pin, titulo: 'Mapa do evento',
-          texto: 'Arenas, lounges e estandes do São Paulo Expo', acao: 'roteiro:mapa' },
       ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:
          quem dispara um aviso no painel precisa vê-lo aparecer aqui. */
-      { tipo: 'avisos', quantos: 3 },
+      /* Quatro, não três: os três atalhos passaram a caber numa linha só e
+         a linha economizada dá exatamente a altura de mais um aviso. Foi o
+         motivo do pedido — encolher os atalhos para caber mais recado. */
+      { tipo: 'avisos', quantos: 4 },
     ],
   },
 
