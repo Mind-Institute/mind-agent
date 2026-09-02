@@ -20,9 +20,17 @@
   --raio-card: 24px;
   --raio-pill: 100px;
   --pad: 20px;
-  /* Azul de ação do tour: destaca a próxima ação sobre as telas reais,
-     onde o verde da marca já é cor de interface do app */
-  --acao: #3e9bff;
+  /* CORAL É "TOQUE AQUI". A demonstração de features aponta a próxima
+     ação sobre capturas do app de verdade, e ali o verde da marca já é
+     cor de interface — usá-lo faria a instrução se confundir com o que a
+     tela já mostra. Era azul (#3e9bff), que resolvia isso mas não era da
+     Mind. O coral é da marca, não colide com o verde e é o que a Adriana
+     definiu em 02/09 como a cor de "é para clicar aqui".
+
+     TODO tom derivado sai deste token por `color-mix`. Antes havia onze
+     `rgba(62,155,255,…)` espalhados; trocar o token deixava anel coral
+     com brilho azul. Derivar é o que faz a cor ser uma decisão só. */
+  --acao: #ff7057;
   /* Cinzas do app, para a nav e os popups desenhados em HTML */
   --app-bg: #161616;
   --app-nav: #1d1d1d;
@@ -1004,7 +1012,7 @@ html[data-teclado="aberto"] .doca {
   width: 15%; padding-top: 15%;
   transform: translate(-50%, -50%);
   border: 2px solid var(--acao);
-  background: rgba(62, 155, 255, .16);
+  background: color-mix(in srgb, var(--acao) 16%, transparent);
   border-radius: 50%;
   animation: pulso 1.8s infinite;
 }
@@ -1042,8 +1050,8 @@ html[data-teclado="aberto"] .doca {
   display: flex; align-items: center; gap: 8px;
   margin-top: 12px;
   appearance: none; cursor: pointer;
-  background: rgba(62, 155, 255, .14);
-  border: 1px solid rgba(62, 155, 255, .5);
+  background: color-mix(in srgb, var(--acao) 14.0%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acao) 50%, transparent);
   border-radius: var(--raio-pill);
   color: var(--acao);
   font: inherit; font-size: 13.5px; font-weight: 700;
@@ -1079,6 +1087,25 @@ html[data-teclado="aberto"] .doca {
   padding: 8px 12px;
 }
 .t-missao .c-voltar { width: 34px; height: 34px; font-size: 15px; }
+
+/* Sair da demonstração. Pílula com palavra, e NEUTRA: o coral é reservado
+   para onde se quer que a pessoa toque, e a saída é o contrário disso —
+   precisa ser fácil de achar sem disputar com a instrução. Contorno mais
+   claro que o `--hairline` para se destacar da barra sem virar botão de
+   ação. */
+.t-sair {
+  appearance: none; cursor: pointer; flex: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 13px 0 11px;
+  border-radius: var(--raio-pill);
+  border: 1px solid color-mix(in srgb, var(--texto-mudo) 55%, transparent);
+  background: rgba(255, 255, 255, .06);
+  color: var(--texto);
+  font: inherit; font-size: 13px; font-weight: 700;
+  transition: background .18s ease, border-color .18s ease;
+}
+.t-sair svg { width: 14px; height: 14px; flex: none; }
+.t-sair:active { background: rgba(255, 255, 255, .12); border-color: var(--texto-mudo); }
 .t-missao .t-texto {
   flex: 1; min-width: 0;
   font-size: 12px; font-weight: 700; line-height: 1.25;
@@ -1109,6 +1136,7 @@ html[data-teclado="aberto"] .doca {
 /* O "telefone": foto da tela + barra de abas viva */
 /* A página inteira é a tela do celular: o app ocupa tudo, sem moldura */
 .fone {
+  position: relative;   /* âncora da seta que aponta a aba */
   margin: auto;
   aspect-ratio: 780 / 1570;
   display: flex; flex-direction: column;
@@ -1159,13 +1187,13 @@ html[data-teclado="aberto"] .doca {
   width: 13cqw; height: 13cqw;
   margin: -6.5cqw 0 0 -6.5cqw;
   border: 2px solid var(--acao);
-  background: rgba(62, 155, 255, .16);
+  background: color-mix(in srgb, var(--acao) 16%, transparent);
   border-radius: 50%;
   animation: pulso 1.6s infinite;
 }
 .alvo.dica.largo {
-  border: 2px dashed rgba(62, 155, 255, .8);
-  background: rgba(62, 155, 255, .07);
+  border: 2px dashed color-mix(in srgb, var(--acao) 80%, transparent);
+  background: color-mix(in srgb, var(--acao) 7.0%, transparent);
 }
 .alvo.dica.largo::after { display: none; }
 .alvo.erra { animation: tremer .4s; }
@@ -1194,14 +1222,54 @@ html[data-teclado="aberto"] .doca {
   background: rgba(6, 6, 10, .62);
 }
 @keyframes pulso {
-  0% { box-shadow: 0 0 0 0 rgba(62, 155, 255, .55); }
-  70% { box-shadow: 0 0 0 4cqw rgba(62, 155, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(62, 155, 255, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acao) 55.0%, transparent); }
+  70% { box-shadow: 0 0 0 4cqw transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 @keyframes tremer {
   0%,100% { transform: translate(-50%, -50%); }
   25% { transform: translate(calc(-50% - 6px), -50%); }
   75% { transform: translate(calc(-50% + 6px), -50%); }
+}
+
+/* ---- A seta que aponta onde tocar ----
+   O anel diz "tem algo aqui"; a seta diz "toque AQUI". Ela sai do lado do
+   balão e mira o alvo, para os três — balão, seta, anel — apontarem na
+   mesma direção.
+
+   Fica acima do véu (z 3) e do anel (z 4) para não ser escurecida junto
+   com o resto da tela, e não recebe toque: quem tem que receber o toque é
+   o alvo embaixo dela. */
+.seta-dica {
+  position: absolute; z-index: 5;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  color: var(--acao);
+  /* Legível sobre foto clara ou escura: a sombra é o contorno. */
+  filter: drop-shadow(0 .35cqw .7cqw rgba(0, 0, 0, .65));
+}
+.seta-dica i { display: block; }
+.seta-dica svg { width: 8.4cqw; height: 8.4cqw; display: block; }
+/* O `top` chega na BORDA do alvo (calculado no JS); o recuo aqui empurra a
+   seta para fora dela. 7cqw passa por fora do anel de 13cqw — raio 6,5 —
+   no alvo pequeno, e por fora da caixa no alvo grande, com a mesma conta. */
+.seta-dica.cima  { margin-top: 7cqw; }
+.seta-dica.baixo { margin-top: -7cqw; }
+.seta-dica.cima i  { transform: rotate(180deg); animation: seta-sobe 1.25s ease-in-out infinite; }
+.seta-dica.baixo i { animation: seta-desce 1.25s ease-in-out infinite; }
+/* Na barra de abas a seta não tem alvo em `%` — ela pousa logo acima da
+   barra, que ocupa os 9,5% de baixo do telefone. */
+.seta-dica.na-aba {
+  top: auto; bottom: 9.5%; margin: 0 0 1.4cqw 0;
+  transform: translate(-50%, 0);
+}
+@keyframes seta-sobe {
+  0%, 100% { transform: rotate(180deg) translateY(0); }
+  50%      { transform: rotate(180deg) translateY(1.5cqw); }
+}
+@keyframes seta-desce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(1.5cqw); }
 }
 
 /* Marcas desenhadas por cima da foto (palestrante salvo, contato pendente,
@@ -1253,8 +1321,8 @@ html[data-teclado="aberto"] .doca {
 }
 .balao b { color: var(--texto); }
 .balao.acao {
-  border-color: rgba(62, 155, 255, .9);
-  box-shadow: 0 0 0 1px rgba(62, 155, 255, .18), 0 6px 26px rgba(0, 0, 0, .6);
+  border-color: color-mix(in srgb, var(--acao) 90%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--acao) 18%, transparent), 0 6px 26px rgba(0, 0, 0, .6);
 }
 .balao .rot {
   display: block;
@@ -1361,7 +1429,7 @@ html[data-teclado="aberto"] .doca {
   width: 13cqw; height: 13cqw;
   margin: -6.5cqw 0 0 -6.5cqw;
   border: 2px solid var(--acao);
-  background: rgba(62, 155, 255, .16);
+  background: color-mix(in srgb, var(--acao) 16%, transparent);
   border-radius: 50%;
   animation: pulso 1.6s infinite;
 }
@@ -1403,7 +1471,7 @@ html[data-teclado="aberto"] .doca {
 }
 .missoes-cartao li.ok span { background: var(--verde); border-color: var(--verde); color: var(--surface-deep); }
 .missoes-cartao li.ok { color: var(--texto-mudo); text-decoration: line-through; }
-.missoes-cartao li.atual span { border-color: var(--acao); box-shadow: 0 0 0 3px rgba(62,155,255,.2); }
+.missoes-cartao li.atual span { border-color: var(--acao); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acao) 20%, transparent); }
 .missoes-cartao button {
   margin-top: 18px; width: 100%;
   appearance: none; cursor: pointer; border: 0;

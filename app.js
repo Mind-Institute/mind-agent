@@ -917,12 +917,29 @@ function fimDaEntrada() {
 const ehLargo = (a) => a.w > 40 || a.h > 12 || a.w / a.h > 3;
 
 /* --- desenha a tela atual --- */
+/* A seta que aponta o alvo. `deCima` diz de que lado ela chega: vindo de
+   cima ela aponta para baixo, e vice-versa. O `<i>` interno existe só
+   para a animação — o `<span>` já gasta o `transform` para se centrar, e
+   as duas coisas no mesmo nó se anulariam. */
+function setaDica(deCima, esquerda, topo) {
+  const s = document.createElement('span');
+  s.className = 'seta-dica ' + (deCima ? 'baixo' : 'cima');
+  s.setAttribute('aria-hidden', 'true');
+  s.style.left = esquerda;
+  if (topo !== null) s.style.top = topo;
+  s.innerHTML = '<i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 3v18M12 21l-7-7M12 21l7-7"/></svg></i>';
+  return s;
+}
+
 function pintar(modo) {
   const tela = TELAS[telaAtual];
   telaImg.src = TOUR_IMG_SRC(tela.img);
   telaImg.alt = 'Tela ' + telaAtual + ' do app';
 
   conteudo.querySelectorAll('.alvo, .marca, .veu').forEach((el) => el.remove());
+  fone.querySelectorAll('.seta-dica').forEach((el) => el.remove());
 
   /* Com um modal obrigatório aberto, a única ação possível é o botão
      dele. Apontar para a próxima etapa aqui dava duas instruções que se
@@ -1002,6 +1019,37 @@ function pintar(modo) {
       veu.className = 'veu tudo';
     }
     conteudo.appendChild(veu);
+  }
+
+  /* SETA: onde tocar, apontado com o dedo.
+     O anel pulsante já marcava o lugar, mas anel é sinal de "algo aqui" —
+     seta é instrução. Ela nasce do lado do balão e aponta para o alvo,
+     então balão, seta e anel contam a mesma coisa na mesma direção.
+
+     `alvoDica.y > 58` é a MESMA conta que escolhe o lado do balão logo
+     acima: alvo embaixo manda o balão para o topo, e então a seta desce
+     de cima. Duplicar o número aqui deixaria os dois brigando na primeira
+     vez que alguém mexesse num só — por isso vem da mesma expressão. */
+  if (dica && alvoDica) {
+    const deCima = alvoDica.y > 58;
+    /* Ancorada na BORDA do alvo, não no centro dele. O cartão de uma
+       sessão ocupa um quarto da tela: mirando o centro, a seta caía
+       dentro do próprio cartão e apontava para o meio do nada. Da borda,
+       a mesma conta serve para o alvo grande e para o pequeno — no
+       pequeno a borda quase encosta no centro, e o recuo de 7cqw do CSS
+       passa por fora do anel. */
+    const borda = deCima ? alvoDica.y - alvoDica.h / 2 : alvoDica.y + alvoDica.h / 2;
+    conteudo.appendChild(setaDica(deCima, alvoDica.x + '%', borda + '%'));
+  } else if (dica && dica.aba) {
+    /* Aba: a seta mora no telefone, não na foto — a barra fica fora do
+       `.frame`, e o botão da aba tem `overflow: hidden` por causa dos
+       rótulos longos, então ali dentro ela seria cortada. */
+    const i = ABAS.findIndex((x) => x.id === dica.aba);
+    if (i >= 0) {
+      const s = setaDica(true, ((i + 0.5) / ABAS.length) * 100 + '%', null);
+      s.classList.add('na-aba');
+      fone.appendChild(s);
+    }
   }
 
   /* abas: ativa + dica */
