@@ -509,7 +509,10 @@ enviarComEnter(document.getElementById('form-home'));
 function TOUR_IMG_SRC(nome) { return './assets/tour/' + nome + '.webp'; }
 
 const ICO = {
-  agente: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="8" width="14" height="10" rx="3"/><path d="M9 8V6M15 8V6M9 2l1.5 2.5M15 2l-1.5 2.5"/><circle cx="9.5" cy="12" r=".9" fill="currentColor"/><circle cx="14.5" cy="12" r=".9" fill="currentColor"/></svg>',
+  /* ESTRELA, não robô. No app o Concierge é uma estrela; o robozinho era do
+     tempo em que a aba se chamava "Mind" e representava um agente. Ícone e
+     rótulo são a mesma promessa — a pessoa procura os dois juntos na barra. */
+  agente: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>',
   agenda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>',
   minha:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18M8.5 14.5l2.5 2.5 4.5-4.5"/></svg>',
   qr:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14h1M14 20h1M18 18h3v3h-2"/></svg>',
