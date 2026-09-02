@@ -22,7 +22,10 @@ const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const dados = readFileSync(new URL('../data-service.js', import.meta.url), 'utf8');
 const homeJs = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8');
-const migracao = readFileSync(new URL('../supabase/migrations/20260902210000_tipo_de_ingresso_para_o_cabecalho.sql', import.meta.url), 'utf8');
+/* A migração VIGENTE da função — a de 21:00 abriu a porta, a de 22:00
+   trocou a lista fechada de tipos pela exclusão da sentinela. É o
+   comportamento vivo que estes testes travam. */
+const migracao = readFileSync(new URL('../supabase/migrations/20260902220000_camarote_tambem_e_tipo_de_ingresso.sql', import.meta.url), 'utf8');
 const funcaoHome = readFileSync(new URL('../supabase/functions/mindagent-home/index.ts', import.meta.url), 'utf8');
 
 test('os três atalhos levam a destinos que existem', () => {
@@ -243,14 +246,25 @@ test('o e-mail nunca vai na URL para buscar o ingresso', () => {
   assert.ok(!/participante\?/.test(fn), 'o e-mail voltou para a URL na busca do ingresso');
 });
 
-test('a tela só escreve um tipo de ingresso que ela conhece', () => {
-  /* A pílula e a sobrancelha saem do que o servidor devolveu. A lista
-     fechada aqui é o que impede uma resposta inesperada de virar texto
-     no cabeçalho. */
-  assert.match(dados, /const TIPOS_DE_INGRESSO = new Set\(\['VIP', 'Mind', 'Prime'\]\)/,
-    'a lista fechada de tipos sumiu do data-service');
-  assert.match(dados, /TIPOS_DE_INGRESSO\.has\(tipo\) \? tipo : null/,
-    'a conferência do tipo devolvido pelo servidor sumiu');
+test('a tela confere a FORMA do tipo, não uma lista de nomes', () => {
+  /* Começou como lista fechada — VIP, Mind, Prime — e se calou sozinha
+     quando o espelho ganhou `Camarote`: 54 pessoas sem pílula e sem erro
+     nenhum na tela. Uma lista de nomes no front-end é uma promessa de
+     que alguém vai lembrar de voltar aqui. A tela garante só que o
+     cabeçalho não vire campo de texto livre; quem decide o que é tipo é
+     a função no banco. */
+  assert.match(dados, /const FORMATO_INGRESSO = /,
+    'a conferência de forma sumiu do data-service');
+  assert.ok(!/new Set\(\['VIP'/.test(dados),
+    'a lista fechada de tipos voltou — e ela se cala sozinha no próximo tipo novo');
+
+  const re = new RegExp((dados.match(/const FORMATO_INGRESSO = \/(.+)\/u;/) || [])[1], 'u');
+  for (const bom of ['VIP', 'Mind', 'Prime', 'Camarote', 'Área VIP']) {
+    assert.ok(re.test(bom), 'a forma passou a recusar um tipo plausível: ' + bom);
+  }
+  for (const ruim of ['', 'x', '<b>oi</b>', 'Uma frase inteira que nao cabe no cabecalho']) {
+    assert.ok(!re.test(ruim), 'a forma passou a aceitar lixo no cabeçalho: ' + JSON.stringify(ruim));
+  }
 });
 
 test('sem tipo de ingresso, o cabeçalho é exatamente o de antes', () => {
@@ -272,9 +286,11 @@ test('a porta do ingresso não vira uma forma de descobrir quem tem ingresso', (
      coisa. É isso que impede a rota de confirmar presença na lista. */
   assert.match(migracao, /and status = 'ativo'/, 'a porta parou de filtrar ingresso inativo');
   assert.match(migracao, /and revogado_em is null/, 'a porta parou de filtrar ingresso revogado');
-  assert.match(migracao, /ticket_type in \('VIP', 'Mind', 'Prime'\)/,
-    'a porta passou a devolver tipo fora da lista — `SEM MAPA` inclusive');
-  assert.match(migracao, /count\(distinct ticket_type\) = 1/,
+  assert.match(migracao, /upper\(btrim\(ticket_type\)\) <> 'SEM MAPA'/,
+    'a sentinela de importação voltou a passar como se fosse tipo de ingresso');
+  assert.match(migracao, /char_length\(btrim\(ticket_type\)\) between 2 and 24/,
+    'o teto de tamanho sumiu, e o cabeçalho volta a poder receber texto livre');
+  assert.match(migracao, /count\(distinct btrim\(ticket_type\)\) = 1/,
     'o desacordo entre linhas do mesmo e-mail voltou a ser desempatado por conta própria');
   /* E ela não é alcançável com a chave publicável do navegador. */
   for (const alvo of ['api', 'public']) {
