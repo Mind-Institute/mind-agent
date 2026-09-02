@@ -1,17 +1,32 @@
-# Home V3 em produção — o que aplicar
+# Home V3 em produção
 
-Estado em 2026-09-01.
+Estado em 2026-09-02: **no ar e completo.**
 
-| passo | estado |
+| peça | estado |
 |---|---|
-| Edge Function `mindagent-home` | **publicada** — v1, ativa, `verify_jwt` off |
-| `VITE_HOME_API_BASE_URL` no painel | **preenchida** em `admin/.env.local` |
-| os quatro SQL | **pendentes** — o ambiente bloqueia escrita no banco |
+| `concierge.avisos` + coluna `arquivado_em` | aplicada |
+| chave `home` em `concierge.config` | aplicada, em `modo: programado` |
+| as 5 funções (leitura, escrita, porta pública e a ponte em `public`) | aplicadas |
+| Edge Function `mindagent-home` | publicada, v1 |
+| `VITE_HOME_API_BASE_URL` | no `.env.local` e no build da Cloudflare |
+| programação das telas (`07`) | aplicada pela lane B em 02/09 |
 
-A função responde e já foi conferida em produção: `/health` volta ok, a
-origem de preview passa no CORS e a forjada leva 403. A rota `/publico`
-devolve 503 porque a função SQL que ela chama ainda não existe — é o
-que os quatro arquivos abaixo criam.
+Conferido em produção: a porta pública devolve
+`{modo: programado, momento: antes}` e os avisos em circulação, com os
+agendados de 16/09 segurados. Um aviso criado no painel chega ao app.
+
+Os arquivos abaixo são `create or replace` e `if not exists` — reexecutar
+é seguro e não duplica dado.
+
+## Ordem, se precisar refazer
+
+```text
+01 · 04 · 03 · 06   →   07 (opcional: programa as telas)
+```
+
+A `06` traz a função em `api` E a ponte em `public`. Sem a ponte o
+PostgREST não enxerga a função, e a Edge Function devolve 503 — foi o que
+aconteceu na primeira tentativa.
 
 ## A regra que desenhou tudo isto
 
