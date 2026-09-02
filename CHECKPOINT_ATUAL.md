@@ -257,6 +257,57 @@ não trouxe", "com o que veio neste turno").
 dá o motivo — mas ainda abre com uma ressalva desnecessária em vez de perguntar de qual
 sessão se trata. É afinação de redação, não caminho quebrado.
 
+
+---
+
+#### 02/09 — a programação do backend estava 3 dias atrasada
+
+Descoberto ao ser perguntado se eu tinha trocado a programação. **Não tinha**: nas dez
+migrations de hoje só há `update agentes.prompts`, nenhuma escrita em `sessions`,
+`session_speakers`, `espacos` ou `knowledge_documents`. Mas a pergunta expôs coisa pior.
+
+**A cadeia de sync existia e nunca funcionou.** `mindsummit2026` tem
+`.github/workflows/sync-programacao.yml` (push em `src/data/programacao.json` → Edge
+Function `summit-programacao-sync` → RPC `summit_sync_programacao`). Rodou 3 vezes desde
+30/08, **as 3 vermelhas**, sempre `401 x-sync-secret invalido ou ausente`: o log mostra
+`-H "x-sync-secret: "` — o secret `SYNC_SECRET` **não existe naquele repositório**. O
+único sync bem-sucedido (30/08 19:33) foi manual.
+
+Resultado: o commit de ontem 15:18 (`troca dos workshops "Bem-estar começa na agenda" e
+"Falhar melhor"`) nunca chegou ao backend, e o Concierge respondia dia, horário e sala
+errados para 3 workshops — com a confiança que o trabalho de hoje aumentou, porque agora
+ele lista dias inteiros e afirma totais. Dado velho entregue de forma mais completa é pior,
+não melhor.
+
+**Corrigido no runtime, com a normalização canônica.** Um diff caseiro meu deu um falso
+positivo (`d2-1720` tem `superTitulo: "Mind Talks"`, e a função normaliza o título para
+"Mind Talks" de propósito) — por isso a correção foi feita chamando a própria Edge
+Function, não reimplementando a regra. As 3 sessões que mudaram de horário mudaram de
+`id`, e a função nunca apaga; então: sync criou as 3 novas → migrei os 2 vínculos de
+palestrante → apaguei as 3 antigas, depois de provar que nenhuma tinha agenda pessoal,
+feedback, jornada ou recomendação ligada (as 5 FKs são `CASCADE`). Backend voltou a 77
+sessões, 39/38, idêntico ao site. Medido no runtime: `Falhar melhor` → 16/09 15:00–17:00,
+Sala Workshop 2.
+
+`summit-programacao-sync` foi para **version 6**: `VALIDO_ATE` de `2026-09-07` para
+`2026-09-16`, a pedido da Adriana (a programação muda até a véspera e o Concierge lê esta
+tabela).
+
+**PR aberto no repo do site:** Mind-Institute/mindsummit2026#31 — `schedule` de 07:00 e
+19:00 BRT no workflow, parando sozinho depois de 16/09.
+
+**Pendências que são gate da Adriana, não minhas:**
+- criar `SYNC_SECRET` em `mindsummit2026`. Sem isso o job continua 401, agendado ou não;
+- **o segredo do sync está hardcoded em texto claro** dentro da Edge Function, como
+  fallback. É por isso que esta função **não tem arquivo neste repo**: guardá-la aqui
+  espalharia o segredo por um segundo lugar. A divergência repo/produção fica registrada
+  de propósito e se resolve junto com a rotação do segredo para env var;
+- toda troca de horário vira `id` novo e exige limpeza manual da linha velha — hoje fiz as
+  3 à mão. Se isso virar rotina até o evento, vale decidir uma regra;
+- `who` do JSON não vira vínculo de palestrante (o sync não escreve palestrante, por
+  contrato): `Bem-estar começa na agenda` está sem palestrante no backend, embora o site
+  traga "Esabela Cruz, Clarissa Daroit".
+
 ---
 
 ### D — pós-turno / memória / write-back / Silence
