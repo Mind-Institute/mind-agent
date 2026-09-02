@@ -1,4 +1,4 @@
-import { CONFIG, obterParticipante } from './config.js';
+import { CONFIG, obterParticipante, obterOrigemCodigo } from './config.js';
 
 const PREFIXO = 'mindagent:v1:' + CONFIG.eventSlug + ':';
 const CHAVES = {
@@ -115,6 +115,9 @@ async function chamar(message, clientMessageId) {
           client_message_id: clientMessageId,
           session: ler(CHAVES.session) || undefined,
           identity: identidade(),
+          /* Porta de entrada, não identidade. Só tem efeito na abertura da
+             conversa — depois disso o banco já gravou e não reescreve. */
+          origem_codigo: obterOrigemCodigo() || undefined,
         }),
         cache: 'no-store',
         signal: controller.signal,

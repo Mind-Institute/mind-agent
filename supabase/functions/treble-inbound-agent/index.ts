@@ -1,5 +1,21 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.5.2 — O CANAL VAI AO ROUTER. Ate aqui a chamada mandava so `conversa_id`, e o
+// Router escolhia entre as seis rotas globais sem saber onde estava. Duas perguntas
+// banais de lead ("Quando sera o evento?", "quais palestrantes estarao no summit?")
+// foram para `concierge_summit`, que este canal nao serve, e viraram transferencia.
+// Agora o canal segue junto e o Router monta o enum da resposta a partir da politica
+// em `agentes.canal_competencia`: rota proibida deixa de ser possivel no schema, nao
+// apenas desaconselhada no prompt. O Gate continua validando depois.
+//
+// v1.5.1 — RESPOSTA PRONTA NAO SE CORTA POR CARACTERE. Ate a v1.5.0 havia tres tetos
+// empilhados em 700: `answer.maxLength` no schema, `max_output_tokens` e um
+// `.slice(0, 700)` no runtime. Um turno real chegou ao WhatsApp com exatamente 700
+// caracteres, partido no meio de "Mind". O gatilho foi o playbook pedir as tres
+// experiencias com preco, 12x e proposta de valor: nao cabia, e o teto ganhava do
+// prompt. Agora o limite de tamanho e CONDUTA (esta na `description` do campo), nao
+// tesoura: mensagem completa vale mais que frase mutilada.
+//
 // v1.5.0 — O CORE CANÔNICO É O ÚNICO CAMINHO. O legado saiu do runtime: não há mais
 // fallback para o comportamento v1.3.0, `treble_agent_context` não é mais chamado, e a
 // flag `core_rota_kit` deixou de existir aqui — ela decidia entre duas inteligências, e
@@ -100,7 +116,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { precoInventado, precosOficiais } from "./guardrail-preco.ts";
 
-const VERSION = "1.5.0";
+const VERSION = "1.5.2";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -139,7 +155,14 @@ const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    answer: { type: "string", minLength: 1, maxLength: 700 },
+    answer: {
+      type: "string", minLength: 1, maxLength: 2000,
+      // O teto existe so como sanidade — o WhatsApp aceita ~4.000 e o limite de
+      // verdade e de conduta, nao de contagem. Com 700 o proprio schema cortava a
+      // frase quando o playbook pedia as tres experiencias com preco, parcela e
+      // proposta de valor: nao cabia, e a mensagem chegava partida.
+      description: "A mensagem para o lead, em portugues do Brasil. WhatsApp: curta, direta, sem enrolacao — diga o necessario e pare. Escreva sempre frases inteiras e termine a mensagem; nunca interrompa no meio de uma palavra ou de um item de lista. Se o assunto nao couber de forma breve, corte o escopo do que voce diz, nao a frase.",
+    },
     audience: { type: "string", enum: ["b2c", "b2b", "cliente_suporte", "ja_comprou", "desconhecido"] },
     intent: { type: "string", minLength: 2, maxLength: 40 },
     ticket_interest: { type: ["string", "null"], enum: ["mind", "vip", "prime", null] },
@@ -290,7 +313,10 @@ async function decidirRota(
         "apikey": serviceKey,
         "Authorization": `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ conversa_id: conversaId }),
+      // O canal vai EXPLICITO. O Router filtra as competencias possiveis por ele
+      // antes de decidir, entao ele nao pode devolver uma rota que este canal nao
+      // serve. `CANAL` e a constante deste runtime — nunca inferida da conversa.
+      body: JSON.stringify({ conversa_id: conversaId, canal: CANAL }),
       signal: controller.signal,
     });
     if (!r.ok) return VAZIO(`router_http_${r.status}`);
@@ -738,7 +764,11 @@ Deno.serve(async (req: Request) => {
           input: [{ role: "user", content: JSON.stringify(aiInput) }],
           reasoning: { effort: "none" },
           text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: RESPONSE_SCHEMA } },
-          max_output_tokens: 700,
+          // Orcamento de TOKENS, nao de caracteres: precisa caber a `answer` (ate
+          // 2.000 chars ~ 700 tokens em portugues) mais os outros doze campos do
+          // JSON estruturado. Com 700 no total, uma resposta longa esgotava o
+          // orcamento antes de fechar o objeto.
+          max_output_tokens: 1500,
           store: false,
         }),
         signal: controller.signal,
@@ -760,7 +790,11 @@ Deno.serve(async (req: Request) => {
       nome_informado: string | null; email_informado: string | null;
       empresa_informada: string | null; cargo_informado: string | null;
     };
-    const answer = String(turn.answer ?? "").trim().slice(0, 700);
+    // NUNCA cortar por caractere. Ate a v1.5.0 esta linha terminava em
+    // `.slice(0, 700)`, e um turno real chegou ao WhatsApp com exatamente 700
+    // caracteres, partido no meio de "Mind". Mensagem completa vale mais que
+    // frase mutilada: a brevidade e comportamento do prompt, nao tesoura aqui.
+    const answer = String(turn.answer ?? "").trim();
     if (!answer) throw new Error("resposta_vazia");
 
     // A rota manda no `audience`.
@@ -907,6 +941,7 @@ Deno.serve(async (req: Request) => {
       needs_human: needsHumanFinal, gate_reason: gateReason,
       desfecho: turn.desfecho, identificada: idConhecida,
       email_proprio: emailDito != null,
+      chars_resposta: answer.length,
       duration_ms: Date.now() - startedAt,
     }));
 

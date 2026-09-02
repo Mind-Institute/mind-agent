@@ -42,7 +42,9 @@ QUALQUER ENTRADA
   → INGESTÃO
   → IDENTIDADE
   → AGENT_CONTEXT
-  → ROUTER (só quando a rota não veio determinada)
+  → POLÍTICA DO CANAL (recorta as competências possíveis)
+  → ROUTER (escolhe dentro delas)
+  → CAPABILITY GATE
   → KIT DA ROTA
   → DECISIONING
   → AGENT
@@ -851,14 +853,23 @@ vazio não ensina nada.
 
 ### Estado atual
 
+> **Atualizado em 01/09/2026.** A matriz abaixo é conferível a qualquer momento com
+> `select cc.canal, cc.rota, public.mind_rota_capacidade(cc.rota, cc.canal) from agentes.canal_competencia cc;`
+> — a política de canal saiu do `CASE` e virou tabela, e o Kit saiu do corpo da função e virou
+> `agentes.kit_blocos`. O que segue é o retrato de 01/09, não a fonte da verdade.
+
 | rota | playbook | kit | `whatsapp` | `mindagent-web` |
 |---|---|---|---|---|
-| `summit_b2c` | ✅ `playbook_summit_b2c` | ✅ | ✅ | — |
-| `summit_b2b` | ✅ `playbook_summit_b2b` | ❌ | ✅ | — |
-| `cliente_suporte` | ✅ `playbook_cliente_suporte` | ❌ | ✅ | — |
-| `concierge_summit` | ❌ | ✅ | — | ✅ |
+| `summit_b2c` | ✅ `playbook_summit_b2c` | ✅ | ✅ | — (política) |
+| `summit_b2b` | ✅ `playbook_summit_b2b` | ✅ | ✅ | — (política) |
+| `cliente_suporte` | ✅ `playbook_cliente_suporte` | ✅ | ✅ | ✅ |
+| `concierge_summit` | ✅ `playbook_concierge_summit` | ✅ | — (política) | ✅ |
 | `institute` | ❌ | ❌ | — | — |
 | `dash` | ❌ | ❌ | — | — |
+
+`— (política)` distingue o que este runtime **saberia** executar do que o canal **permite**: a rota
+tem playbook e kit, mas `agentes.canal_competencia` não a habilita ali, e o Gate responde
+`canal_incompativel`. É diferente de `missing_playbook`/`missing_kit`, que são falta de capacidade.
 
 **Kit é capacidade acessível ao runtime atual — não existência do dado na base.** Um fato que o
 loader vivo não entrega não está no kit: ele é Intelligence que existe, e nada além disso. O Gate
@@ -876,17 +887,21 @@ O que sustenta cada célula:
 - `summit_b2c` — ofertas ativas e públicas com preço, condições e checkout em `summit_2026.offers`,
   entregues pelo `treble_agent_context` — que é exatamente o que o playbook precisa.
 - `concierge_summit` — `sessions`, `locations`, `speakers`, `exhibitors` e `event_rules` do
-  `summit_2026`, alcançáveis por `mindagent_chat_search`, que o próprio canal chama. É o kit mais
-  rico de todos, e a rota ainda assim não executa: falta o playbook.
+  `summit_2026`, pelos blocos `evento` + `programacao`. É o kit mais rico de todos. **O playbook
+  chegou** (`playbook_concierge_summit`), e desde 01/09 a rota também expõe `tools`:
+  `buscar_intelligence` e `ler_intelligence`, declaradas em `kit_blocos` (`secao='tools'`) e
+  descritas em `concierge.ferramentas`.
 - `summit_b2b` — **não tem.** Os fatos comerciais B2B existem em `summit_2026`:
   `commercial_rules.desconto_por_volume` está ativo, com tiers. Mas o `treble-inbound-agent` monta
   `DADOS_OFICIAIS` a partir do `treble_agent_context`, e essa função **não entrega
   `commercial_rules` nem `precos_por_volume`** — enquanto o `playbook_summit_b2b` ativo depende
   explicitamente do bloco `precos_por_volume` dentro de `DADOS_OFICIAIS`. O dado existe; o kit não
   chega ao agente. Corrigir isso é o Passo 12B, não este.
-- `cliente_suporte` — **não tem**. Não há base de política de suporte, não há consulta de pedido
-  exposta ao agente, e o destino `suporte.chamado` aponta para um schema que não existe. O próprio
-  playbook manda escalar o que não consegue resolver.
+- `cliente_suporte` — **passou a ter em 01/09**: `evento` + `programacao` + `inclusoes`, os mesmos
+  providers já vivos nas outras rotas. Não é base de política de suporte nem consulta de pedido —
+  continua não havendo nenhuma das duas, e o destino `suporte.chamado` continua apontando para um
+  schema que não existe. É o mínimo para responder o que o playbook manda responder com dado
+  oficial; o resto ele escala, pela regra de handoff do playbook `base`.
 
 **Produto vendável não é Kit.** `catalogo.produtos.ativo` e `vende` dizem se há algo a vender, não
 se a rota tem com que trabalhar. São conceitos distintos e o gate não os confunde — o catálogo
@@ -895,8 +910,10 @@ segue consultável quando for factual e relevante, mas não define `missing_kit`
 **Canal.** A matriz responde *"este runtime executa esta rota autonomamente?"* — nunca *"este canal
 alcança um humano"*, que é pergunta do Passo 14. `whatsapp` é o `treble-inbound-agent`, que compõe
 playbook por `treble_agent_prompt` e cuja pilha inteira é venda; `mindagent-web` é o
-`mindagent-chat`, concierge de Summit por construção, com instruções fixas no código dizendo
-explicitamente que ele não vende, não compra e não altera dados. Dois canais canônicos vivos, e a
+`mindagent-chat` que, **desde 01/09, não é mais concierge por construção**: ele declara o canal e
+o Router escolhe entre as competências que a política habilita ali — `concierge_summit` e
+`cliente_suporte`. O que continua fixo no código é o contrato do executor, dizendo que ele não
+vende, não compra e não altera dados. Dois canais canônicos vivos, e a
 matriz fica legível dentro da função. Se aparecer um terceiro canal real, ou a necessidade concreta
 de editar capability sem deploy, revisitamos — não se antecipa isso.
 

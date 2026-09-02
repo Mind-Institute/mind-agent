@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!-- A FAIXA BRANCA DE CIMA NÃO ERA DO APP: era o Safari. Sem `theme-color` ele
+     pinta a própria barra de claro, e ela encosta num app escuro como se fosse
+     um vão nosso. Com a cor declarada, a barra do navegador e a área da status
+     bar assumem o fundo do app. `color-scheme` faz o mesmo pela tela em si — é
+     ela que evita o flash branco antes do CSS carregar. -->
+<meta name="theme-color" content="#13131a" />
+<meta name="color-scheme" content="dark" />
 <meta name="robots" content="noindex" />
 <title>Mind Agent — Mind Summit 2026</title>
 <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />

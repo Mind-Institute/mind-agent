@@ -720,3 +720,58 @@ consulta que prova campo a campo, no E2E, que a superfície persistida não perd
 Write-back de verdade continua sendo o **Passo 15B / PASSO 9** do runbook, com a Lane D
 como dona, e o item 6 deste backlog como levantamento. Quando ele for construído, nasce
 da casa canônica — não de uma função com a assinatura desta chamada morta.
+
+---
+
+## 15. Tela própria do Dia 2 do Summit — DEFERIDA (02/09), com data já programada
+
+### Estado atual
+
+A home do app tem **quatro** composições em `home/estado.js` → `CONTEUDO`: `antes`,
+`no-evento`, `entre-dias`, `depois`. A linha do tempo que a Adriana fechou em 02/09 tem
+**cinco** momentos:
+
+| tela | de | até |
+|---|---|---|
+| antes | — | 15/09 23:59 |
+| Dia 1 | 16/09 00:00 | 16/09 19:00 |
+| entre dias | 16/09 19:00 | 17/09 08:00 |
+| **Dia 2** | 17/09 08:00 | 17/09 19:00 |
+| depois | 17/09 19:00 | — |
+
+O Dia 2 **não tem tela própria**. Por decisão dela, a troca de 17/09 08:00 aponta para
+`no-evento` — a mesma tela do Dia 1 — e fica assim até alguém desenhar a do Dia 2.
+
+### Onde está registrado no sistema vivo
+
+`concierge.config['home'].trocas`, troca de id `troca_dia2`, com a nota
+`"Dia 2 do Summit. REVISITAR: a tela propria do Dia 2 ainda nao existe; por ora reusa a do
+Dia 1."` — ou seja, a pendência está visível no próprio painel (Home V3 › Visualização),
+não só aqui.
+
+### Por que não foi resolvida agora
+
+Não é encanamento, é conteúdo: exige decidir o que a home do segundo dia diz de diferente
+do primeiro (o que já passou, o que ainda dá tempo, o que fechar antes do fim). Isso é
+produto, não implementação, e a Adriana pediu explicitamente para reusar e anotar.
+
+### O que será preciso mexer quando entrar
+
+O vocabulário de momentos é validado em **três** lugares, e um deles é o banco:
+
+1. `home/estado.js` — `MOMENTOS` (os chips do seletor de desenvolvimento) e `CONTEUDO`;
+2. `admin/src/contracts/home-v3.ts` — `MOMENTOS_HOME`, um `z.enum` de quatro valores;
+3. `docs/sql/home-v3/04-visualizacao-home.sql` — a escrita valida
+   `momento not in ('antes','no-evento','entre-dias','depois')` e levanta
+   `admin_validation:momento_invalido`.
+
+Acrescentar um quinto id sem os três dá erro de gravação no painel. Se a tela do Dia 2 for
+só um texto diferente, considerar antes se ela precisa mesmo de um id novo — pode ser um
+bloco condicional dentro de `no-evento`, sem tocar em enum nenhum.
+
+### Como retomar sem reinvestigar
+
+O motor da programação já existe e está ligado: `api.mindagent_home_publico` resolve o
+momento em `modo='programado'` pegando **a última troca cujo horário já passou**, avaliada
+no fuso do evento (`America/Sao_Paulo`). Não há cron — a regra é aplicada na leitura.
+Trocar a tela do Dia 2 é trocar o `momento` da troca `troca_dia2`; nada mais.

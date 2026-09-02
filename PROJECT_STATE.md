@@ -271,6 +271,35 @@ Transferir é último recurso, não primeira resposta.
 
 Antes de transferir: entregar valor e recolher o útil. Horário só calibra expectativa; não recusa handoff necessário.
 
+### Troca de competência no App ≠ handoff humano — congelado em 02/09
+
+São dois conceitos diferentes e não devem ser confundidos:
+
+- **troca de competência** (`concierge_summit` ↔ `cliente_suporte`) acontece dentro do mesmo
+  runtime, canal, pessoa, sessão e conversa. É o que o Passo 6 implementa;
+- **handoff humano** é ação operacional posterior. O App **não tem** actuator de handoff
+  humano confirmado equivalente ao `needs_human` do Treble; enquanto não houver transporte
+  confirmado, o Agent não pode afirmar que transferiu para uma pessoa. `needs_human` do Treble
+  não produz handoff no App e não deve ser reutilizado como se produzisse.
+
+Estado da competência corrente mora em `engagement.conversas.variables.rota_ativa`. Não existe
+tabela, coluna, conversa ou Router novo para handoff. `origem_codigo` permanece imutável como
+**porta de entrada**; `rota_ativa` diz **quem está atendendo agora**.
+
+Precedência da rota no turno, com Gate obrigatório depois de qualquer uma das três:
+
+```text
+ROTA ATIVA DA CONVERSA
+> ROTA AUTORITATIVA DA ORIGEM
+> ROUTER (só quando as anteriores não definem a competência)
+```
+
+O contrato Agent→runtime é `next_route`, cujo enum é montado em runtime a partir de
+`mind_canal_rotas(<canal>)` — não existe segunda lista hardcoded de rotas permitidas. A troca
+vale para o **próximo turno**: não se roda uma segunda LLM no mesmo turno só para trocar de
+playbook. A persistência acontece dentro de `mindagent_chat_save_message`, na mesma transação
+da gravação da mensagem, depois de revalidar a rota pelo Gate.
+
 ---
 
 ## 12. Memória / sensibilidade — decisões congeladas
@@ -283,6 +312,26 @@ Antes de transferir: entregar valor e recolher o útil. Horário só calibra exp
 - `ativa` e `proposta` permanecem separadas;
 - não aplicar regex de conteúdo como policy gate em domínio de saúde mental;
 - C pode começar a emitir `sensitivity` antes de D entrar; RPC antiga ignora a chave JSON extra.
+
+Congelado em 02/09, depois do Passo 5:
+
+- **memória tem dois tempos e eles não se misturam.** `engagement.session_interests` é memória
+  **rápida**, de sessão, e não promove nada para memória permanente; `intelligence.participante_memoria`
+  é memória **durável** e só é escrita pelo analisador de pós-turno;
+- o gate de sensibilidade dos writers deixou de ser comentário e passou a existir de fato:
+  `mindagent_chat_save_interests` lê `sensitivity` e persiste apenas `none`; um item sensível é
+  descartado sozinho, sem derrubar o resto do payload;
+- em `analise_projetar_memoria`, o ramo `analise_concierge` exige `sensitivity='none'`, recusa
+  `scope='temporary'` e promove `high` + (`stable`|`opportunity`) para `ativa`. A semântica dos
+  demais analisadores permanece `stable + high → ativa`;
+- não há corte arbitrário de quantidade de interesses no runtime. O volume real hoje é baixo
+  (máx. 3 memórias ativas por pessoa); se crescer materialmente, seleção por relevância é outro
+  problema, não um teto improvisado;
+- memória durável só chega ao Agent por `mindagent_chat_get_context`, e só `status='ativa'` não
+  expirada. `proposta` e `substituida` nunca vão para o modelo;
+- **`analise_concierge` não é exclusivo do App**: o cron `analise_conversas` também o aplica a
+  conversas de WhatsApp. Hoje o único leitor de `participante_memoria` é o App, mas quem mexer
+  no analisador precisa contar com os dois canais.
 
 ---
 
