@@ -19,6 +19,7 @@ const estado = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8
 const cards = readFileSync(new URL('../home/cards.js', import.meta.url), 'utf8');
 const avisos = readFileSync(new URL('../home/avisos.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 test('os três atalhos levam a destinos que existem', () => {
   /* Um atalho é uma promessa: "toque e você chega em Meu ingresso". Se o
@@ -203,4 +204,25 @@ test('o quadro não pode passar por cima do rodapé', () => {
   const j = css.indexOf('.t-palco {');
   assert.match(css.slice(j, css.indexOf('\n}', j)), /overflow:\s*hidden/,
     'o palco parou de recortar, e o que vazar dele cobre o rodapé');
+});
+
+test('a demonstração termina sem pop-up', () => {
+  /* O cartão "Você mandou bem!" abria sozinho por cima do palco dois
+     segundos depois da última missão — tapando justamente a tela que a
+     pessoa acabou de aprender a usar, e cobrando mais um fechar. O fim
+     agora é a faixa transitória dos brindes, com a frase que cada roteiro
+     já trazia em `concluido`.
+
+     O aviso ao hospedeiro não era do cartão, era só o botão dele que
+     disparava: `mindagent:tour-concluido` continua saindo na conclusão, e
+     quem embeda a página depende disso. */
+  assert.ok(!/fim-fundo|fim-cartao/.test(html + css + app),
+    'o cartão do fim voltou — o fim da demonstração é faixa transitória, não pop-up');
+  assert.match(app, /feitas\.size === MISSOES\.length\) \{\n\s*parent\.postMessage\(\{ tipo: 'mindagent:tour-concluido' \}/,
+    'a conclusão parou de avisar quem embeda a página');
+  assert.match(app, /setTimeout\(\(\) => avisar\(r\.concluido\)/,
+    'a frase de conclusão de cada roteiro sumiu do fim');
+  for (const frase of ['você já sabe reservar', 'o mapa fica no Menu', 'o seu ingresso está aí']) {
+    assert.ok(app.includes(frase), 'o roteiro perdeu a frase de conclusão: ' + frase);
+  }
 });
