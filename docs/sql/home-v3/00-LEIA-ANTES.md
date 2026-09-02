@@ -1,7 +1,17 @@
 # Home V3 em produção — o que aplicar
 
-Estado em 2026-09-01. **Nada foi aplicado**: o ambiente bloqueia escrita
-em produção, então os passos são seus.
+Estado em 2026-09-01.
+
+| passo | estado |
+|---|---|
+| Edge Function `mindagent-home` | **publicada** — v1, ativa, `verify_jwt` off |
+| `VITE_HOME_API_BASE_URL` no painel | **preenchida** em `admin/.env.local` |
+| os quatro SQL | **pendentes** — o ambiente bloqueia escrita no banco |
+
+A função responde e já foi conferida em produção: `/health` volta ok, a
+origem de preview passa no CORS e a forjada leva 403. A rota `/publico`
+devolve 503 porque a função SQL que ela chama ainda não existe — é o
+que os quatro arquivos abaixo criam.
 
 ## A regra que desenhou tudo isto
 
@@ -34,7 +44,7 @@ Rodar no SQL Editor do Supabase, um de cada vez, nessa ordem. Nenhum
 deles muda nada visível: até aqui o app segue com os avisos embutidos e
 o painel segue em memória.
 
-## Depois, a Edge Function
+## A Edge Function — JÁ PUBLICADA
 
 ```bash
 npx supabase functions deploy mindagent-home --project-ref ymnmotgglsrxmjmonwjz --no-verify-jwt
