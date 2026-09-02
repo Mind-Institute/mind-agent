@@ -132,27 +132,47 @@ const ICO_POR_NOME = {
    alfabética, que não é ordem nenhuma. O rótulo sai daí, formatado.
 
    MOCK: API: virá da tabela de avisos do Summit. */
+/* A LISTA EMBUTIDA É O QUE APARECE SE A REDE FALHAR, e por isso tem que
+   ser a mesma do banco — não a de ontem. São os sete que a Adriana definiu
+   em 02/09, com as mesmas categorias e a mesma ordem.
+
+   `mensagem` repete `resumo` porque cada aviso veio com um parágrafo só;
+   `leituraDeAviso` sabe disso e não mostra o mesmo texto duas vezes. */
 const CRUS = [
-  { id: 'sala', ico: ICO.lugar, cat: 'no_evento', em: '2026-09-16T09:02', situacao: 'agendado',
-    titulo: 'Masterclass mudou de sala',
-    resumo: 'Amy Edmondson, agora na Sala Estratégica.',
-    mensagem: 'A masterclass de Amy Edmondson saiu da Arena Mind e passou para a Sala Estratégica. O horário não mudou. Se você tinha reserva, ela continua válida — é só ir para a sala nova.' },
+  { id: 'doc_fisico', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T17:00', situacao: 'no-ar',
+    titulo: 'Leve um documento físico',
+    resumo: 'Para retirar o aparelho de tradução simultânea, você precisará apresentar um documento físico.',
+    mensagem: 'Para retirar o aparelho de tradução simultânea, você precisará apresentar um documento físico.' },
 
-  { id: 'traducao', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T18:00', situacao: 'no-ar',
-    titulo: 'Tradução simultânea',
-    resumo: 'Leve um documento físico para retirar o fone',
-    mensagem: 'As sessões em inglês têm tradução simultânea. O fone é retirado no balcão da arena, e fica um documento físico com foto como garantia — RG ou CNH. Cartão do celular não vale. Devolvendo o fone, você pega o documento de volta.' },
+  { id: 'reserve_exp', ico: ICO.estrela, cat: 'reservas', em: '2026-09-15T16:50', situacao: 'no-ar',
+    titulo: 'Reserve suas experiências agora',
+    resumo: 'Workshops, Masterclasses e outras experiências têm capacidade limitada. Reserve pelo app assim que possível.',
+    mensagem: 'Workshops, Masterclasses e outras experiências têm capacidade limitada. Reserve pelo app assim que possível.' },
 
-  { id: 'ingresso', ico: ICO.ingresso, cat: 'ingressos', em: '2026-09-15T17:30', situacao: 'no-ar',
-    titulo: 'Seu ingresso está aqui',
-    resumo: 'Acesse agora e evite procurar na entrada',
-    mensagem: 'Seu ingresso é o QR Code do app. Ele fica na aba <b>QR Code</b>, na barra de baixo — abra antes de chegar na fila e apresente na entrada. O mesmo código serve para trocar contato com quem você conhecer.',
-    verNoApp: 'ingresso', botaoVerNoApp: 'Ver onde fica no app' },
+  { id: 'chegue_5min', ico: ICO.relogio, cat: 'no_evento', em: '2026-09-15T16:40', situacao: 'no-ar',
+    titulo: 'Chegue 5 minutos antes',
+    resumo: 'Sua reserva é garantida até 5 minutos antes do início. Depois disso, as vagas remanescentes são liberadas para a fila de espera.',
+    mensagem: 'Sua reserva é garantida até 5 minutos antes do início. Depois disso, as vagas remanescentes são liberadas para a fila de espera.' },
 
-  { id: 'abertura', ico: ICO.sino, cat: 'no_evento', em: '2026-09-16T20:00', situacao: 'agendado',
-    titulo: 'Abertura às 9h',
-    resumo: 'Chegue às 8h30 para entrar sem pressa.',
-    mensagem: 'O segundo dia abre às 9h, na Arena Mind. O credenciamento começa às 8h; chegando às 8h30 você entra sem fila e ainda pega lugar.' },
+  { id: 'ingresso_mao', ico: ICO.ingresso, cat: 'antes_de_ir', em: '2026-09-15T16:30', situacao: 'no-ar',
+    titulo: 'Deixe seu ingresso à mão',
+    resumo: 'Seu QR Code está no app. Abra antes de chegar para agilizar sua entrada.',
+    mensagem: 'Seu QR Code está no app. Abra antes de chegar para agilizar sua entrada.' },
+
+  { id: 'chegada_expo', ico: ICO.lugar, cat: 'antes_de_ir', em: '2026-09-15T16:20', situacao: 'no-ar',
+    titulo: 'Planeje sua chegada ao São Paulo Expo',
+    resumo: 'Confira acesso, estacionamento e tempo de deslocamento antes de sair.',
+    mensagem: 'Confira acesso, estacionamento e tempo de deslocamento antes de sair.' },
+
+  { id: 'app_atualizado', ico: ICO.agenda, cat: 'no_evento', em: '2026-09-15T16:10', situacao: 'no-ar',
+    titulo: 'Mantenha o app atualizado',
+    resumo: 'Horários, salas e programação podem sofrer alterações. Consulte o app durante o Summit.',
+    mensagem: 'Horários, salas e programação podem sofrer alterações. Consulte o app durante o Summit.' },
+
+  { id: 'notificacoes', ico: ICO.sino, cat: 'no_evento', em: '2026-09-15T16:00', situacao: 'no-ar',
+    titulo: 'Ative as notificações',
+    resumo: 'Receba mudanças de programação e avisos importantes durante o evento.',
+    mensagem: 'Receba mudanças de programação e avisos importantes durante o evento.' },
 ];
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];

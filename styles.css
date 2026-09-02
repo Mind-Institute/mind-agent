@@ -974,9 +974,13 @@ html[data-teclado="aberto"] .doca {
 }
 .bolha { max-width: 84%; }
 .bolha:has(.cartao-onde) { max-width: 94%; }
+/* +2px na conversa do Concierge, a pedido da Adriana. A resposta da IA
+   vem em parágrafos e é o texto mais longo do app — 15px pediam esforço
+   para ler no celular. A entrelinha sobe junto: crescer a fonte sem
+   crescer o espaço entre linhas aperta o bloco em vez de abri-lo. */
 .bolha {
   padding: 12px 16px;
-  font-size: 15px; line-height: 1.45;
+  font-size: 17px; line-height: 1.5;
   animation: entra .25s ease;
 }
 .bolha.mind {
