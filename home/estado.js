@@ -166,7 +166,7 @@ const CRUS = [
     titulo: 'Veja como o Summit funciona antes de chegar',
     resumo: 'O evento acontece em diferentes arenas, salas e espaços de experiência.',
     mensagem: 'Assista ao tour do Summit para conhecer a estrutura e se orientar melhor durante os dois dias.',
-    verNoApp: 'mapa', botaoVerNoApp: 'Conhecer a estrutura do evento' },
+    verNoApp: 'https://www.youtube.com/watch?v=Lw2lqkwxzMg', botaoVerNoApp: 'Assistir ao tour do Summit' },
 
   { id: 'acesso_app', ico: ICO.ingresso, cat: 'antes_de_ir', em: '2026-09-15T17:00', situacao: 'no-ar',
     titulo: 'Faça o acesso ao app com antecedência',

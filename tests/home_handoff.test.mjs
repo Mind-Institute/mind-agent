@@ -388,3 +388,20 @@ test('a notificação é grande e clara o bastante para ler', () => {
     css.slice(css.indexOf('.av-corpo small'), css.indexOf('.av-ponto'))),
     'a lista de avisos voltou ao cinza de apoio');
 });
+
+test('o aviso sabe levar a material que mora fora do app', () => {
+  /* O tour do Summit é um vídeo no YouTube: não tem como virar tela
+     daqui. `verNoApp` passou a aceitar as três formas — URL externa,
+     `chat` e roteiro da demonstração — e a externa é a única que sai do
+     app, em aba nova e sem `opener`. */
+  assert.match(app, /if \(\/\^https:\\\/\\\/\/\.test\(destino\)\) return window\.open\(destino, '_blank', 'noopener'\)/,
+    'o aviso perdeu o caminho para material externo');
+  assert.match(estado, /verNoApp: 'https:\/\/www\.youtube\.com\/watch\?v=Lw2lqkwxzMg'/,
+    'o aviso do tour perdeu o link do vídeo');
+  /* A ordem importa: `https://…` tem que ser testado ANTES de cair em
+     `abrirTourCompleto`, que aceita qualquer coisa e cai no roteiro de
+     reserva — uma URL viraria a demonstração errada, sem erro nenhum. */
+  const i = app.indexOf("if (/^https:");
+  const j = app.indexOf('abrirTourCompleto(destino)');
+  assert.ok(i > 0 && i < j, 'a URL externa deixou de ser testada antes do roteiro');
+});
