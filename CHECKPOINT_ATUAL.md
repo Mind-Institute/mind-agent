@@ -308,6 +308,29 @@ tabela).
   contrato): `Bem-estar começa na agenda` está sem palestrante no backend, embora o site
   traga "Esabela Cruz, Clarissa Daroit".
 
+
+**Segunda rodada, 04:17 — o padrão se confirmou.** No check-in seguinte o site já tinha
+mais dois commits (`Arena Top Voice` virou `Arena LinkedIn`; credenciamento passou a abrir
+às 07:30) e alguém já os tinha aplicado no banco à mão, fora do sync — `sincronizado_em`
+nulo, sem log. O conteúdo estava certo, mas **o credenciamento continuava com o `id`
+antigo** (`d1-0800-credenciamento` com hora 07:30), enquanto o site já usava
+`d1-0730-credenciamento`. Sem corrigir, o próximo sync inseriria os dois novos e deixaria
+quatro credenciamentos.
+
+Aqui o `id` era a única diferença, então a menor mudança correta foi **renomear**
+`site_session_id`, não inserir-e-apagar: renomear preserva o UUID, os vínculos e todas as
+FKs.
+
+Depois disso rodei o sync com o JSON **completo** — a prova que faltava:
+`200 · ok:true · recebidas 77 · inseridas 0 · atualizadas 77 · sumiram 0 · sem_id 0`.
+Backend idêntico ao site, e o workflow ficará verde assim que o secret existir. Confirmado
+no runtime: "credenciamento abre às 07:30 nos dois dias".
+
+**O padrão, agora com duas ocorrências:** mudança de horário no site vira `id` novo, a
+função nunca apaga, e alguém precisa limpar a linha velha à mão. Enquanto a programação
+mudar até a véspera, isso vai se repetir. Vale decidir uma regra — a mais simples é o
+sync aceitar remover o que sumiu do JSON quando a sessão não tiver nenhum dado de
+participante ligado (as 5 FKs são CASCADE), mantendo a recusa quando tiver.
 ---
 
 ### D — pós-turno / memória / write-back / Silence
