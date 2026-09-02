@@ -3,30 +3,30 @@
 Status: **APROVADO / IMPLEMENTADO / FROZEN**  
 Data: 2026-09-02
 
-Este documento congela a verdade de produto estável e o contrato de decisão entre as soluções do Mind. Ele não contém preço, lote, checkout, turma ou disponibilidade.
+Este documento congela a verdade estável de produto, o contrato de decisão entre soluções e a integração com os Agents vivos. Ele não contém preço, lote, checkout, turma ou disponibilidade.
 
-## 1. Regra arquitetural
+## 1. Arquitetura
 
 ```text
 CUSTOMER INTELLIGENCE = o que sabemos sobre a pessoa
 PRODUCT INTELLIGENCE = o que cada solução realmente é capaz de fazer
-COMMERCIAL INTELLIGENCE = o que está vendável/agora, com preço, condição e canal
+COMMERCIAL INTELLIGENCE = o que está vendável agora, com preço, condição e canal
 PRODUCT DECISIONING = qual solução faz sentido para a transformação buscada agora
 AGENT = como explicar e conduzir o próximo passo permitido
 ```
 
-Nunca usar:
+Regras congeladas:
 
-- ICP → produto;
-- JTBD → produto como lookup rígido;
-- tema de interesse → intenção de compra;
-- produto disponível → produto recomendado.
-
-Fit e sellability são decisões diferentes.
+- ICP não determina produto.
+- JTBD não determina sozinho produto.
+- Tema de interesse não prova intenção de compra.
+- Produto disponível não é automaticamente produto recomendado.
+- Fit e sellability são decisões diferentes.
+- `nenhuma` é uma recomendação válida.
 
 ## 2. Fontes e precedência
 
-Fontes revisadas nesta rodada:
+Fontes revisadas:
 
 - `https://joinmind.com.br/`;
 - `https://mindinstitute.com.br/`;
@@ -44,12 +44,11 @@ Precedência:
 
 ### Comercial mutável
 
-As páginas públicas coexistem com conteúdo de gerações diferentes e incluem preços, datas, lotes e chamadas de matrícula que podem ficar velhos. Portanto:
+Site/repo de produto é fonte para posicionamento, problemas, capacidades, formato estável e aplicação.
 
-> site/repo de produto = fonte para posicionamento, problemas, capacidades, formato estável e aplicação;
-> preço, lote, turma, disponibilidade, parcelamento e checkout = somente Commercial Intelligence operacional atual.
+Preço, lote, turma, disponibilidade, parcelamento e checkout pertencem somente à Commercial Intelligence operacional atual.
 
-O bloco `product_intelligence` declara explicitamente que NÃO contém essas informações comerciais.
+O bloco `product_intelligence` declara explicitamente que não contém essas informações comerciais.
 
 ## 3. Mind
 
@@ -57,13 +56,11 @@ Natureza: **ecossistema**.
 
 O Mind conecta ciência e prática para profissionais, líderes e organizações.
 
-Suas três frentes principais têm funções distintas:
-
-- Summit amplia repertório e conexões;
-- Institute desenvolve competências;
+- Summit amplia repertório e conexões.
+- Institute desenvolve competências.
 - Dash apoia diagnóstico, desenho, implementação e acompanhamento de transformações organizacionais.
 
-Mind não é uma quarta solução concorrente às três frentes; é o ecossistema que as integra.
+`Mind` não é uma quarta solução concorrente; é o ecossistema que integra as três frentes.
 
 ## 4. Mind Summit
 
@@ -134,9 +131,9 @@ Metodologia transversal observada nas fontes atuais:
 
 ### 5.1 Gestão Estratégica de Bem-Estar no Trabalho
 
-**Eixo canônico da arquitetura:** Gestão Estratégica de Bem-Estar no Trabalho.
+**Eixo canônico:** Gestão Estratégica de Bem-Estar no Trabalho.
 
-O nome oficial atual da formação no site permanece `Formação em Gestão Estratégica de Saúde Mental e Bem-Estar no Trabalho`. Não mudar o nome público do produto nesta frente.
+Nome oficial atual do produto no site: `Formação em Gestão Estratégica de Saúde Mental e Bem-Estar no Trabalho`.
 
 Faz sentido quando é preciso:
 
@@ -208,7 +205,7 @@ Faz sentido somente quando:
 - a pessoa busca uma visão sistêmica e formação abrangente;
 - existe intenção real de integrar as três formações em um projeto aplicado.
 
-Não usar Certificação como upsell automático ou como “versão superior” das formações individuais.
+Não usar Certificação como upsell automático ou como versão superior das formações individuais.
 
 ## 6. Mind Dash
 
@@ -272,10 +269,10 @@ Se nenhuma solução resolver de forma coerente o que a pessoa quer realizar ago
 
 - não forçar fit;
 - não inventar dor;
-- não fazer cross-sell só porque há um produto disponível;
-- continuar ajudando dentro da competência atual ou dizer que não há uma solução clara para recomendar.
+- não fazer cross-sell só porque há produto disponível;
+- continuar ajudando dentro da competência atual ou dizer que não há solução clara para recomendar.
 
-Saída interna permite:
+Saída interna:
 
 `SOLUCAO_PRINCIPAL = Summit | Institute | Dash | nenhuma`.
 
@@ -289,7 +286,7 @@ Quando duas soluções forem plausíveis:
 
 ### Institute como solução principal
 
-Se Institute for o fit principal, o Decisioning pode escolher um programa específico somente quando a transformação atual sustentar essa escolha.
+Se Institute for o fit principal, escolher um programa específico somente quando a transformação atual sustentar essa escolha.
 
 Não escolher programa por ICP nem por código JTBD isolado.
 
@@ -317,7 +314,7 @@ Se o melhor fit não estiver vendável:
 
 Casas:
 
-- `catalogo.produtos` — identidade/resumo dos quatro códigos `mind`, `mind-summit-2026`, `mind-institute`, `mind-dash`;
+- `catalogo.produtos` — identidade/resumo dos códigos `mind`, `mind-summit-2026`, `mind-institute`, `mind-dash`;
 - `summit_2026.knowledge_documents` — Product Intelligence estável do Summit;
 - `institute.knowledge_documents` — Product Intelligence estável do Institute;
 - `dash.knowledge_documents` — Product Intelligence estável do Dash.
@@ -326,32 +323,13 @@ Provider transversal:
 
 `public.mind_kit_product_intelligence(uuid,jsonb)`
 
-Retorna:
+Retorna definição, natureza, resultado principal, profundidade, formato, escopo, problemas, capacidades, programas/eixos do Institute, adequação e limites.
 
-- definição;
-- natureza;
-- resultado principal;
-- profundidade;
-- formato;
-- escopo;
-- problemas que ajuda a resolver;
-- capacidades;
-- eixos/programas do Institute;
-- quando é adequado;
-- limites.
+Não retorna preço, lote, parcelamento, checkout, turma ou disponibilidade.
 
-Não retorna:
+Segurança: `EXECUTE` somente `postgres`/`service_role`.
 
-- preço;
-- lote;
-- parcelamento;
-- checkout;
-- turma;
-- disponibilidade.
-
-Segurança: `EXECUTE` somente `postgres`/`service_role`; `anon` e `authenticated` não executam diretamente.
-
-Bloco `product_intelligence` ativo hoje nos Kits:
+Bloco `product_intelligence` ativo nos Kits:
 
 - `concierge_summit` — opcional;
 - `cliente_suporte` — opcional;
@@ -360,38 +338,112 @@ Bloco `product_intelligence` ativo hoje nos Kits:
 - `institute` — obrigatório;
 - `dash` — obrigatório.
 
-### Fronteira de runtime importante
+## 9. Integração do Product Decisioning nos Agents
 
-O `product_decisioning` v2 já compõe a camada `decisioning` do vendedor Treble (`treble_agent_prompt`).
+### Registry
 
-O `mindagent-chat`/Concierge recebe `product_intelligence` pelo Kit, mas **ainda não recebe o prompt `product_decisioning` como camada de decisão**.
+`agentes.kit_blocos.secao` aceita agora:
 
-Isso NÃO deve ser resolvido duplicando o prompt no playbook do Concierge. É o próximo passo de integração dos Agents: reutilizar a mesma camada de Decisioning no runtime adequado.
+- `structured`;
+- `knowledge`;
+- `tools`;
+- `decisioning`.
 
-## 9. Migrations
+Registro vivo do App:
 
-Produção e Git agora possuem:
+```text
+rota = concierge_summit
+bloco = product_decisioning
+provider = agentes.prompts
+secao = decisioning
+obrigatorio = false
+ativo = true
+```
+
+### Concierge/App
+
+`public.mind_agent_kit` devolve `decisioning` em campo próprio.
+
+A Edge viva `mindagent-chat` v30 / `1.9.1` usa `kit.playbook` como bundle de `instructions`. Para evitar deploy de Edge sem necessidade, o Kit compõe por turno:
+
+```text
+base + playbook da competência + decisioning registrado
+→ kit.playbook  [bundle consumido pelo runtime]
+```
+
+Ao mesmo tempo `kit.decisioning` preserva a camada separada para auditoria e futuros runtimes.
+
+**O prompt-fonte `playbook_concierge_summit` não contém cópia de `product_decisioning`.**
+
+No mesmo turno, o Concierge recebe:
+
+```text
+structured.customer_intelligence
++ structured.product_intelligence
++ fala/necessidade atual
++ product_decisioning v2
++ playbook da competência
+→ Agent
+```
+
+### Vendas Summit
+
+`summit_b2c` e `summit_b2b` já recebem Product Decisioning v2 pela composição `treble_agent_prompt(..., 'decisioning')`.
+
+### Atendimento
+
+`cliente_suporte` **não recebe Product Decisioning**. Atendimento resolve necessidade operacional; não é superfície de recomendação/cross-sell entre soluções.
+
+### Institute/Dash
+
+As rotas existem no registry, mas ainda não são Agents operacionais em canal real. Não antecipar wiring sem consumidor.
+
+## 10. Migrations
+
+Produção e Git possuem:
 
 - `20260902073929_product_intelligence_compartilhada.sql`;
 - `20260902085815_product_decisioning_entre_solucoes.sql`;
-- `20260902224703_product_intelligence_decisioning_v2.sql`.
+- `20260902224703_product_intelligence_decisioning_v2.sql`;
+- `20260902230159_kit_decisioning_section_concierge.sql`;
+- `20260902230319_kit_decisioning_runtime_compat.sql`.
 
-As duas primeiras já existiam no ledger vivo e foram restauradas na `main`; a terceira fecha o contrato v2.
+## 11. Verificação realizada
 
-## 10. Verificação realizada
+Product Intelligence:
 
 - provider devolve 4 entidades (`Mind`, Summit, Institute, Dash);
 - Institute devolve 4 caminhos atuais;
 - profundidade/formato/escopo presentes;
 - nenhum valor `R$` entra no Product Intelligence;
-- `product_decisioning` = versão 2;
-- no-fit presente;
-- subdecisão do Institute presente;
-- `product_decisioning` v2 aparece na composição B2C do Treble;
-- `product_intelligence` aparece no Kit do Concierge;
 - provider restrito a `service_role`/postgres.
 
-## 11. Testes de decisão para o próximo E2E de Agent
+Product Decisioning:
+
+- prompt ativo = versão 2;
+- no-fit presente;
+- subdecisão do Institute presente;
+- Treble B2C continua com v2.
+
+Integração Concierge:
+
+- Kit `kit_disponivel=true`;
+- `structured.customer_intelligence` presente;
+- `structured.product_intelligence` presente;
+- `kit.decisioning` contém v2;
+- bundle consumido pelo runtime contém v2;
+- playbook-fonte do Concierge não contém Decisioning;
+- Atendimento não recebe Decisioning.
+
+Teste versionado:
+
+`tests/product_decisioning_agent_integration.sql`.
+
+Implementação detalhada:
+
+`PRODUCT_DECISIONING_AGENT_INTEGRATION.md`.
+
+## 12. Cenários do E2E de recomendação
 
 1. “Quero expor minha liderança a novas referências e trazer o tema para a agenda.” → Summit provável.
 2. “Quero formar HRBPs para aplicar segurança psicológica e trabalhar conversas difíceis.” → Institute → Segurança Psicológica provável.
@@ -400,8 +452,10 @@ As duas primeiras já existiam no ledger vivo e foram restauradas na `main`; a t
 5. Necessidade fora das capacidades atuais do ecossistema → `nenhuma` é resposta correta.
 6. Interesse temático sem profundidade/escopo claros → uma pergunta discriminante; nunca mapear automaticamente.
 
-## 12. Próximo passo
+## 13. Próximo gate
 
-**Ligar Product Fit/Decisioning aos Agents que precisam usá-lo**, começando pelo Concierge/App sem duplicar lógica no playbook.
+**E2E real de recomendação entre soluções no runtime autenticado do App.**
 
-Depois disso, E2E real de recomendação entre soluções.
+A camada estrutural está fechada. O E2E deve provar comportamento do modelo, não apenas presença de prompt/dado.
+
+Depois disso, seguir para E2E do vendedor Summit no WhatsApp e pós-conversa/write-back.
