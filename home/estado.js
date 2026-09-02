@@ -242,7 +242,11 @@ export const CONTEUDO = {
         cta: 'Montar minha jornada',
         micro: '~1 min',
         acao: 'jornada' },
-      { tipo: 'secao', titulo: 'Atalhos importantes' },
+      /* "Como usar o app", e não "Atalhos importantes". Os quatro não
+         levam para dentro da função — todos abrem uma demonstração sobre
+         a captura da tela real. Chamá-los de atalho prometia chegar lá;
+         o que eles entregam é aprender onde fica. */
+      { tipo: 'secao', titulo: 'Como usar o app' },
       /* Os quatro levam ao tour na tela correspondente do app do Summit.
          Não é atalho de mentira: o tour mostra a captura real e ensina
          onde tocar, que é o que este app sabe fazer sobre telas que são
