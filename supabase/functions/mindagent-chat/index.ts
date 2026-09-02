@@ -23,11 +23,10 @@ type Interest = {
   key: string;
   label: string;
   confidence: number;
-  confirmed: boolean;
   sensitivity: string;
 };
 
-const VERSION = "1.8.0";
+const VERSION = "1.9.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
@@ -241,26 +240,60 @@ function normalizeAnswerLayout(value: string) {
     .trim();
 }
 
-function buildPersonalizationProfile(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const source = value as Record<string, unknown>;
+// O QUE O MODELO SABE SOBRE A PESSOA. Três fontes, uma lista só:
+//   * perfil canônico (nome/cargo/empresa);
+//   * interesses da SESSÃO atual (`session_interests`);
+//   * memória durável ATIVA (`participante_memoria`), que até agora era gravada e nunca
+//     lida — o Concierge extraía cargo/objetivo/interesse e não reusava nada.
+//
+// Sem `.slice(0, 8)`. O corte existia sem critério e apagava memória canônica; medido no
+// vivo, o máximo por pessoa é 3 memórias ativas. Cortar isso resolve um problema que não
+// existe e cria outro: a pessoa repetir o que já contou.
+//
+// `proposta` e `substituida` não chegam aqui — quem filtra é `mindagent_chat_get_context`.
+function buildPersonalizationProfile(
+  value: unknown,
+  sessionInterests: unknown,
+  memories: unknown,
+) {
   const cleanText = (field: unknown, max: number) =>
     typeof field === "string" ? field.trim().slice(0, max) : "";
-  const rawInterests = Array.isArray(source.interests) ? source.interests : [];
-  const interests = rawInterests
-    .map((interest) => {
-      if (typeof interest === "string") return interest.trim();
-      if (!interest || typeof interest !== "object") return "";
-      return cleanText((interest as Record<string, unknown>).label, 120);
-    })
-    .filter(Boolean)
-    .filter((interest, index, all) => all.indexOf(interest) === index)
-    .slice(0, 8);
+  const source = (value && typeof value === "object" && !Array.isArray(value))
+    ? value as Record<string, unknown>
+    : {};
+
+  const rotulos: string[] = [];
+  const anexar = (bruto: unknown, campo: string) => {
+    if (!Array.isArray(bruto)) return;
+    for (const item of bruto) {
+      if (typeof item === "string") { rotulos.push(item.trim()); continue; }
+      if (!item || typeof item !== "object") continue;
+      rotulos.push(cleanText((item as Record<string, unknown>)[campo], 160));
+    }
+  };
+  // `participante_contexto.temas_relevantes` continua entrando enquanto for necessário
+  // por compatibilidade; o writer rápido não escreve mais lá.
+  anexar(source.interests, "label");
+  anexar(sessionInterests, "label");
+  anexar(memories, "value");
+
+  // Deduplicação por conceito, não por string exata: "Segurança Psicológica" e
+  // "segurança psicológica" são o mesmo interesse para quem lê.
+  const vistos = new Set<string>();
+  const interesses: string[] = [];
+  for (const r of rotulos) {
+    if (!r) continue;
+    const chave = r.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (!chave || vistos.has(chave)) continue;
+    vistos.add(chave);
+    interesses.push(r);
+  }
+
   const profile = {
     nome: cleanText(source.name, 120),
     cargo: cleanText(source.role, 120),
     empresa: cleanText(source.company, 160),
-    interesses: interests,
+    interesses,
   };
   return profile.nome || profile.cargo || profile.empresa || profile.interesses.length > 0 ? profile : null;
 }
@@ -386,23 +419,28 @@ function sourceSummary(structured: Record<string, unknown>) {
 // `maxLength: 2000` porque 900 cortava a resposta certa: 12 workshops formatados dão
 // ~970 caracteres, e "liste todos" virava lista truncada apresentada como completa.
 // Brevidade é conduta, e conduta está no playbook.
-const RESPONSE_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
+//
+// É FUNÇÃO, e não constante, por causa do `next_route`: o universo de competências vem de
+// `mind_canal_rotas(canal)`, no banco. Uma lista literal aqui seria a segunda autoridade
+// sobre a política do canal — exatamente o que a política existe para evitar.
+function montarResponseSchema(rotasDoCanal: string[]) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
     answer: {
       type: "string", minLength: 1, maxLength: 2000,
       description: "A resposta para a pessoa, escrita conforme o playbook desta competência.",
     },
     interests: {
       type: "array",
-      maxItems: 2,
       description:
-        "Interesses profissionais ou de conteúdo que ESTA mensagem revelou e que ajudam a " +
-        "personalizar o evento — no máximo dois, silenciosamente, sem transformar a conversa " +
-        "em questionário. Não são interesses: cumprimento, dúvida logística, pedido de " +
-        "suporte, compra, reclamação passageira, nem assunto que apareceu só porque estava " +
-        "nos dados oficiais ou no perfil. Vazio quando não houver nada novo e confiável.",
+        "Todos os interesses profissionais ou de conteúdo que ESTA mensagem realmente " +
+        "revelou e que ajudam a personalizar o evento — sem teto de quantidade, " +
+        "silenciosamente, sem transformar a conversa em questionário. Não são interesses: " +
+        "cumprimento, dúvida logística, pedido de suporte, compra, reclamação passageira, " +
+        "nem assunto que apareceu só porque estava nos dados oficiais ou no perfil. " +
+        "Vazio quando não houver nada novo e confiável.",
       items: {
         type: "object",
         additionalProperties: false,
@@ -419,12 +457,6 @@ const RESPONSE_SCHEMA = {
             type: "number", minimum: 0, maximum: 1,
             description: "Quanto a mensagem sustenta este interesse.",
           },
-          confirmed: {
-            type: "boolean",
-            description:
-              "true SOMENTE quando a mensagem atual declara o interesse diretamente ou pede " +
-              "para guardá-lo. Nunca true para algo vindo dos dados oficiais ou do perfil.",
-          },
           sensitivity: {
             type: "string", enum: [...SENSIBILIDADES],
             description:
@@ -434,12 +466,26 @@ const RESPONSE_SCHEMA = {
               "quem se fala, não use \"none\".",
           },
         },
-        required: ["key", "label", "confidence", "confirmed", "sensitivity"],
+        required: ["key", "label", "confidence", "sensitivity"],
       },
     },
+    // A COMPETÊNCIA QUE DEVE ATENDER O PRÓXIMO TURNO. `null` é o caso normal: quem
+    // respondeu continua. O enum vem do banco, não daqui — e o runtime ainda revalida
+    // pelo Gate antes de persistir, porque estar na política do canal não é o mesmo que
+    // poder executar agora.
+    next_route: {
+      type: ["string", "null"],
+      enum: [...rotasDoCanal, null],
+      description:
+        "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
+        "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
+        "passou a ser de outra competência; nunca por simples falta de informação. " +
+        "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
+    },
   },
-  required: ["answer", "interests"],
-};
+  required: ["answer", "interests", "next_route"],
+  };
+}
 
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
@@ -629,7 +675,11 @@ Deno.serve(async (req: Request) => {
       return json(req, 401, { ok: false, error: { code: "session_expired", message: "A conversa expirou. Inicie uma nova sessão." } }, requestId);
     }
     profileLoaded = profileLoaded || Boolean(sessionContext.participant_profile);
-    const personalizationProfile = buildPersonalizationProfile(sessionContext.participant_profile);
+    const personalizationProfile = buildPersonalizationProfile(
+      sessionContext.participant_profile,
+      sessionContext.interests,
+      sessionContext.memories,
+    );
 
     // HISTÓRICO DA CONVERSA. `mindagent_chat_get_context` sempre devolveu `history`, e
     // este runtime sempre descartou — então toda pergunta de seguimento morria. Medido:
@@ -866,13 +916,35 @@ Deno.serve(async (req: Request) => {
       : "";
     const rotaAutoritativa = ROTA_POR_ORIGEM[origemDaConversa] ?? null;
 
+    // O UNIVERSO DE COMPETÊNCIAS DESTE CANAL, vindo do banco. Serve para duas coisas:
+    // montar o enum de `next_route` e conferir uma `rota_ativa` persistida. Uma lista
+    // literal aqui seria a segunda autoridade sobre a política que já existe.
+    const { data: canalRotas } = await admin.rpc("mind_canal_rotas", { p_canal: CANAL });
+    const rotasDoCanal: string[] = Array.isArray(canalRotas?.rotas)
+      ? (canalRotas.rotas as unknown[]).filter((r): r is string => typeof r === "string")
+      : [];
+
+    // COMPETÊNCIA ATIVA DA CONVERSA. Persistida por um handoff anterior; vence a origem
+    // porque a origem é a PORTA DE ENTRADA, não uma prisão. Se ela deixou de ser permitida
+    // no canal, é ignorada — nunca se cai para uma rota proibida.
+    const rotaAtivaBruta = typeof sessionContext.rota_ativa === "string"
+      ? sessionContext.rota_ativa.trim()
+      : "";
+    const rotaAtiva = rotaAtivaBruta && rotasDoCanal.includes(rotaAtivaBruta)
+      ? rotaAtivaBruta
+      : null;
+
     let rotaOrigem = "router";
     let rotaFalha: string | null = null;
     let rotaDecidida = "concierge_summit";
     let routerToken = "";
     const antesDoRouter = Date.now();
 
-    if (rotaAutoritativa) {
+    if (rotaAtiva) {
+      // PRECEDÊNCIA: rota ativa > origem autoritativa > Router.
+      rotaDecidida = rotaAtiva;
+      rotaOrigem = "rota_ativa";
+    } else if (rotaAutoritativa) {
       // O Gate continua obrigatório logo abaixo: a origem diz QUAL competência foi
       // acionada, nunca se ela executa.
       rotaDecidida = rotaAutoritativa;
@@ -954,7 +1026,10 @@ Deno.serve(async (req: Request) => {
         // 8 cortava listas legítimas: são 12 workshops e 6 por dia. `sessions_total`
         // continua dizendo quantos existem quando ainda assim faltar.
         limite: 12,
-        interesses: personalizationProfile?.interesses?.slice(0, 3) ?? [],
+        // Todos os interesses permitidos. `mind_kit_programacao` não muda o conjunto de
+        // sessões por causa deles — só reordena o que a pergunta já selecionou —, então o
+        // corte em 3 só empobrecia a ordenação.
+        interesses: personalizationProfile?.interesses ?? [],
       },
     });
 
@@ -1033,6 +1108,7 @@ Deno.serve(async (req: Request) => {
       { role: "user", content: `Responda usando este JSON:\n${JSON.stringify(aiContext)}` },
     ];
     const fimDoOrcamento = startedAt + ORCAMENTO_TURNO_MS;
+    const responseSchema = montarResponseSchema(rotasDoCanal);
     // As instruções do turno são as da COMPETÊNCIA, e só. O Kit já entrega o playbook
     // da rota com a camada transversal `base` na frente.
     const instrucoes = kit.playbook as string;
@@ -1064,7 +1140,7 @@ Deno.serve(async (req: Request) => {
             reasoning: { effort: toolsParaModelo.length > 0 ? "low" : "none" },
             text: {
               format: {
-                type: "json_schema", name: "mindagent_response", strict: true, schema: RESPONSE_SCHEMA,
+                type: "json_schema", name: "mindagent_response", strict: true, schema: responseSchema,
               },
             },
             ...(toolsParaModelo.length > 0
@@ -1180,7 +1256,7 @@ Deno.serve(async (req: Request) => {
       }, requestId);
     }
 
-    let structured: { answer: string; interests: Interest[] };
+    let structured: { answer: string; interests: Interest[]; next_route?: string | null };
     try {
       structured = JSON.parse(outputText);
     } catch {
@@ -1189,13 +1265,14 @@ Deno.serve(async (req: Request) => {
 
     const answer = normalizeAnswerLayout(String(structured.answer ?? "")).slice(0, 2000).trim();
     if (!answer) throw new Error("empty_ai_answer");
+    // Sem `.slice(0, 2)`: um turno pode revelar seis interesses legítimos, e o teto
+    // descartava os quatro últimos em silêncio. Quem filtra por sensibilidade e por
+    // confiança é `mindagent_chat_save_interests`, no banco.
     const interests = (Array.isArray(structured.interests) ? structured.interests : [])
-      .slice(0, 2)
       .map((interest) => ({
         key: normalizeInterestKey(String(interest.key ?? interest.label ?? "")),
         label: String(interest.label ?? "").trim().slice(0, 120),
         confidence: Math.max(0, Math.min(1, Number(interest.confidence ?? 0))),
-        confirmed: interest.confirmed === true,
         // Repassado INTACTO para `mindagent_chat_save_interests`. A política é
         // do gate da Lane D, no banco; aqui não se decide nem se corrige. Um
         // valor fora do enum vira string desconhecida — e desconhecido é
@@ -1205,6 +1282,35 @@ Deno.serve(async (req: Request) => {
           : "desconhecido",
       }))
       .filter((interest) => interest.key.length >= 2 && interest.label.length >= 2 && interest.confidence >= 0.65);
+
+    // ------------------------------------------------------ TROCA DE COMPETÊNCIA
+    // O modelo PEDE; quem decide é o Gate, e quem efetiva é o writer, na mesma transação
+    // da mensagem. Pedir a mesma rota que já responde não é troca — vira null antes de
+    // qualquer validação, para não gastar uma chamada de Gate à toa.
+    const nextRouteBruto = typeof structured.next_route === "string"
+      ? structured.next_route.trim()
+      : "";
+    const nextRoute = nextRouteBruto && nextRouteBruto !== rotaDecidida
+        && rotasDoCanal.includes(nextRouteBruto)
+      ? nextRouteBruto
+      : null;
+
+    let rotaAtivaPersistir: string | null = null;
+    if (nextRoute) {
+      const { data: gateDestino } = await admin.rpc("mind_rota_capacidade", {
+        p_rota: nextRoute,
+        p_canal: CANAL,
+      });
+      if (gateDestino?.ok === true && gateDestino?.pode_executar === true) {
+        rotaAtivaPersistir = nextRoute;
+      } else {
+        console.warn(JSON.stringify({
+          request_id: requestId, event: "handoff_recusado_pelo_gate",
+          de: rotaDecidida, para: nextRoute,
+          motivo: gateDestino?.reason ?? gateDestino?.motivo ?? null,
+        }));
+      }
+    }
 
     const sources = sourceSummary(officialContext);
     const { data: assistantMessage, error: assistantMessageError } = await admin.rpc("mindagent_chat_save_message", {
@@ -1231,6 +1337,14 @@ Deno.serve(async (req: Request) => {
         origem_codigo: origemDaConversa || null,
         rodadas_tool: rodadasTool,
         ferramentas: chamadasFeitas,
+        // AUDITORIA DO HANDOFF: o que o Agent pediu e o que de fato ficou valendo. Sem os
+        // dois, não dá para distinguir "não pediu troca" de "pediu e o Gate recusou".
+        next_route: nextRoute,
+        rota_ativa: rotaAtivaPersistir,
+        // ESTADO CONTROLADO PELO RUNTIME. `mindagent_chat_save_message` lê daqui e
+        // persiste em `engagement.conversas.variables.rota_ativa` na mesma transação —
+        // é o que impede "a resposta disse que encaminhou, mas a rota não mudou".
+        ...(rotaAtivaPersistir ? { state: { rota_ativa: rotaAtivaPersistir } } : {}),
       },
     });
     if (assistantMessageError || !assistantMessage) throw new Error("assistant_message_save_failed");
@@ -1251,6 +1365,7 @@ Deno.serve(async (req: Request) => {
       new_session: newSession, model, interests: interests.length, duration_ms: Date.now() - startedAt,
       rota: rotaDecidida, rota_origem: rotaOrigem, router_falha: rotaFalha, router_ms: routerMs,
       origem_codigo: origemDaConversa || null,
+      next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
       tools_expostas: nomesDasFerramentas.length, rodadas_tool: rodadasTool,
       historico: historico.length,
       chamadas_tool: chamadasFeitas.length,
