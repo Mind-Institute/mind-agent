@@ -56,6 +56,10 @@ export default defineConfig({
       VITE_ADMIN_DATA_MODE: 'mock',
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_PUBLISHABLE_KEY: '',
+      /* Sem endereço do app, a prévia das telas mostra o aviso de
+         configuração em vez de montar um `iframe` — que no jsdom tentaria
+         buscar a página de verdade. */
+      VITE_APP_BASE_URL: '',
     },
   },
 });

@@ -9,6 +9,11 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
   /** Chave publicável (anon). Nunca `service_role`, nunca secret key. */
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
+  /** Raiz da Edge Function do módulo Home V3 (`mindagent-home`). */
+  readonly VITE_HOME_API_BASE_URL?: string;
+  /** Onde o app do participante é servido, para a prévia das telas.
+   *  Vazio em produção = a raiz, que é onde o app vive no mesmo worker. */
+  readonly VITE_APP_BASE_URL?: string;
 }
 
 interface ImportMeta {

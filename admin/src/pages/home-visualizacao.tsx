@@ -9,6 +9,7 @@ import {
   type TrocaHome,
 } from '@/contracts';
 import { useArquivar, useAtualizar, useCriar, useLista } from '@/hooks/use-recurso';
+import { PreviaTela } from '@/features/home-v3/previa-tela';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { AvisoErroEscrita } from '@/components/admin/aviso-escrita';
 import { EstadoVazio } from '@/components/admin/estados';
@@ -27,7 +28,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 
    O modo existe para o dia do evento: alguém precisa poder assumir o
    controle no meio de um imprevisto sem apagar a agenda que já estava
-   montada. Em `manual`, a programação fica visível mas parada. */
+   montada. Em `manual`, a programação fica visível mas parada.
+
+   VER E PUBLICAR SÃO DOIS GESTOS. Até aqui eram um só: tocar num dos
+   quatro cartões colocava aquela tela no ar na hora, sem confirmação —
+   e não havia nenhuma forma de simplesmente olhar. Quem quisesse
+   conferir a tela "Depois" durante o evento publicava a tela "Depois".
+   Agora o toque só escolhe o que aparece no quadro abaixo; publicar tem
+   botão próprio, e o cartão no ar continua marcado como tal. */
 
 /** Ordena por horário e diz qual troca é a próxima a valer. */
 function proximaTroca(trocas: TrocaHome[], agora: Date): TrocaHome | null {
@@ -55,8 +63,13 @@ export function PaginaHomeVisualizacao() {
   const [novoQuando, setNovoQuando] = useState('');
   const [novoMomento, setNovoMomento] = useState<MomentoHome>('no-evento');
   const [nota, setNota] = useState('');
+  /* Qual tela está sendo OLHADA. Nada a ver com o que está no ar.
+     Começa em `null` porque o estado chega da rede: até ele chegar, a
+     escolha certa é "a que está no ar", e ela ainda não se sabe. */
+  const [olhando, setOlhando] = useState<MomentoHome | null>(null);
 
   const atual: EstadoHome | undefined = estado.data?.itens[0];
+  const emCartaz: MomentoHome = olhando ?? atual?.momento ?? 'antes';
   const lista = useMemo(
     () => [...(trocas.data?.itens ?? [])].sort((a, b) => a.quando.localeCompare(b.quando)),
     [trocas.data],
@@ -65,7 +78,10 @@ export function PaginaHomeVisualizacao() {
 
   const erro = atualizarEstado.error ?? criarTroca.error ?? arquivarTroca.error;
 
-  function trocarAgora(momento: MomentoHome) {
+  /* Publicar. Continua trocando para `manual` junto: quem publica na mão
+     está assumindo o controle, e deixar a programação correndo por baixo
+     desfaria a escolha no horário seguinte sem avisar. */
+  function colocarNoAr(momento: MomentoHome) {
     if (!atual || momento === atual.momento) return;
     atualizarEstado.mutate({ id: atual.id, payload: { momento, modo: 'manual' } });
   }
@@ -121,24 +137,28 @@ export function PaginaHomeVisualizacao() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {MOMENTOS_HOME.map((m) => {
-              const ativo = atual?.momento === m;
+              const noAr = atual?.momento === m;
+              const vendo = emCartaz === m;
               return (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => trocarAgora(m)}
-                  disabled={ativo || atualizarEstado.isPending}
-                  aria-pressed={ativo}
+                  onClick={() => setOlhando(m)}
+                  aria-pressed={vendo}
                   className={
                     'rounded-lg border p-4 text-left transition ' +
-                    (ativo
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'hover:border-primary/50 disabled:opacity-60')
+                    (vendo ? 'border-foreground/40 ring-1 ring-foreground/25 ' : 'hover:border-primary/50 ') +
+                    (noAr ? 'bg-primary/5' : '')
                   }
                 >
                   <span className="flex items-center justify-between gap-2">
                     <strong className="text-sm">{ROTULO_MOMENTO[m]}</strong>
-                    {ativo ? <Check className="size-4 text-primary" /> : null}
+                    {noAr ? (
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-primary">
+                        <Check className="size-3.5" />
+                        No ar
+                      </span>
+                    ) : null}
                   </span>
                   <span className="mt-1 block text-xs leading-snug text-muted-foreground">
                     {RESUMO_MOMENTO[m]}
@@ -162,6 +182,47 @@ export function PaginaHomeVisualizacao() {
             {formatarQuando(proxima.quando)}.
           </p>
         ) : null}
+      </section>
+
+      {/* ---- A tela escolhida ---- */}
+      <section className="rounded-xl border bg-card p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">
+              Vendo a tela {ROTULO_MOMENTO[emCartaz]}
+            </h2>
+            <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+              {atual?.momento === emCartaz
+                ? 'É a que o participante está vendo agora.'
+                : 'Olhar não muda nada. Para trocar o que o participante vê, use o botão ao lado.'}
+            </p>
+          </div>
+          {atual && atual.momento !== emCartaz ? (
+            <Button
+              size="sm"
+              onClick={() => colocarNoAr(emCartaz)}
+              disabled={atualizarEstado.isPending}
+            >
+              Colocar no ar
+            </Button>
+          ) : null}
+        </div>
+
+        <PreviaTela momento={emCartaz} />
+
+        {/* Dito aqui, e não só na documentação, porque a pergunta nasce
+            justamente olhando o quadro: "como eu mudo esse card?". Sem
+            esta linha a resposta é procurar um botão de edição que não
+            existe. */}
+        <p className="mt-4 border-t pt-4 text-xs leading-relaxed text-muted-foreground">
+          <strong className="text-foreground">O que dá para editar por aqui:</strong> os
+          avisos, em <em>Avisos da home</em> — eles aparecem em três das quatro telas e
+          chegam ao app assim que você publica. <strong className="text-foreground">
+          O resto de cada tela</strong> — os cards de destaque, os textos e a ordem
+          deles — vive no código do app, em <code className="font-mono">home/estado.js</code>,
+          e mudar exige uma alteração publicada. Este quadro serve para decidir o que
+          pedir e para conferir o efeito depois.
+        </p>
       </section>
 
       {/* ---- Programação ---- */}

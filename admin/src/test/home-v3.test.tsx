@@ -28,25 +28,52 @@ describe('Home V3 · visualização', () => {
       expect(screen.getByRole('button', { name: new RegExp('^' + rotulo, 'i') })).toBeVisible();
     }
 
-    /* A semente começa em "Antes", e o botão da tela no ar fica pressionado
-       e desabilitado — não faz sentido trocar para onde já se está. */
+    /* A semente começa em "Antes": é a tela no ar, e é a que o quadro
+       abre. Ela NÃO fica desabilitada — o toque passou a só escolher o
+       que olhar, e impedir alguém de olhar justamente a tela que está no
+       ar seria o contrário do que a página serve. */
     const antes = screen.getByRole('button', { name: /^Antes/i });
     expect(antes).toHaveAttribute('aria-pressed', 'true');
-    expect(antes).toBeDisabled();
+    expect(antes).toBeEnabled();
+    expect(within(antes).getByText('No ar')).toBeVisible();
   });
 
-  it('troca a tela no ar e a marcação acompanha', async () => {
+  /* Os dois testes abaixo guardam a separação entre VER e PUBLICAR. Ela
+     é invisível num diff: o mesmo clique que antes publicava agora só
+     escolhe, e um teste que apenas conferisse `aria-pressed` passaria
+     nos dois mundos sem notar a diferença. O que distingue um do outro é
+     onde fica a marca "No ar". */
+
+  it('olhar outra tela não a coloca no ar', async () => {
+    const usuario = userEvent.setup();
+    renderizarPainel({ rota: '/home/visualizacao' });
+
+    await usuario.click(await screen.findByRole('button', { name: /^Depois/i }));
+
+    expect(screen.getByRole('button', { name: /^Depois/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await screen.findByRole('heading', { name: /Vendo a tela Depois/i })).toBeVisible();
+
+    /* E a tela no ar continua sendo a de antes. Era exatamente este
+       toque que publicava sem confirmação nenhuma. */
+    const antes = screen.getByRole('button', { name: /^Antes/i });
+    expect(within(antes).getByText('No ar')).toBeVisible();
+  });
+
+  it('publicar é um segundo gesto, e move a marca de "No ar"', async () => {
     const usuario = userEvent.setup();
     renderizarPainel({ rota: '/home/visualizacao' });
 
     await usuario.click(await screen.findByRole('button', { name: /^No evento/i }));
+    await usuario.click(await screen.findByRole('button', { name: /^Colocar no ar$/i }));
 
     const noEvento = await screen.findByRole('button', { name: /^No evento/i });
-    expect(noEvento).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /^Antes/i })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(within(noEvento).getByText('No ar')).toBeVisible();
+    expect(
+      within(screen.getByRole('button', { name: /^Antes/i })).queryByText('No ar'),
+    ).toBeNull();
   });
 
   it('lista as trocas programadas e aceita uma nova', async () => {
