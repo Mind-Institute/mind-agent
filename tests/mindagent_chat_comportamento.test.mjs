@@ -210,7 +210,9 @@ async function turnoComInteresse(extra) {
     corpo: { message: 'quero conteúdo sobre isso' },
     modelo: { answer: 'Certo.', interests: [interesse(extra)] },
     rpc: {
-      mindagent_chat_save_message: (args) => ({ id: args.p_role === 'user' ? idDaFala : 'outro' }),
+      mindagent_chat_save_message: (args) => ({
+        mensagem_id: args.p_role === 'user' ? idDaFala : 'outro', duplicada: false, papel: args.p_role,
+      }),
     },
   });
   return { r, idDaFala };

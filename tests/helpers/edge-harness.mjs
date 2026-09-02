@@ -99,7 +99,12 @@ function respostasPadrao() {
       expires_at: '2026-09-01T12:00:00+00:00',
       messages: [],
     },
-    mindagent_chat_save_message: (args) => ({ id: randomUUID(), role: args.p_role }),
+    // Forma REAL de `mind_mensagem_registrar`, para onde
+    // `mindagent_chat_save_message` delega: `{mensagem_id, duplicada, papel}`.
+    // O stub antigo devolvia `{id}` e por isso deixou passar a evidência nula.
+    mindagent_chat_save_message: (args) => ({
+      mensagem_id: randomUUID(), duplicada: false, papel: args.p_role,
+    }),
     mind_rota_capacidade: { ok: true, pode_executar: true, reason: null },
     mind_agent_kit: KIT_COMPLETO,
     mindagent_chat_save_interests: { ok: true, saved: 1 },

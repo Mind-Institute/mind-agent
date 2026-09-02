@@ -26,7 +26,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.9.0";
+const VERSION = "1.9.1";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
@@ -1355,7 +1355,11 @@ Deno.serve(async (req: Request) => {
         p_session_id: sessionId,
         p_token_hash: tokenHash,
         p_interests: interests,
-        p_evidence_message_id: userMessage.id,
+        // `mindagent_chat_save_message` delega para `mind_mensagem_registrar`, que
+        // devolve `{mensagem_id, duplicada, papel}` — nunca `id`. Ler `.id` dava
+        // `undefined`, e a evidência chegava nula: medido no E2E de 31/08, com os
+        // quatro interesses gravados sem apontar para a fala que os gerou.
+        p_evidence_message_id: userMessage.mensagem_id,
       });
       if (interestError) console.warn(JSON.stringify({ request_id: requestId, event: "interest_save_failed", session_id: sessionId }));
     }
