@@ -431,6 +431,10 @@ function abrirAvisos(id) {
        ajuda para reservar?" precisa de outro destino: o Concierge é uma
        vista do app, não uma tela do app do Summit. */
     avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (destino) => {
+      /* Três destinos, e o de fora é o único que sai do app: material que
+         mora no YouTube não tem como ser uma tela daqui. `noopener` porque
+         a aba nova não precisa — nem deve — alcançar esta. */
+      if (/^https:\/\//.test(destino)) return window.open(destino, '_blank', 'noopener');
       if (destino === 'chat') return irParaConversa(null);
       abrirTourCompleto(destino);
     }));
