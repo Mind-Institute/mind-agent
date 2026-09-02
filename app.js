@@ -516,20 +516,32 @@ const ICO = {
   menu:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
 };
 
-/* `rotulo` é o que cabe embaixo do ícone em 360px — "Mind Age…" e
-   "Minha age…" ficavam truncados e quase idênticos. `nome` é o rótulo
-   inteiro, que vai para o leitor de tela e para o balão da próxima ação. */
+/* OS NOMES SÃO OS DO APP DE VERDADE, e é o app que manda.
+   O tour existe para ensinar onde as coisas ficam; ensinar um nome que a
+   pessoa não vai encontrar é pior do que não ensinar. Os rótulos aqui eram
+   "Mind · Agenda · Minha · Ingresso · Menu" — encurtados na época para caber
+   em 360px — enquanto o app hoje mostra "Concierge · Programação · Minha
+   Agenda · Ingresso · Menu". Quem fizesse o tour aprenderia a procurar
+   "Agenda" pela programação, que no app é outro menu.
+
+   `rotulo` volta a ser igual a `nome`: o app cabe com os nomes inteiros, e
+   duas grafias para o mesmo menu é como a divergência nasce de novo. O
+   tamanho da fonte da barra passou a se ajustar ao rótulo mais longo — ver
+   `.fnav` em `styles.css`.
+
+   Os `id` e os destinos (`vai`) NÃO mudam: são chaves internas amarradas às
+   capturas de tela do tour e às missões. O que a pessoa lê é `rotulo`. */
 const ABAS = [
-  { id: 'agente', rotulo: 'Mind',     nome: 'Mind Agent',   ico: ICO.agente, folha: 'agente' },
-  { id: 'agenda', rotulo: 'Agenda',   nome: 'Agenda',       ico: ICO.agenda, vai: 'agenda' },
-  { id: 'minha',  rotulo: 'Minha',    nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
-  { id: 'qr',     rotulo: 'Ingresso', nome: 'Meu ingresso', ico: ICO.qr,     vai: 'scanner' },
-  { id: 'menu',   rotulo: 'Menu',     nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
+  { id: 'agente', rotulo: 'Concierge',    nome: 'Concierge',    ico: ICO.agente, folha: 'agente' },
+  { id: 'agenda', rotulo: 'Programação',  nome: 'Programação',  ico: ICO.agenda, vai: 'agenda' },
+  { id: 'minha',  rotulo: 'Minha Agenda', nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
+  { id: 'qr',     rotulo: 'Ingresso',     nome: 'Ingresso',     ico: ICO.qr,     vai: 'scanner' },
+  { id: 'menu',   rotulo: 'Menu',         nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
 ];
 
 /* Popups do app, refeitos em HTML */
 const FOLHAS = {
-  agente: { titulo: 'Mind Agent', texto: 'Oi! É aqui que eu moro dentro do app. Me chame para dúvidas do evento, sugestão de conteúdo, bios de palestrantes e logística.', botao: 'Legal!' },
+  agente: { titulo: 'Concierge', texto: 'Oi! É aqui que eu moro dentro do app. Me chame para dúvidas do evento, sugestão de conteúdo, bios de palestrantes e logística.', botao: 'Legal!' },
   contato: { titulo: 'Solicitação enviada', texto: 'Quando a pessoa aceitar, ela entra em Contatos. Enquanto isso fica em Pendentes.', botao: 'Entendi' },
   reservado: { titulo: 'Lugar reservado!', texto: 'No dia da sessão, faça o check-in aqui mesmo, na página dela, até o horário de início. A reserva é exclusiva por horário.', botao: 'Combinado' },
 };
@@ -539,7 +551,7 @@ const FOLHAS = {
    `serve` explica para que a tela existe e fica sempre visível no alto. */
 const TELAS = {
   'agenda': {
-    img: 'agenda', aba: 'agenda', rotulo: 'Agenda',
+    img: 'agenda', aba: 'agenda', rotulo: 'Programação',
     serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
     alvos: [
       { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
@@ -599,7 +611,7 @@ const TELAS = {
   },
   'scanner': {
     img: 'scanner', aba: 'qr', rotulo: 'Leitor de QR',
-    serve: 'A aba abre no leitor. O seu ingresso está atrás de "Meu Qr Code".',
+    serve: 'O menu Ingresso abre no leitor. O seu ingresso está atrás de "Meu Qr Code".',
     alvos: [
       { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'qrcode', modo: 'push',
         dica: 'Toque em <b>Meu Qr Code</b> para abrir o seu ingresso.' },
@@ -1153,8 +1165,8 @@ let chatIniciado = false;
 const PASSOS = {
   reservar:     { tela: 'detalhe',      alvo: 'reservar', onde: 'Dentro da sessão',
                   aviso: 'A reserva cai 5 minutos antes do início, para abrir a fila de espera.' },
-  minha_agenda: { tela: 'minha-agenda', alvo: 'sessao',   onde: 'Aba Minha agenda' },
-  qr:           { tela: 'qrcode',       alvo: 'escanear', onde: 'Aba QR Code' },
+  minha_agenda: { tela: 'minha-agenda', alvo: 'sessao',   onde: 'Menu Minha Agenda' },
+  qr:           { tela: 'qrcode',       alvo: 'escanear', onde: 'Menu Ingresso' },
   escanear:     { tela: 'scanner',      alvo: 'meuqr',    onde: 'QR Code → Escanear' },
   mapa:         { tela: 'menu',         alvo: 'mapa',     onde: 'Menu → Mapa do evento' },
   rede:         { tela: 'menu',         alvo: 'rede',     onde: 'Menu → Área de network' },

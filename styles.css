@@ -1159,9 +1159,15 @@ html[data-teclado="aberto"] .barra-abas {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .8cqw;
   color: var(--app-mudo);
   font-family: system-ui, -apple-system, sans-serif;
-  font-size: 2.4cqw; font-weight: 600;
+  /* 2.4cqw servia para "Mind" e "Minha". Os nomes do app são maiores —
+     "Programação", "Minha Agenda" — e a `text-overflow` abaixo os cortaria
+     justamente nos dois menus que o tour mais precisa ensinar. Menor por
+     rótulo maior é o preço certo: o nome inteiro vale mais que o corpo da
+     fonte, e é ele que a pessoa vai procurar no app. */
+  font-size: 2cqw; font-weight: 600;
+  letter-spacing: -.01em;
   position: relative;
-  padding: 0 .5cqw;
+  padding: 0 .3cqw;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .fnav svg { width: 4.6cqw; height: 4.6cqw; }
