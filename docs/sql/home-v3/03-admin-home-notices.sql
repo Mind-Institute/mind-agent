@@ -50,7 +50,12 @@ as $function$
         'situacao', a.situacao
       ) obj
     from concierge.avisos a
-    where p_id is null or a.id = p_id
+    -- Listar esconde o que foi para a lixeira. Pedir UM pelo id devolve
+    -- assim mesmo: quem pergunta pelo id já sabe qual quer — e é isso
+    -- que deixa a própria função de escrita ler o que acabou de
+    -- arquivar, para devolver ao painel o registro que mudou.
+    where (p_id is not null and a.id = p_id)
+       or (p_id is null and a.arquivado_em is null)
   ) x;
 $function$;
 
@@ -212,8 +217,11 @@ begin
     where id = v_id;
 
   elsif p_action = 'arquivar' then
+    -- Sai de circulação E sai da lista. "Encerrar" faz só a primeira
+    -- metade, e é por isso que os dois botões existem.
     update concierge.avisos set
       situacao = 'encerrado',
+      arquivado_em = coalesce(arquivado_em, clock_timestamp()),
       atualizado_em = clock_timestamp(),
       atualizado_por = p_actor_id
     where id = v_id;

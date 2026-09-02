@@ -69,6 +69,17 @@ comment on column concierge.avisos.situacao is
 create index if not exists avisos_circulacao
   on concierge.avisos (situacao, disparo_em desc);
 
+-- Duas saídas diferentes, e é de propósito:
+--   encerrado    → fora de circulação, ainda na lista do painel, e dá
+--                  para colocar no ar de novo;
+--   arquivado_em → fora da LISTA do painel. Continua no banco, porque a
+--                  auditoria aponta para ele e apagar cortaria o fio.
+-- Rodar de novo é seguro: a coluna só nasce se não existir.
+alter table concierge.avisos add column if not exists arquivado_em timestamptz;
+
+comment on column concierge.avisos.arquivado_em is
+  'Quando saiu da lista de trabalho do painel. Nulo = ainda aparece lá.';
+
 alter table concierge.avisos enable row level security;
 
 -- ------------------------------------------------------------
