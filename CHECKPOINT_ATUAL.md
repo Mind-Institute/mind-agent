@@ -2,7 +2,7 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **01/09/2026** (lane C: o fluxo canônico do App mudou — ver §C, bloco 01/09).
+> Atualizado em **02/09/2026** (lane C: Passos 5 e 6 aplicados e publicados — ver §C, bloco 02/09).
 > `main` no momento desta atualização: **`0f210953fc783aed63ade6ca87b77337b08b6b7c`**.
 >
 > Este é o ponto de retomada operacional. `PROJECT_STATE.md` preserva arquitetura/decisões congeladas; `GO_LIVE_PARALLEL_20260830.md` preserva ownership; `BACKLOG.md` preserva investigações deferidas; `docs/CORE_UNIVERSAL.md` descreve o sistema vivo, mas ainda contém snapshot de 29/08 em alguns trechos. **PRs e issues são mais frescos que este arquivo para trabalho ainda não integrado.**
@@ -331,6 +331,96 @@ função nunca apaga, e alguém precisa limpar a linha velha à mão. Enquanto a
 mudar até a véspera, isso vai se repetir. Vale decidir uma regra — a mais simples é o
 sync aceitar remover o que sumiu do JSON quando a sessão não tiver nenhum dado de
 participante ligado (as 5 FKs são CASCADE), mantendo a recusa quando tiver.
+
+#### 02/09 — PASSOS 5 E 6: PROMPTS FINAIS, MEMÓRIA EM DOIS TEMPOS E HANDOFF EXECUTÁVEL
+
+Branch `claude/go-live-vendedor-runtime-hjobov`, commit `4bae649`. **Migrations aplicadas em
+produção e `mindagent-chat` publicada como version 29 (v1.9.0).** Especificações-fonte:
+`SUMMIT_2026_STEP5_PROMPTS_SPEC.md`, `SUMMIT_2026_STEP5_MEMORY_ADDENDUM.md` (que prevalece
+sobre a spec nos trechos de memória) e `SUMMIT_2026_STEP6_HANDOFF_SPEC.md`.
+
+**Prompts (`agentes.prompts`).** Quatro reescritos e conferidos por `md5` repo↔produção:
+`base` `39bb6406`, `playbook_concierge_summit` `a11ff293`, `playbook_cliente_suporte`
+`3b6d80e0`, `analise_concierge` `01a77062`. Atenção para quem for conferir: **a coluna
+`atualizado_em` de `agentes.prompts` não é mantida na escrita** — ela ainda mostra datas de
+agosto para linhas reescritas hoje. Só o hash do conteúdo vale como prova de frescor.
+
+**Memória rápida** (`engagement.session_interests`, escopo de sessão). Caíram os cortes
+artificiais: `interests.maxItems = 2`, `.slice(0,2)`, `.slice(0,8)` do perfil, `.slice(0,3)`
+do Kit, o teto de 12 por sessão e a rejeição de payload com mais de 5 itens. Caiu também o
+campo `confirmed`. Entrou o gate de sensibilidade que o runtime **afirmava em comentário mas
+não existia no banco**: `mindagent_chat_save_interests` agora lê `sensitivity` e só persiste
+`none`; um item sensível é descartado sozinho, sem derrubar o resto do payload. A promoção
+de interesse de sessão para memória durável saiu daqui — memória rápida é sessão, não
+memória permanente.
+
+**Memória durável** (`intelligence.participante_memoria`). Em `analise_projetar_memoria`,
+**apenas no ramo `p_analisador = 'analise_concierge'`**: `sensitivity` ausente ou diferente
+de `none` não persiste; `scope='temporary'` não vira durável; `high` + (`stable`|`opportunity`)
+→ `ativa`. A semântica dos outros analisadores fica intacta — `analise_vendas_summit` continua
+com `stable + high → ativa` e continuou escrevendo normalmente durante todo o dia.
+
+**Read path.** `mindagent_chat_get_context` passou a devolver `memories` (só `status='ativa'`
+e não expirada, aceitando as duas formas históricas `valor.text` e `valor.label`) e
+`rota_ativa`. Antes desta mudança a memória durável era escrita e **nunca lida** — o
+Concierge não reutilizava nada do que o analisador gravava.
+
+**Passo 6 — handoff Concierge ↔ Atendimento.** Sem tabela nova, sem coluna nova, sem segunda
+conversa, sem Router no App. A competência corrente mora em
+`engagement.conversas.variables.rota_ativa`; `origem_codigo` continua imutável como porta de
+entrada. Precedência do turno: **`rota_ativa` persistida > origem autoritativa > Router**, e o
+Gate continua obrigatório depois de qualquer uma das três. O contrato Agent→runtime é o campo
+`next_route` do schema de saída, cujo enum é montado em runtime a partir de
+`mind_canal_rotas('mindagent-web')` — não existe segunda lista hardcoded de rotas. A escrita
+acontece dentro de `mindagent_chat_save_message`, na **mesma transação** da gravação da
+mensagem, depois de revalidar a rota por `mind_rota_capacidade` com o canal lido da conversa.
+Isso fecha o estado impossível "a resposta disse que encaminhou, mas a rota não mudou".
+
+**E2E real do App, produção, v1.9.0.** Cadeia completa da DoD do Passo 6 numa única pessoa,
+sessão e conversa (`2f71c556`): turno 1 `origem_autoritativa`→`concierge_summit` com
+`next_route=cliente_suporte` e `variables.rota_ativa` persistida; turno 2 `rota_ativa`→
+`cliente_suporte` sem Router; turno 3 Atendimento devolve com `next_route=concierge_summit`;
+turno 4 volta ao Concierge. Nenhuma pessoa, conversa ou sessão nova foi criada na troca.
+
+Comportamento conferido no runtime real: "cardápio do almoço" sem dado → diz que não
+encontrou e **não** troca para Atendimento; "como faço para reservar?" → orienta e não
+executa; "quais sessões eu já reservei?" → não finge ler a agenda; VIP → Masterclass → Prime,
+sujeito a reserva e disponibilidade, sem reservar; Mind → workshop → VIP como menor upgrade;
+"me lista todos os workshops" → **12 de 12**, sem corte. Entrada `mindagent-web` sem origem
+autoritativa continua caindo no Router (`rota_origem: router`).
+
+Fail-closed conferido direto no writer: `next_route` com rota inexistente e com rota fora da
+política do canal (`summit_b2c`) **não persistem** e não afirmam handoff; rota igual à atual
+vira `null` antes de gastar Gate.
+
+Memória conferida: 6 interesses permitidos num turno → 6 salvos; 4 permitidos + 1
+`saude_do_titular` → `saved 4, blocked 1, promoted 0`; `opportunity + high` → `ativa`;
+`temporary`, sensível e sem classificação → não persistem; `medium` → `proposta` e `proposta`
+não volta para o Agent; numa sessão com 10 interesses e 3 memórias ativas, "me indica uma
+sessão boa pra mim" respondeu ancorado em liderança, segurança psicológica e cultura — a
+memória chega ao modelo e ao Kit sem corte em 3.
+
+**Divergência material nova.** `analise_concierge` **não é exclusivo do App**: o cron
+`analise_conversas` (job 12) também o aplica a conversas de **WhatsApp**. Com o Passo 5 ele
+passou a de fato gravar memória durável — 12 linhas desde 05:30 de hoje, as 12 com
+`sensitivity`, e antes disso ele nunca havia gravado nenhuma. O impacto está contido: a única
+função que **lê** `intelligence.participante_memoria` é `mindagent_chat_get_context`, ou seja,
+o App. `treble-inbound-agent` não lê. Não há efeito no comportamento da lane #40, mas quem for
+mexer no analisador precisa saber que o contrato de memória do Passo 5 hoje governa também as
+conversas de WhatsApp. Registrar em #42.
+
+**Pendência que não é regressão desta lane.** O modo ação do Play responde
+`502 acao_falhou` porque as RPCs `mind_play_nps`, `mind_play_feedback_sessao`,
+`mind_play_feedback_evento` e `mind_play_feedback` **não existem no banco** — nunca existiram
+neste repo, que só tem o ledger de idempotência (`mind_play_chamada_iniciar/concluir`). O
+caminho de ação dentro da `mindagent-chat` está intacto e não foi tocado pelos Passos 5 e 6
+(`git diff 4bae649^ 4bae649` não altera nenhuma linha de Play): ele valida a ferramenta,
+resolve a sessão e recusa com o código certo. Os writers são da lane E/#43.
+
+**Divergência conhecida e aceita entre repo e produção.** O código publicado difere do arquivo
+do repo em exatamente dois pontos: `/[\u0300-\u036f]/g` no repo aparece como a classe literal
+equivalente no bundle publicado. Mesma faixa de caracteres, nenhuma diferença semântica.
+
 ---
 
 ### D — pós-turno / memória / write-back / Silence
