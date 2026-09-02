@@ -190,6 +190,26 @@ body {
   font-size: 7.5px; font-weight: 700; letter-spacing: .1em;
   margin-top: 2px; opacity: .7;
 }
+/* A PÍLULA DO INGRESSO. Roxo da marca (`--roxo`, o mesmo token do site),
+   não uma cor nova: o cabeçalho ganha um selo, não uma paleta.
+
+   `[hidden]` precisa da regra própria porque `display: inline-flex` aqui
+   embaixo tem especificidade maior que a regra do navegador — foi assim
+   que o `☰` apareceu onde não devia na demonstração. */
+.h-ingresso {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: none;
+  background: var(--roxo); color: #fff;
+  border-radius: var(--raio-pill); padding: 5px 11px;
+  font: inherit; font-size: 11.5px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.h-ingresso[hidden] { display: none; }
+.h-ingresso i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #fff; opacity: .85;
+}
+
 .h-ajuda {
   appearance: none; cursor: pointer;
   width: 40px; height: 40px; border-radius: 50%;
@@ -1591,45 +1611,6 @@ html[data-teclado="aberto"] .doca {
   background: none; color: var(--texto-mudo);
   border: 1px solid var(--hairline);
   margin-top: 8px; min-height: 44px; font-size: 13px;
-}
-
-/* Fim do tour */
-.fim-fundo {
-  position: absolute; inset: 0; z-index: 15;
-  background: rgba(11, 11, 15, .9);
-  display: none; align-items: center; justify-content: center;
-  padding: var(--pad);
-  animation: entra .35s ease;
-}
-.fim-fundo.aberto { display: flex; }
-.fim-cartao {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--raio-card);
-  padding: 26px 22px;
-  text-align: center;
-}
-.fim-cartao img { width: 40px; height: 40px; object-fit: contain; }
-.fim-cartao h3 {
-  margin-top: 14px;
-  font-size: 24px; font-weight: 900; text-transform: uppercase;
-  letter-spacing: -.02em; line-height: 1;
-}
-.fim-cartao p { margin-top: 10px; font-size: 14.5px; line-height: 1.5; color: var(--texto-suave); }
-.fim-cartao .btn-verde { margin-top: 20px; }
-.btn-verde {
-  appearance: none; border: 0; cursor: pointer; width: 100%;
-  background: var(--verde); color: var(--surface-deep);
-  font: inherit; font-size: 15px; font-weight: 700;
-  min-height: 50px; border-radius: var(--raio-pill);
-}
-.link-mind {
-  appearance: none; border: 0; background: none; cursor: pointer; width: 100%;
-  font: inherit; font-size: 13.5px; font-weight: 700;
-  color: var(--texto-suave); text-decoration: underline;
-  text-underline-offset: 3px;
-  min-height: 42px; margin-top: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -7,7 +7,7 @@
 */
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
-import { carregarDadosSummit, carregarHomeDoEvento } from './data-service.js';
+import { carregarDadosSummit, carregarHomeDoEvento, carregarIngressoDoParticipante } from './data-service.js';
 import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
@@ -240,6 +240,7 @@ function contextoDaHome() {
     hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours(),
     remontar: montarHomeV3,
   };
+  if (ingressoDoParticipante) ctx.ingresso = ingressoDoParticipante;
   const emCurso = sessaoDoInsight();
   if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
   const p = proximaExperiencia();
@@ -260,6 +261,28 @@ function montarHomeV3() {
   atualizarContadorAvisos();
   ligarContagem();
 }
+
+/* ---------- O TIPO DE INGRESSO NO CABEÇALHO ----------
+   Aparece em dois lugares, com um dado só: a pílula ao lado do `?`, que
+   mora na barra de cima e fica fora da home, e a sobrancelha do hero,
+   que é da home e vem por `contextoDaHome`.
+
+   Quem sabe o tipo é o espelho do credenciamento, e a única chave que o
+   app tem é o e-mail que a Yazo mandou. Sem e-mail, sem rede, ou com um
+   ingresso sem tipo mapeado, `carregarIngressoDoParticipante` devolve
+   `null` — e aí nada acontece: o cabeçalho continua exatamente o que
+   era. Não há estado de carregando, porque não há nada a esperar; se a
+   resposta chega, a pílula aparece e a home é remontada. */
+let ingressoDoParticipante = null;
+const ingressoEl = document.getElementById('perfil-ingresso');
+
+carregarIngressoDoParticipante(PARTICIPANTE.email).then((tipo) => {
+  if (!tipo || !ingressoEl) return;
+  ingressoDoParticipante = tipo;
+  ingressoEl.querySelector('b').textContent = tipo;
+  ingressoEl.hidden = false;
+  montarHomeV3();
+});
 
 /* ---------- Contagem regressiva até a abertura ----------
    07:00 do primeiro dia, quando abre o credenciamento. Este número NÃO é
@@ -708,10 +731,6 @@ const ROTEIROS = {
       { id: 'm3', txt: 'Ver a reserva na sua agenda', tela: 'minha-agenda' },
     ],
     concluido: 'Pronto — você já sabe reservar 💚',
-    fim: {
-      titulo: 'Você mandou bem!',
-      texto: 'Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.',
-    },
   },
   /* O MAPA NAO SE ACHA SOZINHO. Ele mora dentro do Menu, e e justamente
      isso que precisa ser ensinado — abrir a tela do mapa direto mostraria
@@ -725,10 +744,6 @@ const ROTEIROS = {
       { id: 'p1', txt: 'Abrir o Mapa do evento', tela: 'mapa' },
     ],
     concluido: 'Pronto — o mapa fica no Menu 💚',
-    fim: {
-      titulo: 'É por aqui que você se acha.',
-      texto: 'O Mapa do evento fica no Menu. Ele tem arenas, lounges, estandes e banheiros do São Paulo Expo, com filtro por tipo de espaço.',
-    },
   },
   ingresso: {
     /* Começa já no leitor, que é onde a aba cai. Um passo só. */
@@ -738,10 +753,6 @@ const ROTEIROS = {
       { id: 'i1', txt: 'Abrir o seu ingresso', tela: 'qrcode' },
     ],
     concluido: 'Pronto — o seu ingresso está aí 💚',
-    fim: {
-      titulo: 'É esse o seu ingresso.',
-      texto: 'Apresente esse QR Code na entrada. Ele fica sempre nessa aba, em Meu Qr Code.',
-    },
   },
 };
 
@@ -1268,8 +1279,20 @@ function concluirMissao(id) {
   if (feitas.has(id)) return;
   feitas.add(id);
   atualizarMissao();
-  if (feitas.size === MISSOES.length) {
-    setTimeout(() => document.getElementById('fim-fundo').classList.add('aberto'), 2000);
+  /* O FIM NÃO É MAIS UM POP-UP. Era um cartão por cima de tudo, e ele
+     tapava justamente a tela que a pessoa acabou de aprender a usar: para
+     voltar a vê-la era preciso fechar mais uma coisa. Agora o fim é a
+     mesma faixa transitória dos brindes, com a frase que cada roteiro já
+     trazia em `concluido`, e a saída continua sendo o `×`, que fica
+     visível o tempo todo.
+
+     O aviso a quem embeda a página continua saindo daqui: o contrato é
+     `mindagent:tour-concluido` ao concluir, e ele nunca foi do cartão —
+     era só o botão dele que disparava. */
+  if (!telaAvulsa && MISSOES.length && feitas.size === MISSOES.length) {
+    parent.postMessage({ tipo: 'mindagent:tour-concluido' }, '*');
+    const r = ROTEIROS[roteiroAtual];
+    if (r && r.concluido) setTimeout(() => avisar(r.concluido), 600);
   }
 }
 
@@ -1337,10 +1360,6 @@ function abrirTourCompleto(qual) {
   MISSOES = roteiro.missoes;
   telaAtual = roteiro.de; pilha = []; refazer = []; feitas = new Set();
   Object.keys(marcas).forEach((k) => delete marcas[k]);
-  /* O cartão do fim é do roteiro: cada um termina dizendo o que ensinou. */
-  document.getElementById('fim-titulo').textContent = roteiro.fim.titulo;
-  document.getElementById('fim-texto').textContent = roteiro.fim.texto;
-  document.getElementById('fim-fundo').classList.remove('aberto');
   abrirVista('tour');
   dicaDeArraste();
   medirFone();
@@ -1352,15 +1371,6 @@ document.getElementById('fechar-tour').addEventListener('click', () => abrirVist
    quer fechar, e o botao nomeado e para quem procura o caminho de volta e
    nao arrisca o `x` sem saber onde vai parar. */
 document.getElementById('voltar-funcoes').addEventListener('click', () => abrirVista('home'));
-document.getElementById('btn-concluir').addEventListener('click', () => {
-  parent.postMessage({ tipo: 'mindagent:tour-concluido' }, '*');
-  document.getElementById('fim-fundo').classList.remove('aberto');
-  abrirVista('home');
-});
-document.getElementById('tour-para-chat').addEventListener('click', () => {
-  document.getElementById('fim-fundo').classList.remove('aberto');
-  abrirVista('chat');
-});
 
 /* Pré-carrega assim que o módulo sobe: quando alguém abrir o tour, as
    telas já estão decodificadas e nenhuma etapa começa em branco. */

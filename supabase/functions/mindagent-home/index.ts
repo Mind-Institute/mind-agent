@@ -17,6 +17,22 @@
           Avisos em circulação e composição da home. Sem sessão — é o
           que o participante lê. Responde `api.mindagent_home_publico`.
 
+     POST /participante   { "email": "..." }  →  { "ingresso": "VIP" | null }
+          O tipo de ingresso de quem abriu o app, para o cabeçalho. Sem
+          sessão, como `/publico`, e com três cuidados que a diferenciam:
+
+            · o e-mail vai no CORPO, nunca na URL — query string entra em
+              log de borda, e o app inteiro trabalha para manter e-mail
+              fora de barra de endereço;
+            · a resposta NUNCA é cacheada;
+            · devolve só o tipo. Ausente, `SEM MAPA`, revogado e tipo em
+              desacordo respondem `null` igualzinho, então a porta não
+              serve para descobrir quem tem ingresso — só confirma o tipo
+              de quem tem um tipo mapeado.
+
+          Responde `api.mindagent_participante_ingresso`, que só
+          `service_role` executa.
+
      GET   /admin/:recurso
      GET   /admin/:recurso/:id
      POST  /admin/:recurso
@@ -102,7 +118,7 @@ function cabecalhosCors(req: Request, publico: boolean) {
   };
 }
 
-function json(req: Request, status: number, corpo: unknown, requestId: string, publico = false) {
+function json(req: Request, status: number, corpo: unknown, requestId: string, publico = false, semCache = false) {
   return new Response(JSON.stringify(corpo), {
     status,
     headers: {
@@ -110,7 +126,7 @@ function json(req: Request, status: number, corpo: unknown, requestId: string, p
       "Content-Type": "application/json; charset=utf-8",
       /* O público pode ser cacheado por pouco tempo; o administrativo
          nunca — quem acabou de salvar precisa ver o que salvou. */
-      "Cache-Control": publico && status === 200
+      "Cache-Control": publico && status === 200 && !semCache
         ? "public, max-age=30, stale-while-revalidate=120"
         : "no-store",
       "X-Content-Type-Options": "nosniff",
@@ -182,9 +198,12 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const partes = url.pathname.split("/").filter(Boolean);
   const ehPublico = partes.at(-1) === "publico";
+  const ehParticipante = partes.at(-1) === "participante";
+  /* As duas portas do app não pedem sessão e valem de qualquer origem. */
+  const semSessao = ehPublico || ehParticipante;
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cabecalhosCors(req, ehPublico) });
+    return new Response(null, { status: 204, headers: cabecalhosCors(req, semSessao) });
   }
   if (req.method === "GET" && partes.at(-1) === "health") {
     return json(req, 200, { ok: true, service: "mindagent-home", version: "1.0.0" }, requestId, true);
@@ -194,7 +213,7 @@ Deno.serve(async (req: Request) => {
   const chavePublicavel = lerChave("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
   const chaveSecreta = lerChave("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !chavePublicavel || !chaveSecreta) {
-    return json(req, 503, { codigo: "indisponivel", mensagem: "Serviço indisponível." }, requestId, ehPublico);
+    return json(req, 503, { codigo: "indisponivel", mensagem: "Serviço indisponível." }, requestId, semSessao);
   }
   const comSegredo = createClient(supabaseUrl, chaveSecreta, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -215,6 +234,30 @@ Deno.serve(async (req: Request) => {
       return json(req, 503, { codigo: "indisponivel", mensagem: "Serviço indisponível." }, requestId, true);
     }
     return json(req, 200, data, requestId, true);
+  }
+
+  /* ---------- O tipo de ingresso de quem abriu o app ---------- */
+  if (ehParticipante) {
+    if (req.method !== "POST") {
+      return json(req, 405, { codigo: "validacao", mensagem: "Método não permitido." }, requestId, true, true);
+    }
+    const corpo = await req.json().catch(() => null) as { email?: unknown } | null;
+    const email = typeof corpo?.email === "string" ? corpo.email.trim().toLowerCase() : "";
+
+    /* E-mail torto responde como e-mail desconhecido, e não 400: a única
+       reação possível do app é a mesma nos dois casos, e um código de
+       status diferente seria mais um bit para quem estivesse sondando. */
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return json(req, 200, { ingresso: null }, requestId, true, true);
+    }
+
+    const { data, error } = await comSegredo.rpc("mindagent_participante_ingresso", { p_email: email });
+    if (error) {
+      /* Sem o e-mail no log — nem aqui, nem quando dá errado. */
+      console.error(JSON.stringify({ request_id: requestId, error: "participante_ingresso_failed", code: error.code ?? null }));
+      return json(req, 503, { codigo: "indisponivel", mensagem: "Serviço indisponível." }, requestId, true, true);
+    }
+    return json(req, 200, data, requestId, true, true);
   }
 
   /* ---------- A porta do painel ---------- */

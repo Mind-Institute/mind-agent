@@ -49,6 +49,10 @@
         <span class="v3-summit">summit<i>2026</i></span>
       </span>
       <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
+      <!-- A pílula do ingresso. Nasce escondida e só aparece quando o
+           espelho do credenciamento diz o tipo: sem tipo, o cabeçalho é
+           o de sempre, sem buraco e sem selo vazio. -->
+      <span class="h-ingresso" id="perfil-ingresso" hidden><i aria-hidden="true"></i><b></b></span>
       <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
     </header>
 
@@ -167,20 +171,6 @@
         <ol id="missoes-lista"></ol>
         <button type="button" id="fechar-missoes">Continuar o tour</button>
         <button type="button" class="sair" id="sair-tour">Sair do tour</button>
-      </div>
-    </div>
-
-    <div class="fim-fundo" id="fim-fundo">
-      <div class="fim-cartao">
-        <img src="./assets/simbolo-mind-verde.png" alt="" />
-        <h3 id="fim-titulo">Você mandou bem!</h3>
-        <p id="fim-texto">Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.</p>
-        <p>Sempre que precisar de programação, palestrantes, conteúdos, localização ou ajuda com sua jornada, é só me chamar no <b>Chat</b>.</p>
-        <!-- "Voltar", não "Concluir tour": desde que virou instrução de
-             como reservar, não há tour a concluir — há uma home para
-             onde voltar. -->
-        <button class="btn-verde" type="button" id="btn-concluir">Voltar</button>
-        <button class="link-mind" type="button" id="tour-para-chat">Perguntar ao Mind Agent →</button>
       </div>
     </div>
   </section>
