@@ -1095,24 +1095,25 @@ html[data-teclado="aberto"] .doca {
 }
 .t-missao .c-voltar { width: 34px; height: 34px; font-size: 15px; }
 
-/* Sair da demonstração. Pílula com palavra, e NEUTRA: o coral é reservado
-   para onde se quer que a pessoa toque, e a saída é o contrário disso —
-   precisa ser fácil de achar sem disputar com a instrução. Contorno mais
-   claro que o `--hairline` para se destacar da barra sem virar botão de
-   ação. */
+/* Sair da demonstração. Pílula com palavra, no fim da barra, e o maior
+   alvo dela — foi o pedido, e é o botão que alguém procura com pressa.
+
+   NEUTRA de propósito: o coral é reservado para onde se quer que a pessoa
+   toque, e a saída é o contrário disso. Precisa ser fácil de achar sem
+   disputar com a instrução, e é o tamanho que faz isso, não a cor. */
 .t-sair {
   appearance: none; cursor: pointer; flex: none;
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 34px; padding: 0 13px 0 11px;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 40px; padding: 0 16px 0 14px;
   border-radius: var(--raio-pill);
-  border: 1px solid color-mix(in srgb, var(--texto-mudo) 55%, transparent);
-  background: rgba(255, 255, 255, .06);
+  border: 1.5px solid color-mix(in srgb, var(--texto-mudo) 70%, transparent);
+  background: rgba(255, 255, 255, .09);
   color: var(--texto);
-  font: inherit; font-size: 13px; font-weight: 700;
+  font: inherit; font-size: 15px; font-weight: 700;
   transition: background .18s ease, border-color .18s ease;
 }
-.t-sair svg { width: 14px; height: 14px; flex: none; }
-.t-sair:active { background: rgba(255, 255, 255, .12); border-color: var(--texto-mudo); }
+.t-sair svg { width: 16px; height: 16px; flex: none; }
+.t-sair:active { background: rgba(255, 255, 255, .16); border-color: var(--texto); }
 .t-missao .t-texto {
   flex: 1; min-width: 0;
   font-size: 12px; font-weight: 700; line-height: 1.25;
@@ -1395,12 +1396,20 @@ html[data-teclado="aberto"] .doca {
   padding: 2.2cqw 4cqw;
   font-size: 3.2cqw; font-weight: 600;
   color: var(--texto-suave);
-  white-space: nowrap; max-width: 92%;
+  /* Quebra em vez de cortar: os brindes de alvo cabem numa linha, mas a
+     dica do arrastar é uma frase inteira, e `nowrap` com `max-width` a
+     deixaria cortada pela metade. */
+  max-width: 92%; text-align: center;
   opacity: 0; pointer-events: none;
   transition: opacity .25s ease, transform .25s ease;
   z-index: 5;
 }
 .brinde.on { opacity: 1; transform: translateX(-50%); }
+/* O AVISO E O BALÃO DIVIDEM A FAIXA DE BAIXO. Com o balão ali, o aviso
+   sobe — os dois no mesmo lugar deixam os dois ilegíveis, e foi o que
+   aconteceu quando a dica do arrastar passou a aparecer na abertura. O
+   balão vem antes no HTML, então o irmão geral resolve sem JS. */
+.balao.base:not([hidden]) ~ .brinde { bottom: 21%; }
 
 /* Barra de abas do app, refeita em HTML (clicável de verdade) */
 .fnav {

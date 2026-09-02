@@ -138,6 +138,9 @@ function acaoDaHome(acao) {
   if (!acao) return;
   /* Não existe mais tour rápido: o card abre a prática direto. */
   if (acao === 'tour') return abrirTourCompleto();
+  /* `roteiro:` faz o CAMINHO ate a tela; `tour:` mostra a tela sozinha.
+     São promessas diferentes e por isso são ações diferentes. */
+  if (acao.startsWith('roteiro:')) return abrirTourCompleto(acao.slice(8));
   if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
   if (acao === 'jornada') return irParaConversa('jornada');
   if (acao.startsWith('chat:')) return irParaConversa('desafio');
@@ -707,6 +710,22 @@ const ROTEIROS = {
     fim: {
       titulo: 'Você mandou bem!',
       texto: 'Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.',
+    },
+  },
+  /* O MAPA NAO SE ACHA SOZINHO. Ele mora dentro do Menu, e e justamente
+     isso que precisa ser ensinado — abrir a tela do mapa direto mostraria
+     o mapa e esconderia o caminho. Por isso este roteiro comeca no Menu e
+     pede o toque em "Mapa do evento". `ROTA` ja sabe que `mapa` vem de
+     `menu` pelo alvo `mapa`, entao a dica e o anel saem prontos. */
+  mapa: {
+    de: 'menu',
+    missoes: [
+      { id: 'p1', txt: 'Abrir o Mapa do evento', tela: 'mapa' },
+    ],
+    concluido: 'Pronto — o mapa fica no Menu 💚',
+    fim: {
+      titulo: 'É por aqui que você se acha.',
+      texto: 'O Mapa do evento fica no Menu. Ele tem arenas, lounges, estandes e banheiros do São Paulo Expo, com filtro por tipo de espaço.',
     },
   },
   ingresso: {
