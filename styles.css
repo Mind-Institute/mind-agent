@@ -531,8 +531,17 @@ body {
   border-radius: 16px;
   gap: 12px;
 }
-.v3-linha.aviso .v3-corpo strong { font-size: 14px; }
-.v3-linha.aviso .v3-corpo small { font-size: 12.5px; line-height: 1.45; margin-top: 1px; }
+/* O AVISO É PARA SER LIDO, não relanceado. Era 14/12,5px com o cinza de
+   apoio (`--texto-mudo`) sobre fundo quase preto — o contraste mais baixo
+   da tela justamente no texto que informa. Três pontos a mais e o cinza
+   claro: o card cresce um pouco e a linha para de exigir esforço.
+   A cor é redefinida aqui, e não em `.v3-corpo small`, porque as outras
+   linhas da home não são texto para ler — são rótulo de atalho. */
+.v3-linha.aviso .v3-corpo strong { font-size: 17px; }
+.v3-linha.aviso .v3-corpo small {
+  font-size: 15.5px; line-height: 1.45; margin-top: 2px;
+  color: var(--texto-suave);
+}
 .v3-linha.aviso .chevron { margin-top: 10px; }
 
 .c-no_evento .v3-ico, .c-no_evento.av-ico {
@@ -664,14 +673,15 @@ body {
    Rolam na horizontal em vez de quebrar linha: cinco chips não cabem em
    360px, e quebrar empurraria a lista para baixo da dobra. A barra de
    rolagem some porque o corte no chip já diz que há mais à direita. */
+/* OS CHIPS QUEBRAM LINHA, não rolam. Rolavam enquanto os rótulos eram
+   "Antes de ir" e "No evento"; com os títulos que a Adriana escreveu, a
+   fila passou a medir 617px numa tela de 390 e o último filtro ficava
+   INTEIRO fora do quadro — 0px visíveis. Um filtro que ninguém vê não
+   existe, e ninguém arrasta uma fila que não parece arrastável.
+   Duas linhas custam 42px de altura e mostram os quatro. */
 .av-chips {
-  display: flex; gap: 8px; margin-bottom: 16px;
-  overflow-x: auto; scrollbar-width: none;
-  /* Sangra até a borda da tela e devolve o respiro por dentro: assim o
-     primeiro chip alinha com o texto e o último não encosta no vidro. */
-  margin-inline: calc(var(--pad) * -1); padding-inline: var(--pad);
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
 }
-.av-chips::-webkit-scrollbar { display: none; }
 .av-chip {
   appearance: none; cursor: pointer; flex: none;
   height: 34px; padding: 0 16px; border-radius: var(--raio-pill);
@@ -719,10 +729,10 @@ body {
 .av-ico.grande { width: 52px; height: 52px; border-radius: 16px; }
 .av-ico.grande svg { width: 25px; height: 25px; }
 .av-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.av-corpo strong { font-size: 15px; font-weight: 700; line-height: 1.25; }
-.av-corpo small { font-size: 12.5px; line-height: 1.35; color: var(--texto-mudo); }
+.av-corpo strong { font-size: 18px; font-weight: 700; line-height: 1.25; }
+.av-corpo small { font-size: 15.5px; line-height: 1.45; color: var(--texto-suave); }
 .av-corpo em {
-  font-style: normal; font-size: 11px; color: var(--texto-mudo);
+  font-style: normal; font-size: 14px; color: var(--texto-suave);
   opacity: .7; margin-top: 2px;
 }
 .av-ponto {
@@ -732,16 +742,19 @@ body {
 .av-item .chevron { width: 17px; height: 17px; flex: none; color: var(--texto-mudo); }
 
 .av-leitura { display: flex; flex-direction: column; align-items: flex-start; padding-top: 4px; }
-.av-quando { margin-top: 16px; font-size: 12px; color: var(--texto-mudo); }
+.av-quando { margin-top: 16px; font-size: 15px; color: var(--texto-suave); }
 .av-leitura h2 {
   margin-top: 6px;
   font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em;
 }
-.av-resumo { margin-top: 8px; font-size: 15px; color: var(--texto-suave); }
+.av-resumo { margin-top: 10px; font-size: 18px; line-height: 1.5; color: var(--texto); }
 .av-texto {
   margin-top: 16px;
-  font-size: 15px; line-height: 1.6; color: var(--texto-suave);
+  font-size: 18px; line-height: 1.6; color: var(--texto);
 }
+/* Cada parágrafo é um `<p class="av-texto">`; do segundo em diante o
+   espaço entre eles vem daqui, não de `margin-top` repetido. */
+.av-texto + .av-texto { margin-top: 14px; }
 .av-texto b { color: var(--texto); }
 .av-acao {
   margin-top: 22px; align-self: stretch;

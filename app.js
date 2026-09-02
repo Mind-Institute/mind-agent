@@ -427,7 +427,13 @@ function abrirAvisos(id) {
     avisosSub.textContent = 'De volta para a lista pelo ‹';
     /* O aviso aponta para um roteiro, não para uma tela solta: quem toca
        em "ver onde fica" quer ser levado, não largado numa tela. */
-    avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (roteiro) => abrirTourCompleto(roteiro)));
+    /* `verNoApp` levava só a roteiro da demonstração. O aviso "Precisa de
+       ajuda para reservar?" precisa de outro destino: o Concierge é uma
+       vista do app, não uma tela do app do Summit. */
+    avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (destino) => {
+      if (destino === 'chat') return irParaConversa(null);
+      abrirTourCompleto(destino);
+    }));
   } else {
     avisosTitulo.textContent = 'Avisos importantes';
     const n = naoLidos();
