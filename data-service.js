@@ -104,12 +104,19 @@ export async function carregarHomeDoEvento() {
    mapeado, ingresso revogado. Quem chama não precisa distinguir — o
    cabeçalho, sem tipo, é o de sempre.
 
-   A lista de tipos é conferida AQUI também. O servidor já só devolve os
-   três, mas a tela não escreve no cabeçalho uma string que veio de fora
-   sem saber qual é.
+   A FORMA É CONFERIDA AQUI, e não a lista. Começou como lista fechada —
+   VIP, Mind, Prime —, e ela se calou sozinha assim que o espelho ganhou
+   `Camarote`: 54 pessoas sem pílula, sem erro nenhum na tela. Uma lista
+   de nomes num arquivo de front-end é uma promessa de que alguém vai
+   lembrar de voltar aqui, e ninguém lembra.
 
-   carregarIngressoDoParticipante(email) → Promise<'VIP'|'Mind'|'Prime'|null> */
-const TIPOS_DE_INGRESSO = new Set(['VIP', 'Mind', 'Prime']);
+   O que a tela precisa garantir é outra coisa: que o cabeçalho não vire
+   campo de texto livre. Uma palavra ou duas, letras e espaço, até 24
+   caracteres — cabe qualquer rótulo comercial e não cabe uma frase.
+   Quem decide o que é tipo de verdade é a função no banco.
+
+   carregarIngressoDoParticipante(email) → Promise<string|null> */
+const FORMATO_INGRESSO = /^\p{L}[\p{L} -]{1,23}$/u;
 
 export async function carregarIngressoDoParticipante(email) {
   if (!CONFIG.homeApiUrl || !email) return null;
@@ -123,8 +130,8 @@ export async function carregarIngressoDoParticipante(email) {
     });
     if (!r.ok) return null;
     const dados = await r.json();
-    const tipo = dados && typeof dados.ingresso === 'string' ? dados.ingresso : null;
-    return TIPOS_DE_INGRESSO.has(tipo) ? tipo : null;
+    const tipo = dados && typeof dados.ingresso === 'string' ? dados.ingresso.trim() : null;
+    return tipo && FORMATO_INGRESSO.test(tipo) ? tipo : null;
   } catch (e) {
     return null;
   }
