@@ -775,3 +775,56 @@ O motor da programação já existe e está ligado: `api.mindagent_home_publico`
 momento em `modo='programado'` pegando **a última troca cujo horário já passou**, avaliada
 no fuso do evento (`America/Sao_Paulo`). Não há cron — a regra é aplicada na leitura.
 Trocar a tela do Dia 2 é trocar o `momento` da troca `troca_dia2`; nada mais.
+
+---
+
+## 16. Handoff de design 02/09 — o que entrou e o que ficou de fora
+
+### O que entrou
+
+`design_handoff_concierge_home_avisos` foi aplicado na tela **"antes"** da home e na
+tela de **Avisos importantes**: hero com halo e marca d'água, título com o primeiro
+nome, card do Concierge com pílula verde, a grade nova de **Atalhos importantes** e a
+categoria de aviso pintando ícone e chips.
+
+### O que ficou de fora, e por quê
+
+**A barra de 5 abas do desenho é do app HOSPEDEIRO do Summit.** Este app não tem barra
+de abas — as vistas dele são `home`, `avisos`, `chat`, `summit` e `tour`. Adriana
+confirmou em 02/09. Desenhar uma aqui empilharia duas barras. A regra CSS
+`html[data-teclado="aberto"] .barra-abas`, escrita no trabalho do teclado "para a barra
+real do app", foi removida junto com o teste que a prendia: mirava classe que não existe
+em lugar nenhum do repositório.
+
+**Os quatro atalhos abrem o TOUR na tela correspondente**, não navegam no hospedeiro:
+`tour:qrcode`, `tour:minha-agenda`, `tour` (prática de reserva inteira) e `tour:mapa`.
+Navegar de verdade exigiria uma ponte entre os dois apps que não existe. Os destinos são
+reais e estão travados em `tests/home_handoff.test.mjs` — atalho que aponta para tela
+inexistente cai no chat sem erro visível, e é assim que vira promessa vazia.
+
+**O conteúdo dos 7 avisos do desenho não entrou.** Adriana escolheu manter os do banco,
+editáveis pelo painel. O que entrou do desenho foi a forma, não o texto.
+
+### A escala grande do hero está presa à tela "antes"
+
+`.v3-hero.decorado .v3-titulo` é 34px; o `.v3-titulo` solto continua em 27px. O handoff
+desenhou uma tela só, e soltar a escala mudaria "Bom dia." do dia do evento e as outras
+duas telas sem ninguém ter olhado. Quando as três forem redesenhadas com usuários, isto
+sobe um nível e o modificador some. Travado em teste para não vazar por descuido.
+
+### Vocabulário de categoria — agora em QUATRO lugares
+
+Somando-se aos três do momento (§15), a categoria de aviso é validada em:
+`home/estado.js` (`CATEGORIAS_AVISO`), `admin/src/contracts/home-v3.ts`
+(`CATEGORIAS_AVISO` zod) e o `check` da coluna em `concierge.avisos`. Mudar a lista exige
+os três.
+
+### `docs/sql/home-v3/06-funcao-publica.sql` está DESATUALIZADO
+
+A função viva em `api.mindagent_home_publico` ganhou depois `'geradoEm'`, o filtro
+`troca->>'arquivada'` e o `replace(troca->>'quando', 'T', ' ')` — os três sustentam a
+programação das telas por data. O arquivo em `docs/` não tem nenhum deles. Reescrever a
+função a partir dele apagaria os três em silêncio e a home pararia de virar sozinha no
+dia 16. **Antes de mexer nessa função, leia o `prosrc` vivo, não o arquivo.** A migration
+`20260902180000_aviso_ganha_categoria.sql` já partiu do corpo vivo e travou as três
+linhas em `do $g$`.

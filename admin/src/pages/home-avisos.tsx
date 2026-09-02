@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import {
   ICONES_AVISO,
+  CATEGORIAS_AVISO,
+  ROTULO_CATEGORIA_AVISO,
+  type CategoriaAviso,
   ROTULO_ICONE_AVISO,
   ROTULO_SITUACAO_AVISO,
   type AvisoHome,
@@ -34,6 +37,7 @@ import { PreviaAviso } from '@/features/home-v3/previa-aviso';
 
 const VAZIO = {
   icone: 'megafone' as IconeAviso,
+  categoria: 'antes_de_ir' as CategoriaAviso,
   titulo: '',
   subtitulo: '',
   descricao: '',
@@ -130,6 +134,19 @@ export function PaginaHomeAvisos() {
               >
                 {ICONES_AVISO.map((i) => (
                   <option key={i} value={i}>{ROTULO_ICONE_AVISO[i]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="aviso-categoria">Categoria</Label>
+              <select
+                id="aviso-categoria"
+                value={form.categoria}
+                onChange={(e) => campo('categoria', e.target.value as CategoriaAviso)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {CATEGORIAS_AVISO.map((c) => (
+                  <option key={c} value={c}>{ROTULO_CATEGORIA_AVISO[c]}</option>
                 ))}
               </select>
             </div>

@@ -103,9 +103,27 @@ export const ROTULO_ICONE_AVISO: Record<IconeAviso, string> = {
   estrela: 'Estrela — destaque',
 };
 
+/* Categoria: pinta o aviso no app e alimenta os chips de filtro da tela
+   de Avisos importantes. É dado, não aparência — `sino` serve tanto para
+   lembrete de véspera quanto para mudança no meio do evento, e por isso o
+   ícone não podia ser usado como categoria.
+
+   As quatro são as do handoff de design de 02/09, e a coluna no banco tem
+   `check` com exatamente estes valores. */
+export const CATEGORIAS_AVISO = ['antes_de_ir', 'no_evento', 'reservas', 'ingressos'] as const;
+export type CategoriaAviso = (typeof CATEGORIAS_AVISO)[number];
+
+export const ROTULO_CATEGORIA_AVISO: Record<CategoriaAviso, string> = {
+  antes_de_ir: 'Antes de ir — preparação, o que resolver antes de sair',
+  no_evento: 'No evento — o que acontece durante, mudança de sala',
+  reservas: 'Reservas — vaga limitada, pede ação',
+  ingressos: 'Ingressos — credencial e entrada',
+};
+
 export const avisoHomeFormSchema = z
   .object({
     icone: z.enum(ICONES_AVISO).default('megafone'),
+    categoria: z.enum(CATEGORIAS_AVISO).default('antes_de_ir'),
     titulo: z.string().min(3, 'Informe o título do aviso.').max(80),
     subtitulo: z.string().max(120).default(''),
     descricao: z.string().min(3, 'Escreva a mensagem que a pessoa vai ler.').max(1200),
@@ -121,6 +139,10 @@ export type AvisoHomeForm = z.infer<typeof avisoHomeFormSchema>;
 
 export const avisoHomeSchema = registroBaseSchema.extend({
   icone: z.enum(ICONES_AVISO),
+  /* `catch` em vez de `enum` puro: aviso gravado antes da coluna existir
+     pode chegar sem categoria, e um registro antigo não deve derrubar a
+     listagem inteira. Cai no mesmo verde que o app usa como padrão. */
+  categoria: z.enum(CATEGORIAS_AVISO).catch('antes_de_ir'),
   titulo: z.string(),
   /* O subtítulo é a linha de apoio no card da home. */
   subtitulo: z.string(),

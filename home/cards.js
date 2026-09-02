@@ -30,8 +30,23 @@ const CHEVRON = '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="cu
 /* ---------- Cabeçalho: saudação, título, resumo ----------
    A saudação só existe quando há nome. Sem nome, o bloco some inteiro em
    vez de virar "Olá ," — o agente não inventa identidade. */
-export function heroSaudacao({ etiqueta, contagem, saudacao, comoTitulo, titulo, resumo, nome, cumprimento }) {
-  const el = no('header', 'v3-hero');
+export function heroSaudacao({ etiqueta, contagem, saudacao, comoTitulo, tituloComNome,
+                               decorado, titulo, resumo, nome, cumprimento }) {
+  const el = no('header', 'v3-hero' + (decorado ? ' decorado' : ''));
+
+  /* Decoração do hero: o halo verde e o símbolo Mind em marca d'água.
+     Entram como nós próprios, `aria-hidden` e sem eventos — quem lê por
+     leitor de tela não deve tropeçar em enfeite. Ficam ANTES do texto no
+     DOM para não empurrar nada: são absolutos. */
+  if (decorado) {
+    el.appendChild(no('span', 'v3-halo')).setAttribute('aria-hidden', 'true');
+    const marca = no('img', 'v3-agua');
+    marca.src = './assets/simbolo-mind-verde.png';
+    marca.alt = '';
+    marca.setAttribute('aria-hidden', 'true');
+    el.appendChild(marca);
+  }
+
   if (etiqueta) {
     /* O relógio entra num nó próprio para poder ser atualizado a cada
        segundo sem redesenhar a home inteira. Sem `aria-live`: um leitor
@@ -44,6 +59,13 @@ export function heroSaudacao({ etiqueta, contagem, saudacao, comoTitulo, titulo,
   if (comoTitulo) {
     /* Neste momento o cumprimento É o título. */
     el.appendChild(no('h1', 'v3-titulo', nome ? cumprimento + ', ' + escapar(nome) + '.' : cumprimento + '.'));
+  } else if (tituloComNome) {
+    /* "Ana, seu Summit começa agora." O título é guardado começando em
+       minúscula porque o normal é ter nome. Sem nome, sobe a primeira
+       letra e a frase fica inteira — em vez de virar ", seu Summit…". */
+    el.appendChild(no('h1', 'v3-titulo',
+      nome ? escapar(nome) + ', ' + titulo
+           : titulo.charAt(0).toUpperCase() + titulo.slice(1)));
   } else {
     if (saudacao && nome) el.appendChild(no('p', 'v3-ola', 'Olá, ' + escapar(nome) + '.'));
     if (titulo) el.appendChild(no('h1', 'v3-titulo', titulo));
@@ -68,24 +90,66 @@ export function cardDestaque(b, aoAgir) {
      para o ícone — e a estimativa de tempo sobe para a linha da ação.
      Os cards curtos continuam empilhados como sempre foram. */
   const compacto = Boolean(b.texto);
+  /* `destaque-marca` é longo de propósito. `variante` entra no DOM como
+     classe solta, e este arquivo não é dono do CSS inteiro: a primeira
+     tentativa foi `variante: 'marca'`, que casou com `.marca` do tour —
+     `position: absolute` — e jogou o card para fora da tela. Modificador
+     de card carrega o nome do card. */
   const el = no('button', 'v3-destaque' + (compacto ? ' compacto' : '') +
+    (b.marca ? ' destaque-marca' : '') +
     (b.variante ? ' ' + b.variante : '') + CLASSE_ESTADO(b));
   el.type = 'button';
-  const ico = b.ico ? '<span class="v3-ico">' + b.ico + '</span>' : '';
+  /* `marca` troca o ícone por um bug: o símbolo Mind num disco verde. É a
+     assinatura do Concierge, e ela é imagem, não glifo de interface. */
+  const ico = b.marca
+    ? '<span class="v3-bug"><img src="./assets/simbolo-mind-verde.png" alt="" aria-hidden="true"></span>'
+    : (b.ico ? '<span class="v3-ico">' + b.ico + '</span>' : '');
   const selo = b.selo ? '<span class="v3-selo">' + escapar(b.selo) + '</span>' : '';
+
+  /* A ação do card de marca é uma pílula verde com a estimativa ao lado,
+     e não uma linha de texto verde. A pílula é `span`, não `button`:
+     botão dentro de botão é HTML inválido, e o alvo de toque é o card
+     inteiro — que é como o handoff descreve o comportamento. */
+  const acao = b.marca
+    ? '<span class="v3-acao"><span class="v3-pill">' + b.cta + SETA + '</span>' +
+        (b.micro ? '<small class="v3-micro">' + b.micro + '</small>' : '') + '</span>'
+    : '<span class="v3-cta">' + b.cta +
+        (b.micro ? '<small class="v3-micro">' + b.micro + '</small>' : '') + SETA + '</span>';
+
   el.innerHTML =
     (compacto ? '<span class="v3-cabeca">' + ico + selo + '</span>' : ico + selo) +
     '<strong class="v3-pergunta">' + b.pergunta + '</strong>' +
     (b.texto ? '<p class="v3-texto">' + b.texto + '</p>' : '') +
-    '<span class="v3-cta">' + b.cta +
-      (b.micro ? '<small class="v3-micro">' + b.micro + '</small>' : '') + SETA + '</span>';
+    acao;
   el.addEventListener('click', () => aoAgir(b.acao, b));
   return el;
 }
 
-/* ---------- Linha: ícone, título, apoio, chevron ---------- */
+/* ---------- Atalhos: grade de dois por linha ----------
+   Cada tile é um botão inteiro. A descrição pode quebrar em duas linhas —
+   "São Paulo Expo, acesso e estacionamento" quebra em 360px — e por isso
+   o tile tem altura mínima em vez de altura fixa: fixar cortaria o texto
+   de um e deixaria o outro oco. */
+export function gradeDeAtalhos(b, aoAgir) {
+  const el = no('div', 'v3-atalhos');
+  (b.itens || []).forEach((t) => {
+    const bt = no('button', 'v3-atalho');
+    bt.type = 'button';
+    bt.innerHTML =
+      '<span class="v3-atalho-topo"><span class="v3-ico">' + t.ico + '</span>' + CHEVRON + '</span>' +
+      '<strong>' + t.titulo + '</strong>' +
+      '<small>' + t.texto + '</small>';
+    bt.addEventListener('click', () => aoAgir(t.acao, t));
+    el.appendChild(bt);
+  });
+  return el;
+}
+
+/* ---------- Linha: ícone, título, apoio, chevron ----------
+   `cat` tinge a caixa do ícone pela categoria do aviso. Só os avisos
+   mandam categoria; as outras linhas continuam no verde de sempre. */
 export function cardLinha(b, aoAgir) {
-  const el = no('button', 'v3-linha' + CLASSE_ESTADO(b));
+  const el = no('button', 'v3-linha' + (b.cat ? ' aviso c-' + b.cat : '') + CLASSE_ESTADO(b));
   el.type = 'button';
   el.innerHTML =
     '<span class="v3-ico">' + b.ico + '</span>' +
@@ -118,7 +182,8 @@ export function cardsDeAvisos(b, aoAgir) {
   const frag = document.createDocumentFragment();
   AVISOS.slice(0, b.quantos || 2).forEach((a) => {
     frag.appendChild(cardLinha(
-      { ico: a.ico, titulo: a.titulo, texto: a.resumo, acao: 'aviso:' + a.id }, aoAgir));
+      { ico: a.ico, cat: a.cat, titulo: a.titulo, texto: a.resumo,
+        acao: 'aviso:' + a.id }, aoAgir));
   });
   return frag;
 }
@@ -126,7 +191,8 @@ export function cardsDeAvisos(b, aoAgir) {
 export function cardAviso(b, aoAgir) {
   const a = AVISOS.find((x) => x.id === b.id);
   if (!a) return document.createComment('aviso ' + b.id + ' não existe');
-  return cardLinha({ ico: a.ico, titulo: a.titulo, texto: a.resumo, acao: 'aviso:' + a.id }, aoAgir);
+  return cardLinha({ ico: a.ico, cat: a.cat, titulo: a.titulo, texto: a.resumo,
+                     acao: 'aviso:' + a.id }, aoAgir);
 }
 
 /* ---------- Tour: convite, não recado ----------
@@ -197,6 +263,7 @@ export function cardPainel(b, aoAgir) {
    quebrar a home de quem já está no evento. */
 const COMPONENTES = {
   destaque: cardDestaque,
+  atalhos: gradeDeAtalhos,
   linha: cardLinha,
   aviso: cardAviso,
   avisos: cardsDeAvisos,

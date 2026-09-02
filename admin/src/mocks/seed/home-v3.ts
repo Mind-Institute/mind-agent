@@ -72,6 +72,7 @@ export const avisosHomeSemente: AvisoHome[] = [
   {
     id: 'aviso_sala',
     icone: 'lugar',
+    categoria: 'no_evento',
     titulo: 'Masterclass mudou de sala',
     subtitulo: 'Amy Edmondson, agora na Sala Estratégica.',
     descricao:
@@ -86,6 +87,7 @@ export const avisosHomeSemente: AvisoHome[] = [
   {
     id: 'aviso_traducao',
     icone: 'fone',
+    categoria: 'antes_de_ir',
     titulo: 'Tradução simultânea',
     subtitulo: 'Leve um documento físico para retirar o fone',
     descricao:
@@ -100,6 +102,7 @@ export const avisosHomeSemente: AvisoHome[] = [
   {
     id: 'aviso_ingresso',
     icone: 'ingresso',
+    categoria: 'ingressos',
     titulo: 'Seu ingresso está aqui',
     subtitulo: 'Acesse agora e evite procurar na entrada',
     descricao:
@@ -114,6 +117,7 @@ export const avisosHomeSemente: AvisoHome[] = [
   {
     id: 'aviso_abertura',
     icone: 'sino',
+    categoria: 'no_evento',
     titulo: 'Abertura às 9h',
     subtitulo: 'Chegue às 8h30 para entrar sem pressa.',
     descricao:

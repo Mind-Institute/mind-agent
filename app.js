@@ -509,27 +509,42 @@ enviarComEnter(document.getElementById('form-home'));
 function TOUR_IMG_SRC(nome) { return './assets/tour/' + nome + '.webp'; }
 
 const ICO = {
-  agente: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="8" width="14" height="10" rx="3"/><path d="M9 8V6M15 8V6M9 2l1.5 2.5M15 2l-1.5 2.5"/><circle cx="9.5" cy="12" r=".9" fill="currentColor"/><circle cx="14.5" cy="12" r=".9" fill="currentColor"/></svg>',
+  /* ESTRELA, não robô. No app o Concierge é uma estrela; o robozinho era do
+     tempo em que a aba se chamava "Mind" e representava um agente. Ícone e
+     rótulo são a mesma promessa — a pessoa procura os dois juntos na barra. */
+  agente: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z"/></svg>',
   agenda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>',
   minha:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 9h18M8.5 14.5l2.5 2.5 4.5-4.5"/></svg>',
   qr:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14h1M14 20h1M18 18h3v3h-2"/></svg>',
   menu:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
 };
 
-/* `rotulo` é o que cabe embaixo do ícone em 360px — "Mind Age…" e
-   "Minha age…" ficavam truncados e quase idênticos. `nome` é o rótulo
-   inteiro, que vai para o leitor de tela e para o balão da próxima ação. */
+/* OS NOMES SÃO OS DO APP DE VERDADE, e é o app que manda.
+   O tour existe para ensinar onde as coisas ficam; ensinar um nome que a
+   pessoa não vai encontrar é pior do que não ensinar. Os rótulos aqui eram
+   "Mind · Agenda · Minha · Ingresso · Menu" — encurtados na época para caber
+   em 360px — enquanto o app hoje mostra "Concierge · Programação · Minha
+   Agenda · Ingresso · Menu". Quem fizesse o tour aprenderia a procurar
+   "Agenda" pela programação, que no app é outro menu.
+
+   `rotulo` volta a ser igual a `nome`: o app cabe com os nomes inteiros, e
+   duas grafias para o mesmo menu é como a divergência nasce de novo. O
+   tamanho da fonte da barra passou a se ajustar ao rótulo mais longo — ver
+   `.fnav` em `styles.css`.
+
+   Os `id` e os destinos (`vai`) NÃO mudam: são chaves internas amarradas às
+   capturas de tela do tour e às missões. O que a pessoa lê é `rotulo`. */
 const ABAS = [
-  { id: 'agente', rotulo: 'Mind',     nome: 'Mind Agent',   ico: ICO.agente, folha: 'agente' },
-  { id: 'agenda', rotulo: 'Agenda',   nome: 'Agenda',       ico: ICO.agenda, vai: 'agenda' },
-  { id: 'minha',  rotulo: 'Minha',    nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
-  { id: 'qr',     rotulo: 'Ingresso', nome: 'Meu ingresso', ico: ICO.qr,     vai: 'scanner' },
-  { id: 'menu',   rotulo: 'Menu',     nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
+  { id: 'agente', rotulo: 'Concierge',    nome: 'Concierge',    ico: ICO.agente, folha: 'agente' },
+  { id: 'agenda', rotulo: 'Programação',  nome: 'Programação',  ico: ICO.agenda, vai: 'agenda' },
+  { id: 'minha',  rotulo: 'Minha Agenda', nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
+  { id: 'qr',     rotulo: 'Ingresso',     nome: 'Ingresso',     ico: ICO.qr,     vai: 'scanner' },
+  { id: 'menu',   rotulo: 'Menu',         nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
 ];
 
 /* Popups do app, refeitos em HTML */
 const FOLHAS = {
-  agente: { titulo: 'Mind Agent', texto: 'Oi! É aqui que eu moro dentro do app. Me chame para dúvidas do evento, sugestão de conteúdo, bios de palestrantes e logística.', botao: 'Legal!' },
+  agente: { titulo: 'Concierge', texto: 'Oi! É aqui que eu moro dentro do app. Me chame para dúvidas do evento, sugestão de conteúdo, bios de palestrantes e logística.', botao: 'Legal!' },
   contato: { titulo: 'Solicitação enviada', texto: 'Quando a pessoa aceitar, ela entra em Contatos. Enquanto isso fica em Pendentes.', botao: 'Entendi' },
   reservado: { titulo: 'Lugar reservado!', texto: 'No dia da sessão, faça o check-in aqui mesmo, na página dela, até o horário de início. A reserva é exclusiva por horário.', botao: 'Combinado' },
 };
@@ -539,7 +554,7 @@ const FOLHAS = {
    `serve` explica para que a tela existe e fica sempre visível no alto. */
 const TELAS = {
   'agenda': {
-    img: 'agenda', aba: 'agenda', rotulo: 'Agenda',
+    img: 'agenda', aba: 'agenda', rotulo: 'Programação',
     serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
     alvos: [
       { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
@@ -599,7 +614,7 @@ const TELAS = {
   },
   'scanner': {
     img: 'scanner', aba: 'qr', rotulo: 'Leitor de QR',
-    serve: 'A aba abre no leitor. O seu ingresso está atrás de "Meu Qr Code".',
+    serve: 'O menu Ingresso abre no leitor. O seu ingresso está atrás de "Meu Qr Code".',
     alvos: [
       { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'qrcode', modo: 'push',
         dica: 'Toque em <b>Meu Qr Code</b> para abrir o seu ingresso.' },
@@ -902,12 +917,29 @@ function fimDaEntrada() {
 const ehLargo = (a) => a.w > 40 || a.h > 12 || a.w / a.h > 3;
 
 /* --- desenha a tela atual --- */
+/* A seta que aponta o alvo. `deCima` diz de que lado ela chega: vindo de
+   cima ela aponta para baixo, e vice-versa. O `<i>` interno existe só
+   para a animação — o `<span>` já gasta o `transform` para se centrar, e
+   as duas coisas no mesmo nó se anulariam. */
+function setaDica(deCima, esquerda, topo) {
+  const s = document.createElement('span');
+  s.className = 'seta-dica ' + (deCima ? 'baixo' : 'cima');
+  s.setAttribute('aria-hidden', 'true');
+  s.style.left = esquerda;
+  if (topo !== null) s.style.top = topo;
+  s.innerHTML = '<i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 3v18M12 21l-7-7M12 21l7-7"/></svg></i>';
+  return s;
+}
+
 function pintar(modo) {
   const tela = TELAS[telaAtual];
   telaImg.src = TOUR_IMG_SRC(tela.img);
   telaImg.alt = 'Tela ' + telaAtual + ' do app';
 
   conteudo.querySelectorAll('.alvo, .marca, .veu').forEach((el) => el.remove());
+  fone.querySelectorAll('.seta-dica').forEach((el) => el.remove());
 
   /* Com um modal obrigatório aberto, a única ação possível é o botão
      dele. Apontar para a próxima etapa aqui dava duas instruções que se
@@ -987,6 +1019,37 @@ function pintar(modo) {
       veu.className = 'veu tudo';
     }
     conteudo.appendChild(veu);
+  }
+
+  /* SETA: onde tocar, apontado com o dedo.
+     O anel pulsante já marcava o lugar, mas anel é sinal de "algo aqui" —
+     seta é instrução. Ela nasce do lado do balão e aponta para o alvo,
+     então balão, seta e anel contam a mesma coisa na mesma direção.
+
+     `alvoDica.y > 58` é a MESMA conta que escolhe o lado do balão logo
+     acima: alvo embaixo manda o balão para o topo, e então a seta desce
+     de cima. Duplicar o número aqui deixaria os dois brigando na primeira
+     vez que alguém mexesse num só — por isso vem da mesma expressão. */
+  if (dica && alvoDica) {
+    const deCima = alvoDica.y > 58;
+    /* Ancorada na BORDA do alvo, não no centro dele. O cartão de uma
+       sessão ocupa um quarto da tela: mirando o centro, a seta caía
+       dentro do próprio cartão e apontava para o meio do nada. Da borda,
+       a mesma conta serve para o alvo grande e para o pequeno — no
+       pequeno a borda quase encosta no centro, e o recuo de 7cqw do CSS
+       passa por fora do anel. */
+    const borda = deCima ? alvoDica.y - alvoDica.h / 2 : alvoDica.y + alvoDica.h / 2;
+    conteudo.appendChild(setaDica(deCima, alvoDica.x + '%', borda + '%'));
+  } else if (dica && dica.aba) {
+    /* Aba: a seta mora no telefone, não na foto — a barra fica fora do
+       `.frame`, e o botão da aba tem `overflow: hidden` por causa dos
+       rótulos longos, então ali dentro ela seria cortada. */
+    const i = ABAS.findIndex((x) => x.id === dica.aba);
+    if (i >= 0) {
+      const s = setaDica(true, ((i + 0.5) / ABAS.length) * 100 + '%', null);
+      s.classList.add('na-aba');
+      fone.appendChild(s);
+    }
   }
 
   /* abas: ativa + dica */
@@ -1153,8 +1216,8 @@ let chatIniciado = false;
 const PASSOS = {
   reservar:     { tela: 'detalhe',      alvo: 'reservar', onde: 'Dentro da sessão',
                   aviso: 'A reserva cai 5 minutos antes do início, para abrir a fila de espera.' },
-  minha_agenda: { tela: 'minha-agenda', alvo: 'sessao',   onde: 'Aba Minha agenda' },
-  qr:           { tela: 'qrcode',       alvo: 'escanear', onde: 'Aba QR Code' },
+  minha_agenda: { tela: 'minha-agenda', alvo: 'sessao',   onde: 'Menu Minha Agenda' },
+  qr:           { tela: 'qrcode',       alvo: 'escanear', onde: 'Menu Ingresso' },
   escanear:     { tela: 'scanner',      alvo: 'meuqr',    onde: 'QR Code → Escanear' },
   mapa:         { tela: 'menu',         alvo: 'mapa',     onde: 'Menu → Mapa do evento' },
   rede:         { tela: 'menu',         alvo: 'rede',     onde: 'Menu → Área de network' },
