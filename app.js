@@ -725,6 +725,13 @@ const ROTEIROS = {
 
 let roteiroAtual = 'reserva';
 let MISSOES = ROTEIROS.reserva.missoes;
+/* Quando a pessoa toca num ATALHO da home, ela pediu UMA tela — "Meu
+   ingresso" —, não um roteiro. Com esta bandeira ligada a demonstração
+   abre a tela sozinha: sem missão pendurada, sem barra de progresso e
+   sem dica. Era o defeito de 02/09: o atalho trocava a tela mas deixava
+   o roteiro de reserva rodando por baixo, e o anel circulava
+   "Programação" enquanto a pessoa estava em "Minha Agenda". */
+let telaAvulsa = null;
 
 const frame = document.getElementById('frame');
 const conteudo = document.getElementById('conteudo');
@@ -754,6 +761,8 @@ addEventListener('resize', medirFone);
 
 let telaAtual = 'agenda';
 let pilha = [];
+/* O caminho de volta do voltar. Zerado sempre que se anda para a frente. */
+let refazer = [];
 let feitas = new Set();
 const marcas = {};
 let timerBrinde;
@@ -768,7 +777,7 @@ ABAS.forEach((aba) => {
   b.addEventListener('click', () => {
     if (aba.folha) { abrirFolha(aba.folha); return; }
     if (TELAS[telaAtual].aba === aba.id && !TELAS[telaAtual].volta) { avisar('Você já está aqui.'); return; }
-    pilha = [];
+    pilha = []; refazer = [];
     irPara(aba.vai, 'troca');
   });
   fnav.appendChild(b);
@@ -1088,13 +1097,102 @@ async function trocarTela(destino, modo) {
 function irPara(tela, modo) {
   if (!TELAS[tela]) return Promise.resolve();
   if (modo === 'push') pilha.push(telaAtual);
+  /* Navegar para a frente por conta própria apaga o "depois", como em
+     qualquer histórico: o caminho que existia deixou de ser o caminho. */
+  refazer = [];
   return trocarTela(tela, modo || 'troca');
 }
 
+/* Existe para onde voltar? A `pilha` é o histórico desta sessão; `volta`
+   é o pai declarado da tela, que serve quando se entrou direto nela por
+   um atalho da home. Sem nenhum dos dois NÃO se volta — o `|| 'menu'`
+   de `voltar()` é um paraquedas para o toque no "‹" desenhado na foto, e
+   como resposta a um arrastar ele teletransportaria para o Menu quem só
+   queria ver a tela anterior. */
+function temVolta() {
+  return pilha.length > 0 || Boolean(TELAS[telaAtual] && TELAS[telaAtual].volta);
+}
+
 function voltar() {
+  const daqui = telaAtual;
   const anterior = pilha.pop() || TELAS[telaAtual].volta || 'menu';
+  refazer.push(daqui);
   return trocarTela(anterior, 'pop');
 }
+
+/* O "depois": desfaz um voltar. Só anda por onde já se passou, então
+   nunca pula a instrução — refazer não é adiantar. */
+function avancar() {
+  if (!refazer.length) return Promise.resolve();
+  const destino = refazer.pop();
+  pilha.push(telaAtual);
+  return trocarTela(destino, 'push');
+}
+
+/* ---------- ARRASTAR PARA VER A TELA ANTERIOR ----------
+   Vale para TODAS as demonstrações: é uma só engrenagem, e todas as
+   telas passam por ela.
+
+   Arrastar para a DIREITA volta, como no iOS e no Android. Para a
+   ESQUERDA refaz o que se voltou — e só isso: `avancar()` anda apenas
+   por onde já se passou, então o gesto nunca pula a instrução.
+
+   O gesto convive com os alvos: eles são botões dentro desta mesma área,
+   e um dedo que arrasta começa igual a um dedo que toca. Quem decide é a
+   distância — passou do limiar, é arrastar, e o `click` que viria em
+   seguida é engolido na fase de captura. Sem isso, arrastar por cima de
+   um cartão abriria o cartão. */
+/* O gesto é invisível, e gesto que ninguém descobre não facilita nada.
+   Uma vez por aparelho, ao abrir a primeira demonstração, o próprio aviso
+   transitório do tour conta que ele existe. Uma vez, não sempre: quem já
+   sabe não precisa ouvir de novo, e o aviso ocupa a mesma faixa que os
+   brindes das telas. */
+const CHAVE_ARRASTE = 'mindagent:v1:dica-arraste';
+function dicaDeArraste() {
+  try {
+    if (localStorage.getItem(CHAVE_ARRASTE) === '1') return;
+    localStorage.setItem(CHAVE_ARRASTE, '1');
+  } catch (e) { return; }   /* aba anônima: melhor não avisar do que avisar sempre */
+  setTimeout(() => avisar('Arraste para o lado para ver a tela anterior.'), 900);
+}
+
+const ARRASTE_MIN = 56;      /* px até virar gesto — abaixo disso é toque */
+const ARRASTE_EIXO = 1.4;    /* quanto mais horizontal que vertical */
+let arrasteDe = null;
+let arrastou = false;
+
+frame.addEventListener('pointerdown', (e) => {
+  if (emTransicao || folhaObrigatoria) return;
+  arrasteDe = { x: e.clientX, y: e.clientY };
+  arrastou = false;
+});
+
+frame.addEventListener('pointermove', (e) => {
+  if (!arrasteDe || arrastou) return;
+  const dx = e.clientX - arrasteDe.x;
+  const dy = e.clientY - arrasteDe.y;
+  if (Math.abs(dx) < ARRASTE_MIN || Math.abs(dx) < Math.abs(dy) * ARRASTE_EIXO) return;
+  arrastou = true;
+  if (dx > 0) {
+    /* Sem para onde voltar, o gesto não faz nada em silêncio: diz que
+       esta é a primeira tela, senão parece que o arrastar não funciona. */
+    if (temVolta()) voltar(); else avisar('Esta é a primeira tela.');
+  } else if (refazer.length) {
+    avancar();
+  }
+}, { passive: true });
+
+/* O `click` chega depois do `pointerup`; matá-lo aqui, na captura,
+   impede que o alvo por baixo do dedo seja acionado pelo arrastar. */
+frame.addEventListener('click', (e) => {
+  if (!arrastou) return;
+  e.stopPropagation();
+  e.preventDefault();
+  arrastou = false;
+}, true);
+
+['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) =>
+  frame.addEventListener(ev, () => { arrasteDe = null; }));
 
 async function tocar(a) {
   if (emTransicao) return;                       /* nada de toque duplo */
@@ -1152,6 +1250,17 @@ function concluirMissao(id) {
 }
 
 function atualizarMissao() {
+  if (telaAvulsa) {
+    const t = TELAS[telaAtual];
+    /* `textContent`: o rótulo é constante nossa, mas a barra aceita HTML
+       no caminho das missões e não é lugar de abrir exceção. */
+    missaoTexto.textContent = (t && t.rotulo) || '';
+    missaoProg.innerHTML = '';
+    /* Sem roteiro não há missões: o botão que abre a lista sairia vazio. */
+    document.getElementById('ver-missoes').hidden = true;
+    return;
+  }
+  document.getElementById('ver-missoes').hidden = false;
   const m = missaoAtual();
   const i = m ? MISSOES.indexOf(m) : MISSOES.length;
   missaoTexto.innerHTML = m
@@ -1179,16 +1288,19 @@ document.getElementById('sair-tour').addEventListener('click', () => { missoesFu
 function abrirTourCompleto(qual) {
   roteiroAtual = ROTEIROS[qual] ? qual : 'reserva';
   const roteiro = ROTEIROS[roteiroAtual];
+  telaAvulsa = null;
   MISSOES = roteiro.missoes;
-  telaAtual = roteiro.de; pilha = []; feitas = new Set();
+  telaAtual = roteiro.de; pilha = []; refazer = []; feitas = new Set();
   Object.keys(marcas).forEach((k) => delete marcas[k]);
   /* O cartão do fim é do roteiro: cada um termina dizendo o que ensinou. */
   document.getElementById('fim-titulo').textContent = roteiro.fim.titulo;
   document.getElementById('fim-texto').textContent = roteiro.fim.texto;
   document.getElementById('fim-fundo').classList.remove('aberto');
   abrirVista('tour');
+  dicaDeArraste();
   medirFone();
   pintar('troca');
+  dicaDeArraste();
 }
 document.getElementById('fechar-tour').addEventListener('click', () => abrirVista('home'));
 document.getElementById('btn-concluir').addEventListener('click', () => {
@@ -1287,8 +1399,11 @@ function bolha(texto, quem, passo) {
    (?tutorial=agenda ou postMessage {tipo:'mindagent:tutorial', tela:'agenda'}). */
 function abrirTutorialEm(tela) {
   if (!TELAS[tela]) return;
+  telaAvulsa = tela;
+  MISSOES = [];
+  feitas = new Set();
   telaAtual = tela;
-  pilha = [];
+  pilha = []; refazer = [];
   abrirVista('tour');
   medirFone();
   pintar('troca');
