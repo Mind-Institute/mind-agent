@@ -104,11 +104,14 @@ export const ICO = {
 
    Categoria desconhecida cai no verde em vez de sumir: um aviso é para
    ser lido, e é melhor lê-lo sem a cor certa do que não vê-lo. */
+/* OS RÓTULOS SÃO OS TÍTULOS QUE A ADRIANA ESCREVEU ao mandar os avisos —
+   ela os agrupou em três, e os três são exatamente estes chips. A ordem
+   também é a dela: antes, reservas, durante/depois. */
 export const CATEGORIAS_AVISO = [
-  { id: 'antes_de_ir', rotulo: 'Antes de ir', ponto: true },
-  { id: 'no_evento',   rotulo: 'No evento',   ponto: true },
-  { id: 'reservas',    rotulo: 'Reservas',    ponto: true },
-  { id: 'ingressos',   rotulo: 'Ingressos',   ponto: false },
+  { id: 'antes_de_ir', rotulo: 'Antes de ir ao Summit',     ponto: true },
+  { id: 'reservas',    rotulo: 'Reservas e agenda',         ponto: true },
+  { id: 'no_evento',   rotulo: 'Durante e depois',          ponto: true },
+  { id: 'ingressos',   rotulo: 'Ingressos',                 ponto: false },
 ];
 
 export function categoriaValida(id) {
@@ -139,40 +142,94 @@ const ICO_POR_NOME = {
    `mensagem` repete `resumo` porque cada aviso veio com um parágrafo só;
    `leituraDeAviso` sabe disso e não mostra o mesmo texto duas vezes. */
 const CRUS = [
-  { id: 'doc_fisico', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T17:00', situacao: 'no-ar',
-    titulo: 'Leve um documento físico',
-    resumo: 'Para retirar o aparelho de tradução simultânea, você precisará apresentar um documento físico.',
-    mensagem: 'Para retirar o aparelho de tradução simultânea, você precisará apresentar um documento físico.' },
+  { id: 'reserve_exp', ico: ICO.estrela, cat: 'reservas', em: '2026-09-15T18:00', situacao: 'no-ar',
+    titulo: 'Reserve agora as experiências que você não quer perder',
+    resumo: 'Arena LinkedIn, Arena Sextante, workshops e masterclasses têm lugares limitados.',
+    mensagem: 'Faça o agendamento no app e confirme em Minha Agenda. No dia, sua vaga ficará garantida somente até 5 minutos antes do início.' },
 
-  { id: 'reserve_exp', ico: ICO.estrela, cat: 'reservas', em: '2026-09-15T16:50', situacao: 'no-ar',
-    titulo: 'Reserve suas experiências agora',
-    resumo: 'Workshops, Masterclasses e outras experiências têm capacidade limitada. Reserve pelo app assim que possível.',
-    mensagem: 'Workshops, Masterclasses e outras experiências têm capacidade limitada. Reserve pelo app assim que possível.' },
+  { id: 'doc_fisico', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T17:50', situacao: 'no-ar',
+    titulo: 'Leve um documento físico com foto',
+    resumo: 'Para retirar o fone de tradução simultânea, é obrigatório apresentar um documento oficial físico com foto.',
+    mensagem: 'O documento no celular não será aceito. Já deixe o documento separado para não esquecer.' },
 
-  { id: 'chegue_5min', ico: ICO.relogio, cat: 'no_evento', em: '2026-09-15T16:40', situacao: 'no-ar',
-    titulo: 'Chegue 5 minutos antes',
-    resumo: 'Sua reserva é garantida até 5 minutos antes do início. Depois disso, as vagas remanescentes são liberadas para a fila de espera.',
-    mensagem: 'Sua reserva é garantida até 5 minutos antes do início. Depois disso, as vagas remanescentes são liberadas para a fila de espera.' },
+  { id: 'credenciamento', ico: ICO.relogio, cat: 'antes_de_ir', em: '2026-09-15T17:40', situacao: 'no-ar',
+    titulo: 'Chegue cedo e siga para o Pavilhão 3',
+    resumo: 'O credenciamento abre às 7h30 nos dois dias, no Pavilhão 3 do São Paulo Expo.',
+    mensagem: 'Acesse o app antes de sair de casa e deixe o QR Code do ingresso pronto para agilizar sua entrada.' },
 
-  { id: 'ingresso_mao', ico: ICO.ingresso, cat: 'antes_de_ir', em: '2026-09-15T16:30', situacao: 'no-ar',
-    titulo: 'Deixe seu ingresso à mão',
-    resumo: 'Seu QR Code está no app. Abra antes de chegar para agilizar sua entrada.',
-    mensagem: 'Seu QR Code está no app. Abra antes de chegar para agilizar sua entrada.' },
+  { id: 'rhino', ico: ICO.estrela, cat: 'antes_de_ir', em: '2026-09-15T17:30', situacao: 'no-ar',
+    titulo: 'Use o benefício da Rhino para chegar ao Summit',
+    resumo: 'Use o cupom MINDSUMMIT no app da Rhino. Quem nunca utilizou o serviço recebe R$ 200 de desconto na primeira corrida.',
+    mensagem: 'Em trajetos de até 10 km, o valor é fixo de R$ 49. Acima de 10 km, o valor mínimo é de R$ 149.\n\nO cupom fica ativo até 31 de dezembro e, depois do cadastro no app, deve ser utilizado em até 30 dias.' },
+
+  { id: 'tour_summit', ico: ICO.lugar, cat: 'antes_de_ir', em: '2026-09-15T17:20', situacao: 'no-ar',
+    titulo: 'Veja como o Summit funciona antes de chegar',
+    resumo: 'O evento acontece em diferentes arenas, salas e espaços de experiência.',
+    mensagem: 'Assista ao tour do Summit para conhecer a estrutura e se orientar melhor durante os dois dias.',
+    verNoApp: 'mapa', botaoVerNoApp: 'Conhecer a estrutura do evento' },
+
+  { id: 'acesso_app', ico: ICO.ingresso, cat: 'antes_de_ir', em: '2026-09-15T17:00', situacao: 'no-ar',
+    titulo: 'Faça o acesso ao app com antecedência',
+    resumo: 'No app você encontra o QR Code do ingresso, a programação completa e as experiências que reservou.',
+    mensagem: 'Acesse antes de sair de casa para evitar problemas no credenciamento e chegar com sua agenda organizada.' },
+
+  { id: 'pavilhao_3', ico: ICO.lugar, cat: 'antes_de_ir', em: '2026-09-15T16:40', situacao: 'no-ar',
+    titulo: 'O Mind Summit é no Pavilhão 3',
+    resumo: 'Ao chegar ao São Paulo Expo, siga as indicações para o Pavilhão 3.',
+    mensagem: 'O credenciamento e o acesso ao Mind Summit serão realizados nesse pavilhão.' },
 
   { id: 'chegada_expo', ico: ICO.lugar, cat: 'antes_de_ir', em: '2026-09-15T16:20', situacao: 'no-ar',
-    titulo: 'Planeje sua chegada ao São Paulo Expo',
-    resumo: 'Confira acesso, estacionamento e tempo de deslocamento antes de sair.',
-    mensagem: 'Confira acesso, estacionamento e tempo de deslocamento antes de sair.' },
+    titulo: 'Como chegar ao São Paulo Expo',
+    resumo: 'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.',
+    mensagem: 'O estacionamento é coberto e tem acesso ao pavilhão por uma passarela.' },
 
-  { id: 'app_atualizado', ico: ICO.agenda, cat: 'no_evento', em: '2026-09-15T16:10', situacao: 'no-ar',
-    titulo: 'Mantenha o app atualizado',
-    resumo: 'Horários, salas e programação podem sofrer alterações. Consulte o app durante o Summit.',
-    mensagem: 'Horários, salas e programação podem sofrer alterações. Consulte o app durante o Summit.' },
+  { id: 'confira_reserva', ico: ICO.agenda, cat: 'reservas', em: '2026-09-15T15:50', situacao: 'no-ar',
+    titulo: 'Confira se a reserva foi concluída',
+    resumo: 'Depois de reservar, abra Minha Agenda. Se uma experiência que exige agendamento não aparecer ali, ela não está reservada.',
+    mensagem: 'A aba Programação mostra todos os conteúdos do Summit. Minha Agenda mostra somente as experiências que você efetivamente agendou.' },
 
-  { id: 'notificacoes', ico: ICO.sino, cat: 'no_evento', em: '2026-09-15T16:00', situacao: 'no-ar',
-    titulo: 'Ative as notificações',
-    resumo: 'Receba mudanças de programação e avisos importantes durante o evento.',
-    mensagem: 'Receba mudanças de programação e avisos importantes durante o evento.' },
+  { id: 'chegue_5min', ico: ICO.relogio, cat: 'reservas', em: '2026-09-15T15:40', situacao: 'no-ar',
+    titulo: 'Sua reserva vale até 5 minutos antes',
+    resumo: 'A reserva protege sua vaga até 5 minutos antes do início da experiência. Depois desse horário, os lugares ainda não ocupados poderão ser liberados para a fila de espera.',
+    mensagem: 'Mesmo com reserva, chegar depois desse prazo não mantém a garantia de entrada.' },
+
+  { id: 'fila_espera', ico: ICO.alerta, cat: 'reservas', em: '2026-09-15T15:30', situacao: 'no-ar',
+    titulo: 'Não conseguiu reservar? Entre na fila de espera',
+    resumo: 'Os lugares que não tiverem sido ocupados até 5 minutos antes do início poderão ser liberados para a fila de espera, conforme a disponibilidade.',
+    mensagem: 'A fila de espera não altera os acessos do ingresso: Mind não tem acesso a workshops ou masterclasses, VIP pode tentar vagas remanescentes em workshops e Prime pode tentar vagas remanescentes em workshops e masterclasses.' },
+
+  { id: 'acessos_ingresso', ico: ICO.ingresso, cat: 'reservas', em: '2026-09-15T15:20', situacao: 'no-ar',
+    titulo: 'Confira os acessos do seu ingresso',
+    resumo: 'Participantes VIP e Prime têm acesso aos workshops.',
+    mensagem: 'As masterclasses são exclusivas para participantes Prime.' },
+
+  { id: 'conflitos_agenda', ico: ICO.lugar, cat: 'reservas', em: '2026-09-15T15:10', situacao: 'no-ar',
+    titulo: 'Evite conflitos na sua agenda',
+    resumo: 'Antes de reservar, confira os horários e considere o deslocamento entre arenas e salas.',
+    mensagem: 'Se duas experiências acontecerem ao mesmo tempo, você precisará escolher qual delas quer acompanhar. Veja o mapa do evento para entender os deslocamentos necessários e onde acontecerá cada experiência.',
+    verNoApp: 'mapa', botaoVerNoApp: 'Ver o mapa do evento' },
+
+  { id: 'ajuda_reservar', ico: ICO.megafone, cat: 'reservas', em: '2026-09-15T15:00', situacao: 'no-ar',
+    titulo: 'Precisa de ajuda para reservar?',
+    resumo: 'Peça ajuda ao Concierge.',
+    mensagem: 'Ele pode explicar como funciona a reserva e abrir o tutorial passo a passo para você.',
+    verNoApp: 'chat', botaoVerNoApp: 'Falar com o Concierge' },
+
+  { id: 'consulte_app', ico: ICO.agenda, cat: 'no_evento', em: '2026-09-15T14:50', situacao: 'no-ar',
+    titulo: 'Consulte o app ao longo do evento',
+    resumo: 'Use Programação para consultar todos os conteúdos e Minha Agenda para conferir suas reservas.',
+    mensagem: 'Antes de seguir para uma experiência, confirme o horário e o local no app.',
+    verNoApp: 'reserva', botaoVerNoApp: 'Ver como consultar e reservar' },
+
+  { id: 'certificados', ico: ICO.estrela, cat: 'no_evento', em: '2026-09-15T14:40', situacao: 'no-ar',
+    titulo: 'Certificados',
+    resumo: 'O certificado geral será enviado a quem tiver participado do Summit, a partir de 30 dias após o evento, para o e-mail associado ao ingresso.',
+    mensagem: 'Workshops e masterclasses terão certificados específicos, condicionados ao registro de entrada na experiência.' },
+
+  { id: 'gravacoes', ico: ICO.sino, cat: 'no_evento', em: '2026-09-15T14:30', situacao: 'no-ar',
+    titulo: 'Gravações',
+    resumo: 'O ingresso Mind não inclui as gravações.',
+    mensagem: 'Participantes VIP receberão as gravações das Arenas Mind, LinkedIn e Sextante, com liberação prevista em até 45 dias.\n\nParticipantes Prime também receberão as quatro masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.' },
 ];
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -286,7 +343,10 @@ export const CONTEUDO = {
       /* Quatro, não três: os três atalhos passaram a caber numa linha só e
          a linha economizada dá exatamente a altura de mais um aviso. Foi o
          motivo do pedido — encolher os atalhos para caber mais recado. */
-      { tipo: 'avisos', quantos: 4 },
+      /* CINCO, e são os cinco que a Adriana condensou para o card. Quem
+         escolhe é a ordem de disparo: estes cinco são os mais recentes,
+         e o resto continua atrás do "Ver todos". */
+      { tipo: 'avisos', quantos: 5 },
     ],
   },
 

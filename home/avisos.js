@@ -62,6 +62,29 @@ function no(tag, classe, dentro) {
   return el;
 }
 
+/* O TEXTO DO AVISO É ESCRITO POR GENTE, NO PAINEL — não é HTML.
+
+   Linha em branco separa parágrafo, e é assim que ele chega: o aviso das
+   gravações tem três. Enfiados num `<p>` só, os três viravam um bloco
+   corrido, e a pessoa lê "45 dias… 60 dias… 90 dias" numa massa.
+
+   E entra ESCAPADO. O campo sempre coube em innerHTML sem passar por
+   aqui; enquanto todo aviso tinha uma frase só isso não aparecia, mas
+   num texto de gente `<` é `<`, não abertura de tag. */
+function escapar(txt) {
+  return String(txt == null ? '' : txt)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function paragrafos(txt, classe) {
+  return String(txt == null ? '' : txt)
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => '<p class="' + classe + '">' + escapar(p) + '</p>')
+    .join('');
+}
+
 const CHEVRON =
   '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5.5L15.5 12 9 18.5"/></svg>';
 
@@ -123,9 +146,9 @@ export function listaDeAvisos(aoAbrir) {
       b.innerHTML =
         '<span class="av-ico' + (a.cat ? ' c-' + a.cat : '') + '">' + a.ico + '</span>' +
         '<span class="av-corpo">' +
-          '<strong>' + a.titulo + '</strong>' +
-          '<small>' + a.resumo + '</small>' +
-          '<em>' + a.quando + '</em>' +
+          '<strong>' + escapar(a.titulo) + '</strong>' +
+          '<small>' + escapar(a.resumo) + '</small>' +
+          '<em>' + escapar(a.quando) + '</em>' +
         '</span>' +
         (naoLido ? '<span class="av-ponto" aria-label="Não lido"></span>' : '') +
         CHEVRON;
@@ -147,13 +170,13 @@ export function leituraDeAviso(id, aoVerNoApp) {
   const el = no('article', 'av-leitura');
   el.innerHTML =
     '<span class="av-ico grande">' + a.ico + '</span>' +
-    '<p class="av-quando">' + a.quando + '</p>' +
-    '<h2>' + a.titulo + '</h2>' +
+    '<p class="av-quando">' + escapar(a.quando) + '</p>' +
+    '<h2>' + escapar(a.titulo) + '</h2>' +
     /* O resumo só aparece quando ACRESCENTA. Vários avisos têm um
        parágrafo só, que serve de linha de apoio no card e de texto ao
        abrir — repeti-lo aqui mostraria a mesma frase duas vezes seguidas. */
-    (a.resumo && a.resumo !== a.mensagem ? '<p class="av-resumo">' + a.resumo + '</p>' : '') +
-    '<p class="av-texto">' + a.mensagem + '</p>';
+    (a.resumo && a.resumo !== a.mensagem ? '<p class="av-resumo">' + escapar(a.resumo) + '</p>' : '') +
+    paragrafos(a.mensagem, 'av-texto');
 
   if (a.verNoApp && aoVerNoApp) {
     const b = no('button', 'av-acao', a.botaoVerNoApp || 'Ver no app');

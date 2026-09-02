@@ -304,3 +304,87 @@ test('a porta do ingresso não vira uma forma de descobrir quem tem ingresso', (
   assert.ok(!/request_id: requestId[^}]*email/.test(funcaoHome),
     'a rota passou a registrar o e-mail em log');
 });
+
+test('a home mostra os cinco avisos que a Adriana condensou', () => {
+  /* Quem escolhe os cards da home é a ORDEM DE DISPARO — os `quantos`
+     mais recentes. Os cinco textos curtos foram escritos para o card, e
+     é por isso que eles são os mais recentes da lista. Mexer no `em` de
+     qualquer aviso reordena a home sem tocar em layout nenhum. */
+  assert.match(estado, /\{ tipo: 'avisos', quantos: 5 \}/,
+    'a home voltou a mostrar outro número de avisos');
+  /* O fim é procurado A PARTIR do início: `\n];` aparece antes, no fim de
+     `CATEGORIAS_AVISO`, e o slice saía vazio — com listas vazias os dois
+     `deepEqual` passavam sem comparar nada. */
+  const i = estado.indexOf('const CRUS = [');
+  const bloco = estado.slice(i, estado.indexOf('\n];', i));
+  assert.ok(bloco.length > 2000, 'não achei a lista embutida de avisos');
+  /* O espaço antes de `em:` não é enfeite: sem ele o `mensagem:` de cada
+     aviso também casa, e a lista de datas vem cheia de texto. */
+  const datas = [...bloco.matchAll(/ em: '([^']+)'/g)].map((m) => m[1]);
+  assert.equal(datas.length, 17, 'a lista embutida deixou de ter 17 avisos');
+  const ordenado = [...datas].sort().reverse();
+  assert.deepEqual(datas, ordenado,
+    'a lista embutida saiu da ordem de disparo, e a home passa a mostrar outros cinco');
+  const titulos = [...bloco.matchAll(/titulo: '([^']+)'/g)].map((m) => m[1]).slice(0, 5);
+  assert.deepEqual(titulos, [
+    'Reserve agora as experiências que você não quer perder',
+    'Leve um documento físico com foto',
+    'Chegue cedo e siga para o Pavilhão 3',
+    'Use o benefício da Rhino para chegar ao Summit',
+    'Veja como o Summit funciona antes de chegar',
+  ], 'os cinco da home mudaram');
+});
+
+test('nenhum filtro de categoria fica fora da tela', () => {
+  /* Com os rótulos que a Adriana escreveu, a fila de chips passou a medir
+     617px numa tela de 390: o último ficava INTEIRO fora do quadro, com
+     0px visíveis. Rolagem horizontal só resolve para quem descobre que
+     dá para arrastar. */
+  const i = css.indexOf('.av-chips {');
+  const regra = css.slice(i, css.indexOf('\n}', i));
+  assert.match(regra, /flex-wrap:\s*wrap/,
+    'os chips voltaram a ficar numa linha só, e o último sai da tela');
+  assert.ok(!/overflow-x:\s*auto/.test(regra),
+    'a fila de chips voltou a rolar em vez de quebrar linha');
+});
+
+test('o texto do aviso vira parágrafos, e entra escapado', () => {
+  /* O aviso das gravações tem três parágrafos; num `<p>` só viravam um
+     bloco corrido. E o campo é escrito por gente no painel: `<` ali é
+     `<`, não abertura de tag. */
+  assert.match(avisos, /function paragrafos\(txt, classe\)/,
+    'a quebra de parágrafo sumiu do aviso aberto');
+  assert.match(avisos, /paragrafos\(a\.mensagem, 'av-texto'\)/,
+    'a mensagem voltou a entrar num parágrafo só');
+  assert.match(avisos, /function escapar\(txt\)/, 'o escape do texto do aviso sumiu');
+  for (const campo of ['a.titulo', 'a.resumo', 'a.quando']) {
+    assert.ok(avisos.includes('escapar(' + campo + ')'),
+      'o campo ' + campo + ' voltou a entrar cru em innerHTML');
+  }
+  assert.match(css, /\.av-texto \+ \.av-texto \{ margin-top/,
+    'os parágrafos voltaram a ficar colados');
+});
+
+test('o aviso sabe levar ao Concierge, não só à demonstração', () => {
+  /* `verNoApp` só conhecia roteiro da demonstração; "Precisa de ajuda
+     para reservar?" precisa abrir o chat, que é vista do app. */
+  assert.match(app, /if \(destino === 'chat'\) return irParaConversa\(null\)/,
+    'o aviso perdeu o caminho para o Concierge');
+  assert.match(estado, /verNoApp: 'chat', botaoVerNoApp: 'Falar com o Concierge'/,
+    'o aviso de ajuda perdeu o botão do Concierge');
+  assert.match(estado, /verNoApp: 'mapa'/, 'o aviso do mapa perdeu o botão');
+});
+
+test('a notificação é grande e clara o bastante para ler', () => {
+  /* Era 14/12,5px no cinza de apoio sobre fundo quase preto — o menor
+     contraste da tela justamente no texto que informa. */
+  const i = css.indexOf('.v3-linha.aviso .v3-corpo small {');
+  const regra = css.slice(i, css.indexOf('\n}', i));
+  const tam = Number((regra.match(/font-size:\s*([\d.]+)px/) || [])[1]);
+  assert.ok(tam >= 15, 'o resumo do aviso na home encolheu para ' + tam + 'px');
+  assert.match(regra, /color:\s*var\(--texto-suave\)/,
+    'o resumo do aviso na home voltou ao cinza de apoio');
+  assert.ok(!/color:\s*var\(--texto-mudo\)/.test(
+    css.slice(css.indexOf('.av-corpo small'), css.indexOf('.av-ponto'))),
+    'a lista de avisos voltou ao cinza de apoio');
+});
