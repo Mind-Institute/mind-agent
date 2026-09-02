@@ -113,18 +113,31 @@
 
   <!-- ============ TOUR: navegação real ============ -->
   <section class="vista" id="vista-tour">
-    <div class="t-missao">
-      <p class="t-texto" id="missao-texto"><i>1/2</i>Reservar seu lugar numa sessão</p>
+    <!-- ============ O FRAME DA DEMONSTRAÇÃO ============
+         O que está dentro do quadro é a captura da tela REAL do app do
+         Summit, e ela funciona: dá para tocar e navegar. Justamente por
+         funcionar, precisa ficar dito o tempo todo que não é o app da
+         pessoa — senão ela tenta usar o próprio ingresso aqui dentro.
+
+         O aviso é dado em três lugares porque um só não segura: o selo
+         verde em cima, a frase ao lado do título, e a moldura verde em
+         volta do quadro. Nenhum deles depende de a pessoa ter lido o
+         anterior. -->
+    <div class="t-demo">
+      <span class="t-selo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/></svg>
+        Demonstração
+      </span>
       <span class="t-prog" id="missao-prog" aria-hidden="true"></span>
       <button class="c-voltar" id="ver-missoes" aria-label="Ver missões">☰</button>
-      <!-- À DIREITA E COM PALAVRA. Era um "×" sozinho num círculo cinza à
-           esquerda, do mesmo peso do "☰" — dois círculos iguais, e quem
-           queria sair não sabia qual era. Fica no fim da barra, que é onde
-           a Adriana pediu, e é o maior alvo dela. -->
-      <button class="t-sair" id="fechar-tour">
+      <button class="t-fechar" id="fechar-tour" aria-label="Sair da demonstração">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        Sair
       </button>
+    </div>
+
+    <div class="t-cabeca">
+      <strong id="missao-texto">Meu ingresso</strong>
+      <small id="t-previa">Prévia da tela</small>
     </div>
 
     <div class="t-palco">
@@ -133,7 +146,6 @@
           <div class="conteudo" id="conteudo">
             <img id="tela-img" alt="" />
           </div>
-          <div class="rotulo" id="rotulo"></div>
           <div class="balao base" id="balao"></div>
           <div class="brinde" id="brinde"></div>
           <div class="folha-fundo" id="folha-fundo">
@@ -142,6 +154,11 @@
         </div>
         <nav class="fnav" id="fnav" aria-label="Abas do app"></nav>
       </div>
+    </div>
+
+    <div class="t-rodape">
+      <p id="t-explica"></p>
+      <button type="button" id="voltar-funcoes">Voltar às funções</button>
     </div>
 
     <div class="missoes-fundo" id="missoes-fundo">
