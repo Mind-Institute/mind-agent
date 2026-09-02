@@ -32,6 +32,22 @@ function fecharSplash() {
   setTimeout(() => splash.remove(), 550);
 }
 document.getElementById('pular').addEventListener('click', fecharSplash);
+/* TOCAR EM QUALQUER LUGAR FECHA. O "Pular" é uma pílula de 13px no canto
+   superior; quem está olhando o símbolo no meio da tela não procura lá. Sem
+   isto, a única saída da abertura é esperar — e esperar sem saber quanto é o
+   que faz uma tela parecer travada. */
+splash.addEventListener('click', fecharSplash);
+
+/* A ABERTURA É UMA VEZ POR SESSÃO. Ela dura alguns segundos de propósito: é a
+   marca se apresentando a quem chega. Repetir isso a cada recarga transforma
+   apresentação em pedágio — e recarregar é exatamente o que a pessoa faz
+   quando acha que travou. Quem já viu entra direto. */
+const CHAVE_ABERTURA = 'mindagent:v1:abertura-vista';
+let jaViuAbertura = false;
+try {
+  jaViuAbertura = sessionStorage.getItem(CHAVE_ABERTURA) === '1';
+  sessionStorage.setItem(CHAVE_ABERTURA, '1');
+} catch (e) { /* aba anônima: mostra a abertura, que é o comportamento antigo */ }
 
 /* A fala vem digitada. Cada letra é um span que acende: assim o "Mind" em
    coral atravessa a animação sem precisar recortar HTML no meio. */
@@ -40,6 +56,10 @@ const FALA = [
   [' e estou aqui para responder qualquer dúvida sobre o evento.', false],
 ];
 (function digitar() {
+  /* Já viu nesta sessão: sai sem fade e sem animação. Nada de meio segundo de
+     cortesia para quem só recarregou a página. */
+  if (jaViuAbertura) { splash.remove(); return; }
+
   const alvo = document.getElementById('splash-fala');
   const letras = [];
   FALA.forEach(([texto, forte]) => {
@@ -55,16 +75,26 @@ const FALA = [
   cursor.className = 'splash-cursor';
   alvo.appendChild(cursor);
 
-  /* Quanto tempo a frase inteira fica legível antes de a tela sair. Conta
-     a partir da última letra; a saída ainda leva os .5s do fade. */
-  const LEITURA = 4000;
+  /* O RITMO DA ABERTURA, num lugar só — é aqui que se afina se ela ficar
+     comprida ou curta demais.
+
+     Era `ATRASO 900 + PASSO 26 + LEITURA 4000`: com 88 caracteres, quase 7,2s
+     até a tela começar a sair, mais 0,55s de fade. Oito segundos parado no
+     símbolo do Mind, e foi assim que a abertura passou a ser lida como tela
+     travada — porque, do lado de quem espera, não há diferença entre uma
+     animação longa e um app que não carrega.
+
+     A frase continua sendo digitada e continua legível. O que encolheu foi a
+     espera DEPOIS que ela termina, que era mais da metade do tempo total. */
+  const ATRASO  = 350;    /* antes de a primeira letra acender */
+  const PASSO   = 16;     /* por letra */
+  const LEITURA = 1500;   /* com a frase inteira na tela, antes de sair */
 
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
     letras.forEach((g) => g.classList.add('on'));
     setTimeout(fecharSplash, LEITURA);
     return;
   }
-  const PASSO = 26, ATRASO = 900;
   letras.forEach((g, i) => setTimeout(() => {
     g.classList.add('on');
     g.after(cursor);              /* o cursor anda junto, não fica no fim do texto todo */
