@@ -27,8 +27,16 @@ test('os quatro atalhos levam a destinos que existem', () => {
      que torna isto invisível em revisão. */
   const bloco = estado.slice(estado.indexOf("tipo: 'atalhos'"), estado.indexOf("tipo: 'secao', titulo: 'Avisos"));
   const destinos = [...bloco.matchAll(/acao: '([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(destinos, ['tour:qrcode', 'tour:minha-agenda', 'tour', 'tour:mapa'],
+  assert.deepEqual(destinos, ['tour:qrcode', 'tour:minha-agenda', 'tour', 'roteiro:mapa'],
     'os destinos dos Atalhos mudaram');
+
+  /* `roteiro:` faz o CAMINHO, `tour:` mostra a tela. O mapa mora dentro do
+     Menu: abrir a tela pronta mostraria o mapa e esconderia o caminho, que
+     é justamente o que precisa ser ensinado. */
+  assert.match(app, /if \(acao\.startsWith\('roteiro:'\)\) return abrirTourCompleto/,
+    'a ação de roteiro guiado deixou de ser tratada');
+  assert.match(app, /mapa: \{\s*\n\s*de: 'menu',/,
+    'o roteiro do mapa deixou de começar no Menu e voltou a pular para a tela');
 
   /* `tour` e `tour:` são tratados; e cada tela citada precisa existir em
      TELAS, senão `abrirTutorialEm` abre o tour vazio. */

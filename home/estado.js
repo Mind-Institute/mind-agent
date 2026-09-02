@@ -230,7 +230,7 @@ export const CONTEUDO = {
        é assim no handoff. Sem nome, `heroSaudacao` maiusculiza a
        primeira letra e a frase segue de pé sozinha. */
     tituloComNome: true,
-    titulo: 'seu Summit começa agora.',
+    titulo: 'seu Mind Summit começa agora.',
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
     decorado: true,
     blocos: [
@@ -255,8 +255,11 @@ export const CONTEUDO = {
           texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
         { ico: ICO.brilho, titulo: 'Reserve suas experiências',
           texto: 'Garanta suas escolhas agora', acao: 'tour' },
-        { ico: ICO.pin, titulo: 'Como chegar',
-          texto: 'São Paulo Expo, acesso e estacionamento', acao: 'tour:mapa' },
+        /* `roteiro:` e não `tour:`: o mapa mora dentro do Menu, e mostrar a
+           tela pronta esconderia justamente o caminho que precisa ser
+           ensinado. Aqui a demonstração começa no Menu e pede o toque. */
+        { ico: ICO.pin, titulo: 'Mapa do evento',
+          texto: 'Arenas, lounges e estandes do São Paulo Expo', acao: 'roteiro:mapa' },
       ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:
