@@ -56,11 +56,13 @@ A mesma Summit Intelligence deve poder servir Concierge, Atendimento e Vendas. N
    - alteração de perfil/agenda;
    - check-in.
 
-6. O Concierge pode e deve explicar como a pessoa executa essas ações no app. Existe no frontend um botão/tour/tutorial de agendamento que ainda precisa ser localizado/documentado para poder ser oferecido pelo Concierge.
+6. O Concierge pode e deve explicar como a pessoa executa essas ações no app. Existe no frontend um botão/tour/tutorial de agendamento que precisa estar documentado/conectado para poder ser oferecido pelo Concierge.
 
-7. Quando estiver trabalhando planejamento pessoal sem acesso técnico à agenda do participante, deve ser transparente, por exemplo: **“Eu não tenho acesso à sua agenda, mas estas são as coisas que você precisa garantir.”** Nunca fingir que leu uma agenda que não está disponível.
+7. **A agenda pessoal não é uma fonte do sistema e não será.** O Concierge só usa informações sobre reservas/agenda quando a própria pessoa contar na conversa. Não construir integração, tabela ou leitura de agenda pessoal para o Concierge.
 
-8. Regra de conflito/troca continua relevante como orientação: só uma reserva por horário; antes de trocar, conferir disponibilidade da nova experiência; depois a própria pessoa cancela a anterior e faz a nova reserva.
+8. Quando estiver trabalhando planejamento pessoal, deve ser transparente, por exemplo: **“Eu não tenho acesso à sua agenda, mas estas são as coisas que você precisa garantir.”** Nunca fingir que leu uma agenda que não está disponível.
+
+9. Regra de conflito/troca continua relevante como orientação: só uma reserva por horário; antes de trocar, conferir disponibilidade da nova experiência; depois a própria pessoa cancela a anterior e faz a nova reserva.
 
 ---
 
@@ -84,7 +86,7 @@ A mesma Summit Intelligence deve poder servir Concierge, Atendimento e Vendas. N
 - Não existe ingresso de apenas um dia.
 - Não existe produto composto apenas pelas gravações.
 - Arena Mind e Arena LinkedIn são presenciais.
-- A Arena Editora Sextante tem duas palestras online ao vivo; os demais conteúdos são presenciais, conforme FAQ de origem.
+- A **Arena Sextante** tem duas palestras online ao vivo; os demais conteúdos são presenciais, conforme FAQ de origem.
 - Quando horários de programação forem informados, usar a programação oficial atual; não responder apenas de memória.
 
 ---
@@ -132,7 +134,7 @@ Como links externos podem mudar, verificar se ainda estão vigentes antes de tra
 Tem acesso a:
 - Arena Mind;
 - Arena LinkedIn;
-- Arena Editora Sextante;
+- Arena Sextante;
 - ativações dos patrocinadores no primeiro andar;
 - coworking;
 - praça de alimentação;
@@ -152,7 +154,7 @@ Não tem acesso a:
 Inclui tudo do Mind e também:
 - workshops, mediante disponibilidade e reserva;
 - setor VIP da Arena Mind, imediatamente atrás do setor Prime;
-- gravações das Arenas Mind, LinkedIn e Editora Sextante.
+- gravações das Arenas Mind, LinkedIn e Sextante.
 
 Não inclui:
 - masterclasses;
@@ -171,7 +173,7 @@ Inclui tudo do VIP e também:
 ## Assentos
 
 - A separação Mind/VIP/Prime aplica-se **somente à Arena Mind**.
-- Arena LinkedIn e Arena Editora Sextante não têm separação de assentos por categoria; entre participantes elegíveis/admitidos, o assento é por ordem de chegada.
+- Arena LinkedIn e Arena Sextante não têm separação de assentos por categoria; entre participantes elegíveis/admitidos, o assento é por ordem de chegada.
 - Evitar a expressão ambígua “primeiros assentos”. Usar: **“setor Prime nas primeiras fileiras da Arena Mind”**.
 
 ---
@@ -210,7 +212,7 @@ Ter categoria de acesso **não garante vaga** em uma experiência com capacidade
 
 Necessitam de agendamento/reserva:
 - Arena LinkedIn;
-- Arena Editora Sextante;
+- Arena Sextante;
 - workshops;
 - masterclasses.
 
@@ -220,7 +222,7 @@ Arena Mind:
 
 Capacidade fechada:
 - Arena LinkedIn: **300 lugares**.
-- Arena Editora Sextante: **300 lugares**.
+- Arena Sextante: **300 lugares**.
 
 ## Regra dos 5 minutos
 
@@ -249,7 +251,7 @@ Fila não amplia direitos do ingresso:
 - Workshops são para VIP e Prime.
 - Workshops têm **2 horas**.
 - Objetivo dos workshops: desenvolver habilidades/ferramentas e ajudar o participante a levar o conhecimento do Summit para o trabalho.
-- Existem quatro faixas de workshops; em tese isso permite até quatro workshops, respeitando conflitos e escolhas paralelas.
+- Existem quatro faixas de workshops; o número efetivamente realizável depende de conflitos, disponibilidade e escolha da pessoa. Não prometer automaticamente “4 workshops à sua escolha”.
 - Workshop realizado com scan de entrada gera certificado específico, conforme FAQ de origem.
 - Masterclass realizada com scan de entrada gera certificado específico, conforme FAQ de origem.
 
@@ -288,7 +290,7 @@ Não recebe as gravações incluídas no VIP/Prime.
 Recebe gravações das Arenas:
 - Mind;
 - LinkedIn;
-- Editora Sextante.
+- Sextante.
 
 Liberação prevista: **45 dias após o evento**.
 
@@ -364,18 +366,53 @@ Os documentos de origem registram certificados específicos condicionados ao sca
 
 ---
 
-# 14. Upgrade — política fechada
+# 14. Upgrade, disponibilidade e escassez — FECHADO
+
+## Upgrades oficiais
+
+### Mind → VIP
+- Valor: **R$ 1.000,00 à vista**.
+- Parcelamento: **12x de R$ 83,33 sem juros**.
+- Checkout: `https://chk.eduzz.com/89AXJ3RO0D`
+
+### VIP → Prime
+- Valor: **R$ 4.000,00 à vista**.
+- Parcelamento: **12x de R$ 333,33 sem juros**.
+- Checkout: `https://chk.eduzz.com/1W323D5Q92`
+
+### Mind → Prime
+- Valor: **R$ 5.000,00 à vista**.
+- Parcelamento: **12x de R$ 416,67 sem juros**.
+- Checkout: `https://chk.eduzz.com/69K1K5BVWO`
+
+## Regra de decisão
 
 - Upgrade garante **elegibilidade à categoria de conteúdo**, não vaga em uma sessão específica.
-- Se a pessoa quer uma experiência específica, a experiência tem vaga e o ingresso atual não dá acesso, **recomendar o upgrade imediatamente** e depois orientar a pessoa a fazer a reserva.
+- Antes de oferecer qualquer upgrade, verificar se a categoria de destino **ainda pode ser vendida** pela fonte atual de disponibilidade.
+- Se a pessoa quer uma experiência específica, a categoria de destino ainda pode ser vendida e a sessão tem vaga, **recomendar o upgrade imediatamente** e depois orientar a própria pessoa a fazer a reserva.
 - Escolher o **menor upgrade suficiente** para resolver a necessidade:
-  - Mind quer workshop -> recomendar VIP, não Prime, salvo outra necessidade que justifique Prime.
-  - VIP quer Masterclass -> Prime.
-  - Mind quer Masterclass -> Prime.
-  - Prime -> não oferecer upgrade.
+  - Mind quer workshop → VIP, não Prime, salvo outra necessidade que justifique Prime.
+  - VIP quer Masterclass → Prime.
+  - Mind quer Masterclass → Prime.
+  - Prime → não oferecer upgrade.
 - Não oferecer upgrade como primeira solução se houver boa alternativa já incluída no ingresso e ela resolver a necessidade da pessoa.
-- Preço, parcelamento, disponibilidade e link devem vir do backend/fonte comercial atual.
-- Atendimento **pode** oferecer upgrade ou novo ingresso quando isso for solução útil para o problema. A antiga regra “aqui não se vende” não pode impedir a resolução.
+- Atendimento **pode** oferecer upgrade ou novo ingresso quando isso for solução útil para o problema.
+
+## Disponibilidade e escassez por categoria
+
+- Escassez pertence à **categoria de ingresso**, não apenas ao upgrade. O mesmo sinal vale para:
+  - compra direta VIP;
+  - compra direta Prime;
+  - upgrade com destino VIP;
+  - upgrade com destino Prime.
+- Fonte pública canônica do percentual vendido: **site oficial `https://mindsummit.com.br/`**.
+- O sistema deve consultar o site e atualizar essa disponibilidade **uma vez por dia às 18:00, horário de São Paulo**.
+- O percentual exibido publicamente pelo site **pode ser informado ao participante**.
+- A quantidade absoluta restante **não deve ser informada**.
+- O agente pode usar linguagem qualitativa de escassez quando sustentada pela fonte pública, por exemplo “os ingressos estão terminando”.
+- Se o percentual chegar a **100%**, a categoria não pode ser oferecida/vendida pelo agente.
+- A regra interna `pode_vender` deve ser checada antes de recomendar compra ou upgrade.
+- Não derivar quantidade absoluta restante a partir do percentual publicado.
 
 ---
 
@@ -385,6 +422,7 @@ Os documentos de origem registram certificados específicos condicionados ao sca
 - Se vários ingressos foram comprados com o mesmo e-mail, precisam ser atribuídos aos e-mails individuais dos participantes.
 - Participante autenticado: não pedir novamente dados já validados.
 - Nunca inferir categoria de ingresso por cargo, empresa, interesse ou aparência do perfil.
+- A categoria de ingresso deve vir da Intelligence alimentada pelo credenciamento quando essa integração estiver disponível.
 - Se a pessoa sabe o e-mail, orientar uso do e-mail da compra conforme mecanismo vigente do app.
 - Se não sabe o e-mail / não encontra ingresso, usar fluxo seguro de recuperação; não despejar CPF completo em conversa livre quando houver alternativa segura.
 - Não revelar lista de possíveis cadastros, e-mails completos, telefone, CPF ou categoria antes de verificação apropriada.
@@ -411,8 +449,7 @@ Exemplos de contexto útil:
 - identidade/pessoa_id;
 - nome;
 - e-mail associado;
-- categoria Mind/VIP/Prime;
-- reservas/agenda quando tecnicamente disponíveis;
+- categoria Mind/VIP/Prime, quando vier da Intelligence/credenciamento;
 - interesses;
 - objetivos para o Summit;
 - cargo;
@@ -424,7 +461,14 @@ Exemplos de contexto útil:
 - tradução;
 - recomendações/refusos/preferências anteriores;
 - conteúdos desejados/perdidos;
-- sinais comerciais sustentados por evidência.
+- sinais comerciais sustentados por evidência;
+- informações sobre agenda/reservas **somente quando a própria pessoa as disser na conversa**.
+
+## Agenda pessoal — decisão fechada
+
+- Não teremos uma fonte sistêmica de agenda pessoal para o Concierge.
+- Não construir leitura de reservas/Minha Agenda para esse agente.
+- Se a pessoa disser “já reservei X e Y”, isso passa a ser contexto da conversa e pode ser usado para recomendar melhor.
 
 ## Memória — decisão fechada
 
@@ -439,9 +483,9 @@ Exemplos de contexto útil:
 Continua proibido usar memória de personalização para guardar saúde pessoal/sensível do titular ou de terceiro identificável.
 
 Exemplos:
-- “minha equipe está exausta”, “quero reduzir burnout na organização” -> contexto profissional, pode ser útil.
-- “eu estou em burnout”, “tomo antidepressivo”, “me afastei” -> acolher, mas não guardar como memória de personalização.
-- saúde de pessoa nomeada/identificável -> não guardar como personalização.
+- “minha equipe está exausta”, “quero reduzir burnout na organização” → contexto profissional, pode ser útil.
+- “eu estou em burnout”, “tomo antidepressivo”, “me afastei” → acolher, mas não guardar como memória de personalização.
+- saúde de pessoa nomeada/identificável → não guardar como personalização.
 
 A remoção do limite de interesses **não elimina proteção de dados sensíveis**.
 
@@ -457,7 +501,7 @@ Não apenas responder perguntas. Fazer a pessoa sair do Summit com algo mais con
 
 Ciclo:
 
-**entender a necessidade real -> ajudar a pensar -> conectar com conteúdo/pessoa/experiência -> orientar uma jornada realizável -> acompanhar -> aprender com o resultado -> recomendar melhor.**
+**entender a necessidade real → ajudar a pensar → conectar com conteúdo/pessoa/experiência → orientar uma jornada realizável → acompanhar → aprender com o resultado → recomendar melhor.**
 
 ## Como aprende
 
@@ -483,7 +527,7 @@ Recomendar uma agenda/jornada realizável, considerando conjuntamente:
 - problema que quer resolver;
 - formato preferido;
 - ingresso;
-- conflitos de horário;
+- conflitos de horário que possam ser percebidos a partir do que a pessoa contou;
 - local/deslocamento;
 - vagas;
 - descanso/alimentação/networking;
@@ -499,14 +543,16 @@ Recomendar uma agenda/jornada realizável, considerando conjuntamente:
 ## Jornada futura a preservar como intenção de produto
 
 Mesmo que ainda não esteja toda tecnicamente disponível, não perder como requisito de produto:
-- acompanhar o que a pessoa tentou/ver/perdeu;
-- usar agenda/jornada como sinal quando disponível;
-- não perguntar o que o sistema já sabe;
-- após sessão, aprender reflexão/nota/aplicação;
-- contextualizar NPS pela jornada;
-- no fim do dia 1 produzir “Seu Summit até aqui”;
+- acompanhar o que a pessoa contar que tentou/ver/perdeu;
+- usar escolhas relatadas pela pessoa como sinal;
+- não perguntar novamente o que o sistema/conversa já sabe;
+- após sessão, aprender reflexão/nota/aplicação quando a pessoa compartilhar;
+- contextualizar NPS pela jornada conhecida;
+- no fim do dia 1 produzir “Seu Summit até aqui” com base no que foi aprendido na conversa;
 - no dia 2 retomar o que ficou aberto e evitar repetição;
 - incluir também uma sessão que amplie repertório.
+
+Não transformar isso em integração com uma agenda pessoal que o produto decidiu não ter.
 
 ---
 
@@ -563,7 +609,7 @@ Priorizar conforme contexto:
 
 Lembrar conforme necessário:
 - elegibilidade do ingresso;
-- conflitos;
+- conflitos conhecidos pelo que a pessoa contou;
 - necessidade de reserva;
 - vaga;
 - regra dos 5 minutos;
@@ -594,15 +640,14 @@ Regra: não despejar todos os avisos de uma vez. Dar o **próximo aviso mais út
 
 # 21. Pendências que NÃO podem virar fato por suposição
 
-1. **Preços, links e parcelamentos de upgrade atuais**: verificar backend. Se não estiverem lá, precisam entrar em Summit/Commercial Intelligence.
-2. **Fluxo final seguro de recuperação de conta**: direção definida neste documento, mas implementação final ainda precisa ser investigada/desenhada contra o sistema real.
-3. **Política de privacidade / base legal / retenção / finalidade**: haverá aceite no app, mas precisa existir texto/política válida por trás do aceite. Checkbox sozinho não define esses conteúdos.
-4. **Tour/tutorial de agendamento**: localizar/documentar o ativo já existente no frontend e como o Concierge poderá acioná-lo/oferecê-lo.
-5. **Chapelaria**: localização, horário, itens aceitos, preço e responsabilidade ainda precisam vir de fonte oficial.
-6. **Horário-limite exato do reembolso quando coincide com o dia do evento**.
-7. **Link/fluxo oficial direto da Eduzz para reembolso**.
-8. **Short link oficial do app/plataforma Mind Institute**.
-9. **Identidade verbal final do Concierge** (por exemplo, se haverá nome próprio como “Mindy”) ainda não está fechada neste documento.
+1. **Fluxo final seguro de recuperação de conta**: direção definida neste documento, mas implementação final ainda precisa ser investigada/desenhada contra o sistema real.
+2. **Política de privacidade / base legal / retenção / finalidade**: haverá aceite no app, mas precisa existir texto/política válida por trás do aceite. Checkbox sozinho não define esses conteúdos.
+3. **Tour/tutorial de agendamento**: ativo já localizado no frontend; ainda precisa estar conectado/documentado como capacidade acionável pelo Concierge.
+4. **Chapelaria**: localização, horário, itens aceitos, preço e responsabilidade ainda precisam vir de fonte oficial.
+5. **Horário-limite exato do reembolso quando coincide com o dia do evento**.
+6. **Link/fluxo oficial direto da Eduzz para reembolso**.
+7. **Short link oficial do app/plataforma Mind Institute**.
+8. **Identidade verbal final do Concierge**: usar “Concierge do Mind” até decisão explícita diferente; nome próprio como “Mindy” não está fechado.
 
 ---
 
@@ -610,7 +655,7 @@ Regra: não despejar todos os avisos de uma vez. Dar o **próximo aviso mais út
 
 Antes de implementar qualquer parte:
 
-**INVESTIGAR -> ENTENDER O QUE JÁ EXISTE -> DECIDIR A MENOR MUDANÇA -> IMPLEMENTAR -> TESTAR SÓ O AFETADO -> VERIFICAR EFEITO REAL -> DOCUMENTAR.**
+**INVESTIGAR → ENTENDER O QUE JÁ EXISTE → DECIDIR A MENOR MUDANÇA → IMPLEMENTAR → TESTAR SÓ O AFETADO → VERIFICAR EFEITO REAL → DOCUMENTAR.**
 
 Não criar tabela, campo, enum, prompt ou mecanismo novo apenas porque este documento contém um conceito. Primeiro verificar a infraestrutura real e reutilizar a casa canônica existente quando ela resolver.
 
@@ -619,5 +664,7 @@ Não criar tabela, campo, enum, prompt ou mecanismo novo apenas porque este docu
 # 23. Referências internas
 
 - Issue/checkpoint de origem desta consolidação: **GitHub #55 — CHECKPOINT — MASTER Concierge/Summit decisões fechadas 2026-09-02**.
+- Runbook de execução: **`SUMMIT_2026_EXECUTION_RUNBOOK.md`**.
+- Sync diário de disponibilidade: **`supabase/functions/mindagent-sync-disponibilidade/index.ts`**.
 - Este arquivo deve ser atualizado sempre que uma verdade aqui for explicitamente alterada pela Adriana.
 - `CHECKPOINT_ATUAL.md` continua sendo checkpoint de execução do projeto; este arquivo é a referência auxiliar de verdade do Summit/Agents.
