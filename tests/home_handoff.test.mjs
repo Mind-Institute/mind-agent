@@ -20,38 +20,45 @@ const cards = readFileSync(new URL('../home/cards.js', import.meta.url), 'utf8')
 const avisos = readFileSync(new URL('../home/avisos.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 
-test('os quatro atalhos levam a destinos que existem', () => {
+test('os três atalhos levam a destinos que existem', () => {
   /* Um atalho é uma promessa: "toque e você chega em Meu ingresso". Se o
      destino não existir, `acaoDaHome` cai no `irParaConversa(null)` do
      fim e a pessoa vai parar no chat — sem erro nenhum na tela, que é o
      que torna isto invisível em revisão. */
   const bloco = estado.slice(estado.indexOf("tipo: 'atalhos'"), estado.indexOf("tipo: 'secao', titulo: 'Avisos"));
   const destinos = [...bloco.matchAll(/acao: '([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(destinos, ['tour:qrcode', 'tour:minha-agenda', 'tour', 'roteiro:mapa'],
-    'os destinos dos Atalhos mudaram');
+  assert.deepEqual(destinos, ['tour:qrcode', 'tour:minha-agenda', 'tour'],
+    'os destinos dos atalhos mudaram');
 
-  /* `roteiro:` faz o CAMINHO, `tour:` mostra a tela. O mapa mora dentro do
-     Menu: abrir a tela pronta mostraria o mapa e esconderia o caminho, que
-     é justamente o que precisa ser ensinado. */
+  /* O tile do mapa saiu em 02/09 para os três caberem numa linha e sobrar
+     altura para mais um aviso. O ROTEIRO `mapa` continua existindo e
+     continua alcançável — de dentro do tour, pelo Menu, e por
+     `abrirTourCompleto('mapa')`. O que saiu foi o atalho, não o caminho. */
   assert.match(app, /if \(acao\.startsWith\('roteiro:'\)\) return abrirTourCompleto/,
     'a ação de roteiro guiado deixou de ser tratada');
-  /* O `nome` do roteiro entra antes do `de`, então a asserção olha o
-     bloco e não duas linhas coladas — o que ela guarda é de ONDE o
-     roteiro parte, não a ordem em que os campos foram escritos. */
   const roteiroMapa = app.slice(app.indexOf('  mapa: {'), app.indexOf('  ingresso: {'));
   assert.match(roteiroMapa, /de: 'menu'/,
-    'o roteiro do mapa deixou de começar no Menu e voltou a pular para a tela');
+    'o roteiro do mapa deixou de começar no Menu');
 
-  /* `tour` e `tour:` são tratados; e cada tela citada precisa existir em
-     TELAS, senão `abrirTutorialEm` abre o tour vazio. */
   assert.match(app, /if \(acao === 'tour'\) return abrirTourCompleto\(\)/,
     'o destino do atalho de reservas deixou de ser tratado');
   assert.match(app, /if \(acao\.startsWith\('tour:'\)\) return abrirTutorialEm/,
     'os destinos com tela deixaram de ser tratados');
   for (const tela of ['qrcode', 'minha-agenda', 'mapa']) {
     assert.ok(app.includes("'" + tela + "': {"),
-      'a tela ' + tela + ' saiu do tour, e o atalho que aponta para ela virou promessa vazia');
+      'a tela ' + tela + ' saiu do tour');
   }
+});
+
+test('três atalhos cabem numa linha, e sem descrição', () => {
+  /* Em 360px cada tile fica com ~99px. A descrição ali vira palavra
+     picada em quatro linhas; o título sozinho já diz para onde vai. */
+  assert.match(cards, /itens\.length === 3 \? ' trio' : ''/,
+    'a grade parou de reconhecer o trio e volta a duas colunas');
+  assert.match(cards, /repeat\(' \+ Math\.min\(itens\.length, 3\)/,
+    'o número de colunas voltou a ser fixo no CSS em vez de vir da quantidade');
+  assert.match(css, /\.v3-atalhos\.trio \.v3-atalho\s*\{[^}]*text-align:\s*center/,
+    'o tile do trio perdeu a centralização');
 });
 
 test('nenhum bloco da home encolhe para caber', () => {

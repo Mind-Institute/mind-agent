@@ -435,9 +435,21 @@ body {
 .v3-acao .v3-micro { margin-left: 0; font-size: 13px; }
 
 /* ---- Atalhos: dois por linha ---- */
-.v3-atalhos {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+/* As colunas vêm do JS, pela quantidade de itens. */
+.v3-atalhos { display: grid; gap: 12px; }
+
+/* ---- Trio: três atalhos lado a lado ----
+   Cada tile fica com ~98px num aparelho de 360. Ícone em cima, título
+   embaixo, os dois centrados — e sem descrição nem chevron, que ali não
+   caberiam sem picar palavra. O alvo continua com folga de sobra: 44px é
+   o mínimo e o tile passa de 80. */
+.v3-atalhos.trio .v3-atalho {
+  align-items: center; text-align: center;
+  min-height: 88px; padding: 12px 8px; gap: 8px;
 }
+.v3-atalhos.trio .v3-atalho strong { font-size: 13px; line-height: 1.25; }
+.v3-atalhos.trio .v3-ico { width: 34px; height: 34px; }
+.v3-atalhos.trio .v3-ico svg { width: 20px; height: 20px; }
 .v3-atalho {
   appearance: none; cursor: pointer; text-align: left;
   border: 1px solid color-mix(in srgb, var(--texto-mudo) 32%, transparent);
