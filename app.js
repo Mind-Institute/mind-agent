@@ -701,6 +701,7 @@ const ROTA = {
    o ingresso, não uma volta pelo app. */
 const ROTEIROS = {
   reserva: {
+    nome: 'Lugar reservado',
     de: 'agenda',
     missoes: [
       { id: 'm2', txt: 'Reservar seu lugar numa sessão', tela: 'detalhe', alvo: 'reservar' },
@@ -718,6 +719,7 @@ const ROTEIROS = {
      pede o toque em "Mapa do evento". `ROTA` ja sabe que `mapa` vem de
      `menu` pelo alvo `mapa`, entao a dica e o anel saem prontos. */
   mapa: {
+    nome: 'Mapa do evento',
     de: 'menu',
     missoes: [
       { id: 'p1', txt: 'Abrir o Mapa do evento', tela: 'mapa' },
@@ -730,6 +732,7 @@ const ROTEIROS = {
   },
   ingresso: {
     /* Começa já no leitor, que é onde a aba cai. Um passo só. */
+    nome: 'Seu ingresso',
     de: 'scanner',
     missoes: [
       { id: 'i1', txt: 'Abrir o seu ingresso', tela: 'qrcode' },
@@ -756,7 +759,8 @@ const frame = document.getElementById('frame');
 const conteudo = document.getElementById('conteudo');
 const telaImg = document.getElementById('tela-img');
 const balao = document.getElementById('balao');
-const rotulo = document.getElementById('rotulo');
+const explica = document.getElementById('t-explica');
+const previa  = document.getElementById('t-previa');
 const brinde = document.getElementById('brinde');
 const fnav = document.getElementById('fnav');
 const folhaFundo = document.getElementById('folha-fundo');
@@ -1011,9 +1015,10 @@ function pintar(modo) {
     conteudo.appendChild(el);
   });
 
-  /* para que serve esta tela — sempre visível */
-  rotulo.hidden = !tela.serve;
-  rotulo.innerHTML = tela.serve ? '<b>' + tela.rotulo + '</b><span>' + tela.serve + '</span>' : '';
+  /* PARA QUE SERVE ESTA TELA — no rodapé, fora do print. Antes era uma
+     faixa por cima da própria captura: escurecia o topo da tela que a
+     demonstração existe para mostrar. Fora dela, a captura fica inteira. */
+  explica.textContent = tela.serve || '';
 
   /* balão azul: só a próxima ação */
   const alvoDica = dica && dica.alvo ? (tela.alvos || []).find((a) => a.id === dica.alvo) : null;
@@ -1268,7 +1273,24 @@ function concluirMissao(id) {
   }
 }
 
+/* "Prévia da tela · não é o seu ingresso" — a segunda metade muda com a
+   tela, porque negar a coisa CERTA é o que faz o aviso pegar. Dizer "não
+   é o seu app" na tela do ingresso é vago justamente onde a confusão é
+   mais cara: é ali que a pessoa tentaria apresentar o código na entrada. */
+const NEGA_POR_TELA = {
+  qrcode:  'não é o seu ingresso',
+  scanner: 'não é o seu ingresso',
+  'minha-agenda': 'não é a sua agenda',
+  agenda:  'não é a programação ao vivo',
+};
+
+function textoDePrevia() {
+  const n = NEGA_POR_TELA[telaAtual];
+  return 'Prévia da tela' + (n ? ' · ' + n : ' · não é o seu app');
+}
+
 function atualizarMissao() {
+  previa.textContent = textoDePrevia();
   if (telaAvulsa) {
     const t = TELAS[telaAtual];
     /* `textContent`: o rótulo é constante nossa, mas a barra aceita HTML
@@ -1282,9 +1304,13 @@ function atualizarMissao() {
   document.getElementById('ver-missoes').hidden = false;
   const m = missaoAtual();
   const i = m ? MISSOES.indexOf(m) : MISSOES.length;
-  missaoTexto.innerHTML = m
-    ? '<i>' + (i + 1) + '/' + MISSOES.length + '</i>' + m.txt
-    : '<i>✓</i>' + (ROTEIROS[roteiroAtual].concluido || 'Pronto 💚');
+  /* NOME DA DEMONSTRAÇÃO, não a missão. O título do frame é irmão de "Seu
+     ingresso" e "Mapa do evento" — nome curto de tela. A missão inteira
+     ali dentro virava uma frase comprida com um contador que as bolinhas
+     ao lado já mostram, e o que fazer agora já está dito no balão coral,
+     dentro do quadro, onde a ação acontece. */
+  missaoTexto.textContent = ROTEIROS[roteiroAtual].nome
+    || (TELAS[telaAtual] && TELAS[telaAtual].rotulo) || '';
   missaoProg.innerHTML = MISSOES.map((x, j) =>
     '<i class="' + (feitas.has(x.id) ? 'ok' : (j === i ? 'atual' : '')) + '"></i>').join('');
 }
@@ -1322,6 +1348,10 @@ function abrirTourCompleto(qual) {
   dicaDeArraste();
 }
 document.getElementById('fechar-tour').addEventListener('click', () => abrirVista('home'));
+/* Duas saidas para o mesmo lugar, de proposito: o `x` e o reflexo de quem
+   quer fechar, e o botao nomeado e para quem procura o caminho de volta e
+   nao arrisca o `x` sem saber onde vai parar. */
+document.getElementById('voltar-funcoes').addEventListener('click', () => abrirVista('home'));
 document.getElementById('btn-concluir').addEventListener('click', () => {
   parent.postMessage({ tipo: 'mindagent:tour-concluido' }, '*');
   document.getElementById('fim-fundo').classList.remove('aberto');

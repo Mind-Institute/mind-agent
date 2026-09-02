@@ -35,7 +35,11 @@ test('os quatro atalhos levam a destinos que existem', () => {
      é justamente o que precisa ser ensinado. */
   assert.match(app, /if \(acao\.startsWith\('roteiro:'\)\) return abrirTourCompleto/,
     'a ação de roteiro guiado deixou de ser tratada');
-  assert.match(app, /mapa: \{\s*\n\s*de: 'menu',/,
+  /* O `nome` do roteiro entra antes do `de`, então a asserção olha o
+     bloco e não duas linhas coladas — o que ela guarda é de ONDE o
+     roteiro parte, não a ordem em que os campos foram escritos. */
+  const roteiroMapa = app.slice(app.indexOf('  mapa: {'), app.indexOf('  ingresso: {'));
+  assert.match(roteiroMapa, /de: 'menu'/,
     'o roteiro do mapa deixou de começar no Menu e voltou a pular para a tela');
 
   /* `tour` e `tour:` são tratados; e cada tela citada precisa existir em
@@ -136,4 +140,35 @@ test('arrastar volta, e não teleporta na primeira tela', () => {
      o ponteiro no primeiro milímetro e o arrastar nunca acontece. */
   assert.match(css, /\.frame img\s*\{[^}]*user-drag:\s*none/,
     'a captura voltou a ser arrastável e o gesto de voltar morre no primeiro pixel');
+});
+
+test('a demonstração diz o tempo todo que não é o app da pessoa', () => {
+  /* Dentro do quadro está a captura da tela REAL e ela funciona: dá para
+     tocar e navegar. É por funcionar que o aviso precisa ser insistente —
+     senão alguém tenta apresentar o QR da demonstração na entrada.
+
+     Três avisos independentes, porque quem entra com pressa lê um só. */
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /class="t-selo"/, 'o selo "Demonstração" sumiu do topo');
+  assert.match(html, /id="t-previa"/, 'a frase de prévia sumiu do cabeçalho');
+  assert.match(css, /\.fone\s*\{[^}]*border:\s*2px solid var\(--verde\)/,
+    'a moldura verde em volta do quadro sumiu — era o aviso que não depende de leitura');
+  assert.match(app, /const NEGA_POR_TELA = \{/,
+    'a negação por tela sumiu: "não é o seu ingresso" vira "não é o seu app" '
+    + 'justamente onde a confusão é mais cara');
+});
+
+test('o botão de missões some quando não há missão', () => {
+  /* `hidden` vale por uma regra do navegador com especificidade zero, e
+     `.c-voltar` define `display: grid` — sem esta regra o `☰` aparecia na
+     tela avulsa e abria uma lista vazia. */
+  assert.match(css, /\.t-demo \.c-voltar\[hidden\]\s*\{\s*display:\s*none/,
+    'o `hidden` do botão de missões voltou a perder para o `display` do botão');
+});
+
+test('o título da demonstração é nome de tela, não instrução', () => {
+  assert.match(app, /nome: 'Lugar reservado'/,
+    'o roteiro de reserva perdeu o nome curto e o título volta a ser a missão inteira');
+  assert.match(app, /missaoTexto\.textContent = ROTEIROS\[roteiroAtual\]\.nome/,
+    'o cabeçalho voltou a escrever a missão com contador no lugar do nome');
 });

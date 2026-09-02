@@ -1097,44 +1097,78 @@ html[data-teclado="aberto"] .doca {
    originais, a barra de abas é HTML de verdade e só o toque
    no lugar certo faz a tela mudar
    ============================================================ */
-.t-missao {
+/* ---- O frame da demonstração ----
+   Três avisos independentes de que isto não é o app da pessoa: o selo
+   verde, a frase ao lado do título, e a moldura verde em volta do quadro.
+   Independentes porque quem entra com pressa lê um só. */
+.t-demo {
   flex: none;
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px 6px;
 }
-.t-missao .c-voltar { width: 34px; height: 34px; font-size: 15px; }
-
-/* Sair da demonstração. Pílula com palavra, no fim da barra, e o maior
-   alvo dela — foi o pedido, e é o botão que alguém procura com pressa.
-
-   NEUTRA de propósito: o coral é reservado para onde se quer que a pessoa
-   toque, e a saída é o contrário disso. Precisa ser fácil de achar sem
-   disputar com a instrução, e é o tamanho que faz isso, não a cor. */
-.t-sair {
-  appearance: none; cursor: pointer; flex: none;
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 40px; padding: 0 16px 0 14px;
+.t-selo {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 13px 0 10px;
   border-radius: var(--raio-pill);
-  border: 1.5px solid color-mix(in srgb, var(--texto-mudo) 70%, transparent);
-  background: rgba(255, 255, 255, .09);
+  background: var(--verde); color: #000;
+  font-size: 12px; font-weight: 900;
+  letter-spacing: .1em; text-transform: uppercase;
+  flex: none;
+}
+.t-selo svg { width: 15px; height: 15px; flex: none; }
+
+/* O `x` no alto à direita, redondo e sozinho: e um circulo so na barra,
+   sem outro do mesmo peso para confundir. O `☰` das missões só aparece
+   quando há roteiro, e nunca junto de um segundo círculo cinza. */
+.t-fechar {
+  appearance: none; cursor: pointer; flex: none;
+  width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1.5px solid color-mix(in srgb, var(--texto-mudo) 60%, transparent);
+  background: rgba(255, 255, 255, .08);
   color: var(--texto);
-  font: inherit; font-size: 15px; font-weight: 700;
   transition: background .18s ease, border-color .18s ease;
 }
-.t-sair svg { width: 16px; height: 16px; flex: none; }
-.t-sair:active { background: rgba(255, 255, 255, .16); border-color: var(--texto); }
-.t-missao .t-texto {
-  flex: 1; min-width: 0;
-  font-size: 12px; font-weight: 700; line-height: 1.25;
-  color: var(--texto-suave);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.t-fechar svg { width: 17px; height: 17px; }
+.t-fechar:active { background: rgba(255, 255, 255, .16); border-color: var(--texto); }
+/* O ESPAÇO SOBRA ANTES DOS CONTROLES, não entre eles. O `auto` estava no
+   próprio `x`, e a regra seguinte — escrita para colar o `☰` nele —
+   anulava justamente o `auto` que o empurrava: o `x` parava a 115px da
+   borda. Com o vazio no elemento de progresso, tudo que vem depois encosta
+   à direita, com `☰` ou sem ele. */
+.t-demo .t-prog { margin-left: auto; }
+.t-demo .c-voltar { width: 34px; height: 34px; font-size: 15px; }
+/* `hidden` PRECISA GANHAR DE `display: grid`. O atributo vale por uma
+   regra do navegador com especificidade zero, e `.c-voltar` define
+   `display: grid` — então esconder o botão pelo `hidden` não escondia
+   nada, e o `☰` aparecia na tela avulsa, que não tem missão nenhuma para
+   listar. */
+.t-demo .c-voltar[hidden] { display: none; }
+
+.t-cabeca {
+  flex: none;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 0 14px 10px;
 }
-.t-missao .t-texto i {
+.t-cabeca strong {
+  font-size: 19px; font-weight: 900; letter-spacing: -.01em;
+  color: var(--texto);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+/* A frase encolhe antes do título: o nome da tela é o que orienta, e a
+   frase ainda cabe em duas palavras quando a tela é estreita. */
+.t-cabeca small {
+  flex: none;
+  font-size: 12px; font-weight: 500; color: var(--texto-mudo);
+  text-align: right;
+}
+.t-cabeca strong i {
   font-style: normal; font-weight: 900;
   letter-spacing: .12em; text-transform: uppercase;
   color: var(--acao);
-  margin-right: 6px;
+  margin-right: 6px; font-size: 13px;
 }
+
 .t-prog { display: flex; gap: 5px; flex: none; }
 .t-prog i {
   width: 7px; height: 7px; border-radius: 50%;
@@ -1144,6 +1178,30 @@ html[data-teclado="aberto"] .doca {
 .t-prog i.ok { background: var(--verde); }
 .t-prog i.atual { background: var(--acao); transform: scale(1.35); }
 
+/* ---- Rodapé: o que a tela serve, e a porta de volta ----
+   O texto saiu de dentro do print — lá ele escurecia justamente o topo da
+   tela que a demonstração existe para mostrar. */
+.t-rodape {
+  flex: none;
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+}
+.t-rodape p {
+  flex: 1; min-width: 0;
+  font-size: 12.5px; line-height: 1.4; color: var(--texto-mudo);
+}
+.t-rodape button {
+  appearance: none; cursor: pointer; flex: none;
+  min-height: 44px; padding: 0 18px;
+  border-radius: var(--raio-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--texto);
+  font: inherit; font-size: 14px; font-weight: 700;
+  transition: background .18s ease;
+}
+.t-rodape button:active { background: var(--surface-deep); }
+
 .t-palco {
   flex: 1; min-height: 0;
   display: flex;
@@ -1152,9 +1210,16 @@ html[data-teclado="aberto"] .doca {
 
 /* O "telefone": foto da tela + barra de abas viva */
 /* A página inteira é a tela do celular: o app ocupa tudo, sem moldura */
+/* MOLDURA VERDE: o quadro é um aparelho de mentira mostrando um app de
+   verdade. A borda é o que separa "a tela do Summit" de "a sua tela", e
+   por isso é a cor da marca, não um cinza qualquer. É o terceiro aviso —
+   os outros dois são o selo e a frase de prévia, e nenhum depende do
+   outro ter sido lido. */
 .fone {
   position: relative;   /* âncora da seta que aponta a aba */
   margin: auto;
+  border: 2px solid var(--verde);
+  border-radius: 20px;
   aspect-ratio: 780 / 1570;
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -1306,27 +1371,10 @@ html[data-teclado="aberto"] .doca {
   display: grid; place-items: center;
 }
 
-/* Para que serve esta tela — sempre visível */
-.rotulo {
-  position: absolute; left: 0; right: 0; top: 0;
-  z-index: 4;
-  /* Opaco até depois da última linha de texto: a 62% o degradê já estava
-     clareando em cima da segunda linha e deixava o título da própria
-     captura vazar por trás. A dissolvência agora acontece só no respiro
-     de baixo. */
-  background: linear-gradient(to bottom, rgba(11,11,15,.985) 0 78%, rgba(11,11,15,0) 100%);
-  padding: 2.6cqw 4cqw 5cqw;
-  pointer-events: none;
-}
-.rotulo b {
-  display: block;
-  font-size: 2.8cqw; font-weight: 900; letter-spacing: .18em; text-transform: uppercase;
-  color: var(--verde);
-}
-.rotulo span {
-  display: block; margin-top: .9cqw;
-  font-size: 3.55cqw; line-height: 1.42; color: var(--texto);
-}
+/* A faixa `.rotulo` vivia aqui: um degradê escuro por cima do topo da
+   captura, com o nome da tela e o para-que-serve. Saiu em 02/09 junto com
+   o frame novo — o texto foi para o rodapé, fora do print, e a faixa
+   escurecia justamente a parte da tela que a demonstração quer mostrar. */
 
 /* Balão de instrução */
 .balao {
