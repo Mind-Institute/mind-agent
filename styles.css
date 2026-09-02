@@ -197,6 +197,14 @@ body {
   padding: 4px var(--pad) 16px;
   display: flex; flex-direction: column; gap: 10px;
 }
+/* NENHUM BLOCO ENCOLHE. Numa coluna flex que transborda, `flex-shrink`
+   vale 1 por padrão e o navegador espreme os filhos para tentar caber —
+   em vez de rolar. O `.v3-hero` já se defendia sozinho com `flex: none`;
+   enquanto todo bloco cabia em uma linha de texto ninguém mais precisou.
+   Com a descrição do aviso em duas linhas a conta estourou e o texto
+   passou 4,8px por baixo da borda do próprio card. A defesa vale para
+   todos, não para quem já tropeçou. */
+.v3-rolagem > * { flex: none; }
 
 /* ---- Seletor de momento: andaime de demonstração ----
    Tracejado de propósito: quem olha entende que não é produto. Sai no
@@ -219,10 +227,36 @@ body {
 
 /* ---- Cabeçalho do momento ---- */
 .v3-hero { flex: none; padding: 8px 0 4px; }
+
+/* ---- O hero do handoff (02/09) ----
+   A ESCALA MAIOR VALE SÓ AQUI, DE PROPÓSITO. O handoff desenhou a tela
+   "antes"; as outras três serão revistas com gente usando o app. Subir
+   `.v3-titulo` para 34px no seletor solto mudaria "Bom dia." do dia do
+   evento e as outras duas telas em silêncio, sem ninguém ter olhado.
+   Quando as três forem redesenhadas, isto sobe um nível e o modificador
+   some — é dívida anotada, não descuido.
+
+   O halo e a marca d'água são absolutos e não interativos. Ficam presos
+   ao hero e não à rolagem: assim acompanham o texto ao rolar, como no
+   desenho, e não ficam colados no topo da tela. */
+.v3-hero.decorado { position: relative; isolation: isolate; }
+.v3-halo, .v3-agua { position: absolute; pointer-events: none; z-index: -1; }
+.v3-halo {
+  width: 260px; height: 260px; border-radius: 50%;
+  top: -40px; right: -70px;
+  background: radial-gradient(circle, rgba(104, 238, 149, .18) 0%, transparent 70%);
+}
+.v3-agua { width: 92px; height: 92px; top: 4px; right: 14px; opacity: .16; }
+
 .v3-etq {
   font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
   color: var(--verde);
 }
+.v3-hero.decorado .v3-etq { letter-spacing: .16em; }
+.v3-hero.decorado .v3-titulo {
+  font-size: 34px; font-weight: 900; line-height: 1.04; margin-top: 12px;
+}
+.v3-hero.decorado .v3-resumo { margin-top: 10px; font-size: 15px; line-height: 1.5; }
 /* A contagem, em dias. Não precisa de tabular: o número muda uma vez por
    dia, não a cada segundo. */
 .v3-relogio { letter-spacing: .04em; }
@@ -335,6 +369,77 @@ body {
 .v3-proxima strong { font-size: 17px; font-weight: 700; line-height: 1.25; }
 .v3-proxima small { font-size: 13px; color: var(--texto-mudo); }
 
+/* ---- Card de marca: a assinatura do Concierge ----
+   O único card do app com sombra, e a sombra é verde. É deliberado no
+   handoff: um card sozinho pode ser o principal sem precisar gritar. */
+.v3-destaque.destaque-marca {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--verde) 35%, transparent);
+  border-radius: var(--raio-card);
+  padding: 20px;
+  margin-top: 24px;
+  gap: 12px;
+  box-shadow: 0 20px 50px rgba(104, 238, 149, .08);
+}
+.v3-destaque.destaque-marca:active { border-color: var(--verde); }
+.v3-destaque.destaque-marca .v3-cabeca { gap: 10px; margin-bottom: 0; }
+.v3-bug {
+  width: 28px; height: 28px; border-radius: 50%; flex: none;
+  background: color-mix(in srgb, var(--verde) 14%, transparent);
+  display: grid; place-items: center;
+}
+.v3-bug img { width: 16px; height: 16px; display: block; }
+.v3-destaque.destaque-marca .v3-selo {
+  font-size: 13px; font-weight: 700; letter-spacing: .02em; color: var(--verde);
+}
+.v3-destaque.destaque-marca .v3-pergunta {
+  font-size: 21px; font-weight: 900; letter-spacing: -.02em; line-height: 1.15;
+}
+.v3-destaque.destaque-marca .v3-texto { margin-top: 0; font-size: 14px; line-height: 1.5; }
+
+/* A ação: pílula verde e, ao lado, a estimativa. A pílula estica e a
+   estimativa não — em 360px é o rótulo que precisa do espaço. */
+.v3-acao { display: flex; align-items: center; gap: 14px; margin-top: 2px; }
+.v3-pill {
+  flex: 1; min-height: 46px; border-radius: var(--raio-pill);
+  background: var(--verde); color: #000;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 15px; font-weight: 700;
+  padding: 0 16px;
+}
+.v3-pill .seta { width: 16px; height: 16px; flex: none; }
+.v3-acao .v3-micro { margin-left: 0; font-size: 13px; }
+
+/* ---- Atalhos: dois por linha ---- */
+.v3-atalhos {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.v3-atalho {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid color-mix(in srgb, var(--texto-mudo) 32%, transparent);
+  background: rgba(255, 255, 255, .07);
+  border-radius: 18px;
+  padding: 14px;
+  font: inherit; color: var(--texto);
+  min-height: 96px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .18s ease, background .18s ease;
+}
+.v3-atalho:active { border-color: var(--verde); background: rgba(255, 255, 255, .1); }
+.v3-atalho-topo { display: flex; align-items: flex-start; justify-content: space-between; }
+.v3-atalho .v3-ico {
+  width: 38px; height: 38px; border-radius: 12px; flex: none;
+  background: color-mix(in srgb, var(--verde) 12%, transparent);
+  color: var(--verde);
+  display: grid; place-items: center;
+}
+.v3-atalho .v3-ico svg { width: 22px; height: 22px; }
+.v3-atalho .chevron { width: 13px; height: 13px; flex: none; color: var(--texto-mudo); }
+.v3-atalho strong { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.v3-atalho small {
+  margin-top: 2px; font-size: 12px; line-height: 1.35; color: var(--texto-mudo);
+}
+
 /* ---- Linha: ícone, título, apoio ---- */
 .v3-linha {
   appearance: none; cursor: pointer; text-align: left;
@@ -354,6 +459,39 @@ body {
   display: grid; place-items: center;
 }
 .v3-linha .v3-ico svg { width: 19px; height: 19px; }
+
+/* ---- Aviso: a linha com cor de categoria ----
+   Só a linha de AVISO ganha fundo e alinhamento ao topo. As outras
+   linhas do app — "Diagnóstico concluído", "Preparar meu Dia 2" — são
+   uma frase curta e continuam vazadas, como sempre foram.
+
+   A tinta vive num lugar só e vale para a home e para a tela de avisos:
+   as duas desenham a mesma linha, e foi para não desenharem duas que
+   `c-*` existe. */
+.v3-linha.aviso {
+  align-items: flex-start;
+  background: rgba(255, 255, 255, .07);
+  border-color: color-mix(in srgb, var(--texto-mudo) 32%, transparent);
+  border-radius: 16px;
+  gap: 12px;
+}
+.v3-linha.aviso .v3-corpo strong { font-size: 14px; }
+.v3-linha.aviso .v3-corpo small { font-size: 12.5px; line-height: 1.45; margin-top: 1px; }
+.v3-linha.aviso .chevron { margin-top: 10px; }
+
+.c-no_evento .v3-ico, .c-no_evento.av-ico {
+  background: color-mix(in srgb, var(--roxo) 16%, transparent); color: var(--roxo);
+}
+.c-reservas .v3-ico, .c-reservas.av-ico {
+  background: color-mix(in srgb, var(--coral) 14%, transparent); color: var(--coral);
+}
+.c-antes_de_ir .v3-ico, .c-ingressos .v3-ico,
+.c-antes_de_ir.av-ico, .c-ingressos.av-ico {
+  background: color-mix(in srgb, var(--verde) 12%, transparent); color: var(--verde);
+}
+.v3-linha.aviso.c-no_evento:active { border-color: var(--roxo); }
+.v3-linha.aviso.c-reservas:active { border-color: var(--coral); }
+
 .v3-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .v3-corpo strong { font-size: 15px; font-weight: 700; line-height: 1.25; }
 .v3-corpo small { font-size: 12.5px; line-height: 1.35; color: var(--texto-mudo); }
@@ -398,14 +536,21 @@ body {
 .v3-tour .seta { width: 18px; height: 18px; flex: none; color: var(--coral); }
 
 /* ---- Título de seção ---- */
+/* A rolagem já separa os blocos com `gap: 10px`, então as margens aqui
+   são o que FALTA para os 32px acima e 14px abaixo que o handoff pede —
+   não os números dele. Somar sem descontar o gap dá 42px. */
 .v3-secao {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  margin-top: 18px; padding: 0 2px;
+  margin: 22px 0 4px; padding: 0 2px;
 }
-.v3-secao h2 { font-size: 16px; font-weight: 700; color: var(--texto); }
+.v3-secao h2 {
+  font-size: 17px; font-weight: 900; letter-spacing: -.01em; color: var(--texto);
+}
+/* "Ver todos" é caminho, não ação: cinza com chevron, como no handoff.
+   Verde aqui competia com a pílula do card de marca, que é A ação. */
 .v3-link {
   appearance: none; cursor: pointer; border: 0; background: none;
-  font: inherit; font-size: 13px; font-weight: 600; color: var(--verde);
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--texto-suave);
   padding: 4px 2px;
 }
 
@@ -459,17 +604,53 @@ body {
   padding: 14px var(--pad) max(20px, env(safe-area-inset-bottom));
 }
 
+/* ---- Chips de categoria ----
+   Rolam na horizontal em vez de quebrar linha: cinco chips não cabem em
+   360px, e quebrar empurraria a lista para baixo da dobra. A barra de
+   rolagem some porque o corte no chip já diz que há mais à direita. */
+.av-chips {
+  display: flex; gap: 8px; margin-bottom: 16px;
+  overflow-x: auto; scrollbar-width: none;
+  /* Sangra até a borda da tela e devolve o respiro por dentro: assim o
+     primeiro chip alinha com o texto e o último não encosta no vidro. */
+  margin-inline: calc(var(--pad) * -1); padding-inline: var(--pad);
+}
+.av-chips::-webkit-scrollbar { display: none; }
+.av-chip {
+  appearance: none; cursor: pointer; flex: none;
+  height: 34px; padding: 0 16px; border-radius: var(--raio-pill);
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, .05);
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--texto-suave);
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+.av-chip.on {
+  background: var(--verde); color: #000; font-weight: 700; border-color: var(--verde);
+}
+.av-bolinha { width: 7px; height: 7px; border-radius: 50%; flex: none; background: currentColor; }
+.av-chip.c-antes_de_ir .av-bolinha { background: var(--verde); }
+.av-chip.c-no_evento .av-bolinha { background: var(--roxo); }
+.av-chip.c-reservas .av-bolinha { background: var(--coral); }
+/* Ativo, o chip é verde cheio: o ponto colorido dentro dele viraria
+   mancha. Ele já não precisa se identificar — está selecionado. */
+.av-chip.on .av-bolinha { display: none; }
+
 .av-lista { display: flex; flex-direction: column; gap: 9px; }
 .av-item {
   appearance: none; cursor: pointer; text-align: left;
-  background: none; border: 1px solid var(--hairline);
-  border-radius: 18px; padding: 14px 16px;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid color-mix(in srgb, var(--texto-mudo) 32%, transparent);
+  border-radius: 16px; padding: 16px;
   font: inherit; color: var(--texto);
   min-height: 74px;
-  display: flex; align-items: center; gap: 14px;
+  /* Ao topo, não ao centro: aqui a descrição vem inteira e chega a três
+     linhas. Centrado, o ícone descia junto e a linha perdia a leitura. */
+  display: flex; align-items: flex-start; gap: 14px;
   transition: border-color .18s ease;
 }
 .av-item:active { border-color: var(--verde); }
+.av-item .chevron, .av-item .av-ponto { margin-top: 11px; }
 /* Não lido tem borda acesa e o ponto: dois sinais, porque cor sozinha
    não serve para quem não distingue verde de cinza. */
 .av-item.novo { border-color: color-mix(in srgb, var(--verde) 45%, transparent); }
@@ -646,17 +827,13 @@ html[data-teclado="aberto"] .doca {
   padding-bottom: 8px;
 }
 
-/* A BARRA DE ABAS SAI DE CENA ENQUANTO SE DIGITA. Vale para qualquer barra
-   inferior do app: some por altura zero, não por `display: none`, para a coluna
-   flex encolher sem a conversa dar um pulo de reflow. Hoje `.fnav` vive dentro
-   do telefone simulado do tour e não é atingida — a regra fica pronta para a
-   barra real do app, e é inerte enquanto ela não existir. */
-html[data-teclado="aberto"] .barra-abas {
-  height: 0;
-  padding-block: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
+/* Aqui existia uma regra que escondia `.barra-abas` durante a digitação —
+   escrita para "a barra real do app", que este app nunca teve. Em 02/09
+   ficou decidido que a barra de 5 abas do desenho é do app HOSPEDEIRO do
+   Summit, e não vai ser desenhada aqui: quem digita neste app vê a doca e
+   mais nada abaixo dela. A regra mirava uma classe que não existe em
+   lugar nenhum do repositório, e foi removida com o teste que a prendia.
+   Se um dia esta app ganhar barra própria, a regra volta junto com ela. */
 .doca form { position: relative; display: flex; }
 .doca input {
   flex: 1;

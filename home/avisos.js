@@ -18,7 +18,7 @@
    tabela existir no Supabase, é só essas duas funções passarem a falar
    com ela — nenhuma tela muda. */
 
-import { AVISOS } from './estado.js';
+import { AVISOS, CATEGORIAS_AVISO } from './estado.js';
 
 const CHAVE = 'mindagent:v1:avisos-lidos';
 
@@ -65,27 +65,78 @@ function no(tag, classe, dentro) {
 const CHEVRON =
   '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5.5L15.5 12 9 18.5"/></svg>';
 
-/** A lista inteira. `aoAbrir(id)` recebe o aviso escolhido. */
+/** A lista inteira, com os chips de categoria acima. `aoAbrir(id)` recebe
+ *  o aviso escolhido.
+ *
+ *  O filtro é estado local desta montagem: sair da tela e voltar traz
+ *  "Todos" de novo. É o que o handoff descreve, e é o que se espera de um
+ *  filtro que não aparece na URL — guardá-lo faria a pessoa voltar dias
+ *  depois a uma lista misteriosamente curta. */
 export function listaDeAvisos(aoAbrir) {
-  const jaLidos = lidos();
-  const el = no('div', 'av-lista');
-  AVISOS.forEach((a) => {
-    const naoLido = !jaLidos.includes(a.id);
-    const b = no('button', 'av-item' + (naoLido ? ' novo' : ''));
+  const frag = document.createDocumentFragment();
+  const lista = no('div', 'av-lista');
+  let filtro = 'todos';
+
+  /* Só entram chips de categoria que EXISTE em circulação. Um chip que
+     nunca tem o que mostrar é uma gaveta vazia com etiqueta. */
+  const presentes = CATEGORIAS_AVISO.filter((c) => AVISOS.some((a) => a.cat === c.id));
+
+  const chips = no('nav', 'av-chips');
+  chips.setAttribute('aria-label', 'Filtrar avisos por categoria');
+  const botoes = [{ id: 'todos', rotulo: 'Todos', ponto: false }, ...presentes];
+
+  function pintarChips() {
+    chips.querySelectorAll('button').forEach((b) => {
+      const on = b.dataset.cat === filtro;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  botoes.forEach((c) => {
+    const b = no('button', 'av-chip' + (c.ponto ? ' c-' + c.id : ''));
     b.type = 'button';
-    b.innerHTML =
-      '<span class="av-ico">' + a.ico + '</span>' +
-      '<span class="av-corpo">' +
-        '<strong>' + a.titulo + '</strong>' +
-        '<small>' + a.resumo + '</small>' +
-        '<em>' + a.quando + '</em>' +
-      '</span>' +
-      (naoLido ? '<span class="av-ponto" aria-label="Não lido"></span>' : '') +
-      CHEVRON;
-    b.addEventListener('click', () => aoAbrir(a.id));
-    el.appendChild(b);
+    b.dataset.cat = c.id;
+    b.innerHTML = (c.ponto ? '<i class="av-bolinha" aria-hidden="true"></i>' : '') + c.rotulo;
+    b.addEventListener('click', () => { filtro = c.id; pintarChips(); desenhar(); });
+    chips.appendChild(b);
   });
-  return el;
+  pintarChips();
+  if (botoes.length > 1) frag.appendChild(chips);
+
+  function desenhar() {
+    const jaLidos = lidos();
+    lista.innerHTML = '';
+    const visiveis = AVISOS.filter((a) => filtro === 'todos' || a.cat === filtro);
+
+    /* Filtro sem resultado tem que dizer isso. Lista em branco é lida
+       como tela quebrada — e aqui é só o recorte que está vazio. */
+    if (!visiveis.length) {
+      lista.appendChild(no('p', 'av-vazio', 'Nenhum aviso nesta categoria agora.'));
+      return;
+    }
+
+    visiveis.forEach((a) => {
+      const naoLido = !jaLidos.includes(a.id);
+      const b = no('button', 'av-item' + (naoLido ? ' novo' : ''));
+      b.type = 'button';
+      b.innerHTML =
+        '<span class="av-ico' + (a.cat ? ' c-' + a.cat : '') + '">' + a.ico + '</span>' +
+        '<span class="av-corpo">' +
+          '<strong>' + a.titulo + '</strong>' +
+          '<small>' + a.resumo + '</small>' +
+          '<em>' + a.quando + '</em>' +
+        '</span>' +
+        (naoLido ? '<span class="av-ponto" aria-label="Não lido"></span>' : '') +
+        CHEVRON;
+      b.addEventListener('click', () => aoAbrir(a.id));
+      lista.appendChild(b);
+    });
+  }
+
+  desenhar();
+  frag.appendChild(lista);
+  return frag;
 }
 
 /** Um aviso aberto. `aoVerNoApp(tela)` é opcional. */

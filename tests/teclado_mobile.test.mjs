@@ -54,10 +54,12 @@ test('com o teclado aberto o campo perde o inset de baixo', () => {
     'o inset da safe area com o teclado aberto vira faixa vazia entre campo e teclado');
 });
 
-test('a barra de abas tem regra para sair de cena com o teclado', () => {
-  assert.match(css, /html\[data-teclado="aberto"\]\s*\.barra-abas/,
-    'a regra que esconde a barra inferior durante a digitação sumiu');
-});
+/* Havia aqui um teste prendendo a regra que escondia `.barra-abas` com o
+   teclado aberto. Ele passava sem nunca ter sido exercido: a classe não
+   existe em nenhum HTML deste repositório. Em 02/09 ficou decidido que a
+   barra de 5 abas é do app HOSPEDEIRO do Summit — este app não vai ter
+   uma. Regra e teste saíram juntos: um teste que guarda código morto dá
+   a impressão de cobertura e atrapalha quem for limpar depois. */
 
 test('nada anima a altura do app — quem anima é o teclado', () => {
   const body = regraDoBody();

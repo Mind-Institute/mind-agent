@@ -84,7 +84,36 @@ export const ICO = {
   megafone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h3l9 4.5V4.5L7 9z"/><path d="M19 9.5a4 4 0 0 1 0 5"/><path d="M7 15v4.5"/></svg>',
   alerta:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8 2.8 19.5h18.4z"/><path d="M12 9.5v4M12 16.6v.1"/></svg>',
   estrela: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg>',
+  /* Os quatro dos Atalhos, copiados do handoff de 02/09 — mesmos glifos,
+     mesmo traço 1.6. `qr` e `pin` existem separados de `ingresso` e
+     `lugar` porque ali o desenho é outro: o QR do atalho é o código
+     inteiro, não o bilhete; o pin é o alfinete cheio, não o balão. */
+  qr:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><path d="M6.5 6.5h1M16.5 6.5h1M6.5 16.5h1M13.5 13.5h3M20.5 13.5v3M13.5 17v3.5M17 20.5h3.5M17 17h.01"/></svg>',
+  agendaBloco: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="9" y="13" width="6" height="5" rx="1" fill="currentColor" stroke="none"/></svg>',
+  brilho:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg>',
+  pin:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.2 7-11a7 7 0 10-14 0c0 5.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>',
 };
+
+/* ---------- Categorias de aviso ----------
+   O handoff pinta a caixa do ícone e o ponto do chip pela categoria. As
+   três cores já eram tokens da marca — o design não trouxe paleta nova,
+   usou a que o app tem.
+
+   `ingressos` fica no verde e SEM ponto no chip, como no desenho: é a
+   categoria de serviço, e um quarto ponto colorido só somaria ruído.
+
+   Categoria desconhecida cai no verde em vez de sumir: um aviso é para
+   ser lido, e é melhor lê-lo sem a cor certa do que não vê-lo. */
+export const CATEGORIAS_AVISO = [
+  { id: 'antes_de_ir', rotulo: 'Antes de ir', ponto: true },
+  { id: 'no_evento',   rotulo: 'No evento',   ponto: true },
+  { id: 'reservas',    rotulo: 'Reservas',    ponto: true },
+  { id: 'ingressos',   rotulo: 'Ingressos',   ponto: false },
+];
+
+export function categoriaValida(id) {
+  return CATEGORIAS_AVISO.some((c) => c.id === id) ? id : 'antes_de_ir';
+}
 
 /* Os nomes que o painel administrativo usa, e o desenho de cada um aqui.
    A lista é fechada dos dois lados: ícone livre viraria emoji. */
@@ -104,23 +133,23 @@ const ICO_POR_NOME = {
 
    MOCK: API: virá da tabela de avisos do Summit. */
 const CRUS = [
-  { id: 'sala', ico: ICO.lugar, em: '2026-09-16T09:02', situacao: 'agendado',
+  { id: 'sala', ico: ICO.lugar, cat: 'no_evento', em: '2026-09-16T09:02', situacao: 'agendado',
     titulo: 'Masterclass mudou de sala',
     resumo: 'Amy Edmondson, agora na Sala Estratégica.',
     mensagem: 'A masterclass de Amy Edmondson saiu da Arena Mind e passou para a Sala Estratégica. O horário não mudou. Se você tinha reserva, ela continua válida — é só ir para a sala nova.' },
 
-  { id: 'traducao', ico: ICO.fone, em: '2026-09-15T18:00', situacao: 'no-ar',
+  { id: 'traducao', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T18:00', situacao: 'no-ar',
     titulo: 'Tradução simultânea',
     resumo: 'Leve um documento físico para retirar o fone',
     mensagem: 'As sessões em inglês têm tradução simultânea. O fone é retirado no balcão da arena, e fica um documento físico com foto como garantia — RG ou CNH. Cartão do celular não vale. Devolvendo o fone, você pega o documento de volta.' },
 
-  { id: 'ingresso', ico: ICO.ingresso, em: '2026-09-15T17:30', situacao: 'no-ar',
+  { id: 'ingresso', ico: ICO.ingresso, cat: 'ingressos', em: '2026-09-15T17:30', situacao: 'no-ar',
     titulo: 'Seu ingresso está aqui',
     resumo: 'Acesse agora e evite procurar na entrada',
     mensagem: 'Seu ingresso é o QR Code do app. Ele fica na aba <b>QR Code</b>, na barra de baixo — abra antes de chegar na fila e apresente na entrada. O mesmo código serve para trocar contato com quem você conhecer.',
     verNoApp: 'ingresso', botaoVerNoApp: 'Ver onde fica no app' },
 
-  { id: 'abertura', ico: ICO.sino, em: '2026-09-16T20:00', situacao: 'agendado',
+  { id: 'abertura', ico: ICO.sino, cat: 'no_evento', em: '2026-09-16T20:00', situacao: 'agendado',
     titulo: 'Abertura às 9h',
     resumo: 'Chegue às 8h30 para entrar sem pressa.',
     mensagem: 'O segundo dia abre às 9h, na Arena Mind. O credenciamento começa às 8h; chegando às 8h30 você entra sem fila e ainda pega lugar.' },
@@ -172,6 +201,10 @@ export function definirAvisos(doBanco) {
   AVISOS = ordenar(doBanco.map((a) => ({
     id: a.id,
     ico: ICO_POR_NOME[a.icone] || ICO.megafone,
+    /* Aviso gravado antes da coluna existir chega sem categoria, e cai no
+       verde. Ler `categoria` e `cat` porque a porta pública devolve o nome
+       da coluna e os avisos embutidos usam a forma curta. */
+    cat: categoriaValida(a.categoria || a.cat),
     em: a.em,
     situacao: a.situacao,
     titulo: a.titulo,
@@ -191,31 +224,44 @@ export const CONTEUDO = {
   antes: {
     /* O número não mora aqui: é relógio, e `app.js` o alimenta a cada
        segundo a partir da data real do evento. */
-    etiqueta: 'Concierge Mind',
+    etiqueta: 'Mind Summit',
     contagem: true,
-    saudacao: true,
-    titulo: 'Seu summit começa agora.',
-    resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você.',
+    /* O nome entra DENTRO do título, não numa linha de saudação acima —
+       é assim no handoff. Sem nome, `heroSaudacao` maiusculiza a
+       primeira letra e a frase segue de pé sozinha. */
+    tituloComNome: true,
+    titulo: 'seu Summit começa agora.',
+    resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
+    decorado: true,
     blocos: [
       /* Este card é a porta da jornada personalizada. O texto diz o que
          acontece do outro lado — "receber recomendações" não dizia. */
-      { tipo: 'destaque', ico: ICO.bussola, selo: 'Concierge Mind',
-        pergunta: 'Monte sua jornada no Summit.',
-        texto: 'Conte o que você quer aprender, viver e levar do evento. A Mind cria um roteiro de palestras e experiências feito para você.',
+      { tipo: 'destaque', marca: true, selo: 'Concierge Mind',
+        pergunta: 'Monte sua jornada no Summit',
+        texto: 'Conte seus interesses e receba uma programação personalizada de palestras e experiências.',
         cta: 'Montar minha jornada',
-        micro: 'Cerca de 1 minuto',
+        micro: '~1 min',
         acao: 'jornada' },
-      { tipo: 'linha', ico: ICO.grafico, titulo: 'Diagnóstico de maturidade',
-        texto: 'Entrevista guiada, 7 min', acao: 'em-breve:diagnostico' },
+      { tipo: 'secao', titulo: 'Atalhos importantes' },
+      /* Os quatro levam ao tour na tela correspondente do app do Summit.
+         Não é atalho de mentira: o tour mostra a captura real e ensina
+         onde tocar, que é o que este app sabe fazer sobre telas que são
+         do hospedeiro. `tour` sozinho é a prática de reserva inteira —
+         a mesma que o card coral de antes abria. */
+      { tipo: 'atalhos', itens: [
+        { ico: ICO.qr, titulo: 'Meu ingresso',
+          texto: 'Acesse seu QR Code', acao: 'tour:qrcode' },
+        { ico: ICO.agendaBloco, titulo: 'Minha Agenda',
+          texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
+        { ico: ICO.brilho, titulo: 'Reserve suas experiências',
+          texto: 'Garanta suas escolhas agora', acao: 'tour' },
+        { ico: ICO.pin, titulo: 'Como chegar',
+          texto: 'São Paulo Expo, acesso e estacionamento', acao: 'tour:mapa' },
+      ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:
          quem dispara um aviso no painel precisa vê-lo aparecer aqui. */
-      { tipo: 'avisos', quantos: 2 },
-      /* É aviso, e o mais importante deles: quem não reserva não entra
-         nas sessões de vaga limitada. Por isso fecha a lista em coral, e
-         não em verde como o resto do app. */
-      { tipo: 'tour', titulo: 'Como reservar sua vaga',
-        texto: 'Abra a sessão, reserve e veja em Minha Agenda', duracao: '30 s', acao: 'tour' },
+      { tipo: 'avisos', quantos: 3 },
     ],
   },
 
