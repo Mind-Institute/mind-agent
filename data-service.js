@@ -90,6 +90,46 @@ export async function carregarHomeDoEvento() {
   }
 }
 
+/* ============================================================
+   O TIPO DE INGRESSO DE QUEM ABRIU O APP
+   ============================================================
+   Só para o cabeçalho: "EXPERIÊNCIA VIP" e a pílula ao lado do `?`.
+
+   O e-mail vai no CORPO, nunca na URL. O app inteiro trabalha para
+   manter e-mail fora de barra de endereço e de histórico — mandá-lo em
+   query string o devolveria para o log de borda pela porta dos fundos.
+
+   `null` é a resposta para tudo que não é certeza: API desligada, sem
+   e-mail, rede caída, e-mail fora do espelho, ingresso sem tipo
+   mapeado, ingresso revogado. Quem chama não precisa distinguir — o
+   cabeçalho, sem tipo, é o de sempre.
+
+   A lista de tipos é conferida AQUI também. O servidor já só devolve os
+   três, mas a tela não escreve no cabeçalho uma string que veio de fora
+   sem saber qual é.
+
+   carregarIngressoDoParticipante(email) → Promise<'VIP'|'Mind'|'Prime'|null> */
+const TIPOS_DE_INGRESSO = new Set(['VIP', 'Mind', 'Prime']);
+
+export async function carregarIngressoDoParticipante(email) {
+  if (!CONFIG.homeApiUrl || !email) return null;
+  const raiz = String(CONFIG.homeApiUrl).replace(/\/+$/, '');
+  try {
+    const r = await fetch(raiz + '/participante', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({ email }),
+    });
+    if (!r.ok) return null;
+    const dados = await r.json();
+    const tipo = dados && typeof dados.ingresso === 'string' ? dados.ingresso : null;
+    return TIPOS_DE_INGRESSO.has(tipo) ? tipo : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function carregarDadosSummit() {
   const fontes = origens();
   if (!fontes.length) {

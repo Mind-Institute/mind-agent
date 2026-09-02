@@ -53,6 +53,11 @@ export function montarHome(raiz, aoAgir, contexto) {
 
   raiz.appendChild(heroSaudacao({
     ...c,
+    /* "EXPERIÊNCIA VIP" no lugar de "MIND SUMMIT", quando o espelho do
+       credenciamento sabe o tipo do ingresso. Só SUBSTITUI sobrancelha
+       que já existe: numa tela que não tem etiqueta, acrescentar uma
+       criaria uma linha onde o desenho não tem nenhuma. */
+    etiqueta: ctx.ingresso && c.etiqueta ? 'Experiência ' + ctx.ingresso : c.etiqueta,
     nome: nomeDoParticipante(),
     cumprimento: cumprimentoDaHora(ctx.hora),
     /* No dia do evento o resumo é calculado; nos outros, é o do conteúdo. */

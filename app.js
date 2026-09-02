@@ -7,7 +7,7 @@
 */
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
-import { carregarDadosSummit, carregarHomeDoEvento } from './data-service.js';
+import { carregarDadosSummit, carregarHomeDoEvento, carregarIngressoDoParticipante } from './data-service.js';
 import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
@@ -240,6 +240,7 @@ function contextoDaHome() {
     hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours(),
     remontar: montarHomeV3,
   };
+  if (ingressoDoParticipante) ctx.ingresso = ingressoDoParticipante;
   const emCurso = sessaoDoInsight();
   if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
   const p = proximaExperiencia();
@@ -260,6 +261,28 @@ function montarHomeV3() {
   atualizarContadorAvisos();
   ligarContagem();
 }
+
+/* ---------- O TIPO DE INGRESSO NO CABEÇALHO ----------
+   Aparece em dois lugares, com um dado só: a pílula ao lado do `?`, que
+   mora na barra de cima e fica fora da home, e a sobrancelha do hero,
+   que é da home e vem por `contextoDaHome`.
+
+   Quem sabe o tipo é o espelho do credenciamento, e a única chave que o
+   app tem é o e-mail que a Yazo mandou. Sem e-mail, sem rede, ou com um
+   ingresso sem tipo mapeado, `carregarIngressoDoParticipante` devolve
+   `null` — e aí nada acontece: o cabeçalho continua exatamente o que
+   era. Não há estado de carregando, porque não há nada a esperar; se a
+   resposta chega, a pílula aparece e a home é remontada. */
+let ingressoDoParticipante = null;
+const ingressoEl = document.getElementById('perfil-ingresso');
+
+carregarIngressoDoParticipante(PARTICIPANTE.email).then((tipo) => {
+  if (!tipo || !ingressoEl) return;
+  ingressoDoParticipante = tipo;
+  ingressoEl.querySelector('b').textContent = tipo;
+  ingressoEl.hidden = false;
+  montarHomeV3();
+});
 
 /* ---------- Contagem regressiva até a abertura ----------
    07:00 do primeiro dia, quando abre o credenciamento. Este número NÃO é

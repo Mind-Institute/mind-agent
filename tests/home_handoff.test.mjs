@@ -20,6 +20,10 @@ const cards = readFileSync(new URL('../home/cards.js', import.meta.url), 'utf8')
 const avisos = readFileSync(new URL('../home/avisos.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const dados = readFileSync(new URL('../data-service.js', import.meta.url), 'utf8');
+const homeJs = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8');
+const migracao = readFileSync(new URL('../supabase/migrations/20260902210000_tipo_de_ingresso_para_o_cabecalho.sql', import.meta.url), 'utf8');
+const funcaoHome = readFileSync(new URL('../supabase/functions/mindagent-home/index.ts', import.meta.url), 'utf8');
 
 test('os três atalhos levam a destinos que existem', () => {
   /* Um atalho é uma promessa: "toque e você chega em Meu ingresso". Se o
@@ -225,4 +229,62 @@ test('a demonstração termina sem pop-up', () => {
   for (const frase of ['você já sabe reservar', 'o mapa fica no Menu', 'o seu ingresso está aí']) {
     assert.ok(app.includes(frase), 'o roteiro perdeu a frase de conclusão: ' + frase);
   }
+});
+
+test('o e-mail nunca vai na URL para buscar o ingresso', () => {
+  /* O app inteiro trabalha para tirar e-mail da barra de endereço
+     (`limparUrl`, em config.js). Mandá-lo em query string aqui o
+     devolveria ao log de borda pela porta dos fundos. */
+  const i = dados.indexOf('export async function carregarIngressoDoParticipante');
+  assert.ok(i > 0, 'a leitura do tipo de ingresso sumiu do data-service');
+  const fn = dados.slice(i, i + 1200);
+  assert.match(fn, /method: 'POST'/, 'a busca do ingresso deixou de ser POST');
+  assert.match(fn, /body: JSON\.stringify\(\{ email \}\)/, 'o e-mail saiu do corpo do pedido');
+  assert.ok(!/participante\?/.test(fn), 'o e-mail voltou para a URL na busca do ingresso');
+});
+
+test('a tela só escreve um tipo de ingresso que ela conhece', () => {
+  /* A pílula e a sobrancelha saem do que o servidor devolveu. A lista
+     fechada aqui é o que impede uma resposta inesperada de virar texto
+     no cabeçalho. */
+  assert.match(dados, /const TIPOS_DE_INGRESSO = new Set\(\['VIP', 'Mind', 'Prime'\]\)/,
+    'a lista fechada de tipos sumiu do data-service');
+  assert.match(dados, /TIPOS_DE_INGRESSO\.has\(tipo\) \? tipo : null/,
+    'a conferência do tipo devolvido pelo servidor sumiu');
+});
+
+test('sem tipo de ingresso, o cabeçalho é exatamente o de antes', () => {
+  assert.match(html, /<span class="h-ingresso" id="perfil-ingresso" hidden>/,
+    'a pílula do ingresso deixou de nascer escondida');
+  /* Mesma armadilha do `☰` na demonstração: `display: inline-flex` tem
+     especificidade maior que a regra `[hidden]` do navegador. */
+  assert.match(css, /\.h-ingresso\[hidden\]\s*\{\s*display:\s*none/,
+    'o `hidden` da pílula voltou a perder para o `display`');
+  assert.match(homeJs, /etiqueta: ctx\.ingresso && c\.etiqueta \? 'Experiência ' \+ ctx\.ingresso : c\.etiqueta/,
+    'a sobrancelha parou de só SUBSTITUIR a que já existe — numa tela sem '
+    + 'etiqueta, acrescentar uma cria linha onde o desenho não tem nenhuma');
+  assert.match(css, /\.h-ingresso \{[^}]*background: var\(--roxo\)/,
+    'a pílula deixou de usar o roxo da marca e virou cor nova');
+});
+
+test('a porta do ingresso não vira uma forma de descobrir quem tem ingresso', () => {
+  /* Ausente, SEM MAPA, revogado e tipo em desacordo respondem a MESMA
+     coisa. É isso que impede a rota de confirmar presença na lista. */
+  assert.match(migracao, /and status = 'ativo'/, 'a porta parou de filtrar ingresso inativo');
+  assert.match(migracao, /and revogado_em is null/, 'a porta parou de filtrar ingresso revogado');
+  assert.match(migracao, /ticket_type in \('VIP', 'Mind', 'Prime'\)/,
+    'a porta passou a devolver tipo fora da lista — `SEM MAPA` inclusive');
+  assert.match(migracao, /count\(distinct ticket_type\) = 1/,
+    'o desacordo entre linhas do mesmo e-mail voltou a ser desempatado por conta própria');
+  /* E ela não é alcançável com a chave publicável do navegador. */
+  for (const alvo of ['api', 'public']) {
+    const re = new RegExp('revoke all on function ' + alvo
+      + '\\.mindagent_participante_ingresso\\(text\\) from public');
+    assert.match(migracao, re, 'a função em `' + alvo + '` voltou a ser executável por qualquer papel');
+  }
+  assert.ok(!/ to anon| to authenticated/.test(migracao),
+    'a função do ingresso ganhou grant para anon ou authenticated');
+  assert.match(funcaoHome, /error: "participante_ingresso_failed"/, 'o log de erro da rota sumiu');
+  assert.ok(!/request_id: requestId[^}]*email/.test(funcaoHome),
+    'a rota passou a registrar o e-mail em log');
 });

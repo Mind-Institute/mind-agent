@@ -190,6 +190,26 @@ body {
   font-size: 7.5px; font-weight: 700; letter-spacing: .1em;
   margin-top: 2px; opacity: .7;
 }
+/* A PÍLULA DO INGRESSO. Roxo da marca (`--roxo`, o mesmo token do site),
+   não uma cor nova: o cabeçalho ganha um selo, não uma paleta.
+
+   `[hidden]` precisa da regra própria porque `display: inline-flex` aqui
+   embaixo tem especificidade maior que a regra do navegador — foi assim
+   que o `☰` apareceu onde não devia na demonstração. */
+.h-ingresso {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: none;
+  background: var(--roxo); color: #fff;
+  border-radius: var(--raio-pill); padding: 5px 11px;
+  font: inherit; font-size: 11.5px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.h-ingresso[hidden] { display: none; }
+.h-ingresso i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #fff; opacity: .85;
+}
+
 .h-ajuda {
   appearance: none; cursor: pointer;
   width: 40px; height: 40px; border-radius: 50%;
