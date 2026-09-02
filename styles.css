@@ -39,14 +39,33 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* O DOCUMENTO NÃO ROLA. Quem rola é a área de mensagens, e só ela. Sem isto o
+   Safari tem para onde deslocar a página quando o teclado abre — e é esse
+   deslocamento que levava o header embora. */
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   font-family: 'Satoshi', system-ui, sans-serif;
   background: var(--bg);
   color: var(--texto);
-  max-width: 480px;
+
+  /* PRESO NO VIEWPORT, com a altura do que se VÊ.
+     `100dvh` continua como piso para o primeiro quadro e para navegador sem
+     `visualViewport`; assim que `teclado.js` mede, `--app-altura` assume. A
+     diferença importa só no celular: `dvh` ignora o teclado, `--app-altura`
+     não. Ver o cabeçalho de `teclado.js` para o porquê. */
+  position: fixed;
+  top: 0; left: 0; right: 0;
   margin: 0 auto;
-  height: 100dvh;
+  max-width: 480px;
+  height: var(--app-altura, 100dvh);
+
   overflow: hidden;
+  overscroll-behavior: none;
   display: flex;
   flex-direction: column;
 }
@@ -613,6 +632,27 @@ body {
   padding: 8px var(--pad) max(16px, env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--bg) 75%, transparent);
 }
+
+/* COM O TECLADO ABERTO A FAIXA DE BAIXO ESTÁ COBERTA POR ELE.
+   `env(safe-area-inset-bottom)` existe para o campo não encostar no indicador
+   de home. Com o teclado por cima, esse indicador não está lá — e o inset vira
+   uma faixa vazia entre o campo e o teclado, que é justamente a "faixa branca"
+   que não pode aparecer. */
+html[data-teclado="aberto"] .doca {
+  padding-bottom: 8px;
+}
+
+/* A BARRA DE ABAS SAI DE CENA ENQUANTO SE DIGITA. Vale para qualquer barra
+   inferior do app: some por altura zero, não por `display: none`, para a coluna
+   flex encolher sem a conversa dar um pulo de reflow. Hoje `.fnav` vive dentro
+   do telefone simulado do tour e não é atingida — a regra fica pronta para a
+   barra real do app, e é inerte enquanto ela não existir. */
+html[data-teclado="aberto"] .barra-abas {
+  height: 0;
+  padding-block: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 .doca form { position: relative; display: flex; }
 .doca input {
   flex: 1;
@@ -721,6 +761,11 @@ body {
   display: flex; flex-direction: column; gap: 10px;
   padding: 18px var(--pad);
   overflow-y: auto;
+  /* A rolagem morre aqui. Sem isto, chegar ao fim da conversa entrega o gesto
+     ao documento e o iOS devolve aquele repuxo elástico que, com o teclado
+     aberto, parece a tela inteira se mexendo. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .bolha { max-width: 84%; }
 .bolha:has(.cartao-onde) { max-width: 94%; }

@@ -12,6 +12,12 @@ import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem } from './chat-service.js';
+import { ligarTeclado, tecladoAberto } from './teclado.js';
+
+/* A altura do app passa a vir do viewport VISUAL, antes de qualquer tela
+   aparecer: é o que impede o Safari de rolar a página inteira quando o teclado
+   abre. Chamado aqui, no topo, porque toda vista depende dessa altura. */
+ligarTeclado();
 
 /* Quem abriu a página, antes de qualquer tela: a Yazo manda `email` e
    `nome` na URL, e a saudação depende disso. Chamada explícita de
@@ -1213,7 +1219,14 @@ async function responder(pergunta) {
   mensagens.scrollTop = mensagens.scrollHeight;
 
   respostaEmAndamento = true;
-  campoChat.disabled = true;
+  /* O CAMPO NÃO É MAIS DESABILITADO ENQUANTO A RESPOSTA VEM.
+     Desabilitar um campo focado tira o foco dele, e no iOS perder o foco fecha
+     o teclado. Pior: devolver o foco depois, por código e fora de um toque da
+     pessoa, o iOS costuma ignorar — então o teclado fechava a cada mensagem
+     enviada e não voltava. Quem impede o envio duplicado é
+     `respostaEmAndamento`, conferido em `perguntar()`; o `disabled` do campo
+     era só aparência, e custava a continuidade da digitação. O botão continua
+     desabilitado, que é onde a espera precisa aparecer. */
   formChat.querySelector('.enviar').disabled = true;
   try {
     const resposta = await enviarMensagem(pergunta);
@@ -1230,9 +1243,13 @@ async function responder(pergunta) {
     bolha(mensagem, 'mind');
   } finally {
     respostaEmAndamento = false;
-    campoChat.disabled = false;
     formChat.querySelector('.enviar').disabled = false;
-    campoChat.focus();
+    /* Só devolve o foco a quem o perdeu. Como o campo não é mais desabilitado,
+       quem estava digitando continua digitando e o teclado nunca piscou; este
+       `focus()` cobre apenas o caso de a pessoa ter tocado fora enquanto
+       esperava. Chamá-lo sempre reabriria o teclado de quem acabou de fechá-lo
+       de propósito. */
+    if (document.activeElement !== campoChat && !tecladoAberto()) campoChat.focus();
     /* Um respiro para a resposta ser lida antes de o convite entrar. */
     setTimeout(oferecerPalestrantes, 2600);
   }
