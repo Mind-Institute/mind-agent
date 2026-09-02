@@ -258,7 +258,16 @@ body {
 .v3-halo, .v3-agua { position: absolute; pointer-events: none; z-index: -1; }
 .v3-halo {
   width: 260px; height: 260px; border-radius: 50%;
-  top: -40px; right: -70px;
+  /* PARA NA BORDA DA TELA, não além dela. Nasceu em `-70px`, e os 50px
+     que sobravam da tela viravam transbordo de `.v3-rolagem`: era isso que
+     fazia a home deslizar para os lados. `overflow-x: hidden` impedia o
+     dedo, mas o excesso continuava lá, rolável por programa.
+
+     Encostar na borda não muda o que se vê: o gradiente já é transparente
+     a 70% do raio, então o que era cortado fora da tela era rastro
+     invisível. -20px alinha o círculo com a borda direita — o hero tem
+     20px de respiro de cada lado. */
+  top: -40px; right: -20px;
   background: radial-gradient(circle, rgba(104, 238, 149, .18) 0%, transparent 70%);
 }
 .v3-agua { width: 92px; height: 92px; top: 4px; right: 14px; opacity: .16; }
