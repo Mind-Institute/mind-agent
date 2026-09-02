@@ -91,3 +91,28 @@ comment on function api.mindagent_home_publico(text) is
 
 -- Mesma exposição do bootstrap: leitura pública, sem sessão.
 grant execute on function api.mindagent_home_publico(text) to anon, authenticated, service_role;
+
+-- ------------------------------------------------------------
+-- A ponte em `public` — sem ela, nada disto é alcançável
+-- ------------------------------------------------------------
+-- O PostgREST só expõe `public`. Uma função em `api` existe, funciona no
+-- SQL Editor e é INVISÍVEL para `/rest/v1/rpc/...` — que é por onde a
+-- Edge Function chama. Por isso `api.mindagent_bootstrap` sempre teve um
+-- irmão em `public` fazendo só o repasse; este aqui é o mesmo padrão.
+--
+-- Sem `security definer`: quem carrega a permissão é a função de `api`,
+-- e repetir aqui só ampliaria superfície à toa.
+
+create or replace function public.mindagent_home_publico(p_event_slug text default 'mind-summit-2026')
+ returns jsonb
+ language sql
+ stable
+ set search_path to 'pg_catalog', 'api'
+as $function$
+  select api.mindagent_home_publico(p_event_slug);
+$function$;
+
+comment on function public.mindagent_home_publico(text) is
+  'Repasse para api.mindagent_home_publico. Existe porque o PostgREST só enxerga public.';
+
+grant execute on function public.mindagent_home_publico(text) to anon, authenticated, service_role;
