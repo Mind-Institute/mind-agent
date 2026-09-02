@@ -720,3 +720,267 @@ consulta que prova campo a campo, no E2E, que a superfície persistida não perd
 Write-back de verdade continua sendo o **Passo 15B / PASSO 9** do runbook, com a Lane D
 como dona, e o item 6 deste backlog como levantamento. Quando ele for construído, nasce
 da casa canônica — não de uma função com a assinatura desta chamada morta.
+
+---
+
+## 16. Memória sensível: contrato no prompt + trava fail closed nos dois writers — Lane D
+
+> Numeração: **§14** é da Lane B (`mind_lead_capturar`, PR #47), **§15** é o levantamento das
+> quatro capacidades da Lane D (PR #46) e **§16** é este chunk (PR #51). As três anexam no fim do
+> arquivo e vão conflitar textualmente; a resolução é manter as três, nesta ordem.
+
+Decisões aprovadas na issue #42 (supervisões de 30/08 e 31/08/2026).
+
+### 16.1 Correção factual — o scan NÃO provou ausência de dado sensível
+
+O checkpoint do ciclo 2 afirmou "não existe memória sensível persistida hoje". **Está errado.** O
+scan prova apenas que **aquele scan não identificou nenhum caso** — e o próprio achado explica por
+quê: se a distinção entre "é psicóloga clínica" e "está afastada por burnout" não está nas
+palavras, uma varredura por palavra não pode ser exaustiva.
+
+As 886 linhas legadas continuam **sem autorização de exposição ao Agent** — agora garantido por
+construção, e não por disciplina: ver §16.6.
+
+### 16.2 O contrato — `sensitivity` em todo item
+
+`analise_vendas_summit` v2 emite, por item de `customer_memory`, `sensitivity` com exatamente um
+valor: `none` ou uma chave **ativa** de `intelligence.memoria_bloqueios`. Nenhuma taxonomia, tabela
+ou coluna nova; as 10 chaves ativas estão nomeadas no prompt, com a regra de decisão que o scan
+revelou — **o que separa os casos é o sujeito e o que a frase afirma, nunca as palavras**.
+
+O mesmo contrato vale para o structured output do `mindagent-chat`, que é da Lane C (coordenado na
+issue #41). O campo viaja dentro do jsonb que a RPC já recebe; nenhuma assinatura muda.
+
+### 16.3 A trava, nos DOIS writers
+
+Existem dois caminhos vivos que escrevem memória, e ambos passaram a ser fail closed.
+
+**`analise_projetar_memoria`** — só persiste item com `sensitivity = 'none'`. Não persistem: chave
+de bloqueio ativa, rótulo ausente, desconhecido, chave inativa, enum ecoado.
+
+O gate é **restrito ao contrato aprovado**, `p_analisador = 'analise_vendas_summit'` — hoje o único
+analisador com análises vivas. Analisador fora do contrato não é barrado (não teria como cumprir um
+contrato que ainda não tem) mas **também não ganha marcador**, então o que ele grava permanece
+invisível ao coletor. `analise_concierge` entra no gate nominalmente quando tiver prompt v2, naquele
+passo — sem registry e sem regra global calada.
+
+**`mindagent_chat_save_interests`** — o segundo writer, apontado pela coordenação cross-lane C→D. O
+gate roda **antes de `engagement.session_interests`**, não só antes da promoção para
+`participante_memoria`/`participante_contexto`: `session_interests` é persistência, inclusive em
+sessão sem participante identificado, e proteger apenas o segundo salto deixaria o dado gravado no
+primeiro. Assinatura preservada; o retorno ganha a chave aditiva `blocked`.
+
+Nos dois: **o gate não lê o texto** — sem regex de conteúdo, sem inferência por `category`/`scope`.
+Ele confere um rótulo declarado e obedece. O log sai com contagem, nunca com o valor barrado.
+
+**Por que a trava existe além do prompt:** o `analisar-conversa` chama a OpenAI com `json_object`,
+não com schema strict — o transporte não obriga o modelo a emitir a chave. O prompt define o
+contrato; o writer é quem garante.
+
+### 16.4 Silence D1 — no contrato
+
+`stopped` passou a ser definido no prompt como **o fim da continuidade, não o fim da mensagem**: só
+vale para opt-out, recusa inequívoca, impossibilidade real ou compra. Conversa encerrada com
+pergunta sem resposta, checkout não concluído, decisão pendente ou compromisso de retorno **não é
+`stopped`**. Nenhum enum novo.
+
+**Efeito medido nos 113 casos:** 96 entrariam na fila (95 `timing_matrix` + 1 `commitment_pending`),
+17 continuariam fora corretamente (14 sem motivo legítimo de recontato, 3 compraram depois).
+
+**Não é retroativo.** `analise_pendentes` só devolve conversa cuja última mensagem é mais nova que a
+última análise: as 113 não serão reanalisadas sozinhas. Mudam quando a pessoa voltar a falar, ou se
+alguém reprocessar explicitamente (`analisar-conversa` aceita `conversa_id`).
+
+### 16.5 Silence D2 — guard determinístico no motor
+
+`silence_calcular_next_review`: o ramo `dormant`/`followup_exhausted` passou a exigir
+`followup_count > 0`. Sem retomada feita, nada foi esgotado. Com a guarda o turno segue o caminho
+normal e vira `silence`, que continua conservador — `silence` não envia nada.
+
+**Efeito hoje:** 1 linha em produção está nesse caso. Como as 395 linhas têm `followup_count = 0`
+(coerente com o D3), o ramo não podia estar certo em nenhuma.
+
+**Precedência intocada:** compra e opt-out são testados antes. O outro ponto que emite
+`followup_exhausted` — o fim de `apos_followup_min` — é inalcançável com contador zero por
+construção, e não ganhou guarda.
+
+### 16.6 As 886 legadas — resolvido por MARCADOR, sem apagar nem reescrever
+
+A proposta anterior ("reanalisar o recorte vivo") **não bastava**: reanalisar não impede o coletor
+de devolver as linhas v1, que continuam na mesma tabela. A solução aprovada usa o `valor` que já
+existe, sem coluna nova, sem status novo e sem taxonomia nova:
+
+1. item aprovado sob o contrato v2 grava **`valor.sensitivity = 'none'`**;
+2. no caminho "mesmo texto já existe", a linha existente **ganha o marcador** — é revalidação, não
+   duplicata: `text` e `scope` não mudam;
+3. o writer web seguro grava o mesmo marcador no `valor` da memória e no item de perfil;
+4. o coletor `mind_memoria_fatos` (PR #46) expõe **somente** linhas com `valor.sensitivity = 'none'`.
+
+O legado fica **fisicamente preservado e invisível ao Agent**. Revalidar passa a ser opcional e
+incremental: reanalise só o recorte que interessa, e só aquilo aparece. Nada é apagado.
+
+Os quatro casos estão testados: v1 sem marcador não sai; revalidada v2 passa a sair sem duplicar;
+sensível não ganha marcador nem sai; web segura ganha marcador e sai.
+
+### 16.7 O que ainda depende exclusivamente de D3 ou da Lane C
+
+- **D3 (outbound):** ligar o cron 13, escolher canal (HSM × janela de 24h), decidir se a mensagem
+  sai automática ou com aprovação, e quem gera o texto final. Enquanto
+  `silence_registrar_decisao` não for chamada com `p_followup_enviado := true`, `followup_count`
+  nunca sai de 0 — e o D2 é a proteção para esse mundo.
+- **Lane C:** acrescentar `sensitivity` ao structured output do `mindagent-chat` (coordenado na
+  issue #41). Até lá o writer web fica fail closed, que é o estado seguro — `blocked` no retorno diz
+  exatamente quantos itens caíram. E, para o pós-turno do concierge, entra **só** o runtime vivo
+  (`agente = 'mindagent-chat'`); o lote histórico com `agente` nulo fica separado.
+  `analise_concierge` continua vazio e **não foi inventado**.
+- **Wiring da leitura:** com o marcador, deixou de depender do legado. Depende agora de B/C
+  fecharem e da decisão de ligar. O coletor continua desligado.
+
+### 16.8 Substituição `ativa → ativa` — CORRIGIDO
+
+Era bug de ordem, não decisão de produto: a função já declarava a intenção de substituir
+identidade/cargo/empresa, mas inseria a nova linha **antes** de rebaixar a antiga. O índice parcial
+`UNIQUE (participante_id, chave) WHERE status = 'ativa'` recusava a segunda `ativa`, o
+`exception when others` do laço engolia o `unique_violation`, e a troca sumia sem erro visível.
+
+Bate com a produção: das 886 memórias, **uma única** está em `substituida` — e quem a substituiu é
+`proposta`, o caminho que escapava da colisão.
+
+**Corrigido:** rebaixa a antiga, insere a nova, liga `substituida_por`. Três passos no mesmo bloco;
+se o insert falhar, o `EXCEPTION` reverte também o rebaixamento, porque em PL/pgSQL um bloco com
+`EXCEPTION` é uma subtransação. A semântica não mudou — só a ordem. Testado nas três chaves
+canônicas.
+
+**Pendência que fica:** quantas trocas de cargo/empresa foram perdidas até aqui. Dá para estimar sem
+LLM, comparando `dados.customer_memory` de `intelligence.analise_conversa` com o que existe em
+`participante_memoria` para as chaves canônicas. Não foi medido neste chunk.
+
+---
+
+## 17. Integração da Lane D: o gate de publicação da Edge C e dois achados de fronteira
+
+Levantado em 31/08/2026, no ciclo de integração da Lane D (issue #42, PRs #46 e #51),
+depois que B (#47) e C (#50) entraram em `main`. **Não reinvestigar do zero.**
+
+### 17.1 A Edge `mindagent-chat` NÃO está publicada — é o gate que segura a integração
+
+**Evidência medida em produção (`ymnmotgglsrxmjmonwjz`):**
+
+| o que | estado |
+|---|---|
+| migrations de C no ledger | `20260830223000`, `20260830233000`, `20260830233500` **aplicadas** (ledger 289) |
+| `mindagent-chat` publicada | **v23**, `const VERSION = "1.4.0"` |
+| `mindagent-chat` no `main` | `const VERSION = "1.5.0"` |
+| `sensitivity` no código deployado | **ausente** — o `Interest` deployado é `{key,label,confidence,confirmed}` e o `RESPONSE_SCHEMA` exige exatamente essas quatro |
+| `supabase/config.toml` | **não existe** — merge aplica migration, **não** publica Edge Function |
+
+Ou seja: **o SQL de C está vivo, o runtime de C não.** A metade que falta é justamente
+a que emite `sensitivity`.
+
+**Por que isso bloqueia a #51.** O gate de `mindagent_chat_save_interests` é fail-closed:
+`sensitivity` ausente → `blocked`, antes de `engagement.session_interests`. Com a Edge v23
+viva (que não manda o campo), aplicar a `20260830234500` hoje **bloquearia 100% da captura
+de interesse do app**. E há tráfego real: `session_interests` passou de 5 para 9 linhas
+durante a própria sessão de investigação.
+
+Isso não é uma descoberta nova — é exatamente a ordem congelada e registrada na §16 e no
+corpo da #51: *"C pode publicar o campo antes desta PR (…) sem janela em que o writer novo
+bloqueie interesses porque a Edge ainda não manda o campo."* O que mudou é que a ordem
+**ainda não foi cumprida**.
+
+**Por que isso também segura a #46.** As duas migrations são um par, não duas entregas: o
+coletor só expõe linha com `valor.sensitivity = 'none'`, e quem grava o marcador são os
+writers da `234500`. Integrar só a `234000` entrega uma função que devolve lista vazia para
+todo mundo, para sempre.
+
+**Gatilho para retomar:** `mindagent-chat` publicada em v1.5.0 (ou superior) e validada no
+app. Verificação objetiva de um comando:
+`mcp Supabase get_edge_function(mindagent-chat)` → `version > 23` e o fonte contendo
+`sensitivity`. A partir daí a ordem é `20260830234000` → `20260830234500`.
+
+**Dependência:** Lane C (#41/#50) é dona da publicação manual da Edge. A Lane D não publica
+Edge Function e não edita `supabase/functions/mindagent-chat/index.ts`.
+
+### 17.2 `mindagent_chat_get_context` lê `temas_relevantes` sem filtrar o marcador
+
+**O achado.** `public.mindagent_chat_get_context` monta `participant_profile.interests` a
+partir de `intelligence.participante_contexto.temas_relevantes` com
+`coalesce(pc.temas_relevantes, '[]'::jsonb)` — **sem nenhum filtro**. Esse perfil vai para o
+`personalization_profile` que a Edge manda para a OpenAI. É um **segundo caminho de leitura
+de coisa aprendida sobre a pessoa**, paralelo ao `mind_memoria_fatos`, e ele não passa pelo
+marcador `sensitivity = 'none'`.
+
+**Estado atual: risco zero hoje.** `intelligence.participante_contexto` tem **0 linhas**.
+E o único writer é `mindagent_chat_save_interests`, que a #51 já faz gravar
+`sensitivity: 'none'` no item de perfil. Ou seja: depois da #51, tudo o que nascer ali
+nasce marcado, e ler sem filtrar dá o mesmo resultado que ler filtrando.
+
+**Por que foi deferido.** Fechar isso exige reescrever `mindagent_chat_get_context` inteira
+(Postgres não faz patch de corpo) — ~70 linhas de função compartilhada — para proteger
+contra zero linha, dentro de um chunk que nem pode ser integrado ainda. É limpeza lateral
+pela regra do `CLAUDE.md`, não a menor mudança necessária.
+
+**Gatilho para retomar:** antes de qualquer backfill/carga que popule
+`participante_contexto`, ou se algum writer novo passar a escrever ali. Aí a mudança é um
+predicado: só entram itens com `t->>'sensitivity' = 'none'`.
+
+**Dependência:** nenhuma. É SQL puro, não exige publicar Edge.
+
+### 17.3 O pós-turno do Concierge não tem contrato — `analise_concierge` está vazio
+
+**Evidência (`agentes.prompts`):**
+
+| chave | ativo | versao | `length(conteudo)` |
+|---|---|---|---|
+| `analise_vendas_summit` | true | 1 | 26.959 |
+| `analise_classificador` | true | 2 | 10.474 |
+| **`analise_concierge`** | **false** | 1 | **0** |
+| `analise_contexto_geral` | false | 1 | 0 |
+| `playbook_concierge_summit` | true | 1 | 6.707 |
+
+`analise_concierge` existe como linha e **não é citada por nenhuma função** do banco
+(varredura de `pg_get_functiondef` em `public`/`intelligence`/`agentes`/`engagement`/
+`crm`/`pessoas`). É linha morta, não caminho vivo.
+
+**E a fila não alcança o Concierge.** `public.analise_pendentes` filtra
+`c.agente in ('treble','treble-inbound-agent')`. Medição da fila por superfície:
+
+| agente | conversas | com msg de lead | já analisadas |
+|---|---|---|---|
+| `treble` | 6.906 | 402 | 393 |
+| `null` (web legado, 21–27/08) | 23 | 19 | 0 |
+| `mindagent-chat` | 15 | 2 | 0 |
+| `treble-inbound-agent` | 5 | 4 | 4 |
+
+**Por que foi deferido — é gate de conteúdo, não de engenharia.** Alargar o `where` de
+`analise_pendentes` é uma linha. Mas sem prompt o analisador não tem o que rodar, e o
+`playbook_concierge_summit` é playbook de **conversa**, não de análise: não serve de
+contrato de extração. Copiar `analise_vendas_summit` seria inventar requisito — o Concierge
+não vende, e o `customer_memory` dele teria outro recorte.
+
+**Gatilho para retomar:** `analise_concierge` com `conteudo` escrito e aprovado pela
+Adriana. No mesmo passo, `analise_concierge` entra **nominalmente** no
+`v_sob_contrato` de `analise_projetar_memoria` (§16), como já está previsto — sem registry
+e sem regra global calada.
+
+**Dependência:** conteúdo de negócio (Adriana). A Lane D não inventa prompt.
+
+### 17.4 O contrato "necessidade decide seleção" já está correto no código de C
+
+Registro para não ser reinvestigado nem "corrigido" duas vezes.
+
+A v1.4.0 **viva hoje** concatena os interesses na query factual:
+`personalizedSearchQuery = \`${message} ${interesses.join(" ")}\`` → memória passava a
+**selecionar** conteúdo, e "qual é a programação de amanhã?" virava busca por interesse
+histórico.
+
+A v1.5.0 no `main` já corrigiu, e corrigiu do jeito certo — separando os campos em vez de
+concatenar: `mind_agent_kit(p_necessidade => {pergunta: message, interesses: [...]})`, com
+`mind_kit_programacao` usando `pergunta` para selecionar e `interesses` só para reordenar.
+O comentário do código diz exatamente isso.
+
+**Consequência:** o wiring de memória→Concierge para personalização **já existe e já
+respeita o contrato congelado**. Não há ligação nova a fazer na Edge; o que falta é
+publicá-la (§17.1). Acrescentar `mind_memoria_fatos` como segunda fonte de personalização
+seria duplicar o caminho que já flui por `participante_contexto` — não é a menor mudança e
+não foi feito.
