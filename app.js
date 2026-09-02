@@ -223,10 +223,13 @@ function montarHomeV3() {
 }
 
 /* ---------- Contagem regressiva até a abertura ----------
-   O mesmo instante em que a troca programada do painel leva a home para
-   "no evento": 07:00 do primeiro dia, quando abre o credenciamento. Os
-   dois números precisam bater — se um dia a abertura mudar, muda aqui e
-   na programação do painel.
+   07:00 do primeiro dia, quando abre o credenciamento. Este número NÃO é
+   mais o mesmo da virada da tela: a programação do painel leva a home
+   para "no evento" à meia-noite do dia 16, e a contagem continua mirando
+   a abertura do credenciamento. São duas perguntas diferentes — "que tela
+   é esta?" e "quanto falta para começar?" — e desde que a programação
+   existe elas têm respostas próprias. Se a abertura mudar, muda aqui; a
+   virada da tela muda no painel, em Home V3 › Visualização.
 
    API: o alvo virá do evento, junto com a data. */
 const HORA_DE_ABERTURA = 7;
