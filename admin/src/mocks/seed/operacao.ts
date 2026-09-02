@@ -323,10 +323,10 @@ export const conteudosSemente: Conteudo[] = [
     validoAte: '',
     status: 'publicado',
     publicadoEm: '2026-08-06T13:00:00.000Z',
-    publicadoPor: 'Ana Ribeiro',
+    publicadoPor: 'Equipe Mind',
     criadoEm: CRIADO_EM,
     atualizadoEm: '2026-08-06T13:00:00.000Z',
-    atualizadoPor: 'Ana Ribeiro',
+    atualizadoPor: 'Equipe Mind',
   },
   {
     id: 'con_metodo',
@@ -339,10 +339,10 @@ export const conteudosSemente: Conteudo[] = [
     validoAte: '',
     status: 'publicado',
     publicadoEm: '2026-08-06T13:10:00.000Z',
-    publicadoPor: 'Ana Ribeiro',
+    publicadoPor: 'Equipe Mind',
     criadoEm: CRIADO_EM,
     atualizadoEm: '2026-08-06T13:10:00.000Z',
-    atualizadoPor: 'Ana Ribeiro',
+    atualizadoPor: 'Equipe Mind',
   },
   {
     id: 'con_produtos',
@@ -358,7 +358,7 @@ export const conteudosSemente: Conteudo[] = [
     publicadoPor: null,
     criadoEm: CRIADO_EM,
     atualizadoEm: '2026-08-12T09:30:00.000Z',
-    atualizadoPor: 'Bruno Lemos',
+    atualizadoPor: 'Equipe Mind',
   },
   {
     id: 'con_comercial',
@@ -374,7 +374,7 @@ export const conteudosSemente: Conteudo[] = [
     publicadoPor: null,
     criadoEm: CRIADO_EM,
     atualizadoEm: '2026-08-14T16:45:00.000Z',
-    atualizadoPor: 'Bruno Lemos',
+    atualizadoPor: 'Equipe Mind',
   },
   {
     id: 'con_historia',
@@ -387,10 +387,10 @@ export const conteudosSemente: Conteudo[] = [
     validoAte: '',
     status: 'publicado',
     publicadoEm: '2026-08-07T11:00:00.000Z',
-    publicadoPor: 'Ana Ribeiro',
+    publicadoPor: 'Equipe Mind',
     criadoEm: CRIADO_EM,
     atualizadoEm: '2026-08-07T11:00:00.000Z',
-    atualizadoPor: 'Ana Ribeiro',
+    atualizadoPor: 'Equipe Mind',
   },
   {
     id: 'con_contato',
@@ -403,10 +403,10 @@ export const conteudosSemente: Conteudo[] = [
     validoAte: '',
     status: 'publicado',
     publicadoEm: '2026-08-07T11:20:00.000Z',
-    publicadoPor: 'Ana Ribeiro',
+    publicadoPor: 'Equipe Mind',
     criadoEm: CRIADO_EM,
     atualizadoEm: '2026-08-07T11:20:00.000Z',
-    atualizadoPor: 'Ana Ribeiro',
+    atualizadoPor: 'Equipe Mind',
   },
 ];
 
@@ -554,60 +554,10 @@ export const documentosSemente: Documento[] = [
 /* Usuários                                                            */
 /* ------------------------------------------------------------------ */
 /* Pessoas fictícias, domínio de exemplo. O e-mail é mascarado na tela. */
-export const usuariosSemente: Usuario[] = [
-  {
-    id: 'usr_ana',
-    nome: 'Ana Ribeiro',
-    email: 'ana.ribeiro@exemplo.com.br',
-    papel: 'administrador',
-    ativo: true,
-    ultimoAcessoEm: '2026-08-19T18:20:00.000Z',
-    criadoEm: CRIADO_EM,
-    atualizadoEm: CRIADO_EM,
-    atualizadoPor: POR,
-  },
-  {
-    id: 'usr_bruno',
-    nome: 'Bruno Lemos',
-    email: 'bruno.lemos@exemplo.com.br',
-    papel: 'editor',
-    ativo: true,
-    ultimoAcessoEm: '2026-08-19T12:05:00.000Z',
-    criadoEm: CRIADO_EM,
-    atualizadoEm: CRIADO_EM,
-    atualizadoPor: POR,
-  },
-  {
-    id: 'usr_carla',
-    nome: 'Carla Nunes',
-    email: 'carla.nunes@exemplo.com.br',
-    papel: 'aprovador',
-    ativo: true,
-    ultimoAcessoEm: '2026-08-18T09:40:00.000Z',
-    criadoEm: CRIADO_EM,
-    atualizadoEm: CRIADO_EM,
-    atualizadoPor: POR,
-  },
-  {
-    id: 'usr_diego',
-    nome: 'Diego Farias',
-    email: 'diego.farias@exemplo.com.br',
-    papel: 'atendimento',
-    ativo: true,
-    ultimoAcessoEm: '2026-08-20T08:15:00.000Z',
-    criadoEm: CRIADO_EM,
-    atualizadoEm: CRIADO_EM,
-    atualizadoPor: POR,
-  },
-  {
-    id: 'usr_elisa',
-    nome: 'Elisa Prado',
-    email: 'elisa.prado@exemplo.com.br',
-    papel: 'analista',
-    ativo: false,
-    ultimoAcessoEm: null,
-    criadoEm: CRIADO_EM,
-    atualizadoEm: CRIADO_EM,
-    atualizadoPor: POR,
-  },
-];
+/* Vazio de propósito. As cinco pessoas fictícias que moravam aqui
+   apareciam no painel como se fossem o time — com papel, e-mail e
+   último acesso. Quem administra o painel de verdade está em
+   `public.mind_admin_users`, que é o que a Edge Function lê para
+   autorizar. Enquanto a API não expuser o recurso, a tela mostra
+   vazio: é mais honesto que inventar gente. */
+export const usuariosSemente: Usuario[] = [];

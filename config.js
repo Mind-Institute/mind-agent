@@ -20,6 +20,12 @@ export const CONFIG = {
      Nula volta a página para o arquivo local. */
   apiBaseUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-bootstrap',
 
+  /* A porta da Home V3: avisos e qual composição está no ar. É função
+     separada do bootstrap de propósito — o bootstrap responde pela
+     programação do evento, e mexer nele é mexer em coisa de outra lane.
+     Nula desliga: o app fica com os avisos embutidos. */
+  homeApiUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-home',
+
   /* O projeto Supabase e a chave pública — usados pelo `chat-service.js`
      para abrir a sessão anônima (Auth) e chamar a função do chat. */
   supabaseUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co',

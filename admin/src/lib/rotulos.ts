@@ -44,11 +44,6 @@ export function rotuloTipoEspaco(tipo: string): Rotulo {
   return resolver<TipoEspaco>(ROTULO_TIPO_ESPACO, tipo);
 }
 
-/** Trilha de ingresso — mesma regra. */
-export function rotuloTrilha(trilha: string): Rotulo {
-  const mapa: Record<string, string> = { mind: 'Mind', vip: 'VIP', prime: 'Prime' };
-  return resolver(mapa, trilha);
-}
 
 export interface OpcaoCategoria {
   valor: string;

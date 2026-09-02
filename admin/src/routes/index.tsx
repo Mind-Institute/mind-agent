@@ -15,6 +15,8 @@ import { PaginaPerguntas } from '@/pages/perguntas';
 import { PaginaUsuarios } from '@/pages/usuarios';
 import { PaginaAuditoria } from '@/pages/auditoria';
 import { PaginaConfiguracoes } from '@/pages/configuracoes';
+import { PaginaHomeVisualizacao } from '@/pages/home-visualizacao';
+import { PaginaHomeAvisos } from '@/pages/home-avisos';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -62,6 +64,10 @@ export const rotasAdmin: RouteObject[] = [
 
       { path: 'perguntas', element: <PaginaPerguntas /> },
       { path: 'perguntas/:id', element: <PaginaPerguntas /> },
+
+      { path: 'home/visualizacao', element: <PaginaHomeVisualizacao /> },
+      { path: 'home/avisos', element: <PaginaHomeAvisos /> },
+      { path: 'home/avisos/:id', element: <PaginaHomeAvisos /> },
 
       { path: 'usuarios', element: <PaginaUsuarios /> },
       { path: 'auditoria', element: <PaginaAuditoria /> },

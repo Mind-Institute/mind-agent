@@ -2,7 +2,7 @@ import { afterEach } from 'vitest';
 import { act, render, type RenderResult } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import type { QueryClient } from '@tanstack/react-query';
-import type { Papel, PerfilAdmin, SessaoAuth } from '@/contracts';
+import type { Papel, SessaoAuth } from '@/contracts';
 import { Provedores, criarClienteDeConsulta } from '@/App';
 import { rotasAdmin } from '@/routes';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
@@ -266,14 +266,6 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
     ultima: (trecho) => [...chamadas].reverse().find((c) => c.url.includes(trecho)),
   };
 }
-
-export const PERFIL_ADMINISTRADOR: PerfilAdmin = {
-  id: 'usr-teste',
-  email: 'ana.ribeiro@exemplo.com.br',
-  nome: 'Ana Ribeiro',
-  papel: 'administrador',
-  permissoes: null,
-};
 
 /* ============================================================
    PAINEL EM MODO HÍBRIDO

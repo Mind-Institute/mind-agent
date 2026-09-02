@@ -24,37 +24,32 @@
     <button class="splash-pular" id="pular" type="button">Pular</button>
   </div>
 
-  <!-- ============ HOME: o Mind Agent ============ -->
+  <!-- ============ HOME V3: a central do participante ============
+       Cabeçalho, corpo e barra são três camadas fixas; só o miolo rola.
+       O conteúdo do miolo é montado por `home/home.js` a partir do
+       momento do evento — não há card escrito aqui dentro.
+
+       Sem foto e sem avatar, por decisão do handoff: quem identifica a
+       pessoa é a saudação, em texto. -->
   <section class="vista ativa" id="vista-home">
-    <div class="home-rolagem">
-      <header class="h-topo">
-        <span class="h-marca"><img src="./assets/simbolo-mind-verde.png" alt="" />Mind Agent</span>
-        <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
-        <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
-      </header>
+    <header class="v3-topo">
+      <!-- O arquivo chamado mind-summit-2026 traz só o "mind ✤": o lockup
+           com "summit 2026" não existe como asset. O símbolo é o real; o
+           resto é tipografado, do mesmo jeito que o splash faz. Chegando
+           o PNG do lockup, isto vira uma tag <img> só. -->
+      <span class="v3-marca" role="img" aria-label="Mind Summit 2026">
+        <img src="./assets/mind-summit-2026-branco-horizontal-transp.png" alt="" />
+        <span class="v3-summit">summit<i>2026</i></span>
+      </span>
+      <button class="h-perfil" id="btn-perfil" hidden>Seu Summit <span class="pt" id="perfil-pontos"></span></button>
+      <button class="h-ajuda" id="btn-ajuda" aria-label="O que é o Mind Agent?">?</button>
+    </header>
 
-      <p class="h-sub">Seu concierge dentro do Summit</p>
-      <!-- Só aparece quando a Yazo diz quem abriu a página. Sem nome, sem
-           saudação: o agente não inventa identidade. -->
-      <p class="h-ola" id="h-ola" hidden>Olá, <b id="h-ola-nome"></b></p>
-      <h1 class="h-titulo">O que você quer fazer<em>?</em></h1>
-
-      <!-- As intenções são montadas a partir dos dados do data-service -->
-      <div class="h-intencoes" id="intencoes"></div>
-
-      <div class="h-divisor"></div>
-      <span class="h-etq">Conheça o aplicativo</span>
-      <button class="h-tour" id="abrir-tour" type="button"><span class="play">▶</span> Fazer tour do app</button>
-
-      <p class="h-rodape">Mind Summit 2026 · 16–17 set · São Paulo Expo</p>
-    </div>
+    <div class="v3-rolagem" id="home-v3"></div>
 
     <div class="doca">
       <form id="form-home">
-        <input type="text" id="campo-home" placeholder="Ou escreva o que você precisa…" autocomplete="off" enterkeyhint="send" />
-        <button type="button" class="mic" id="btn-mic" aria-label="Perguntar por voz">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg>
-        </button>
+        <input type="text" id="campo-home" placeholder="Pergunte qualquer coisa ao Concierge" autocomplete="off" enterkeyhint="send" />
         <button type="submit" class="enviar" aria-label="Enviar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
         </button>
@@ -79,9 +74,6 @@
     <div class="doca">
       <form id="form-chat">
         <input type="text" id="campo-chat" placeholder="Escreva o que você precisa…" autocomplete="off" enterkeyhint="send" />
-        <button type="button" class="mic" aria-label="Perguntar por voz">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></svg>
-        </button>
         <button type="submit" class="enviar" aria-label="Enviar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
         </button>
@@ -116,7 +108,7 @@
   <section class="vista" id="vista-tour">
     <div class="t-missao">
       <button class="c-voltar" id="fechar-tour" aria-label="Fechar tour">×</button>
-      <p class="t-texto" id="missao-texto"><i>1/7</i>Salvar uma sessão na sua agenda</p>
+      <p class="t-texto" id="missao-texto"><i>1/2</i>Reservar seu lugar numa sessão</p>
       <span class="t-prog" id="missao-prog" aria-hidden="true"></span>
       <button class="c-voltar" id="ver-missoes" aria-label="Ver missões">☰</button>
     </div>
@@ -150,14 +142,37 @@
     <div class="fim-fundo" id="fim-fundo">
       <div class="fim-cartao">
         <img src="./assets/simbolo-mind-verde.png" alt="" />
-        <h3>Você mandou bem!</h3>
-        <p>Agora você já sabe salvar uma sessão, reservar seu lugar, consultar sua agenda e usar o QR Code. No Menu ficam o mapa, a Área de Networking e o Chat, para você explorar quando quiser.</p>
+        <h3 id="fim-titulo">Você mandou bem!</h3>
+        <p id="fim-texto">Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.</p>
         <p>Sempre que precisar de programação, palestrantes, conteúdos, localização ou ajuda com sua jornada, é só me chamar no <b>Chat</b>.</p>
-        <button class="btn-verde" type="button" id="btn-concluir">Concluir tour</button>
+        <!-- "Voltar", não "Concluir tour": desde que virou instrução de
+             como reservar, não há tour a concluir — há uma home para
+             onde voltar. -->
+        <button class="btn-verde" type="button" id="btn-concluir">Voltar</button>
         <button class="link-mind" type="button" id="tour-para-chat">Perguntar ao Mind Agent →</button>
       </div>
     </div>
   </section>
+
+  <!-- ============ AVISOS: tela própria ============
+       Vira tela, não gaveta: aviso pode ser longo, e ler texto longo
+       numa folha de meia altura é pior. O voltar é o mesmo botão das
+       outras vistas, no mesmo canto. -->
+  <section class="vista" id="vista-avisos">
+    <div class="c-topo">
+      <button class="c-voltar" id="avisos-voltar" aria-label="Voltar">‹</button>
+      <div>
+        <strong id="avisos-titulo">Avisos importantes</strong>
+        <small id="avisos-sub">Tudo que o evento comunicou</small>
+      </div>
+    </div>
+    <div class="av-rolagem" id="avisos-corpo"></div>
+  </section>
+
+  <!-- Painel da home: só o "em breve". -->
+  <div class="painel-fundo" id="painel-fundo">
+    <div class="painel-cartao" id="painel-cartao" role="dialog" aria-modal="true" aria-labelledby="painel-titulo"></div>
+  </div>
 
   <!-- Cartão de ajuda -->
   <div class="ajuda-fundo" id="ajuda">
@@ -168,52 +183,10 @@
         <li><b>Sabe quem é você</b> quando você entra pelo seu link do Summit — e chama você pelo nome.</li>
         <li><b>Responde pela base oficial</b> do evento: programação, palestrantes, salas e horários. Quando o dado não está lá, ele diz que não está, em vez de inventar.</li>
         <li><b>Sugere o que ver</b> a partir do que você contar sobre o seu desafio.</li>
-        <li><b>Mostra o caminho</b> quando a ação é sua: aponta a tela e o botão de salvar, reservar ou fazer check-in.</li>
+        <li><b>Mostra o caminho</b> quando a ação é sua: aponta a tela e o botão de reservar ou de fazer check-in.</li>
       </ul>
-      <p class="ajuda-nota">Quem reserva, faz check-in e monta a agenda é você, no app do evento. Seu nome e e-mail vão para o agente apenas para ele saber com quem fala.</p>
+      <p class="ajuda-nota">Quem reserva e faz check-in é você, no app do evento. Seu nome e e-mail vão para o agente apenas para ele saber com quem fala.</p>
       <button type="button" id="fechar-ajuda">Entendi</button>
-    </div>
-  </div>
-
-  <!-- ============ GUIA DA BARRA: tela cheia, aponta para a toolbar ============
-       A barra de abas é do aplicativo do evento, não desta página: ela fica
-       logo abaixo da nossa borda inferior. Por isso a seta aponta para fora,
-       na coluna de cada ícone, e a barrinha de aba selecionada é desenhada
-       rente à borda — é o mesmo sinal que o app usa. -->
-  <div class="guia" id="guia" hidden>
-    <span class="guia-brilho" id="guia-brilho" aria-hidden="true"></span>
-    <div class="guia-trilha" id="guia-trilha" aria-hidden="true"></div>
-    <p class="guia-nome">Tour rápido <span>Conheça o essencial em 30 segundos</span></p>
-    <button type="button" class="guia-pular" id="guia-pular">Pular</button>
-
-    <div class="guia-cena" id="guia-cena" role="dialog" aria-live="polite" aria-labelledby="guia-titulo">
-      <span class="guia-selo" id="guia-selo"></span>
-      <h2 class="guia-titulo" id="guia-titulo"></h2>
-      <p class="guia-texto" id="guia-texto"></p>
-      <!-- Bloco à parte para o que muda o comportamento de quem chega,
-           como a regra de reserva das arenas. -->
-      <p class="guia-aviso" id="guia-aviso" hidden></p>
-    </div>
-
-    <svg class="guia-seta" id="guia-seta" aria-hidden="true"></svg>
-    <span class="guia-barra" id="guia-barra" aria-hidden="true"></span>
-    <!-- Fica na tela desde o começo do passo: quem manda no ritmo é a
-         pessoa, e isso vale desde o primeiro instante. Some no último
-         passo, onde os botões já dizem o que fazer. Só a seta para a
-         frente — voltar existe, mas não é o que se quer sugerir aqui. -->
-    <div class="guia-avance" id="guia-avance" hidden aria-hidden="true">
-      <span>deslize para continuar</span>
-      <span class="s">→</span>
-    </div>
-
-    <!-- As zonas de toque são invisíveis por natureza. Estas marcas dizem
-         que elas existem, sem disputar atenção com o conteúdo. São
-         decorativas: quem lê o toque é o próprio guia, não elas. -->
-    <span class="guia-lado" id="guia-lado" hidden aria-hidden="true"><i>‹</i><i>›</i></span>
-
-    <div class="guia-saida" id="guia-saida" hidden>
-      <button type="button" class="guia-praticar" id="guia-praticar">Aprender usando o app<span>Tour interativo · cerca de 2 minutos</span></button>
-      <button type="button" class="guia-ir" id="guia-ir">Ir para o Mind Agent</button>
     </div>
   </div>
 

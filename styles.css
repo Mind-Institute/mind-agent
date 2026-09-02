@@ -124,87 +124,487 @@ body {
 /* ============================================================
    HOME — o Mind Agent
    ============================================================ */
-.home-rolagem {
-  flex: 1; min-height: 0;
-  overflow-y: auto;
-  padding: 18px var(--pad) 0;
-  display: flex; flex-direction: column;
-}
+/* ============================================================
+   HOME V3 — a central do participante
+   ============================================================
+   Composição, hierarquia e espaçamentos vêm do artefato aprovado; cores,
+   tipografia e raios vêm dos tokens que o app já usa. Foi a decisão do
+   handoff: fidelidade de layout, identidade do produto.
 
-.h-topo { display: flex; align-items: center; justify-content: space-between; }
-.h-marca {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 14px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+   Três camadas fixas — topo, campo do Concierge e barra de abas — e só o
+   miolo rola. No celular isso mantém a ação principal e a navegação
+   sempre à mão. */
+
+/* Em tela grande a composição não se esparrama: fica centrada, com a
+   mesma medida do celular. */
+#vista-home { width: 100%; max-width: 460px; margin: 0 auto; }
+
+.v3-topo {
+  flex: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px var(--pad) 10px;
 }
-.h-marca img { height: 20px; }
+/* A marca do evento: símbolo real mais "summit 2026" tipografado.
+   Alinhados pela base do "mind", com o ano preso embaixo do summit. */
+.v3-marca { flex: 1; display: flex; align-items: center; gap: 7px; }
+.v3-marca img { height: 17px; width: auto; display: block; }
+.v3-summit {
+  display: flex; flex-direction: column; align-items: flex-start;
+  line-height: 1; padding-top: 1px;
+  font-size: 13.5px; font-weight: 500; letter-spacing: -.01em;
+  color: var(--texto);
+}
+.v3-summit i {
+  font-style: normal;
+  font-size: 7.5px; font-weight: 700; letter-spacing: .1em;
+  margin-top: 2px; opacity: .7;
+}
 .h-ajuda {
   appearance: none; cursor: pointer;
   width: 40px; height: 40px; border-radius: 50%;
   background: none; border: 1px solid var(--hairline);
   color: var(--texto-mudo);
   font: inherit; font-size: 16px; font-weight: 700;
+  flex: none;
 }
 
-/* A linha pertence à marca, não à manchete: ela explica o que é o Mind
-   Agent. Por isso encosta no logo e o respiro vai para baixo dela. */
-.h-sub { margin-top: 7px; font-size: 14px; font-weight: 600; color: var(--texto-mudo); }
-/* Saudação pessoal, quando a Yazo diz quem chegou. Some sem deixar
-   buraco: o título retoma o respiro que era dela. */
-.h-ola { margin-top: 26px; font-size: 17px; font-weight: 600; color: var(--texto-suave); }
-.h-ola b { color: var(--verde); font-weight: 700; }
-.h-ola:not([hidden]) + .h-titulo { margin-top: 4px; }
-
-.h-titulo {
-  margin-top: 26px;
-  font-size: 42px; font-weight: 900; text-transform: uppercase;
-  letter-spacing: -.02em; line-height: .94;
+.v3-rolagem {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 4px var(--pad) 16px;
+  display: flex; flex-direction: column; gap: 10px;
 }
-.h-titulo em { font-style: normal; color: var(--verde); }
 
-.h-sugestoes { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
-.h-sugestoes button {
-  appearance: none; cursor: pointer;
-  background: none;
-  border: 1px solid var(--hairline);
-  border-radius: 14px;
-  color: var(--texto);
-  font: inherit; font-size: 15px; font-weight: 700;
-  min-height: 54px;
-  padding: 0 18px;
-  text-align: left;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  transition: border-color .2s ease;
+/* ---- Seletor de momento: andaime de demonstração ----
+   Tracejado de propósito: quem olha entende que não é produto. Sai no
+   dia em que o momento vier da data do evento. */
+.v3-momentos {
+  display: flex; gap: 6px; flex: none;
+  margin-bottom: 6px;
+  padding: 4px; border-radius: var(--raio-pill);
+  background: var(--surface-deep);
+  border: 1px dashed var(--hairline);
 }
-.h-sugestoes button::after { content: '→'; color: var(--verde); font-weight: 900; }
-.h-sugestoes button:active { border-color: var(--verde); }
+.v3-momentos button {
+  flex: 1; appearance: none; cursor: pointer; border: 0;
+  background: none; color: var(--texto-mudo);
+  font: inherit; font-size: 12px; font-weight: 700;
+  padding: 8px 4px; border-radius: var(--raio-pill);
+  transition: background .18s ease, color .18s ease;
+}
+.v3-momentos button.on { background: var(--surface); color: var(--texto); }
 
-.h-divisor { margin: 24px 0 16px; height: 1px; background: var(--hairline); flex: none; }
-.h-etq {
-  font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase;
+/* ---- Cabeçalho do momento ---- */
+.v3-hero { flex: none; padding: 8px 0 4px; }
+.v3-etq {
+  font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--verde);
+}
+/* A contagem, em dias. Não precisa de tabular: o número muda uma vez por
+   dia, não a cada segundo. */
+.v3-relogio { letter-spacing: .04em; }
+.v3-relogio::before { content: '· '; }
+
+.v3-ola {
+  margin-top: 14px;
+  font-size: 18.4px; font-weight: 700; line-height: 1.2;
   color: var(--texto-mudo);
 }
-.h-tour {
+.v3-ola + .v3-titulo { margin-top: 2px; }
+.v3-titulo {
   margin-top: 12px;
+  font-size: 27px; font-weight: 700; line-height: 1.18;
+  letter-spacing: -.02em;
+  color: var(--texto);
+}
+.v3-resumo {
+  margin-top: 10px;
+  font-size: 14.5px; line-height: 1.45;
+  color: var(--texto-mudo);
+}
+
+/* ---- Destaque: a ação principal do momento ---- */
+.v3-destaque {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid var(--hairline);
+  background: var(--surface-deep);
+  border-radius: var(--raio-card);
+  padding: 18px;
+  margin-top: 8px;
+  font: inherit; color: var(--texto);
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color .18s ease, transform .18s ease;
+}
+.v3-destaque:active { transform: scale(.99); border-color: var(--verde); }
+.v3-destaque .v3-ico {
+  width: 38px; height: 38px; border-radius: 11px;
+  background: var(--surface); color: var(--verde);
+  display: grid; place-items: center;
+  margin-bottom: 14px;
+}
+.v3-destaque .v3-ico svg { width: 20px; height: 20px; }
+/* Uma linha só: o selo pode ser o nome de uma palestra, e nome de
+   palestra é longo. Cortado com reticências, ele continua sendo
+   referência sem virar parágrafo. */
+.v3-selo {
+  font-size: 12px; font-weight: 600; color: var(--texto-mudo);
+  display: block; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v3-pergunta { font-size: 19px; font-weight: 700; line-height: 1.25; }
+/* Corpo do card de destaque: explica o que acontece do outro lado.
+   Mesma escala do resto — não é card novo, é o mesmo com mais uma linha. */
+.v3-texto { margin-top: 9px; font-size: 13.5px; line-height: 1.5; color: var(--texto-suave); }
+/* Estimativa de tempo, na própria linha da ação: encostada na seta,
+   discreta, sem competir com o verde da chamada — e sem custar uma
+   linha inteira de altura, que era o problema. */
+.v3-micro {
+  margin-left: auto; flex: none;
+  font-size: 11.5px; font-weight: 500; color: var(--texto-mudo);
+}
+.v3-cta {
+  margin-top: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 14px; font-weight: 700; color: var(--verde);
+}
+/* Cabeçalho em linha, para o card que tem corpo de texto. O ícone
+   encolhe junto: sozinho numa faixa ele pedia presença, ao lado do selo
+   ele só identifica. */
+.v3-destaque.compacto .v3-cabeca {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.v3-destaque.compacto .v3-ico {
+  width: 30px; height: 30px; border-radius: 9px; margin-bottom: 0; flex: none;
+}
+.v3-destaque.compacto .v3-ico svg { width: 17px; height: 17px; }
+.v3-destaque.compacto .v3-texto { margin-top: 8px; line-height: 1.45; }
+.v3-cta .seta { width: 18px; height: 18px; flex: none; }
+
+/* A ação urgente do dia do evento usa o coral que já era o token de
+   urgência do app — não entrou cor nova para isso. */
+.v3-destaque.urgente {
+  background: color-mix(in srgb, var(--coral) 20%, var(--surface-deep));
+  border-color: color-mix(in srgb, var(--coral) 55%, transparent);
+}
+.v3-destaque.urgente .v3-ico {
+  background: color-mix(in srgb, var(--coral) 32%, transparent);
+  color: var(--texto);
+}
+.v3-destaque.urgente .v3-cta { color: var(--texto-suave); }
+.v3-destaque.urgente:active { border-color: var(--coral); }
+
+/* ---- Próxima atividade ---- */
+.v3-proxima {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid var(--hairline);
+  background: none;
+  border-radius: 18px;
+  padding: 16px 18px;
+  font: inherit; color: var(--texto);
+  display: flex; flex-direction: column; gap: 5px;
+  transition: border-color .18s ease;
+}
+.v3-proxima:active { border-color: var(--verde); }
+/* Parado: sem cursor de mão e sem reação ao toque. */
+.v3-proxima.parado { cursor: default; }
+.v3-proxima.parado:active { border-color: var(--hairline); }
+.v3-hora { font-size: 12.5px; font-weight: 700; color: var(--verde); }
+.v3-proxima strong { font-size: 17px; font-weight: 700; line-height: 1.25; }
+.v3-proxima small { font-size: 13px; color: var(--texto-mudo); }
+
+/* ---- Linha: ícone, título, apoio ---- */
+.v3-linha {
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid var(--hairline);
+  background: none;
+  border-radius: 18px;
+  padding: 14px 16px;
+  font: inherit; color: var(--texto);
+  min-height: 68px;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color .18s ease;
+}
+.v3-linha:active { border-color: var(--verde); }
+.v3-linha .v3-ico {
+  width: 40px; height: 40px; border-radius: 12px; flex: none;
+  background: var(--surface); color: var(--verde);
+  display: grid; place-items: center;
+}
+.v3-linha .v3-ico svg { width: 19px; height: 19px; }
+.v3-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.v3-corpo strong { font-size: 15px; font-weight: 700; line-height: 1.25; }
+.v3-corpo small { font-size: 12.5px; line-height: 1.35; color: var(--texto-mudo); }
+.v3-linha .chevron { width: 17px; height: 17px; flex: none; color: var(--texto-mudo); }
+
+/* ---- Tour: convite ----
+   Precisa se distinguir da linha de aviso de relance, senão vira mais um
+   recado na pilha. Fundo tingido de verde, ícone sólido e seta no fim. */
+.v3-tour {
+  position: relative;
+  margin-top: 16px;
+  appearance: none; cursor: pointer; text-align: left;
+  border: 1px solid color-mix(in srgb, var(--coral) 55%, transparent);
+  background: color-mix(in srgb, var(--coral) 13%, transparent);
+  border-radius: 18px;
+  padding: 14px 16px;
+  font: inherit; color: var(--texto);
+  min-height: 68px;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color .18s ease, background .18s ease;
+}
+/* Um fio quase invisível marca onde os avisos terminam e o convite
+   começa. Some nas pontas de propósito: régua de ponta a ponta seria
+   mais uma divisória na tela, e a ideia é só dar o respiro. */
+.v3-tour::before {
+  content: '';
+  position: absolute; left: 10%; right: 10%; top: -9px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--hairline), transparent);
+}
+.v3-tour:active {
+  border-color: var(--coral);
+  background: color-mix(in srgb, var(--coral) 22%, transparent);
+}
+.v3-play {
+  width: 40px; height: 40px; border-radius: 50%; flex: none;
+  background: var(--coral); color: #1a0d0a;
+  display: grid; place-items: center;
+}
+.v3-play svg { width: 17px; height: 17px; margin-left: 2px; }
+.v3-tour .v3-corpo small i { font-style: normal; color: var(--coral); }
+.v3-tour .seta { width: 18px; height: 18px; flex: none; color: var(--coral); }
+
+/* ---- Título de seção ---- */
+.v3-secao {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-top: 18px; padding: 0 2px;
+}
+.v3-secao h2 { font-size: 16px; font-weight: 700; color: var(--texto); }
+.v3-link {
+  appearance: none; cursor: pointer; border: 0; background: none;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--verde);
+  padding: 4px 2px;
+}
+
+/* ---- Progresso da entrevista ---- */
+.v3-progresso { display: flex; gap: 6px; margin: 4px 2px 6px; }
+.v3-progresso i { flex: 1; height: 3px; border-radius: 2px; background: var(--hairline); }
+.v3-progresso i.feito { background: var(--verde); }
+
+/* ---- Painel: bloco de leitura com ação ---- */
+.v3-painel {
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.v3-etiqueta { font-size: 12px; font-weight: 700; color: var(--verde); }
+.v3-painel strong { font-size: 16px; font-weight: 700; line-height: 1.3; }
+.v3-texto { font-size: 13px; line-height: 1.45; color: var(--texto-mudo); }
+.v3-botao {
+  margin-top: 10px;
+  appearance: none; cursor: pointer;
+  border: 1px solid var(--hairline); background: none;
+  border-radius: var(--raio-pill);
+  color: var(--texto); font: inherit; font-size: 14px; font-weight: 700;
+  min-height: 46px;
+  transition: border-color .18s ease;
+}
+.v3-botao:active { border-color: var(--verde); }
+
+/* Área de toque de 44x44 sem mexer no desenho: o alvo pequeno ganha um
+   extensor invisível centrado nele. Mesma técnica dos hotspots do tour. */
+/* O botão de enviar já é `absolute` dentro do campo — pô-lo em
+   `relative` o jogava para fora do pill. */
+.v3-link, .h-ajuda, .v3-momentos button { position: relative; }
+.v3-link::before, .h-ajuda::before, #vista-home .doca .enviar::before,
+.v3-momentos button::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+}
+
+/* ---- Avisos: tela própria ----
+   Uma vista como as outras — cabeçalho com voltar, corpo que rola. O
+   aviso pode ter parágrafos; ler isso numa gaveta de meia altura é
+   pior do que numa página inteira. */
+.av-rolagem {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 14px var(--pad) max(20px, env(safe-area-inset-bottom));
+}
+
+.av-lista { display: flex; flex-direction: column; gap: 9px; }
+.av-item {
+  appearance: none; cursor: pointer; text-align: left;
+  background: none; border: 1px solid var(--hairline);
+  border-radius: 18px; padding: 14px 16px;
+  font: inherit; color: var(--texto);
+  min-height: 74px;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color .18s ease;
+}
+.av-item:active { border-color: var(--verde); }
+/* Não lido tem borda acesa e o ponto: dois sinais, porque cor sozinha
+   não serve para quem não distingue verde de cinza. */
+.av-item.novo { border-color: color-mix(in srgb, var(--verde) 45%, transparent); }
+.av-ico {
+  width: 40px; height: 40px; border-radius: 12px; flex: none;
+  background: var(--surface); color: var(--verde);
+  display: grid; place-items: center;
+}
+.av-ico svg { width: 19px; height: 19px; }
+.av-ico.grande { width: 52px; height: 52px; border-radius: 16px; }
+.av-ico.grande svg { width: 25px; height: 25px; }
+.av-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.av-corpo strong { font-size: 15px; font-weight: 700; line-height: 1.25; }
+.av-corpo small { font-size: 12.5px; line-height: 1.35; color: var(--texto-mudo); }
+.av-corpo em {
+  font-style: normal; font-size: 11px; color: var(--texto-mudo);
+  opacity: .7; margin-top: 2px;
+}
+.av-ponto {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--verde);
+}
+.av-item .chevron { width: 17px; height: 17px; flex: none; color: var(--texto-mudo); }
+
+.av-leitura { display: flex; flex-direction: column; align-items: flex-start; padding-top: 4px; }
+.av-quando { margin-top: 16px; font-size: 12px; color: var(--texto-mudo); }
+.av-leitura h2 {
+  margin-top: 6px;
+  font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em;
+}
+.av-resumo { margin-top: 8px; font-size: 15px; color: var(--texto-suave); }
+.av-texto {
+  margin-top: 16px;
+  font-size: 15px; line-height: 1.6; color: var(--texto-suave);
+}
+.av-texto b { color: var(--texto); }
+.av-acao {
+  margin-top: 22px; align-self: stretch;
   appearance: none; cursor: pointer; border: 0;
   background: var(--verde); color: var(--surface-deep);
   border-radius: var(--raio-pill);
   font: inherit; font-size: 15px; font-weight: 700;
-  min-height: 54px;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  flex: none;
+  min-height: 52px;
 }
-.h-tour .play {
-  width: 24px; height: 24px; border-radius: 50%;
-  background: var(--surface-deep); color: var(--verde);
+.av-vazio { padding: 24px 0; color: var(--texto-mudo); }
+
+/* Contador de não lidos, colado no "Ver todos".
+   Vermelho e não verde: o verde é a cor de tudo que está bem no app —
+   marca, ação, confirmação. Um número que existe para incomodar precisa
+   de outra cor, senão vira paisagem. */
+.v3-link { display: inline-flex; align-items: center; gap: 7px; }
+.v3-contador {
+  display: inline-grid; place-items: center;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: var(--raio-pill);
+  background: var(--coral); color: #1a0d0a;
+  font-size: 11.5px; font-weight: 900; line-height: 1;
+}
+
+/* ---- Painel da home ----
+   Sobe de baixo, como folha. Serve para os avisos e para o "em breve" —
+   um lugar só, três conteúdos. */
+.painel-fundo {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(6, 6, 10, .72);
+  display: none; align-items: flex-end; justify-content: center;
+}
+.painel-fundo.aberto { display: flex; animation: entra .2s ease; }
+.painel-cartao {
+  width: 100%; max-width: 460px;
+  max-height: 84vh;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-card) var(--raio-card) 0 0;
+  padding: 18px var(--pad) max(18px, env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 14px;
+  animation: sobe .26s cubic-bezier(.2,.7,.3,1);
+}
+@keyframes sobe { from { transform: translateY(14px); opacity: .6; } to { transform: none; opacity: 1; } }
+
+.p-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.p-topo h3 { font-size: 19px; font-weight: 700; line-height: 1.25; color: var(--texto); }
+.p-fechar {
+  appearance: none; cursor: pointer; flex: none;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: none; border: 1px solid var(--hairline);
+  color: var(--texto-mudo); font: inherit; font-size: 19px; line-height: 1;
+  position: relative;
+}
+.p-fechar::before {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+}
+.p-corpo { overflow-y: auto; min-height: 0; }
+
+/* "Em breve": diz o que a coisa é antes de dizer que ainda não abriu. */
+.p-breve p { font-size: 14.5px; line-height: 1.5; color: var(--texto-suave); margin-top: 12px; }
+.p-breve .p-nota { color: var(--texto-mudo); font-size: 13px; }
+.p-selo {
+  display: inline-block;
+  font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--verde);
+  border: 1px solid color-mix(in srgb, var(--verde) 45%, transparent);
+  border-radius: var(--raio-pill);
+  padding: 6px 12px;
+}
+
+/* Lista de avisos */
+.p-lista { display: flex; flex-direction: column; gap: 8px; list-style: none; }
+.p-lista button {
+  width: 100%; appearance: none; cursor: pointer; text-align: left;
+  background: none; border: 1px solid var(--hairline); border-radius: 16px;
+  padding: 13px 15px; font: inherit; color: var(--texto);
+  display: flex; align-items: center; gap: 13px; min-height: 66px;
+  transition: border-color .18s ease;
+}
+.p-lista button:active { border-color: var(--verde); }
+.p-ico {
+  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  background: var(--surface); color: var(--verde);
   display: grid; place-items: center;
-  font-size: 9px;
-  padding-left: 2px;
 }
-.h-rodape {
-  margin-top: auto;
-  padding: 14px 0 6px;
-  text-align: center;
-  font-size: 11px; color: var(--texto-mudo);
+.p-ico svg { width: 18px; height: 18px; }
+.p-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.p-txt strong { font-size: 14.5px; font-weight: 700; }
+.p-txt small { font-size: 12.5px; color: var(--texto-mudo); line-height: 1.35; }
+.p-txt em { font-style: normal; font-size: 11px; color: var(--texto-mudo); opacity: .7; margin-top: 2px; }
+
+/* Um aviso aberto */
+.p-aviso p { font-size: 14.5px; line-height: 1.55; color: var(--texto-suave); }
+.p-quando { font-size: 12px; color: var(--texto-mudo); margin-bottom: 10px; }
+.p-aviso b { color: var(--texto); }
+
+.p-rodape { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.p-acao, .p-secundario {
+  appearance: none; cursor: pointer; font: inherit; font-size: 15px; font-weight: 700;
+  min-height: 50px; border-radius: var(--raio-pill);
+}
+.p-acao { border: 0; background: var(--verde); color: var(--surface-deep); }
+.p-secundario { border: 1px solid var(--hairline); background: none; color: var(--texto-mudo); }
+
+@media (prefers-reduced-motion: reduce) {
+  .painel-fundo.aberto, .painel-cartao { animation: none; }
+}
+
+/* Foco visível em tudo que se toca. */
+.v3-destaque:focus-visible, .v3-linha:focus-visible, .v3-proxima:focus-visible,
+.v3-botao:focus-visible, .v3-link:focus-visible, .p-fechar:focus-visible,
+.av-item:focus-visible, .av-acao:focus-visible, .v3-tour:focus-visible,
+.p-lista button:focus-visible, .p-acao:focus-visible, .p-secundario:focus-visible,
+.v3-momentos button:focus-visible {
+  outline: 2px solid var(--acao); outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v3-destaque, .v3-linha, .v3-proxima, .v3-botao { transition: none; }
+  .v3-destaque:active { transform: none; }
 }
 
 /* Campo fixo: pergunte qualquer coisa */
@@ -221,22 +621,17 @@ body {
   border-radius: var(--raio-pill);
   color: var(--texto);
   font: inherit; font-size: 15px;
-  padding: 0 96px 0 20px;
+  padding: 0 62px 0 20px;
   min-height: 54px;
   outline: none;
 }
 .doca input::placeholder { color: var(--texto-mudo); }
 .doca input:focus { border-color: rgba(104, 238, 149, .5); }
-.doca .mic, .doca .enviar {
+.doca .enviar {
   appearance: none; cursor: pointer;
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
-}
-.doca .mic {
-  right: 50px;
-  background: none; border: 0;
-  color: var(--texto-mudo);
 }
 .doca .enviar {
   right: 7px;
@@ -516,11 +911,12 @@ body {
   z-index: 2;
 }
 /* Área de toque de no mínimo 44x44, sem mexer no anel visual: o alvo
-   pequeno (coração, filtros) ganha um extensor invisível centrado nele,
+   pequeno (chips de filtro, ícones de topo) ganha um extensor invisível,
    em vez de crescer e passar por cima do elemento destacado. */
 /* O alvo da instrução vem por cima de qualquer outro. Sem isto, um
-   alvo pequeno dentro de um grande — o coração dentro do cartão — perde
-   o toque para o vizinho e a missão nunca fecha. */
+   alvo pequeno dentro de um grande perde o toque para o vizinho e a missão
+   nunca fecha. Foi o que travou o tour quando o cartão da sessão ainda
+   engolia o coração de salvar. */
 .alvo.dica { z-index: 4; }
 
 .alvo::before {
@@ -582,7 +978,8 @@ body {
   75% { transform: translate(calc(-50% + 6px), -50%); }
 }
 
-/* Marcas desenhadas por cima da foto (coração salvo, contato pendente) */
+/* Marcas desenhadas por cima da foto (palestrante salvo, contato pendente,
+   filtro escolhido). O coração é de pessoa: sessão não se salva mais. */
 .marca { position: absolute; transform: translate(-50%, -50%); z-index: 1; pointer-events: none; }
 .marca.coracao svg { width: 6.4cqw; height: 6.4cqw; display: block; }
 .marca.pendente {
@@ -901,6 +1298,16 @@ body {
   background: rgba(104, 238, 149, .16); border-color: var(--verde); color: var(--verde);
 }
 
+/* Palestrante sem retrato: iniciais no lugar da imagem. */
+.cs .foto .iniciais {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  font-style: normal; font-size: 17px; font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--verde);
+  background: rgba(104, 238, 149, .12);
+}
+
 /* Card de sessão */
 .cs {
   display: grid; grid-template-columns: 54px 1fr; gap: 12px;
@@ -965,6 +1372,7 @@ body {
   color: var(--texto); font: inherit; font-size: 13.5px; line-height: 1.45;
 }
 .ins textarea:focus { outline: none; border-color: var(--verde); }
+.ins-dica { font-size: 11.5px; color: var(--texto-mudo); line-height: 1.4; }
 
 /* Plano pós-Summit */
 .plano { display: flex; flex-direction: column; gap: 8px; }
@@ -1038,315 +1446,3 @@ body {
 }
 .erro-dados b { color: var(--coral); display: block; margin-bottom: 6px; }
 
-/* ============================================================
-   GUIA DA BARRA — tela cheia, no desenho do Mind
-   ============================================================
-   A barra de abas pertence ao aplicativo do evento, não a esta
-   página: ela fica logo abaixo da nossa borda inferior. Então o
-   guia faz duas coisas que o app faria por dentro — a seta aponta
-   para fora, na coluna do ícone, e a barrinha de aba selecionada
-   é desenhada rente à borda, igual à que o app acende.
-
-   A arte segue o site do Summit: preto, tipografia enorme em caixa
-   alta, verde como acento e o ponto final depois da palavra. */
-.guia {
-  position: fixed; inset: 0; z-index: 40;
-  background: #06060a;
-  display: flex; flex-direction: column;
-  padding: max(18px, env(safe-area-inset-top)) 24px calc(150px + env(safe-area-inset-bottom));
-  overflow: hidden;
-  animation: guia-abre .45s ease;
-  /* Sem isto o navegador reivindica o arrasto horizontal para o gesto dele
-     (rolagem, voltar) e dispara `pointercancel` — o deslize nunca chegava ao
-     `pointerup`, e só o toque funcionava. */
-  touch-action: none;
-  user-select: none; -webkit-user-select: none;
-}
-.guia[hidden] { display: none; }
-@keyframes guia-abre { from { opacity: 0; } to { opacity: 1; } }
-
-/* Brilho atrás do texto, na cor do passo. Camada própria: borrar o
-   texto é o que deixaria a tipografia sem fio. */
-.guia-brilho {
-  position: absolute; left: 50%; top: 34%;
-  width: 130%; aspect-ratio: 1; transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(104,238,149,.13) 0%, rgba(104,238,149,.04) 38%, transparent 62%);
-  pointer-events: none;
-  transition: opacity .6s ease;
-}
-
-/* Trilha de progresso: um segmento por aba, o atual enchendo sozinho */
-.guia-trilha {
-  position: relative; z-index: 2;
-  display: flex; gap: 5px; flex: none;
-}
-.guia-trilha i {
-  flex: 1; height: 2px; border-radius: 2px;
-  background: rgba(255, 255, 255, .13);
-  overflow: hidden;
-}
-.guia-trilha i span {
-  display: block; height: 100%; width: 0;
-  background: var(--verde);
-  border-radius: 2px;
-}
-.guia-trilha i.ok span { width: 100%; }
-.guia-trilha i.atual span { animation: guia-enche var(--dur, 7s) linear forwards; }
-@keyframes guia-enche { from { width: 0; } to { width: 100%; } }
-
-.guia-pular {
-  position: absolute; top: max(14px, env(safe-area-inset-top)); right: 20px;
-  z-index: 3;
-  appearance: none; cursor: pointer; border: 0; background: none;
-  color: var(--texto-mudo);
-  font: inherit; font-size: 13px; font-weight: 700;
-  padding: 10px 4px;
-}
-
-/* ---- A cena ---- */
-.guia-cena {
-  position: relative; z-index: 2;
-  flex: 1; min-height: 0;
-  display: flex; flex-direction: column; justify-content: center;
-  padding-bottom: 8px;
-}
-
-/* Pílula do site: contorno verde, micro-texto espaçado */
-.guia-selo {
-  align-self: flex-start;
-  border: 1px solid rgba(104, 238, 149, .45);
-  border-radius: var(--raio-pill);
-  color: var(--verde);
-  font-size: 10.5px; font-weight: 900;
-  letter-spacing: .16em; text-transform: uppercase;
-  padding: 6px 13px;
-}
-
-.guia-titulo {
-  margin-top: 20px;
-  font-size: clamp(38px, 13vw, 58px);
-  font-weight: 900; text-transform: uppercase;
-  letter-spacing: -.035em; line-height: .9;
-}
-/* O ponto final verde, como no site */
-.guia-titulo em { font-style: normal; color: var(--verde); }
-
-.guia-texto {
-  margin-top: 20px; max-width: 30em;
-  font-size: 16px; line-height: 1.55;
-  color: var(--texto-suave);
-}
-
-/* Entradas escalonadas: selo, título, texto e aviso surgem em sequência.
-
-   Transição em vez de keyframes de propósito: com `animation`, o estado
-   de repouso é invisível e o conteúdo depende de a animação disparar —
-   se ela não roda, a tela fica em branco. Com transição, o valor final
-   é declarado, e o pior caso é aparecer sem o deslizamento. */
-.guia-cena > * {
-  opacity: 0; transform: translateY(14px);
-  transition: opacity .5s ease, transform .5s cubic-bezier(.16,1,.3,1);
-}
-.guia-cena.mostra > *          { opacity: 1; transform: none; }
-.guia-cena.mostra .guia-selo   { transition-delay: .05s; }
-.guia-cena.mostra .guia-titulo { transition-delay: .16s; }
-.guia-cena.mostra .guia-texto  { transition-delay: .3s; }
-.guia-cena.mostra .guia-aviso  { transition-delay: .46s; }
-
-/* Aviso destacado: o que muda o comportamento de quem chega não pode
-   ficar diluído no meio do parágrafo. Coral porque é a cor que o app já
-   usa para "vaga limitada" nos cards de sessão — mesmo aviso, mesma cor. */
-.guia-aviso {
-  margin-top: 20px;
-  border-left: 2px solid var(--coral);
-  background: rgba(255, 112, 87, .08);
-  border-radius: 0 12px 12px 0;
-  padding: 13px 15px;
-  font-size: 14.5px; line-height: 1.5;
-  color: var(--texto);
-}
-.guia-aviso[hidden] { display: none; }
-.guia-aviso b { color: var(--coral); font-weight: 800; }
-/* Saída: some junto, mais rápido do que entrou */
-/* Saída: some junto, mais rápido do que entrou e sem escalonar */
-.guia-cena.sai > * {
-  opacity: 0; transform: translateY(-10px);
-  transition-duration: .25s; transition-delay: 0s;
-}
-
-/* ---- A seta pontilhada ---- */
-.guia-seta {
-  position: absolute; inset: 0; z-index: 2;
-  width: 100%; height: 100%;
-  pointer-events: none; overflow: visible;
-}
-.guia-seta .trilha {
-  fill: none;
-  stroke: var(--verde);
-  stroke-width: 4.5;
-  stroke-linecap: round;
-  /* traço zero + espaço = bolinha redonda, o pontilhado desenhado à mão */
-  stroke-dasharray: 0 14;
-  filter: drop-shadow(0 0 5px rgba(104, 238, 149, .4));
-}
-.guia-seta .ponta {
-  fill: var(--verde);
-  filter: drop-shadow(0 0 5px rgba(104, 238, 149, .4));
-}
-.guia-seta.desenhando .trilha { animation: guia-risca .7s .35s ease both; }
-.guia-seta.desenhando .ponta  { animation: guia-ponta .3s .95s ease both; }
-@keyframes guia-risca {
-  from { stroke-dashoffset: 260; opacity: .2; }
-  to   { stroke-dashoffset: 0;   opacity: 1; }
-}
-/* Só opacidade. `transform: scale()` num polígono SVG escala a partir da
-   origem do viewBox (0,0), não do centro da forma — a ponta nascia longe
-   e vinha voando até o lugar. */
-@keyframes guia-ponta { from { opacity: 0; } to { opacity: 1; } }
-
-/* ---- A barrinha da aba selecionada ----
-   O app acende uma barra fina no topo da aba ativa. Como a barra dele
-   fica abaixo da nossa borda, desenhamos a nossa rente ao fim da tela,
-   na mesma coluna. */
-.guia-barra {
-  position: absolute; bottom: 0; z-index: 2;
-  height: 3px; border-radius: 3px 3px 0 0;
-  background: var(--verde);
-  box-shadow: 0 0 14px rgba(104, 238, 149, .65);
-  transition: left .6s cubic-bezier(.16,1,.3,1), width .4s ease, opacity .3s ease;
-}
-
-/* As duas saídas do último passo, empilhadas */
-.guia-saida {
-  position: absolute; left: 24px; right: 24px; z-index: 3;
-  bottom: calc(76px + env(safe-area-inset-bottom));
-  display: flex; flex-direction: column; gap: 8px;
-  animation: guia-surge .45s ease both;
-}
-.guia-saida[hidden] { display: none; }
-.guia-saida button {
-  appearance: none; cursor: pointer;
-  border-radius: var(--raio-pill);
-  font: inherit; font-size: 15px; font-weight: 700;
-  min-height: 50px;
-}
-/* Sair é o que a maioria quer no fim do guia; o tour completo é o extra.
-   Por isso o preenchido é o Sair, e não o contrário. */
-/* A prática é o convite principal; ir direto ao agente é a saída calma. */
-.guia-praticar {
-  border: 0;
-  background: var(--verde); color: var(--surface-deep);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  padding: 8px 16px;
-}
-.guia-praticar span {
-  font-size: 11.5px; font-weight: 600; opacity: .72;
-}
-.guia-ir {
-  background: none;
-  border: 1px solid var(--hairline);
-  color: var(--texto-suave);
-}
-@keyframes guia-surge { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .guia, .guia-seta .trilha, .guia-seta .ponta, .guia-fim { animation: none !important; }
-  /* A cena entra por transição: zerar a duração deixa tudo visível de imediato */
-  .guia-cena > * { transition-duration: 0s !important; transition-delay: 0s !important; }
-  .guia-trilha i.atual span { animation: none; width: 100%; }
-  .guia-barra { transition: none; }
-}
-
-/* ---- Convite para avançar ----
-   A barra de cima deixou de avançar sozinha: quando ela enche, quem manda
-   é a pessoa. Este é o sinal de que dá para seguir — e o gesto que ele
-   anuncia funciona de verdade, deslize e toque. */
-.guia-avance {
-  position: absolute; left: 0; right: 0; z-index: 3;
-  /* Acima de onde a seta nasce (150px do rodapé). A 96px ela caía no meio
-     do traçado e os pontos atravessavam o texto. O conteúdo mais alto
-     termina bem antes disso, então sobra folga nos dois lados. */
-  bottom: calc(162px + env(safe-area-inset-bottom));
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  font-size: 12.5px; font-weight: 700;
-  letter-spacing: .09em;
-  color: var(--texto-mudo);
-  pointer-events: none;
-  animation: guia-surge .4s ease both;
-}
-.guia-avance[hidden] { display: none; }
-.guia-avance .s {
-  color: var(--verde);
-  font-size: 18px; font-weight: 900; line-height: 1;
-  animation: guia-respira 1.8s ease-in-out infinite;
-}
-@keyframes guia-respira { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .guia-avance .s { animation: none !important; }
-}
-
-/* Marcas das zonas de toque. Uma faixa que atravessa a tela e joga um
-   chevron em cada borda: a da esquerda volta, a da direita avança. Bem
-   apagadas — são um lembrete de que o toque funciona, não um botão. Não
-   recebem ponteiro: o gesto é lido no #guia, e interceptar aqui quebraria
-   a captura do deslize. */
-.guia-lado {
-  position: absolute; left: 0; right: 0; z-index: 3;
-  top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 10px;
-  pointer-events: none;
-}
-.guia-lado[hidden] { display: none; }
-.guia-lado i {
-  font-style: normal;
-  font-size: 26px; font-weight: 300; line-height: 1;
-  color: var(--texto-mudo);
-  opacity: .28;
-}
-
-/* Nome do primeiro fluxo, logo abaixo da trilha: deixa claro que este é o
-   Tour rápido, e que existe um segundo, prático, no fim dele. */
-.guia-nome {
-  position: relative; z-index: 2;
-  margin-top: 10px; flex: none;
-  font-size: 12px; font-weight: 900;
-  letter-spacing: .14em; text-transform: uppercase;
-  color: var(--verde);
-}
-.guia-nome span {
-  display: block; margin-top: 3px;
-  font-size: 11.5px; font-weight: 600;
-  letter-spacing: .02em; text-transform: none;
-  color: var(--texto-mudo);
-}
-
-/* Aviso em tom neutro: para o que é informação, não alerta. O coral fica
-   reservado ao que muda o comportamento (capacidade limitada, reserva). */
-.guia-aviso.neutro {
-  border-left-color: var(--hairline);
-  background: rgba(255, 255, 255, .045);
-  color: var(--texto-suave);
-}
-.guia-aviso.neutro b { color: var(--texto); }
-
-/* Durante a troca de etapa nada aceita toque: é o que impede o toque duplo
-   e o acerto num hotspot da etapa que já saiu. */
-.frame.travado, .fnav.travado { pointer-events: none; }
-.frame.travado .alvo { opacity: .35; }
-
-/* Marca do filtro escolhido no mapa — a ação prática da missão do mapa. */
-.marca.escolhido {
-  border: 2px solid var(--verde);
-  border-radius: var(--raio-pill);
-  background: rgba(104, 238, 149, .16);
-  box-shadow: 0 0 10px rgba(104, 238, 149, .4);
-}
-
-/* Foco visível: navegação por teclado precisa saber onde está. */
-.alvo:focus-visible, .fnav button:focus-visible, .guia button:focus-visible,
-.folha button:focus-visible, .fim-cartao button:focus-visible {
-  outline: 2px solid var(--verde);
-  outline-offset: 2px;
-}

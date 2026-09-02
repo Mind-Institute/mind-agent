@@ -34,13 +34,6 @@ export const DESCRICAO_PAPEL: Record<Papel, string> = {
   analista: 'Somente leitura: visão geral, listagens e auditoria.',
 };
 
-export const usuarioFormSchema = z.object({
-  nome: z.string().min(3, 'Informe o nome.'),
-  email: z.string().email('Informe um e-mail válido.'),
-  papel: papelSchema,
-  ativo: z.boolean().default(true),
-});
-export type UsuarioForm = z.infer<typeof usuarioFormSchema>;
 
 export const usuarioSchema = registroBaseSchema.extend({
   nome: z.string(),

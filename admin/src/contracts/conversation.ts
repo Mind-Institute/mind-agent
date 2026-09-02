@@ -22,7 +22,6 @@ export const mensagemSchema = z.object({
   texto: z.string(),
   enviadaEm: z.string(),
 });
-export type Mensagem = z.infer<typeof mensagemSchema>;
 
 /**
  * Conversas são SOMENTE LEITURA no painel.

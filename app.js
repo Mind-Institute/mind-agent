@@ -7,24 +7,16 @@
 */
 
 import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
-import { carregarDadosSummit } from './data-service.js';
+import { carregarDadosSummit, carregarHomeDoEvento } from './data-service.js';
+import { montarHome } from './home/home.js';
+import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
+import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem } from './chat-service.js';
 
 /* Quem abriu a página, antes de qualquer tela: a Yazo manda `email` e
    `nome` na URL, e a saudação depende disso. Chamada explícita de
    propósito — importar `config.js` não captura nada. */
 capturarIdentidade();
-
-/* A home cumprimenta pelo nome quando existe um. O nome chega pela URL e
-   `normalizarNome` só apara as pontas e o tamanho — não remove marcação.
-   Por isso entra como texto, nunca por `innerHTML`: um `?nome=` hostil
-   não pode virar HTML dentro da página. */
-(function saudarNaHome() {
-  const nome = PARTICIPANTE.nome && PARTICIPANTE.nome.trim();
-  if (!nome) return;
-  document.getElementById('h-ola-nome').textContent = nome;
-  document.getElementById('h-ola').hidden = false;
-})();
 
 /* ---------- Splash ---------- */
 const splash = document.getElementById('splash');
@@ -77,6 +69,7 @@ const FALA = [
 /* ---------- Navegação entre vistas ---------- */
 const vistas = {
   home: document.getElementById('vista-home'),
+  avisos: document.getElementById('vista-avisos'),
   chat: document.getElementById('vista-chat'),
   summit: document.getElementById('vista-summit'),
   tour: document.getElementById('vista-tour'),
@@ -96,13 +89,319 @@ document.getElementById('btn-ajuda').addEventListener('click', () => ajuda.class
 document.getElementById('fechar-ajuda').addEventListener('click', () => ajuda.classList.remove('aberto'));
 ajuda.addEventListener('click', (e) => { if (e.target === ajuda) ajuda.classList.remove('aberto'); });
 
-/* Intenções da home → chat, já no fluxo daquela intenção */
-document.getElementById('intencoes').addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
+/* ---------- Home V3: as ações dos cards ----------
+   Os cards não navegam nem chamam backend: avisam o que foi pedido e a
+   decisão mora aqui. É o único ponto que conhece as duas pontas, e é por
+   ele que a integração real vai entrar. */
+function irParaConversa(intencao) {
   abrirVista('chat');
-  setTimeout(() => abrirIntencao(btn.dataset.intencao), 200);
+  if (intencao) setTimeout(() => abrirIntencao(intencao), 200);
+}
+
+function acaoDaHome(acao) {
+  if (!acao) return;
+  /* Não existe mais tour rápido: o card abre a prática direto. */
+  if (acao === 'tour') return abrirTourCompleto();
+  if (acao.startsWith('tour:')) return abrirTutorialEm(acao.slice(5));
+  if (acao === 'jornada') return irParaConversa('jornada');
+  if (acao.startsWith('chat:')) return irParaConversa('desafio');
+  if (acao === 'insight') return irParaConversa('insight');
+  if (acao === 'entrevista') return irParaConversa('plano');
+  if (acao === 'insights') return abrirVista('summit');
+  if (acao === 'avisos') return abrirAvisos();
+  if (acao.startsWith('aviso:')) return abrirAvisos(acao.slice(6));
+  if (acao.startsWith('em-breve:')) return painelEmBreve(acao.slice(9));
+  return irParaConversa(null);
+}
+
+/* ---------- A próxima experiência ----------
+   Lê a grade de verdade: pega o que ainda vai começar hoje, olha o
+   horário mais próximo e, entre as sessões que começam junto, escolhe a
+   que mais conversa com os temas que a pessoa já demonstrou. Sem tema
+   escolhido não há preferência — vale a ordem da grade. */
+const MINUTOS = (h) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+
+/* Fora dos dias do evento não existe "agora" na grade. Para o momento de
+   demonstração, um instante fixo da manhã do primeiro dia.
+   API: no ar, isto é só `new Date()`. */
+const INSTANTE_DEMO = '08:50';
+
+function agoraNoEvento() {
+  const dias = (DADOS && DADOS.evento && DADOS.evento.dias) || [];
+  if (!dias.length) return null;
+  const hoje = new Date();
+  const iso = hoje.getFullYear() + '-' +
+    String(hoje.getMonth() + 1).padStart(2, '0') + '-' +
+    String(hoje.getDate()).padStart(2, '0');
+  if (dias.includes(iso)) {
+    return { dia: iso, hora: String(hoje.getHours()).padStart(2, '0') + ':' +
+                            String(hoje.getMinutes()).padStart(2, '0'), real: true };
+  }
+  return { dia: dias[0], hora: INSTANTE_DEMO, real: false };
+}
+
+function proximaExperiencia() {
+  if (!DADOS || !DADOS.sessoes) return null;
+  const agora = agoraNoEvento();
+  if (!agora) return null;
+  const adiante = DADOS.sessoes.filter((s) => s.dia === agora.dia && s.inicio >= agora.hora);
+  if (!adiante.length) return null;
+  const cedo = adiante.reduce((menor, s) => (s.inicio < menor ? s.inicio : menor), '99:99');
+  /* Empate de horário é onde a preferência decide. */
+  const escolhida = adiante
+    .filter((s) => s.inicio === cedo)
+    .map((s) => ({ s, peso: afinidade(s.temas) || 0 }))
+    .sort((a, b) => b.peso - a.peso)[0].s;
+  return { sessao: escolhida, minutos: Math.max(0, MINUTOS(cedo) - MINUTOS(agora.hora)) };
+}
+
+/* ============================================================
+   EM QUE PALESTRA A PESSOA ESTÁ
+   ============================================================
+   Não há check-in por sala: o app não tem como saber. Então ele
+   pergunta — e pergunta com o que a grade permite responder, as sessões
+   que estão no ar naquele minuto. A resposta fica guardada na sessão do
+   navegador porque quem anota uma vez costuma anotar de novo na mesma
+   palestra, e perguntar duas vezes a mesma coisa é ruído.
+
+   MOCK: API: hoje é sessionStorage. Vai virar campo do participante
+   quando a home tiver backend — a leitura e a escrita já estão nestas
+   duas funções, e só nelas. */
+const CHAVE_SESSAO = 'mindagent:v1:sessao-do-insight';
+
+function sessoesNoAr() {
+  if (!DADOS || !DADOS.sessoes) return [];
+  const agora = agoraNoEvento();
+  if (!agora) return [];
+  const doDia = DADOS.sessoes.filter((s) => s.dia === agora.dia);
+  const noAr = doDia.filter((s) => s.inicio <= agora.hora && (!s.fim || agora.hora < s.fim));
+  if (noAr.length) return noAr;
+  /* Intervalo, ou o dia ainda não começou: oferece o que está ao redor
+     em vez de deixar a pessoa sem opção nenhuma. */
+  const passou = doDia.filter((s) => s.inicio <= agora.hora).slice(-1);
+  const vem = doDia.filter((s) => s.inicio > agora.hora).slice(0, 2);
+  return [...passou, ...vem];
+}
+
+function sessaoDoInsight() {
+  if (!DADOS || !DADOS.sessoes) return null;
+  let id = null;
+  try { id = sessionStorage.getItem(CHAVE_SESSAO); } catch (e) { /* modo restrito */ }
+  return id ? DADOS.sessoes.find((s) => s.id === id) || null : null;
+}
+
+function definirSessaoDoInsight(id) {
+  try { sessionStorage.setItem(CHAVE_SESSAO, id); } catch (e) { /* modo restrito */ }
+}
+
+/* O que a home não sabe calcular sozinha. */
+function contextoDaHome() {
+  const agora = agoraNoEvento();
+  const ctx = {
+    hora: agora ? Number(agora.hora.slice(0, 2)) : new Date().getHours(),
+    remontar: montarHomeV3,
+  };
+  const emCurso = sessaoDoInsight();
+  if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
+  const p = proximaExperiencia();
+  if (!p) return ctx;
+  /* Etiqueta curta, não frase: o card logo abaixo já diz a hora, a sala
+     e o nome. Repetir a contagem em texto é dizer duas vezes. */
+  ctx.resumoDaProxima = p.minutos === 0 ? 'Começando agora:' : 'Começa em breve:';
+  ctx.proxima = {
+    hora: p.sessao.inicio + (p.sessao.espaco ? ', ' + p.sessao.espaco : ''),
+    titulo: p.sessao.titulo,
+    texto: p.sessao.quem && !/^(em breve|em curadoria)$/i.test(p.sessao.quem) ? p.sessao.quem : '',
+  };
+  return ctx;
+}
+
+function montarHomeV3() {
+  montarHome(document.getElementById('home-v3'), acaoDaHome, contextoDaHome());
+  atualizarContadorAvisos();
+  ligarContagem();
+}
+
+/* ---------- Contagem regressiva até a abertura ----------
+   O mesmo instante em que a troca programada do painel leva a home para
+   "no evento": 07:00 do primeiro dia, quando abre o credenciamento. Os
+   dois números precisam bater — se um dia a abertura mudar, muda aqui e
+   na programação do painel.
+
+   API: o alvo virá do evento, junto com a data. */
+const HORA_DE_ABERTURA = 7;
+let relogioContagem = null;
+
+function inicioDoEvento() {
+  const dias = (DADOS && DADOS.evento && DADOS.evento.dias) || [];
+  if (!dias.length) return null;
+  const [ano, mes, dia] = dias[0].split('-').map(Number);
+  if (!ano || !mes || !dia) return null;
+  /* Construído em partes, não por `new Date(iso)`: string sem fuso é
+     lida como UTC em alguns navegadores, e a contagem sairia com três
+     horas de diferença. */
+  return new Date(ano, mes - 1, dia, HORA_DE_ABERTURA, 0, 0, 0);
+}
+
+/** Só os dias na tela, ou null quando o tempo acabou.
+ *
+ *  A conta continua ao segundo por dentro: é ela que vira a tela na hora
+ *  exata. O que muda é o que se mostra — hora e minuto correndo na
+ *  manchete puxavam o olho para o relógio em vez do conteúdo.
+ *
+ *  Conta os dias inteiros que ainda faltam, e não as frações: com 14 dias
+ *  e meio pela frente, faltam 14 dias. No último dia não existe "faltam 0
+ *  dias" — vira "é hoje". */
+function textoDaContagem(restante) {
+  if (restante <= 0) return null;
+  const dias = Math.floor(restante / 86400000);
+  if (dias === 0) return 'é hoje';
+  return dias === 1 ? 'falta 1 dia' : 'faltam ' + dias + ' dias';
+}
+
+function ligarContagem() {
+  /* Sempre desliga antes: a home é remontada a cada troca de momento, e
+     sem isto os relógios se empilhariam. */
+  if (relogioContagem) { clearInterval(relogioContagem); relogioContagem = null; }
+
+  const alvo = document.getElementById('v3-contagem');
+  if (!alvo) return;                      /* momento sem contagem */
+  const inicio = inicioDoEvento();
+  if (!inicio) { alvo.textContent = ''; return; }
+
+  const bater = () => {
+    const texto = textoDaContagem(inicio.getTime() - Date.now());
+    if (texto === null) {
+      /* Zerou: o evento começou. */
+      clearInterval(relogioContagem);
+      relogioContagem = null;
+      /* Com o painel no comando, a virada é dele — duas autoridades
+         decidindo a mesma tela é como se perde o controle no dia. O
+         relógio só vira sozinho quando ninguém está mandando de fora. */
+      if (!momentoDoServidor()) definirMomento('no-evento');
+      montarHomeV3();
+      return;
+    }
+    alvo.textContent = texto;
+  };
+  bater();
+  /* De meio em meio minuto: o texto só muda uma vez por dia, mas a virada
+     da tela precisa acontecer perto do horário — meio minuto de atraso é
+     aceitável, uma hora não. */
+  relogioContagem = setInterval(bater, 30000);
+}
+
+/* ---------- Painel da home ----------
+   Uma folha só, três conteúdos: "em breve", a lista de avisos e um aviso
+   aberto. Voltar da lista para o aviso e vice-versa não recarrega nada. */
+const painelFundo = document.getElementById('painel-fundo');
+const painelCartao = document.getElementById('painel-cartao');
+let focoAntesDoPainel = null;
+
+function abrirPainel(titulo, corpo, rodape) {
+  focoAntesDoPainel = document.activeElement;
+  painelCartao.innerHTML =
+    '<div class="p-topo"><h3 id="painel-titulo">' + titulo + '</h3>' +
+    '<button type="button" class="p-fechar" aria-label="Fechar">×</button></div>' +
+    '<div class="p-corpo"></div>';
+  painelCartao.querySelector('.p-corpo').appendChild(corpo);
+  if (rodape) painelCartao.appendChild(rodape);
+  painelCartao.querySelector('.p-fechar').addEventListener('click', fecharPainel);
+  painelFundo.classList.add('aberto');
+  painelCartao.querySelector('.p-fechar').focus();
+}
+
+function fecharPainel() {
+  painelFundo.classList.remove('aberto');
+  if (focoAntesDoPainel && focoAntesDoPainel.isConnected) focoAntesDoPainel.focus();
+  focoAntesDoPainel = null;
+}
+painelFundo.addEventListener('click', (e) => { if (e.target === painelFundo) fecharPainel(); });
+painelFundo.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPainel(); });
+
+const EM_BREVE = {
+  diagnostico: {
+    titulo: 'Diagnóstico de maturidade',
+    texto: 'É uma entrevista guiada de sete minutos sobre como a sua empresa cuida hoje de bem-estar e performance. O resultado sai depois do Summit, cruzado com o que você viveu aqui.',
+    nota: 'Ainda não está no ar. Assim que abrir, ele aparece nesta mesma tela.',
+  },
+  resultado: {
+    titulo: 'Resultado do diagnóstico',
+    texto: 'O resultado reúne as lacunas que a entrevista identificou e sugere por onde começar na sua empresa.',
+    nota: 'Ainda não está no ar. Ele é liberado depois do Summit.',
+  },
+};
+
+function painelEmBreve(qual) {
+  const c = EM_BREVE[qual] || EM_BREVE.diagnostico;
+  const corpo = document.createElement('div');
+  corpo.className = 'p-breve';
+  corpo.innerHTML = '<span class="p-selo">Disponível em breve</span>' +
+    '<p>' + c.texto + '</p><p class="p-nota">' + c.nota + '</p>';
+  abrirPainel(c.titulo, corpo);
+}
+
+/* ---------- Avisos: uma tela, dois níveis ----------
+   Sem id, mostra a lista; com id, mostra o aviso. O voltar sabe onde
+   está: da leitura volta para a lista, da lista volta para a home. */
+const avisosCorpo = document.getElementById('avisos-corpo');
+const avisosTitulo = document.getElementById('avisos-titulo');
+const avisosSub = document.getElementById('avisos-sub');
+let avisoAberto = null;
+
+function abrirAvisos(id) {
+  avisoAberto = id || null;
+  avisosCorpo.innerHTML = '';
+  avisosCorpo.scrollTop = 0;
+
+  if (avisoAberto) {
+    /* Abrir É ler: a marcação acontece aqui, não num botão de "marcar
+       como lido" que ninguém tocaria. */
+    marcarLido(avisoAberto);
+    avisosTitulo.textContent = 'Aviso';
+    avisosSub.textContent = 'De volta para a lista pelo ‹';
+    /* O aviso aponta para um roteiro, não para uma tela solta: quem toca
+       em "ver onde fica" quer ser levado, não largado numa tela. */
+    avisosCorpo.appendChild(leituraDeAviso(avisoAberto, (roteiro) => abrirTourCompleto(roteiro)));
+  } else {
+    avisosTitulo.textContent = 'Avisos importantes';
+    const n = naoLidos();
+    avisosSub.textContent = n === 0
+      ? 'Você está em dia'
+      : n === 1 ? '1 não lido' : n + ' não lidos';
+    avisosCorpo.appendChild(listaDeAvisos((escolhido) => abrirAvisos(escolhido)));
+  }
+  abrirVista('avisos');
+  atualizarContadorAvisos();
+}
+
+document.getElementById('avisos-voltar').addEventListener('click', () => {
+  if (avisoAberto) return abrirAvisos();   /* leitura → lista */
+  abrirVista('home');                       /* lista → home */
+  montarHomeV3();                           /* o contador acompanha */
 });
+
+/* O contador vive no título da seção de avisos da home. Ele existe para
+   chamar atenção — e some sozinho quando não há o que chamar. */
+function atualizarContadorAvisos() {
+  const n = naoLidos();
+  document.querySelectorAll('#home-v3 .v3-secao').forEach((secao) => {
+    const h = secao.querySelector('h2');
+    const link = secao.querySelector('.v3-link');
+    if (!h || !link || !/avisos/i.test(h.textContent || '')) return;
+    let selo = link.querySelector('.v3-contador');
+    if (n === 0) { if (selo) selo.remove(); return; }
+    if (!selo) {
+      /* Colado no "Ver todos": é o que a pessoa vai tocar. Ao lado do
+         título ele só informava; aqui ele puxa para a ação. */
+      selo = document.createElement('span');
+      selo.className = 'v3-contador';
+      link.appendChild(selo);
+    }
+    selo.textContent = String(n);
+    selo.setAttribute('aria-label', n === 1 ? '1 aviso não lido' : n + ' avisos não lidos');
+  });
+}
 document.getElementById('btn-perfil').addEventListener('click', () => abrirVista('summit'));
 
 /* Campo da home → chat */
@@ -128,6 +427,23 @@ function abrirConversa() {
 
 campoHome.addEventListener('focus', abrirConversa);
 
+/* O "enviar" do teclado do celular tem de mandar a mensagem. Form com
+   campo de texto e botão submit já faz isso por especificação, mas em
+   teclado virtual o caminho passa pelo IME: parte dos Android entrega a
+   tecla como composição (keyCode 229) e não submete nada. Aqui o envio é
+   explícito, e o preventDefault impede o envio dobrado onde o
+   comportamento nativo funciona. */
+function enviarComEnter(form) {
+  const campo = form.querySelector('input[type="text"]');
+  if (!campo) return;
+  campo.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    if (form.requestSubmit) form.requestSubmit();
+    else form.dispatchEvent(new Event('submit', { cancelable: true }));
+  });
+}
+
 /* Continua valendo para quem digitar e mandar sem passar pelo foco —
    autofill, teclado físico, automação. */
 document.getElementById('form-home').addEventListener('submit', (e) => {
@@ -137,7 +453,10 @@ document.getElementById('form-home').addEventListener('submit', (e) => {
   abrirConversa();
   if (v) setTimeout(() => perguntar(v), 200);
 });
-document.getElementById('btn-mic').addEventListener('click', () => campoHome.focus());
+enviarComEnter(document.getElementById('form-home'));
+/* O microfone saiu dos dois campos: ele não gravava nada — na home só
+   dava foco, e no chat não tinha ação nenhuma. Botão que não faz o que
+   desenha é promessa quebrada. */
 
 /* ============================================================
    MOTOR DO TOUR
@@ -165,7 +484,7 @@ const ABAS = [
   { id: 'agente', rotulo: 'Mind',     nome: 'Mind Agent',   ico: ICO.agente, folha: 'agente' },
   { id: 'agenda', rotulo: 'Agenda',   nome: 'Agenda',       ico: ICO.agenda, vai: 'agenda' },
   { id: 'minha',  rotulo: 'Minha',    nome: 'Minha Agenda', ico: ICO.minha,  vai: 'minha-agenda' },
-  { id: 'qr',     rotulo: 'QR Code',  nome: 'QR Code',      ico: ICO.qr,     vai: 'qrcode' },
+  { id: 'qr',     rotulo: 'Ingresso', nome: 'Meu ingresso', ico: ICO.qr,     vai: 'scanner' },
   { id: 'menu',   rotulo: 'Menu',     nome: 'Menu',         ico: ICO.menu,   vai: 'menu' },
 ];
 
@@ -184,23 +503,21 @@ const TELAS = {
     img: 'agenda', aba: 'agenda', rotulo: 'Agenda',
     serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
     alvos: [
-      { id: 'topo', x: 88, y: 4.6, w: 20, h: 4.5, brinde: 'Filtre por trilha, arena ou só os seus favoritos.' },
-      { id: 'card1', x: 50, y: 19.6, w: 92, h: 13, brinde: 'Cada card é uma sessão. Toque para abrir.' },
-      { id: 'coracao', x: 86.5, y: 61.5, w: 13, h: 5, faz: 'favoritar', missao: 'm1',
-        dica: 'Toque no <b>coração</b> para salvar esta sessão em Minha Agenda.',
-        brinde: 'Salva em Minha Agenda 💚' },
-      { id: 'card', x: 41, y: 71, w: 74, h: 28, vai: 'detalhe', modo: 'push',
-        dica: 'Agora toque na <b>sessão</b> para abrir os detalhes.' },
+      { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
+      { id: 'card1', x: 49.9, y: 15.5, w: 92.4, h: 12.5, brinde: 'Cada card é uma sessão. Toque para abrir.' },
+      /* Largura inteira: não há mais coração de salvar dividindo a linha. */
+      { id: 'card', x: 49.9, y: 65.7, w: 92.4, h: 28.8, vai: 'detalhe', modo: 'push',
+        dica: 'Toque na <b>sessão</b> para abrir os detalhes.' },
     ],
   },
   'detalhe': {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
     serve: 'A página da sessão: descrição, horário, local, palestrantes e a reserva, quando a vaga é limitada.',
     alvos: [
-      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
-      { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'coracao', x: 90.3, y: 53.9, w: 12, h: 4.5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
-      { id: 'reservar', x: 49.9, y: 67.1, w: 88.6, h: 5.5, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
+      { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
+      { id: 'palestrante', x: 49.9, y: 90.7, w: 88.6, h: 6.9, brinde: 'A bio de quem fala — e o coração salva a pessoa, não a sessão.' },
+      { id: 'reservar', x: 49.9, y: 65.7, w: 88.8, h: 4.9, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
         folha: 'reservado', obrigatoria: true,
         dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
     ],
@@ -213,37 +530,40 @@ const TELAS = {
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [
-      { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true },
-      { id: 'calendario', x: 33, y: 49, w: 50, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
-      { id: 'coracao', x: 90.3, y: 53.9, w: 12, h: 4.5, faz: 'favoritar', missao: 'm1', brinde: 'Salva em Minha Agenda 💚' },
-      { id: 'confirmacao', x: 49.9, y: 67.1, w: 88.6, h: 5.5,
+      { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
+      { id: 'confirmacao', x: 49.9, y: 65.7, w: 88.8, h: 4.9,
         brinde: 'No dia da sessão, o check-in é feito aqui mesmo.' },
     ],
   },
   'minha-agenda': {
     img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
-    serve: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.',
+    serve: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.',
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
-      { id: 'sessao', x: 50, y: 36.9, w: 92, h: 30.7,
+      { id: 'sessao', x: 49.9, y: 36, w: 92.4, h: 29.8,
         brinde: 'A sessão que você reservou. No dia, o check-in é aqui dentro.' },
     ],
   },
+  /* O QR do perfil fica atrás do leitor: a aba cai no leitor, e "Meu Qr
+     Code" leva até aqui. Era o contrário no tour, e não é assim no app. */
   'qrcode': {
-    img: 'qrcode', aba: 'qr', rotulo: 'QR Code',
-    serve: 'Sua credencial e seu cartão de visita: quem escaneia seu código vê o seu perfil.',
+    img: 'qrcode', aba: 'qr', volta: 'scanner', rotulo: 'Seu ingresso',
+    serve: 'Este QR Code é o seu ingresso e o seu cartão de visita.',
     alvos: [
-      { id: 'meucodigo', x: 50, y: 40, w: 70, h: 26, brinde: 'Este é o seu código. Apresente quando pedirem.' },
-      { id: 'escanear', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'scanner', modo: 'push', missao: 'm4',
-        dica: 'Toque em <b>Escanear Qr Code</b> para adicionar uma pessoa à sua rede.' },
+      { id: 'meucodigo', x: 50, y: 40, w: 70, h: 26,
+        brinde: 'É este código que você apresenta na entrada.' },
+      { id: 'escanear', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'scanner', modo: 'troca',
+        brinde: 'Daqui você escaneia o código de outra pessoa.' },
     ],
   },
   'scanner': {
-    img: 'scanner', aba: 'qr', volta: 'qrcode', rotulo: 'Leitor de QR',
-    serve: 'Aponte para o QR Code de outra pessoa: o contato entra direto na sua rede.',
+    img: 'scanner', aba: 'qr', rotulo: 'Leitor de QR',
+    serve: 'A aba abre no leitor. O seu ingresso está atrás de "Meu Qr Code".',
     alvos: [
-      { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, volta: true, dica: 'Toque em <b>Meu Qr Code</b> para voltar.' },
+      { id: 'meuqr', x: 49.8, y: 95.9, w: 90, h: 5.8, vai: 'qrcode', modo: 'push',
+        dica: 'Toque em <b>Meu Qr Code</b> para abrir o seu ingresso.' },
     ],
   },
   'menu': {
@@ -279,11 +599,11 @@ const TELAS = {
   },
   'palestrantes': {
     img: 'palestrantes', aba: 'menu', volta: 'menu', rotulo: 'Palestrantes',
-    serve: 'Todos os nomes do Summit, com bio e sessões. O coração salva quem você quer ver.',
+    serve: 'Todos os nomes do Summit, com bio e as sessões de cada um. O coração salva a pessoa.',
     alvos: [
       { id: 'voltar', x: 7.7, y: 4.7, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'busca', x: 50, y: 11.5, w: 88, h: 5, brinde: 'Busque pelo nome de quem você quer ver.' },
-      { id: 'fav1', x: 89.7, y: 20.5, w: 12, h: 5, faz: 'favoritar', brinde: 'Palestrante salvo 💚' },
+      { id: 'fav1', x: 89.7, y: 20.5, w: 12, h: 5, faz: 'favoritar-pal', brinde: 'Palestrante salvo 💚' },
     ],
   },
   'chat': {
@@ -301,25 +621,56 @@ const TELAS = {
 const ROTA = {
   'agenda': { aba: 'agenda' },
   'minha-agenda': { aba: 'minha' },
-  'qrcode': { aba: 'qr' },
+  'scanner': { aba: 'qr' },
   'menu': { aba: 'menu' },
   'detalhe': { de: 'agenda', alvo: 'card' },
   'confirmada': { de: 'detalhe', alvo: 'reservar' },
   'minha-agenda-17': { de: 'minha-agenda', alvo: 'chip17' },
-  'scanner': { de: 'qrcode', alvo: 'escanear' },
+  'qrcode': { de: 'scanner', alvo: 'meuqr' },
   'mapa': { de: 'menu', alvo: 'mapa' },
   'rede': { de: 'menu', alvo: 'rede' },
   'palestrantes': { de: 'menu', alvo: 'palestrantes' },
   'chat': { de: 'menu', alvo: 'chat' },
 };
 
-const MISSOES = [
-  { id: 'm1', txt: 'Salvar uma sessão na sua agenda', tela: 'agenda', alvo: 'coracao' },
-  { id: 'm2', txt: 'Reservar seu lugar na sessão', tela: 'detalhe', alvo: 'reservar' },
-  { id: 'm3', txt: 'Consultar a sua agenda', tela: 'minha-agenda' },
-  { id: 'm4', txt: 'Usar o seu QR Code', tela: 'qrcode', alvo: 'escanear' },
-  { id: 'm5', txt: 'Descobrir o resto no Menu', tela: 'menu' },
-];
+/* ============================================================
+   ROTEIROS
+   ============================================================
+   Cada roteiro é um tutorial curto e fechado: uma pergunta prática, os
+   passos para respondê-la, e o texto do fim. Nada de tour geral.
+
+   `reserva` é o da home. `ingresso` sai do aviso "Seu ingresso está
+   aqui" e responde só onde fica o QR — de propósito: quem toca ali quer
+   o ingresso, não uma volta pelo app. */
+const ROTEIROS = {
+  reserva: {
+    de: 'agenda',
+    missoes: [
+      { id: 'm2', txt: 'Reservar seu lugar numa sessão', tela: 'detalhe', alvo: 'reservar' },
+      { id: 'm3', txt: 'Ver a reserva na sua agenda', tela: 'minha-agenda' },
+    ],
+    concluido: 'Pronto — você já sabe reservar 💚',
+    fim: {
+      titulo: 'Você mandou bem!',
+      texto: 'Agora você já sabe reservar seu lugar numa sessão e encontrar a reserva em Minha Agenda.',
+    },
+  },
+  ingresso: {
+    /* Começa já no leitor, que é onde a aba cai. Um passo só. */
+    de: 'scanner',
+    missoes: [
+      { id: 'i1', txt: 'Abrir o seu ingresso', tela: 'qrcode' },
+    ],
+    concluido: 'Pronto — o seu ingresso está aí 💚',
+    fim: {
+      titulo: 'É esse o seu ingresso.',
+      texto: 'Apresente esse QR Code na entrada. Ele fica sempre nessa aba, em Meu Qr Code.',
+    },
+  },
+};
+
+let roteiroAtual = 'reserva';
+let MISSOES = ROTEIROS.reserva.missoes;
 
 const frame = document.getElementById('frame');
 const conteudo = document.getElementById('conteudo');
@@ -645,7 +996,7 @@ function voltar() {
 
 async function tocar(a) {
   if (emTransicao) return;                       /* nada de toque duplo */
-  if (a.faz === 'favoritar' || a.faz === 'favoritar-pal') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
+  if (a.faz === 'favoritar-pal') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'coracao'; }
   if (a.faz === 'contato') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'pendente'; }
   if (a.faz === 'filtrar') { marcas[telaAtual] = marcas[telaAtual] || {}; marcas[telaAtual][a.id] = 'escolhido'; }
 
@@ -703,7 +1054,7 @@ function atualizarMissao() {
   const i = m ? MISSOES.indexOf(m) : MISSOES.length;
   missaoTexto.innerHTML = m
     ? '<i>' + (i + 1) + '/' + MISSOES.length + '</i>' + m.txt
-    : '<i>✓</i>Tour concluído — você conhece o app 💚';
+    : '<i>✓</i>' + (ROTEIROS[roteiroAtual].concluido || 'Pronto 💚');
   missaoProg.innerHTML = MISSOES.map((x, j) =>
     '<i class="' + (feitas.has(x.id) ? 'ok' : (j === i ? 'atual' : '')) + '"></i>').join('');
 }
@@ -721,11 +1072,17 @@ document.getElementById('sair-tour').addEventListener('click', () => { missoesFu
 
 /* Abrir / fechar o tour */
 /* O tour completo — as telas do app com as sete missões. Deixou de ser o
-   primeiro contato: quem chega vê antes o guia da barra (final do arquivo),
-   e chega aqui pelo botão de lá ou por `?tutorial=`. */
-function abrirTourCompleto() {
-  telaAtual = 'agenda'; pilha = []; feitas = new Set();
+   primeiro contato: quem chega vê a home, e entra aqui pelo card de como
+   reservar ou por `?tutorial=`. */
+function abrirTourCompleto(qual) {
+  roteiroAtual = ROTEIROS[qual] ? qual : 'reserva';
+  const roteiro = ROTEIROS[roteiroAtual];
+  MISSOES = roteiro.missoes;
+  telaAtual = roteiro.de; pilha = []; feitas = new Set();
   Object.keys(marcas).forEach((k) => delete marcas[k]);
+  /* O cartão do fim é do roteiro: cada um termina dizendo o que ensinou. */
+  document.getElementById('fim-titulo').textContent = roteiro.fim.titulo;
+  document.getElementById('fim-texto').textContent = roteiro.fim.texto;
   document.getElementById('fim-fundo').classList.remove('aberto');
   abrirVista('tour');
   medirFone();
@@ -755,11 +1112,9 @@ let chatIniciado = false;
 /* Passos que o agente sabe mostrar. Espelha a tabela `tutorial_passos` do
    Supabase: chave, a tela do app e o elemento que fica destacado. */
 const PASSOS = {
-  favoritar:    { tela: 'agenda',       alvo: 'coracao',  onde: 'Aba Agenda',
-                  aviso: 'Arena Sextante, Arena LinkedIn, workshops e masterclasses têm vagas limitadas — nesses vale agendar antes.' },
   reservar:     { tela: 'detalhe',      alvo: 'reservar', onde: 'Dentro da sessão',
                   aviso: 'A reserva cai 5 minutos antes do início, para abrir a fila de espera.' },
-  minha_agenda: { tela: 'minha-agenda', alvo: 'card',     onde: 'Aba Minha agenda' },
+  minha_agenda: { tela: 'minha-agenda', alvo: 'sessao',   onde: 'Aba Minha agenda' },
   qr:           { tela: 'qrcode',       alvo: 'escanear', onde: 'Aba QR Code' },
   escanear:     { tela: 'scanner',      alvo: 'meuqr',    onde: 'QR Code → Escanear' },
   mapa:         { tela: 'menu',         alvo: 'mapa',     onde: 'Menu → Mapa do evento' },
@@ -913,6 +1268,9 @@ function perguntar(texto) {
      para o fluxo não terminar em parágrafo. */
   if (esperandoDesafio) {
     esperandoDesafio = false;
+    /* O desafio é sinal de jornada e já era pedido aqui: guardar custa
+       uma linha e evita perguntar de novo lá dentro. */
+    PERFIL.jornada.desafio = limpo;
     return responder(limpo).then(() => cardsDoDesafio(limpo));
   }
   responder(limpo);
@@ -941,6 +1299,7 @@ formChat.addEventListener('submit', (e) => {
   perguntar(campoChat.value);
   campoChat.value = '';
 });
+enviarComEnter(formChat);
 
 /* ============================================================
    DADOS — nenhum conteúdo mora neste arquivo
@@ -977,20 +1336,25 @@ const INTENCOES = [
     dica: 'O que você faz na segunda-feira com tudo isso' },
 ];
 
-function montarIntencoes() {
-  document.getElementById('intencoes').innerHTML = INTENCOES.map((i) =>
-    '<button type="button" data-intencao="' + i.id + '">' +
-      '<span class="ic">' + ICONES[i.id] + '</span>' +
-      '<span class="tx"><b>' + i.titulo + '</b><small>' + i.dica + '</small></span>' +
-    '</button>').join('');
-}
-
 /* Quem sabe de onde vem a programação é o data-service. Aqui só se guarda
    o que ele entregou — trocar arquivo local por API não passa por este
    arquivo. */
 async function carregarDados() {
   DADOS = await carregarDadosSummit();
+
+  /* Avisos e composição da home vêm de porta própria — o painel publica
+     ali, não no bootstrap. Se ela não responder, valem os avisos
+     embutidos e o momento padrão: a home não fica em branco por causa
+     de uma função fora do ar. */
+  const homeDoEvento = await carregarHomeDoEvento();
+  if (homeDoEvento) {
+    /* Lista vazia é resposta legítima — quer dizer que não há aviso em
+       circulação, e o app respeita em vez de mostrar os embutidos. */
+    definirAvisos(homeDoEvento.avisos);
+    definirMomentoDoServidor(homeDoEvento.home && homeDoEvento.home.momento);
+  }
 }
+
 
 /* ============================================================
    PERFIL VIVO — o que o Summit sabe sobre você até agora
@@ -998,7 +1362,23 @@ async function carregarDados() {
    Cresce por AÇÃO, nunca por palpite: tema escolhido, sessão salva, pessoa
    marcada, insight escrito. É a mesma separação do banco — o que a pessoa faz
    é fato; o que o agente conclui é leitura. */
-const PERFIL = { temas: {}, sessoes: [], pessoas: [], insights: [], plano: [] };
+/* `temas` continua sendo objeto de PESOS (código → peso), não lista: é o
+   que `afinidade()` consome, e é o sinal principal do motor. A jornada
+   fica ao lado, como sinal que COMPLEMENTA — nenhuma resposta dela é
+   convertida em tema artificialmente. */
+const PERFIL = {
+  temas: {}, sessoes: [], pessoas: [], insights: [], plano: [],
+  jornada: {
+    objetivos: [],
+    desafio: null,
+    perfilProfissional: null,
+    experiencias: [],
+    palestrantesImperdiveis: [],
+    ritmo: 'equilibrado',
+    disponibilidade: null,
+    observacoes: null,
+  },
+};
 
 function pesoTema(codigo, quanto) {
   PERFIL.temas[codigo] = (PERFIL.temas[codigo] || 0) + quanto;
@@ -1074,7 +1454,13 @@ function anelAfinidade(pct) {
     '<b>' + pct + '%</b></span>';
 }
 
-const DIA_CURTO = (iso) => (iso === DADOS.evento.dias[0] ? '16 set' : '17 set');
+/* '16 set' a partir do ISO. Montado em partes, não por `new Date(iso)`:
+   string sem fuso é lida como UTC em alguns navegadores e volta um dia. */
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const DIA_CURTO = (iso) => {
+  const [, mes, dia] = String(iso).split('-');
+  return Number(dia) + ' ' + (MESES_CURTOS[Number(mes) - 1] || '');
+};
 
 function fotoDe(nome) {
   const p = DADOS.pessoas.find((x) => nome && nome.startsWith(x.nome));
@@ -1126,12 +1512,28 @@ function cardSessao(s, pct, porque) {
   return el;
 }
 
+/* Iniciais de quem não tem retrato: "Amy Edmondson" → "AE". Uma letra
+   quando o nome é só um. */
+function iniciais(nome) {
+  const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return '?';
+  const primeira = partes[0][0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+  return (primeira + ultima).toUpperCase();
+}
+
 function cardPessoa(p, pct, porque) {
   const el = document.createElement('article');
   el.className = 'cs';
   const marcada = PERFIL.pessoas.some((x) => x.nome === p.nome);
+  /* Sem foto, iniciais — e não `./assets/null`, que o navegador desenha
+     como imagem quebrada. A base de palestrantes deixou de ter retrato;
+     card vazio é melhor do que card com defeito. */
+  const retrato = p.foto
+    ? '<img src="./assets/' + p.foto + '" alt="" loading="lazy" />'
+    : '<i class="iniciais">' + iniciais(p.nome) + '</i>';
   el.innerHTML =
-    '<span class="foto"><img src="./assets/' + p.foto + '" alt="" loading="lazy" /></span>' +
+    '<span class="foto">' + retrato + '</span>' +
     '<div class="corpo">' +
       '<p class="quando">' + (p.destaque ? 'Legend' : 'Palestrante') +
         ' <em>' + (p.na_grade ? 'está na grade' : 'no evento') + '</em>' +
@@ -1202,7 +1604,318 @@ function comTemas(depois) {
 }
 
 /* ---------- Os seis fluxos ---------- */
+/* ============================================================
+   ROTEIRO — uma montagem só, dois fluxos
+   ============================================================
+   `FLUXOS.agenda()` e a jornada montam o MESMO roteiro; o que muda são
+   os sinais que entram. A nota continua vindo de `afinidade()`, que
+   continua vindo de `PERFIL.temas`. Nada aqui mexe na nota.
+
+     filtro    → quem nem entra na conta (dia em que a pessoa não vem)
+     fixas     → entram antes de todo mundo (palestrante imperdível)
+     formatos  → que tipos de sessão a pessoa quer; sem isso, o padrão
+                 histórico continua valendo (tudo menos experiência)
+     porDia    → quantas por dia (ritmo); `total` corta o conjunto
+
+   Nenhuma sessão entra se colide com uma que já entrou. */
+function montarRoteiro(opcoes) {
+  const o = opcoes || {};
+  const roteiro = [];
+  const cabe = (s) => !roteiro.some((x) => choca(x.s, s));
+
+  /* Vontade declarada não é desempatada por afinidade: se a pessoa disse
+     que não quer perder alguém, esse alguém entra primeiro. */
+  (o.fixas || []).forEach((s) => { if (cabe(s)) roteiro.push({ s, a: afinidade(s.temas) }); });
+
+  const doFormato = o.formatos && o.formatos.length
+    ? (s) => o.formatos.includes(s.formato)
+    : (s) => s.formato !== 'experiencia';
+
+  sessoesPorAfinidade((s) => doFormato(s) && (!o.filtro || o.filtro(s)))
+    .forEach(({ s, a }) => { if (cabe(s)) roteiro.push({ s, a }); });
+
+  roteiro.sort((x, y) => (x.s.dia + x.s.inicio).localeCompare(y.s.dia + y.s.inicio));
+
+  if (!o.porDia) return roteiro.slice(0, o.total || 6);
+  const conta = {};
+  return roteiro.filter(({ s }) => {
+    conta[s.dia] = (conta[s.dia] || 0) + 1;
+    return conta[s.dia] <= o.porDia;
+  });
+}
+
+/* ============================================================
+   JORNADA — perguntas rápidas, roteiro no fim
+   ============================================================
+   A entrada do card "Monte sua jornada no Summit". Não é formulário e
+   não é chat vazio: é escolha em botão, uma pergunta por vez, e no fim
+   o roteiro dos dois dias que `FLUXOS.agenda()` já sabe montar.
+
+   AS PERGUNTAS SÃO DADO. Acrescentar a próxima é acrescentar um item
+   nesta lista — nada no motor muda.
+
+   `tipo` diz a forma da resposta:
+     'multipla' → chips, até `max` escolhas
+     'unica'    → chips, uma só
+     'texto'    → campo livre; usar só quando escolher não resolve
+
+   `campo` é onde a resposta fica guardada em `JORNADA`. */
+const PERGUNTAS_JORNADA = [
+  {
+    campo: 'objetivos',
+    tipo: 'multipla',
+    max: 2,
+    pergunta: 'O que faria você sair do Mind pensando “valeu muito a pena”?',
+    micro: 'Escolha até 2.',
+    opcoes: [
+      'Levar ideias práticas para minha equipe',
+      'Repensar minha forma de liderar',
+      'Estruturar melhor saúde mental e bem-estar',
+      'Conhecer pesquisas e tendências',
+      'Fazer conexões relevantes',
+      'Encontrar inspiração para um desafio atual',
+      'Conhecer grandes referências de perto',
+      'Ainda não sei — quero explorar',
+    ],
+  },
+
+  /* O SINAL PRINCIPAL. Reaproveita `pedirTemas()`, que é quem escreve em
+     `PERFIL.temas` — a jornada não cria um segundo caminho para o que o
+     motor já consome. */
+  {
+    campo: 'temas',
+    tipo: 'temas',
+    pergunta: 'Em que você está mexendo agora? Isso é o que mais pesa no que eu vou sugerir.',
+  },
+
+  {
+    campo: 'disponibilidade',
+    tipo: 'unica',
+    pergunta: 'Em quais dias você vem?',
+    /* Os dias saem da base, não daqui. */
+    opcoes: () => {
+      const dias = (DADOS.evento.dias || []);
+      return [
+        ...dias.map((d, i) => ({ valor: d, rotulo: 'Dia ' + (i + 1) + ' — ' + DIA_CURTO(d) })),
+        { valor: 'todos', rotulo: dias.length > 1 ? 'Os dois dias' : 'Vou ao evento' },
+      ];
+    },
+  },
+
+  {
+    campo: 'ritmo',
+    tipo: 'unica',
+    pergunta: 'Que ritmo você quer nesses dias?',
+    /* COPY PROVISÓRIA — o número de sessões por dia de cada ritmo está em
+       `SESSOES_POR_DIA`, logo abaixo, e é chute honesto até você dizer. */
+    opcoes: [
+      { valor: 'leve', rotulo: 'Leve — poucas sessões, tempo para conversar' },
+      { valor: 'equilibrado', rotulo: 'Equilibrado — um meio-termo' },
+      { valor: 'intenso', rotulo: 'Intenso — quero aproveitar cada horário' },
+    ],
+  },
+
+  {
+    campo: 'palestrantesImperdiveis',
+    tipo: 'multipla',
+    max: 3,
+    opcional: true,
+    pergunta: 'Tem alguém que você não quer perder?',
+    micro: 'Até 3. Se não tiver, pode pular.',
+    /* Os nomes vêm da base: os destaques primeiro, depois quem mais
+       combina com os temas que a pessoa acabou de marcar. Nenhuma lista
+       escrita à mão. */
+    opcoes: () => {
+      const naGrade = (DADOS.pessoas || []).filter((p) => p.na_grade);
+      const destaques = naGrade.filter((p) => p.destaque);
+      const porAfinidade = naGrade
+        .filter((p) => !p.destaque)
+        .map((p) => ({ p, a: afinidade(p.temas) }))
+        .filter((x) => x.a !== null)
+        .sort((x, y) => y.a - x.a)
+        .map((x) => x.p);
+      return [...destaques, ...porAfinidade].slice(0, 8)
+        .map((p) => ({ valor: p.nome, rotulo: p.nome }));
+    },
+  },
+
+  {
+    campo: 'experiencias',
+    tipo: 'multipla',
+    opcional: true,
+    pergunta: 'Que tipo de coisa você quer no seu roteiro?',
+    micro: 'Marque quantos quiser, ou pule para eu decidir.',
+    /* Os formatos são os que existem na grade — se a programação mudar,
+       esta pergunta muda junto. */
+    opcoes: () => {
+      const rotulo = { palestra: 'Palestras', painel: 'Painéis', masterclass: 'Masterclasses',
+                       workshop: 'Workshops', experiencia: 'Experiências' };
+      return [...new Set((DADOS.sessoes || []).map((s) => s.formato))]
+        .filter((f) => rotulo[f])
+        .map((f) => ({ valor: f, rotulo: rotulo[f] }));
+    },
+  },
+];
+
+/* Quantas sessões por dia cada ritmo pede. PROVISÓRIO: os números são
+   meus, não seus — trocar aqui muda o roteiro inteiro. */
+const SESSOES_POR_DIA = { leve: 2, equilibrado: 3, intenso: 5 };
+
+
+function botaoAvancar(texto, aoTocar) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'avancar';
+  b.textContent = texto;
+  b.addEventListener('click', aoTocar);
+  return b;
+}
+
+/** Uma pergunta da jornada. Chama a próxima quando é respondida. */
+function perguntaDaJornada(indice) {
+  const q = PERGUNTAS_JORNADA[indice];
+  if (!q) return fecharJornada();
+
+  /* A pergunta é fala da Mind, não rótulo de painel: `painel-tit` é
+     caixa alta, e frase inteira em caixa alta não se lê. O painel fica
+     só com as escolhas. */
+  bolha(q.pergunta, 'mind');
+  /* O tema tem tela própria desde antes da jornada: é a mesma, e ela
+     escreve direto em `PERFIL.temas`. */
+  if (q.tipo === 'temas') {
+    return setTimeout(() => pedirTemas(() => perguntaDaJornada(indice + 1)), 380);
+  }
+  setTimeout(() => escolhasDaJornada(q, indice), 380);
+}
+
+function escolhasDaJornada(q, indice) {
+  const alvo = painel('');
+  if (q.micro) {
+    const m = document.createElement('p');
+    m.className = 'ins-dica';
+    m.textContent = q.micro;
+    alvo.appendChild(m);
+  }
+
+  if (q.tipo === 'texto') {
+    const campo = document.createElement('textarea');
+    campo.placeholder = q.placeholder || 'Escreva do seu jeito.';
+    const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
+      PERFIL.jornada[q.campo] = campo.value.trim() || null;
+      ok.remove();
+      perguntaDaJornada(indice + 1);
+    });
+    const caixa = document.createElement('div');
+    caixa.className = 'ins';
+    caixa.appendChild(campo);
+    alvo.appendChild(caixa);
+    alvo.appendChild(ok);
+    mensagens.scrollTop = mensagens.scrollHeight;
+    return;
+  }
+
+  /* As opções podem ser lista fixa ou função da base — palestrante e dia
+     não se escrevem à mão. Cada uma vira {valor, rotulo}. */
+  const opcoes = (typeof q.opcoes === 'function' ? q.opcoes() : q.opcoes)
+    .map((o) => (typeof o === 'string' ? { valor: o, rotulo: o } : o));
+  const teto = q.tipo === 'unica' ? 1 : (q.max || opcoes.length);
+  const escolhidas = [];
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  chips.innerHTML = opcoes.map((o, i) =>
+    '<button type="button" aria-pressed="false" data-i="' + i + '">' + o.rotulo + '</button>').join('');
+
+  const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
+    const valores = escolhidas.map((i) => opcoes[i].valor);
+    PERFIL.jornada[q.campo] = q.tipo === 'unica' ? (valores[0] || null) : valores;
+    ok.remove();
+    perguntaDaJornada(indice + 1);
+  });
+  ok.disabled = !q.opcional;
+
+  chips.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-i]');
+    if (!b) return;
+    const i = Number(b.dataset.i);
+    const pos = escolhidas.indexOf(i);
+    if (pos >= 0) {
+      escolhidas.splice(pos, 1);
+    } else {
+      /* No teto, a mais antiga sai para a nova entrar: o toque sempre
+         responde. Ignorar em silêncio parece tela travada. */
+      while (escolhidas.length >= teto) {
+        const saiu = escolhidas.shift();
+        chips.querySelector('[data-i="' + saiu + '"]').setAttribute('aria-pressed', 'false');
+      }
+      escolhidas.push(i);
+    }
+    b.setAttribute('aria-pressed', escolhidas.includes(i) ? 'true' : 'false');
+    ok.disabled = !q.opcional && !escolhidas.length;
+    /* Pergunta que pode ser pulada troca o rótulo do botão conforme a
+       pessoa marca: "Pular" vira "Continuar" quando há resposta. */
+    if (q.opcional) ok.textContent = escolhidas.length ? 'Continuar' : 'Pular';
+  });
+
+  alvo.appendChild(chips);
+  alvo.appendChild(ok);
+  mensagens.scrollTop = mensagens.scrollHeight;
+}
+
+/* O fim da jornada: o roteiro. A nota de cada sessão continua sendo a
+   afinidade com `PERFIL.temas` — o que a jornada faz é escolher quem
+   entra na conta, quem entra antes de todo mundo e quantas cabem. */
+function fecharJornada() {
+  const j = PERFIL.jornada;
+  bolha('Pronto. Montei a partir do que você me contou.', 'mind');
+  setTimeout(() => {
+    const dia = j.disponibilidade && j.disponibilidade !== 'todos' ? j.disponibilidade : null;
+
+    /* Palestrante imperdível vira sessão pelo nome em `quem` — é o que a
+       base entrega ao app; não há id de pessoa na sessão. */
+    const querVer = j.palestrantesImperdiveis || [];
+    const fixas = !querVer.length ? [] : DADOS.sessoes.filter((s) =>
+      (!dia || s.dia === dia) && querVer.some((nome) => String(s.quem || '').includes(nome)));
+
+    const roteiro = montarRoteiro({
+      filtro: dia ? (s) => s.dia === dia : null,
+      fixas,
+      formatos: j.experiencias,
+      porDia: SESSOES_POR_DIA[j.ritmo] || SESSOES_POR_DIA.equilibrado,
+    });
+
+    if (!roteiro.length) {
+      return bolha('Com esses filtros não sobrou nada na grade. Me diz o que quer ver que eu procuro de outro jeito.', 'mind');
+    }
+
+    const alvo = painel('Sua jornada no Summit', roteiro.length + ' sessões, sem choque de horário');
+    /* Os objetivos voltam para a tela como o PORQUÊ do roteiro. É assim
+       que eles complementam: dizendo a intenção que o roteiro serve, sem
+       virar tema nenhum. */
+    if (j.objetivos && j.objetivos.length) {
+      const p = document.createElement('p');
+      p.className = 'ins-dica';
+      p.textContent = 'Montado para: ' + j.objetivos.join(' · ').toLowerCase() + '.';
+      alvo.appendChild(p);
+    }
+    roteiro.forEach(({ s, a }) => alvo.appendChild(cardSessao(s, a,
+      fixas.includes(s) ? 'Você marcou como imperdível.' : null)));
+    alvo.appendChild(blocoRegra(DADOS.evento.regra_reserva +
+      ' Quem reserva é você, no app — eu só mostro onde fica.'));
+    tocarPerfil();
+  }, 550);
+}
+
 const FLUXOS = {
+  jornada() {
+    bolha('Vou montar uma jornada que faça sentido para você. São algumas perguntas rápidas sobre o que você quer levar destes dois dias.', 'mind');
+    const alvo = painel('');
+    alvo.appendChild(botaoAvancar('Começar →', function () {
+      this.remove();
+      perguntaDaJornada(0);
+    }));
+    mensagens.scrollTop = mensagens.scrollHeight;
+  },
+
   palestras() {
     comTemas(() => {
       const lista = sessoesPorAfinidade((s) => s.formato !== 'experiencia').slice(0, 4);
@@ -1216,13 +1929,7 @@ const FLUXOS = {
 
   agenda() {
     comTemas(() => {
-      /* Roteiro sem choque: pega a de maior afinidade e vai encaixando o que
-         não colide com o que já entrou. */
-      const roteiro = [];
-      sessoesPorAfinidade((s) => s.formato !== 'experiencia')
-        .forEach(({ s, a }) => { if (!roteiro.some((x) => choca(x.s, s))) roteiro.push({ s, a }); });
-      roteiro.sort((x, y) => (x.s.dia + x.s.inicio).localeCompare(y.s.dia + y.s.inicio));
-      const corte = roteiro.slice(0, 6);
+      const corte = montarRoteiro({ total: 6 });
       const alvo = painel('Seu roteiro dos dois dias', corte.length + ' sessões, sem choque de horário');
       corte.forEach(({ s, a }) => alvo.appendChild(cardSessao(s, a, null)));
       alvo.appendChild(blocoRegra(DADOS.evento.regra_reserva +
@@ -1252,29 +1959,48 @@ const FLUXOS = {
   },
 
   insight() {
-    const base = PERFIL.sessoes.length ? PERFIL.sessoes
-               : sessoesPorAfinidade().slice(0, 3).map((x) => x.s);
+    /* Anotação sobre a palestra que a pessoa está assistindo. Como o app
+       não sabe qual é, a primeira coisa é perguntar — com as sessões no
+       ar agora, não com o que ela salvou algum dia. A escolha é gravada
+       no momento do toque e aparece na home. */
+    const noAr = sessoesNoAr();
+    const jaEscolhida = sessaoDoInsight();
+    /* A guardada entra na lista mesmo fora do horário: se a pessoa disse
+       que está nela, quem manda é ela, não o relógio. */
+    const base = jaEscolhida && !noAr.some((s) => s.id === jaEscolhida.id)
+      ? [jaEscolhida, ...noAr] : noAr;
     if (!base.length) {
-      bolha('Primeiro salve alguma sessão — aí eu tenho onde pendurar o insight. Quer escolher palestras agora?', 'mind');
+      bolha('A grade não tem nada no ar agora. Quando a próxima palestra começar, me chame que eu guardo sua anotação nela.', 'mind');
       return;
     }
-    const alvo = painel('O que ficou');
+    const escolhida = jaEscolhida || base[0];
+    /* Fora de horário a pergunta muda: oferecer o que está ao redor e
+       chamar de "agora" seria mentira pequena, mas mentira. */
+    const alvo = painel(noAr.length
+      ? 'Em que palestra você está?'
+      : 'Nada no ar agora. De que palestra é a anotação?');
     const cx = document.createElement('div');
     cx.className = 'ins';
     cx.innerHTML =
-      '<div class="chips">' + base.map((s, i) =>
-        '<button type="button" aria-pressed="' + (i === 0) + '" data-s="' + s.id + '">' +
+      '<div class="chips">' + base.map((s) =>
+        '<button type="button" aria-pressed="' + (s.id === escolhida.id) + '" data-s="' + s.id + '">' +
         s.titulo.slice(0, 30) + (s.titulo.length > 30 ? '…' : '') + '</button>').join('') + '</div>' +
-      '<textarea placeholder="O que dessa sessão conversou com o que você está tentando resolver?"></textarea>';
+      '<p class="ins-dica">Sua anotação fica guardada nessa palestra.</p>' +
+      '<textarea placeholder="O que essa palestra te trouxe? Escreva do seu jeito."></textarea>';
     const salvar = document.createElement('button');
     salvar.type = 'button';
     salvar.className = 'avancar';
-    salvar.textContent = 'Guardar no meu Summit';
+    salvar.textContent = 'Guardar anotação';
+    /* Grava no toque, não no fim: a home precisa refletir a escolha
+       mesmo que a pessoa desista de escrever agora. */
+    definirSessaoDoInsight(escolhida.id);
     cx.querySelector('.chips').addEventListener('click', (e) => {
       const b = e.target.closest('button');
       if (!b) return;
       cx.querySelectorAll('.chips button').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
+      definirSessaoDoInsight(b.dataset.s);
+      montarHomeV3();
     });
     salvar.addEventListener('click', () => {
       const txt = cx.querySelector('textarea').value.trim();
@@ -1282,9 +2008,9 @@ const FLUXOS = {
       const id = cx.querySelector('.chips button[aria-pressed="true"]').dataset.s;
       const sessao = base.find((x) => x.id === id);
       PERFIL.insights.push({ sessao: sessao.titulo, texto: txt, temas: sessao.temas });
-      sessao.temas.forEach((t) => pesoTema(t, 1));
+      (sessao.temas || []).forEach((t) => pesoTema(t, 1));
       cx.remove(); salvar.remove();
-      bolha('Guardei. Isso muda o seu mapa e o que eu vou sugerir daqui pra frente. 💚', 'mind');
+      bolha('Anotado em “' + sessao.titulo + '”. Isso muda o seu mapa e o que eu vou sugerir daqui pra frente. 💚', 'mind');
       tocarPerfil();
     });
     alvo.appendChild(cx); alvo.appendChild(salvar);
@@ -1329,9 +2055,11 @@ let esperandoDesafio = false;
 
 function abrirIntencao(id) {
   const i = INTENCOES.find((x) => x.id === id);
-  if (!i) return;
-  bolha(i.titulo, 'eu');
-  setTimeout(() => FLUXOS[id](), 550);
+  if (!FLUXOS[id]) return;
+  /* Sem entrada em INTENCOES o fluxo ainda abre — é o caso de quem chega
+     por um card da home, que não escolheu chip nenhum para ecoar. */
+  if (i) bolha(i.titulo, 'eu');
+  setTimeout(() => FLUXOS[id](), i ? 550 : 120);
 }
 
 /* Desafio em texto livre: a leitura passou a vir da IA, que responde antes
@@ -1433,339 +2161,15 @@ function desenharSummit() {
 }
 
 /* ---------- Partida ---------- */
-carregarDados().then(() => {
-  montarIntencoes();
-}).catch((e) => {
-  document.getElementById('intencoes').innerHTML =
-    '<p class="erro-dados"><b>Não consegui carregar a programação.</b>' +
+/* A home V3 não depende da programação para existir: ela sobe primeiro,
+   e os dados chegam para quem precisa deles (o chat, o tour). */
+montarHomeV3();
+/* A grade chega depois: a próxima experiência só existe a partir daqui. */
+carregarDados().then(montarHomeV3).catch((e) => {
+  const aviso = document.createElement('p');
+  aviso.className = 'erro-dados';
+  aviso.innerHTML = '<b>Não consegui carregar a programação.</b>' +
     'Esta página não guarda conteúdo dentro do código — ela lê da camada de dados, ' +
-    'e a leitura falhou (' + e.message + '). Recarregue em um instante.</p>';
+    'e a leitura falhou (' + e.message + '). Recarregue em um instante.';
+  document.getElementById('home-v3').prepend(aviso);
 });
-
-/* ============================================================
-   GUIA DA BARRA — tela cheia, passando sozinho
-   ============================================================
-   A barra de abas é do aplicativo do evento, não desta página: ela mora
-   logo abaixo da nossa borda inferior. Não dá para destacar um elemento
-   fora do nosso DOM, então o guia faz por fora o que o app faz por
-   dentro — a seta aponta para a coluna do ícone e a barrinha de aba
-   selecionada é desenhada rente à borda, igual à que o app acende.
-
-   As colunas são frações da largura: é como uma barra de cinco abas se
-   divide, em qualquer tela. Muda o número de abas, muda só esta lista.
-
-   A navegação é a de stories: toque à esquerda volta, à direita avança,
-   e segurar pausa. A trilha no alto já sugeria isso — agora cumpre.
-
-   Aparece no primeiro acesso e pelo botão "Fazer tour do app". */
-
-/* Mesma convenção de chave do chat-service, para tudo desta pessoa
-   viver sob o mesmo prefixo. */
-const GUIA_VISTO = 'mindagent:v1:' + CONFIG.eventSlug + ':guia-visto';
-
-/* Devagar de propósito: é para ler sem correr, não para despachar. */
-const GUIA_DURACAO = 7000;
-/* Abaixo disso é toque; acima, é segurar para pausar. */
-const GUIA_SEGURAR = 220;
-/* Faixa da esquerda que volta um passo — o resto avança. */
-const GUIA_ZONA_VOLTA = 0.3;
-/* Deslocamento mínimo para o gesto valer como deslize, não como tremida. */
-const GUIA_ARRASTO = 45;
-
-const GUIA = [
-  /* `dur` só onde o texto pede mais fôlego — este é o passo mais longo. */
-  { rotulo: 'Mind Agent', selo: 'Você está aqui', x: 0.10, barra: false, dur: 11000,
-    texto: 'Pergunte qualquer coisa sobre o evento: programação, palestrantes, salas e horários. Respondo na hora, com a informação oficial. E se me contar o que te interessa, sugiro conteúdo para você.',
-    tom: 'neutro',
-    aviso: 'Eu mostro o caminho e uso as informações oficiais do evento. Quando uma ação exigir confirmação — como reservar uma vaga — você conclui no próprio app.' },
-  { rotulo: 'Agenda', selo: 'A programação', x: 0.30, dur: 11000,
-    texto: 'A grade inteira dos dias 16 e 17. Toque no coração e a sessão vai para Minha Agenda.',
-    aviso: '<b>Salvar organiza sua agenda.<br>Reservar garante sua vaga.</b><br>Algumas sessões têm capacidade limitada — a própria sessão avisa quando precisa.' },
-  { rotulo: 'Minha Agenda', selo: 'O seu roteiro', x: 0.50,
-    texto: 'O que você salvou e reservou, em ordem de horário. É aqui que o seu dia toma forma.' },
-  { rotulo: 'QR Code', selo: 'Credencial e rede', x: 0.70,
-    texto: 'Sua credencial e sua câmera. Apresente seu QR Code quando solicitado e escaneie o código de outras pessoas para adicioná-las à sua rede.' },
-  { rotulo: 'Menu', selo: 'E o resto', x: 0.90,
-    texto: 'Mapa do evento, área de networking, palestrantes, notificações, chat e mais.' },
-];
-
-const guia = document.getElementById('guia');
-const guiaSeta = document.getElementById('guia-seta');
-const guiaCena = document.getElementById('guia-cena');
-const guiaBarra = document.getElementById('guia-barra');
-const guiaPraticar = document.getElementById('guia-praticar');
-const guiaSaida = document.getElementById('guia-saida');
-const guiaAvance = document.getElementById('guia-avance');
-const guiaLado = document.getElementById('guia-lado');
-let guiaPasso = 0;
-
-/* ---- Relógio do passo ----
-   A barra de cima continua enchendo, mas ela não avança mais nada: quando
-   termina, o guia apenas diz que dá para seguir e espera. Quem decide o
-   ritmo é quem lê.
-
-   Guarda o que falta em vez de só um timer: sem isso, segurar e soltar
-   reiniciaria o passo do zero. */
-let guiaRelogio = null;
-let guiaRestante = GUIA_DURACAO;
-let guiaDesde = 0;
-let guiaPausado = false;
-let guiaPronto = false;
-
-/* Passo com texto mais longo respira mais; o resto usa o padrão. */
-function duracaoDoPasso() { return GUIA[guiaPasso].dur || GUIA_DURACAO; }
-
-function trilhaAtiva() { return document.querySelector('#guia-trilha i.atual span'); }
-
-function tocarRelogio(ms) {
-  clearTimeout(guiaRelogio);
-  guiaRestante = ms;
-  guiaDesde = Date.now();
-  guiaPronto = false;
-  guiaRelogio = setTimeout(() => { guiaPronto = true; }, ms);
-}
-
-/* O convite fica na tela desde o começo do passo. Ele não anuncia que o
-   tempo acabou — anuncia que existe um gesto, e isso vale desde o
-   primeiro instante. Some no último passo, onde os botões já dizem o
-   que fazer. */
-function mostrarDica() {
-  guiaAvance.hidden = guiaPasso >= GUIA.length - 1;
-  guiaLado.hidden = guiaAvance.hidden;   /* as marcas seguem o convite */
-}
-
-function pausarGuia() {
-  if (guiaPausado || guiaPronto) return;   /* barra cheia: não há o que pausar */
-  guiaPausado = true;
-  clearTimeout(guiaRelogio);
-  guiaRestante = Math.max(guiaRestante - (Date.now() - guiaDesde), 300);
-  const s = trilhaAtiva();
-  if (s) s.style.animationPlayState = 'paused';
-}
-
-function retomarGuia() {
-  if (!guiaPausado) return;
-  guiaPausado = false;
-  const s = trilhaAtiva();
-  if (s) s.style.animationPlayState = 'running';
-  tocarRelogio(guiaRestante);
-}
-
-/* A seta: curva do texto até a coluna do ícone, desenhada com bolinhas
-   (traço zero + espaço, ponta redonda) e ponta cheia. O ângulo da ponta
-   vem da tangente da curva, senão ela aponta torto. */
-function desenharSeta() {
-  const L = innerWidth, A = innerHeight;
-  const alvo = GUIA[guiaPasso];
-  const r = guiaCena.getBoundingClientRect();
-
-  const ax = alvo.x * L;                                  /* coluna do ícone */
-  const ay = A - 12;                                      /* rente à borda: o ícone fica abaixo */
-
-  /* A seta sempre nasce no meio da tela e deságua no ícone. A variação
-     entre os passos vem daí sozinha — a distância até cada coluna é
-     diferente — em vez de números escolhidos a dedo. */
-  const px = L / 2;
-  const py = Math.min(r.bottom + 18, A - 150);
-
-  /* Onde o tracejado realmente termina. A ponta tem de sair DAQUI, não do
-     alvo: antes o ângulo vinha da direção até (ax, ay) e a ponta ficava
-     13px abaixo na vertical, enquanto a curva chega inclinada — dava a
-     impressão de ponta torta e solta do tracejado.
-
-     Numa Bézier quadrática a tangente no fim é `P2 - P1`, ou seja, do
-     ponto de controle para o ponto final. */
-  const fimX = ax, fimY = ay - 13;
-
-  /* Controle perto do alvo na horizontal e perto da origem na vertical: a
-     curva anda de lado primeiro e só então mergulha no ícone, em vez de
-     descer em diagonal de régua.
-
-     Quando o alvo está no próprio meio não há lado para onde ir e o traço
-     sairia uma reta; uma barriga leve mantém a cara de desenho à mão. */
-  const desvio = fimX - px;
-  const barriga = Math.abs(desvio) < 40 ? 34 : 0;
-  const cx = px + desvio * 0.85 + barriga;
-  const cy = py + (fimY - py) * 0.22;
-
-  const ang = Math.atan2(fimY - cy, fimX - cx);
-  const P = 10, ABERT = 0.44;
-  /* A ponta continua a curva, no mesmo rumo, em vez de descer reto. */
-  const pontaX = fimX + Math.cos(ang) * 12;
-  const pontaY = fimY + Math.sin(ang) * 12;
-  const ponta = [
-    [pontaX, pontaY],
-    [pontaX - P * Math.cos(ang - ABERT), pontaY - P * Math.sin(ang - ABERT)],
-    [pontaX - P * Math.cos(ang + ABERT), pontaY - P * Math.sin(ang + ABERT)],
-  ].map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-
-  guiaSeta.setAttribute('viewBox', '0 0 ' + L + ' ' + A);
-  guiaSeta.innerHTML =
-    '<path class="trilha" d="M' + px.toFixed(1) + ' ' + py.toFixed(1) +
-      ' Q' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ' ' + fimX.toFixed(1) + ' ' + fimY.toFixed(1) + '"/>' +
-    '<polygon class="ponta" points="' + ponta + '"/>';
-
-  guiaSeta.classList.remove('desenhando');
-  void guiaSeta.offsetWidth;
-  guiaSeta.classList.add('desenhando');
-
-  /* A barrinha da aba: mesma proporção do app — pouco menos de um quinto
-     da tela, centrada na coluna.
-
-     No primeiro passo ela não existe: a aba do Mind Agent é onde a pessoa
-     já está, e o app não acende barra para dizer isso. Enquanto escondida
-     ela fica estacionada na coluna seguinte, para entrar já no lugar em
-     vez de deslizar de longe. */
-  const larguraBarra = L * 0.19;
-  const mostraBarra = GUIA[guiaPasso].barra !== false;
-  const coluna = (mostraBarra ? alvo.x : GUIA[1].x) * L;
-  guiaBarra.style.width = larguraBarra + 'px';
-  guiaBarra.style.left = (coluna - larguraBarra / 2) + 'px';
-  guiaBarra.style.opacity = mostraBarra ? '1' : '0';
-}
-
-function pintarGuia(primeiro) {
-  const p = GUIA[guiaPasso];
-  const ultimo = guiaPasso === GUIA.length - 1;
-
-  document.getElementById('guia-trilha').innerHTML = GUIA.map((_, i) =>
-    '<i class="' + (i < guiaPasso ? 'ok' : i === guiaPasso ? 'atual' : '') + '"><span></span></i>').join('');
-  document.getElementById('guia-trilha').style.setProperty('--dur', duracaoDoPasso() + 'ms');
-
-  document.getElementById('guia-selo').textContent = p.selo;
-  /* O ponto final verde, como no site do Summit */
-  document.getElementById('guia-titulo').innerHTML =
-    p.rotulo.replace(/[<>&]/g, '') + '<em>.</em>';
-  document.getElementById('guia-texto').textContent = p.texto;
-
-  /* O aviso é o único texto do guia que aceita marcação, e ela vem daqui
-     de dentro — nunca de dado externo. */
-  const elAviso = document.getElementById('guia-aviso');
-  elAviso.innerHTML = p.aviso || '';
-  elAviso.hidden = !p.aviso;
-  /* Informação usa o tom neutro; alerta de comportamento fica no coral. */
-  elAviso.classList.toggle('neutro', p.tom === 'neutro');
-
-  guiaCena.classList.remove('sai', 'mostra');
-  void guiaCena.offsetWidth;
-  guiaCena.classList.add('mostra');
-
-  /* Sem transição na primeira pintura: a barra tem de nascer no lugar,
-     não vir voando da esquerda. */
-  if (primeiro) guiaBarra.style.transition = 'none';
-  desenharSeta();
-  if (primeiro) setTimeout(() => { guiaBarra.style.transition = ''; }, 30);
-
-  guiaSaida.hidden = !ultimo;
-}
-
-/* Troca de passo com a cena saindo antes de a próxima entrar — a troca
-   não pode ser corte seco. */
-function guiaIrPara(n) {
-  const destino = Math.min(Math.max(n, 0), GUIA.length - 1);
-  if (destino === guiaPasso) return;
-  clearTimeout(guiaRelogio);
-  guiaAvance.hidden = true;
-  guiaLado.hidden = true;
-  guiaPausado = false;
-  guiaCena.classList.add('sai');
-  setTimeout(() => {
-    guiaPasso = destino;
-    pintarGuia();
-    tocarRelogio(duracaoDoPasso());
-    mostrarDica();
-  }, 240);
-}
-
-function abrirGuia() {
-  guiaPasso = 0;
-  guiaPausado = false;
-  guia.hidden = false;
-  pintarGuia(true);
-  tocarRelogio(duracaoDoPasso());
-  mostrarDica();
-}
-
-function fecharGuia() {
-  clearTimeout(guiaRelogio);
-  guia.hidden = true;
-  try { localStorage.setItem(GUIA_VISTO, '1'); } catch (e) { /* sessão anônima, tudo bem */ }
-}
-
-/* ---- Navegação ----
-   Deslizar para o lado anda; toque à esquerda volta, à direita avança;
-   segurar pausa a barra. O deslize existe porque a dica na tela promete
-   ele — afordância que não funciona é pior que dica nenhuma. */
-let guiaSegurou = false;
-let guiaEspera = null;
-let guiaArrastou = false;
-let guiaX0 = 0;
-
-function dosBotoes(e) {
-  return !!(e.target.closest('#guia-pular') || e.target.closest('#guia-saida'));
-}
-
-guia.addEventListener('pointerdown', (e) => {
-  if (dosBotoes(e)) return;
-  guiaX0 = e.clientX;
-  guiaArrastou = false;
-  guiaSegurou = false;
-  /* Prende o ponteiro: sem captura, o dedo que passa por cima de um filho
-     ou sai da borda leva os `pointermove` embora no meio do gesto. */
-  try { guia.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já solto */ }
-  clearTimeout(guiaEspera);
-  guiaEspera = setTimeout(() => { guiaSegurou = true; pausarGuia(); }, GUIA_SEGURAR);
-});
-
-/* Assim que o dedo anda de lado, deixa de ser toque ou apoio: é gesto. */
-guia.addEventListener('pointermove', (e) => {
-  if (guiaArrastou || !e.buttons && e.pointerType === 'mouse') return;
-  if (Math.abs(e.clientX - guiaX0) <= 12) return;
-  guiaArrastou = true;
-  clearTimeout(guiaEspera);
-  if (guiaSegurou) { retomarGuia(); guiaSegurou = false; }
-});
-
-guia.addEventListener('pointerup', (e) => {
-  if (dosBotoes(e)) return;
-  clearTimeout(guiaEspera);
-  const dx = e.clientX - guiaX0;
-  if (guiaArrastou) {
-    /* Deslize curto demais não conta: evita virar passo por tremida de dedo. */
-    if (Math.abs(dx) >= GUIA_ARRASTO) guiaIrPara(guiaPasso + (dx < 0 ? 1 : -1));
-    return;
-  }
-  if (guiaSegurou) { retomarGuia(); return; }
-  if (e.clientX < innerWidth * GUIA_ZONA_VOLTA) guiaIrPara(guiaPasso - 1);
-  else guiaIrPara(guiaPasso + 1);
-});
-
-/* Dedo que sai da tela ou gesto cancelado pelo sistema não pode deixar
-   o guia parado para sempre. */
-['pointercancel', 'pointerleave'].forEach((ev) =>
-  guia.addEventListener(ev, () => {
-    clearTimeout(guiaEspera);
-    guiaArrastou = false;   /* gesto abortado não pode virar deslize no próximo toque */
-    retomarGuia();
-  }));
-
-document.getElementById('guia-pular').addEventListener('click', fecharGuia);
-/* Uma saída abre a experiência prática, a outra encerra o onboarding. */
-guiaPraticar.addEventListener('click', () => { fecharGuia(); abrirTourCompleto(); });
-document.getElementById('guia-ir').addEventListener('click', fecharGuia);
-addEventListener('resize', () => { if (!guia.hidden) desenharSeta(); });
-
-/* O botão da home abre o guia; o tour completo fica no último passo. */
-document.getElementById('abrir-tour').addEventListener('click', abrirGuia);
-
-/* Primeiro acesso: espera o splash sair para não competir com ele. */
-(function guiaNoPrimeiroAcesso() {
-  let visto = false;
-  try { visto = !!localStorage.getItem(GUIA_VISTO); } catch (e) { visto = false; }
-  if (visto) return;
-  const tentar = () => {
-    if (document.getElementById('splash')) return setTimeout(tentar, 400);
-    if (guia.hidden && vistas.home.classList.contains('ativa')) abrirGuia();
-  };
-  setTimeout(tentar, 600);
-})();

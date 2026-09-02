@@ -60,8 +60,3 @@ export function mascararTextoLivre(texto: string | null | undefined): string {
     .replace(RE_TELEFONE, (m) => mascararTelefone(m));
 }
 
-/** Só para o rótulo de canal na listagem: `WhatsApp · ••••-7777`. */
-export function rotuloParticipante(nome: string | null, contato: string | null): string {
-  const partes = [nome ? mascararNome(nome) : null, contato ? mascararIdentificador(contato) : null];
-  return partes.filter(Boolean).join(' · ') || 'Anônimo';
-}
