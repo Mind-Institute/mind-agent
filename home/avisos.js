@@ -149,7 +149,10 @@ export function leituraDeAviso(id, aoVerNoApp) {
     '<span class="av-ico grande">' + a.ico + '</span>' +
     '<p class="av-quando">' + a.quando + '</p>' +
     '<h2>' + a.titulo + '</h2>' +
-    (a.resumo ? '<p class="av-resumo">' + a.resumo + '</p>' : '') +
+    /* O resumo só aparece quando ACRESCENTA. Vários avisos têm um
+       parágrafo só, que serve de linha de apoio no card e de texto ao
+       abrir — repeti-lo aqui mostraria a mesma frase duas vezes seguidas. */
+    (a.resumo && a.resumo !== a.mensagem ? '<p class="av-resumo">' + a.resumo + '</p>' : '') +
     '<p class="av-texto">' + a.mensagem + '</p>';
 
   if (a.verNoApp && aoVerNoApp) {
