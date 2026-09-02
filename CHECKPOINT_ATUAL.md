@@ -163,12 +163,24 @@ Fluxo do App agora:
 ```text
 mensagem
   → identidade/contexto
-  → POLÍTICA DO CANAL (agentes.canal_competencia, canal = mindagent-web)
-  → ROUTER
-  → GATE
-  → KIT DA ROTA ESCOLHIDA
+  → ORIGEM AUTORITATIVA (se a porta já define a competência) ─┐
+  → POLÍTICA DO CANAL (agentes.canal_competencia)             │
+  → ROUTER (só quando há o que decidir)                       │
+  → GATE  ←───────────────────────────────────────────────────┘
+  → KIT DA ROTA
   → AGENT (com tool loop)
 ```
+
+**`mind_summit_app` é uma entrada com rota autoritativa.** Quem chega pelo app oficial do
+Summit já disse, pela porta, qual competência quer: `mind_summit_app → concierge_summit`,
+sem chamar o Router. É a única entrada assim hoje, e ela mora em `ROTA_POR_ORIGEM`, na Edge
+— um mapa de uma linha, não uma taxonomia nova. A origem vem do frontend em
+`origem_codigo`, é persistida **uma vez** em `engagement.conversas.origem_codigo` (o banco
+grava com `where origem_codigo is null`) e é a persistida que decide: um turno posterior
+não reescreve a porta de entrada. Toda outra origem continua passando pelo Router, e o
+**Gate continua obrigatório** nos dois caminhos — a origem diz qual competência foi
+acionada, nunca se ela executa. Medível em `rota_origem` (`origem_autoritativa` vs
+`router`) e em `blocos.origem_codigo`.
 
 Quatro mudanças:
 
@@ -195,6 +207,55 @@ Estado vivo: `mindagent-chat` **version 25**, `router` version 5 (inalterado), `
 **Ponto fraco conhecido, não bloqueante:** em 8 turnos a tool disparou 1 vez. Em `"O que combina comigo?"` o Kit voltou com 0 sessions e 0 speakers, as 2 tools estavam expostas e o modelo **não** buscou — respondeu que não conseguia apontar sessões. É afinação de prompt, não arquitetura: o caminho existe e foi provado no teste por significado.
 
 **Divergência pré-existente registrada, não corrigida:** `mind_identidade_resolver` usa `split_part(nome, ' ', 1)` para `primeiro_nome` e não preenche `sobrenome` — "Adriana Teste E2E" virou `primeiro_nome='Adriana'`, `sobrenome=null`. É comportamento anterior a esta entrega e fora do escopo dado ("deixar o resolvedor atual cuidar do preenchimento").
+
+
+---
+
+#### 02/09 — Concierge utilizável: retrieval, Executor e conduta
+
+Estado vivo: `mindagent-chat` **version 28 (v1.8.0)**, `router` version 5 (inalterado),
+`treble-inbound-agent` version 30 (inalterado). Dez migrations aplicadas hoje, **todas com
+arquivo no repo e todas idempotentes** — as guardas de todas as dez foram re-executadas
+contra a produção atual e passaram, com o hash dos prompts inalterado.
+
+**1. O retrieval parou de se comportar como AND.** `mindagent_chat_search` escalava o piso
+de cobertura com o número de termos da pergunta (`0.1 * least(2, greatest(1, n_foco))`).
+Como `ts_rank_cd` devolve exatamente `0.1` para um lexema único de peso D, dois termos
+exigiam os dois — um AND acidental. O piso virou constante, os filtros estruturais passaram
+a sair de `summit_2026.sessions.tipo` (não de lista manual), e existe fallback: tipo pedido
+nunca devolve zero. Medido: `workshop RH` 0 → 12; `workshops sobre liderança` 12, nenhum
+de outro tipo; `dia 17` 6; `masterclasses` 4; Amy/Maslach preservados; sem fonte, 0.
+Lacuna conhecida e registrada, não disfarçada: `painel/painéis` (o stemmer devolve `pain`).
+
+**2. O Executor deixou de ser um segundo playbook.** `contratoDoExecutor` (7.060 chars de
+prosa dentro da Edge) dizia como recomendar, como escrever e o que fazer no suporte — isso
+é competência, e competia com o playbook da rota. Foi removido; `instrucoes` agora é
+`kit.playbook` e nada mais. Cada regra foi para a casa dela: transversal → `agentes.prompts['base']`;
+conduta do concierge → `playbook_concierge_summit`; semântica de campo → `description` do
+JSON Schema; horário → removido, porque a `nota` do bloco de programação já dizia. O que o
+runtime garante continua garantido **em código**: allowlist de tool, validação de argumento,
+teto de rodadas por `tool_choice`, timeout, schema estrito, Gate, Kit, persistência,
+redaction e telemetria.
+
+**3. Follow-up funciona.** `history` existia, vinha filtrado pelo vocabulário errado
+(`user`/`assistant` em vez de `lead`/`agente`), chegava vazio e ainda era descartado pela
+Edge. Corrigido nas duas pontas.
+
+**4. O tool loop disparou em produção.** `presenteísmo` → `rodadas_tool: 2`,
+`chamadas_tool: 2`, 6,7 s: buscou, leu e respondeu honestamente que não há sessão com esse
+nome, oferecendo três adjacentes reais. O ponto fraco registrado em 01/09 está resolvido.
+
+**5. Seis defeitos de conduta medidos e corrigidos por prompt, não por código** — cada um
+na casa que a arquitetura define. Lista parcial anunciada como completa; total do recorte
+atribuído ao evento inteiro (`sessions_total` vs `totais.sessoes`); total citado em
+recomendação, onde ninguém pediu; justificativa formatada como sessão irmã; encaminhamento
+oferecido para o que a própria pessoa faz no app; e o sistema vazando na fala ("o contexto
+não trouxe", "com o que veio neste turno").
+
+**Residual conhecido, não bloqueante:** em pergunta de seguimento com pronome ambíguo
+("Por quê essa?" depois de três recomendações) o agente responde certo — usa a conversa e
+dá o motivo — mas ainda abre com uma ressalva desnecessária em vez de perguntar de qual
+sessão se trata. É afinação de redação, não caminho quebrado.
 
 ---
 

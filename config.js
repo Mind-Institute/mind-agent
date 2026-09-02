@@ -76,6 +76,20 @@ export const PARTICIPANTE = {
 
 const CHAVE_PARTICIPANTE = 'mindagent:v1:' + CONFIG.eventSlug + ':participante';
 
+/* PORTA DE ENTRADA DA CONVERSA — de onde a pessoa veio, não quem ela é.
+   Fica numa chave própria de propósito: não é identidade, não tem prazo de
+   validade próprio e não entra no lifecycle do participante. O runtime a
+   persiste em `engagement.conversas.origem_codigo` na abertura da conversa,
+   uma vez só, e é ela que diz que a entrada pelo app oficial já vem com a
+   competência decidida — sem passar pelo Router. */
+const CHAVE_ORIGEM = 'mindagent:v1:' + CONFIG.eventSlug + ':origem';
+
+/* Identificador, não texto livre: o mesmo formato que o banco valida. Uma URL
+   hostil não empurra frase para dentro de um campo de origem. */
+const FORMATO_ORIGEM = /^[a-z][a-z0-9_]{1,59}$/;
+
+let ORIGEM_CODIGO;
+
 /* 12 horas: cobre um dia inteiro de evento e não cobre uma aba
    esquecida no dia seguinte. */
 const VALIDADE_MS = 12 * 60 * 60 * 1000;
@@ -138,7 +152,10 @@ function esquecer() {
 }
 
 /* Tira `email` e `nome` da URL e não toca em mais nada: `tutorial`,
-   `preview`, utm_* e o hash continuam onde estavam. */
+   `preview`, utm_*, `origem_codigo` e o hash continuam onde estavam.
+   `origem_codigo` fica pela mesma razão que os utm_*: é código de entrada,
+   não dado pessoal — e um link copiado deve continuar dizendo por qual porta
+   a pessoa chegou. A limpeza existe para e-mail e nome, que são dela. */
 function limparUrl(params) {
   try {
     params.delete('email');
@@ -212,6 +229,31 @@ export function obterParticipante() {
 }
 
 /**
+ * O código de entrada desta aba, se houver. Hidrata da aba na primeira
+ * leitura — uma pessoa que entrou pelo app e navegou até o chat continua
+ * tendo vindo pelo app.
+ */
+export function obterOrigemCodigo() {
+  if (ORIGEM_CODIGO === undefined) {
+    try {
+      const guardado = sessionStorage.getItem(CHAVE_ORIGEM);
+      ORIGEM_CODIGO = FORMATO_ORIGEM.test(guardado || '') ? guardado : null;
+    } catch { ORIGEM_CODIGO = null; }
+  }
+  return ORIGEM_CODIGO;
+}
+
+/** Registra a porta de entrada. Só o que tem forma de código entra. */
+function definirOrigemCodigo(valor) {
+  const limpo = typeof valor === 'string' ? valor.trim().toLowerCase() : '';
+  if (!FORMATO_ORIGEM.test(limpo)) return obterOrigemCodigo();
+  ORIGEM_CODIGO = limpo;
+  try { sessionStorage.setItem(CHAVE_ORIGEM, limpo); }
+  catch { /* aba privada: a origem vale só para esta carga da página */ }
+  return ORIGEM_CODIGO;
+}
+
+/**
  * Lê a identidade de quem abriu a página: Yazo, depois aba, depois
  * anônimo. Chamada de propósito pelo `app.js`, nunca no import.
  */
@@ -219,6 +261,13 @@ export function capturarIdentidade() {
   let params = null;
   try { params = new URLSearchParams(location.search); }
   catch { /* URL ilegível não derruba a página */ }
+
+  /* A porta de entrada é lida antes de qualquer coisa e independe de haver
+     identidade: quem abre o app oficial sem e-mail na URL continua tendo
+     entrado pelo app oficial. */
+  if (params && params.has('origem_codigo')) {
+    definirOrigemCodigo(params.get('origem_codigo'));
+  }
 
   const daYazo = params && (params.has('email') || params.has('nome'));
   const bruto = daYazo
