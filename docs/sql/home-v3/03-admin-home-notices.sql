@@ -82,6 +82,7 @@ declare
   v_imediato boolean;
   v_disparo timestamptz;
   v_situacao text;
+  v_so_estado boolean;
 begin
   -- Mesmas regras de papel do `mind_admin_mutate_resource`.
   select role into v_role
@@ -102,7 +103,15 @@ begin
     raise exception using errcode = '22023', message = 'admin_validation:acao_invalida';
   end if;
 
+  -- Transição de estado: encerrar, colocar no ar, arquivar. Um clique,
+  -- sem formulário — e a tela não manda versão neles.
+  v_so_estado := p_action = 'arquivar'
+    or (p_action = 'atualizar' and (p_payload ? 'situacao') and not (p_payload ? 'titulo'));
+
   -- Travamento otimista: quem salva por cima de versão velha leva 409.
+  -- Só vale para quem REESCREVE CONTEÚDO. Transição de estado é
+  -- idempotente — o resultado não depende de qual era o texto —, então
+  -- exigir versão ali impediria a ação sem proteger nada.
   if p_action <> 'criar' then
     if v_id is null then
       raise exception using errcode = '22023', message = 'admin_validation:id_obrigatorio';
@@ -111,11 +120,13 @@ begin
     if v_before is null then
       raise exception using errcode = 'P0002', message = 'admin_not_found';
     end if;
-    if p_expected_updated_at is null or btrim(p_expected_updated_at) = '' then
-      raise exception using errcode = '22023', message = 'admin_validation:versao_obrigatoria';
-    end if;
-    if (v_before->>'atualizadoEm')::timestamptz <> p_expected_updated_at::timestamptz then
-      raise exception using errcode = '40001', message = 'admin_conflict';
+    if not v_so_estado then
+      if p_expected_updated_at is null or btrim(p_expected_updated_at) = '' then
+        raise exception using errcode = '22023', message = 'admin_validation:versao_obrigatoria';
+      end if;
+      if (v_before->>'atualizadoEm')::timestamptz <> p_expected_updated_at::timestamptz then
+        raise exception using errcode = '40001', message = 'admin_conflict';
+      end if;
     end if;
   end if;
 
@@ -123,7 +134,7 @@ begin
   from summit_2026.events e order by e.ativo desc, e.atualizado_em desc limit 1;
   v_fuso := coalesce(v_fuso, 'America/Sao_Paulo');
 
-  if p_action in ('criar','atualizar') then
+  if p_action in ('criar','atualizar') and not v_so_estado then
     if nullif(btrim(p_payload->>'titulo'), '') is null
        or nullif(btrim(p_payload->>'descricao'), '') is null then
       raise exception using errcode = '22023', message = 'admin_validation:campos_obrigatorios';
@@ -160,6 +171,23 @@ begin
       (select e.id from summit_2026.events e order by e.ativo desc, e.atualizado_em desc limit 1),
       clock_timestamp(), clock_timestamp(), p_actor_id
     );
+
+  elsif p_action = 'atualizar' and v_so_estado then
+    -- Só o estado muda. O texto fica como está.
+    v_situacao := p_payload->>'situacao';
+    if v_situacao not in ('no-ar','encerrado') then
+      -- 'agendado' precisa de horário, e 'rascunho' não tem botão. Quem
+      -- quiser essas duas passa pela edição inteira, com formulário.
+      raise exception using errcode = '22023', message = 'admin_validation:situacao_invalida';
+    end if;
+    update concierge.avisos set
+      situacao = v_situacao,
+      -- Colocar no ar é agora: sem isto o aviso voltaria com o horário
+      -- antigo e a lista se ordenaria pelo passado.
+      disparo_em = case when v_situacao = 'no-ar' then clock_timestamp() else disparo_em end,
+      atualizado_em = clock_timestamp(),
+      atualizado_por = p_actor_id
+    where id = v_id;
 
   elsif p_action = 'atualizar' then
     update concierge.avisos set

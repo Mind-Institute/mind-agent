@@ -140,6 +140,7 @@ declare
   v_trocas jsonb;
   v_id text := p_id;
   v_momento text;
+  v_so_estado boolean;
 begin
   -- Mesmas regras de papel do `mind_admin_mutate_resource`.
   select role into v_role
@@ -168,17 +169,28 @@ begin
   end if;
   v_trocas := coalesce(v->'trocas', '[]'::jsonb);
 
-  -- Travamento otimista: quem salva por cima de versão velha leva 409.
+  -- Trocar a composição no ar e arquivar uma troca são ações de um
+  -- clique, sem formulário — e a tela não manda versão nelas.
+  --
+  -- `home_state` inteiro são dois campos de chave: não há texto para
+  -- duas pessoas escreverem por cima uma da outra, e o último clique
+  -- ganhar é o comportamento certo para um interruptor.
+  v_so_estado := p_action = 'arquivar' or p_resource = 'home_state';
+
+  -- Travamento otimista, só para quem reescreve conteúdo — que aqui é a
+  -- edição de uma troca programada (horário, momento e nota).
   if p_action <> 'criar' then
     v_before := public.mind_admin_read_home_config(p_resource, v_id)->0;
     if v_before is null then
       raise exception using errcode = 'P0002', message = 'admin_not_found';
     end if;
-    if p_expected_updated_at is null or btrim(p_expected_updated_at) = '' then
-      raise exception using errcode = '22023', message = 'admin_validation:versao_obrigatoria';
-    end if;
-    if (v_before->>'atualizadoEm')::timestamptz <> p_expected_updated_at::timestamptz then
-      raise exception using errcode = '40001', message = 'admin_conflict';
+    if not v_so_estado then
+      if p_expected_updated_at is null or btrim(p_expected_updated_at) = '' then
+        raise exception using errcode = '22023', message = 'admin_validation:versao_obrigatoria';
+      end if;
+      if (v_before->>'atualizadoEm')::timestamptz <> p_expected_updated_at::timestamptz then
+        raise exception using errcode = '40001', message = 'admin_conflict';
+      end if;
     end if;
   end if;
 
