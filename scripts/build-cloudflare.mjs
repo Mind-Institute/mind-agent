@@ -39,6 +39,9 @@ const DO_CHAT = [
   'index.html',
   'styles.css',
   'app.js',
+  /* Importado por `app.js` no topo. Sem ele o módulo inteiro não
+     executa e a tela fica na abertura — foi o que aconteceu em 02/09. */
+  'teclado.js',
   /* Contratos e camada de dados, compartilhados com o painel */
   'config.js',
   'data-service.js',
@@ -135,6 +138,45 @@ async function contar(dir) {
   return total;
 }
 
+/* Só imports relativos: `npm:`, `jsr:` e URL não são arquivo nosso.
+   Cobre `from './x.js'` e `import('./x.js')`. */
+const IMPORT_RELATIVO = /from\s*['"](\.[^'"]+)['"]|import\s*\(\s*['"](\.[^'"]+)['"]\s*\)/g;
+
+async function jsCopiados(dir) {
+  const achados = [];
+  for (const item of await readdir(dir, { withFileTypes: true })) {
+    /* O painel é bundle do Vite, com nomes com hash e imports que ele
+       mesmo resolve — não é lista escrita à mão, não é este risco. */
+    if (item.isDirectory()) {
+      if (item.name === 'admin') continue;
+      achados.push(...(await jsCopiados(join(dir, item.name))));
+    } else if (item.name.endsWith('.js')) {
+      achados.push(join(dir, item.name));
+    }
+  }
+  return achados;
+}
+
+async function conferirImports() {
+  const faltando = [];
+  for (const arquivo of await jsCopiados(SAIDA)) {
+    const fonte = await readFile(arquivo, 'utf8');
+    for (const achado of fonte.matchAll(IMPORT_RELATIVO)) {
+      const especificador = achado[1] ?? achado[2];
+      const alvo = join(dirname(arquivo), especificador);
+      if (!(await existe(alvo))) {
+        faltando.push(relative(SAIDA, arquivo) + ' importa ' + especificador);
+      }
+    }
+  }
+  if (faltando.length) {
+    throw new Error(
+      'import sem arquivo no build — acrescente à lista DO_CHAT:\n  ' + faltando.join('\n  '),
+    );
+  }
+  console.log('imports relativos conferidos: todos resolvem');
+}
+
 async function main() {
   /* 1. Limpa SÓ a saída. `dist/` de outras ferramentas e `admin/dist`
         não são tocados aqui — quem cuida de `admin/dist` é o Vite. */
@@ -184,6 +226,17 @@ async function main() {
       'admin/index.html do build não referencia /admin/assets/ — confira `base` em admin/vite.config.ts',
     );
   }
+
+  /* 7. Todo import relativo do chat tem de existir no que foi copiado.
+        A lista acima é escrita à mão, e foi conferida à mão — até o dia
+        em que não foi: `teclado.js` entrou no repositório, `app.js`
+        passou a importá-lo e a lista não soube. Em desenvolvimento os
+        arquivos vêm da raiz e nada quebra; em produção o import 404, o
+        módulo não executa e a tela fica na abertura para sempre.
+
+        Conferir custa uma volta de laço e transforma um app fora do ar
+        num build que falha. */
+  await conferirImports();
 
   console.log('');
   console.log('dist-cloudflare/ montado — ' + (await contar(SAIDA)) + ' arquivos');
