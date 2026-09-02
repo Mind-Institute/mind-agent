@@ -202,6 +202,13 @@ body {
 .v3-rolagem {
   flex: 1; min-height: 0;
   overflow-y: auto;
+  /* SÓ ROLA PARA BAIXO. `overflow-y: auto` sozinho não basta: quando um
+     eixo deixa de ser `visible`, o CSS transforma o outro em `auto` — e a
+     home ganhou 50px de rolagem lateral no dia em que o halo do hero
+     passou a sangrar 70px para fora da direita. A tela deslizava para os
+     lados como se fosse um carrossel. O halo continua sangrando; o que
+     muda é que a sangria é recortada em vez de virar barra de rolagem. */
+  overflow-x: hidden;
   padding: 4px var(--pad) 16px;
   display: flex; flex-direction: column; gap: 10px;
 }
@@ -1144,7 +1151,12 @@ html[data-teclado="aberto"] .doca {
   background: var(--app-bg);
   container-type: inline-size;
 }
-.frame { position: relative; height: 90.5%; overflow: hidden; }
+/* ARRASTAR NÃO PODE VIRAR "ARRASTAR A IMAGEM". A captura da tela é um
+   `<img>`, e arrastar imagem é gesto nativo do navegador: ele sequestrava
+   o ponteiro no primeiro milímetro e os `pointermove` seguintes nunca
+   chegavam — o gesto de voltar simplesmente não acontecia. */
+.frame { position: relative; height: 90.5%; overflow: hidden; touch-action: pan-y; }
+.frame img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
 .conteudo { position: absolute; inset: 0; }
 .conteudo img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top; }
 

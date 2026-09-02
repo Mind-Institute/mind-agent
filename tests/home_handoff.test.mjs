@@ -92,3 +92,40 @@ test('o filtro de avisos não mostra chip que não tem o que filtrar', () => {
   assert.match(avisos, /Nenhum aviso nesta categoria agora/,
     'filtro sem resultado voltou a devolver tela em branco, que é lida como erro');
 });
+
+test('a home não rola para os lados', () => {
+  /* `overflow-y: auto` sozinho não basta: quando um eixo deixa de ser
+     `visible`, o CSS transforma o outro em `auto`. Foi assim que o halo
+     do hero, sangrando 70px para fora da direita, virou 50px de rolagem
+     lateral — a tela deslizando como carrossel. */
+  const i = css.indexOf('.v3-rolagem {');
+  const regra = css.slice(i, css.indexOf('\n}', i));
+  assert.match(regra, /overflow-x:\s*hidden/,
+    'a home voltou a poder rolar na horizontal; o halo do hero sangra 70px e '
+    + 'é ele que vira barra de rolagem');
+});
+
+test('o atalho abre UMA tela, não um roteiro', () => {
+  /* O atalho trocava a tela e deixava as missões da reserva rodando por
+     baixo: a barra dizia "Reservar seu lugar" e o anel circulava
+     "Programação" enquanto a pessoa estava em "Minha Agenda". */
+  assert.match(app, /function abrirTutorialEm\(tela\)\s*\{[\s\S]{0,220}telaAvulsa = tela;[\s\S]{0,80}MISSOES = \[\];/,
+    'abrirTutorialEm parou de limpar o roteiro: o atalho volta a arrastar as '
+    + 'missões da reserva para dentro da tela pedida');
+  assert.match(app, /telaAvulsa = null;\s*\n\s*MISSOES = roteiro\.missoes;/,
+    'o roteiro completo parou de desligar a bandeira de tela avulsa');
+});
+
+test('arrastar volta, e não teleporta na primeira tela', () => {
+  assert.match(app, /function temVolta\(\)/,
+    'a guarda que impede o arrastar de cair no `|| \'menu\'` de voltar() sumiu');
+  assert.match(app, /if \(temVolta\(\)\) voltar\(\); else avisar\(/,
+    'o arrastar voltou a chamar voltar() sem checar se há para onde voltar');
+  /* Arrastar por cima de um alvo não pode abrir o alvo. */
+  assert.match(app, /addEventListener\('click',[\s\S]{0,140}arrastou[\s\S]{0,160}\}, true\)/,
+    'o clique que fecha o arrastar deixou de ser engolido na captura');
+  /* A imagem não pode ser arrastável: o gesto nativo do navegador rouba
+     o ponteiro no primeiro milímetro e o arrastar nunca acontece. */
+  assert.match(css, /\.frame img\s*\{[^}]*user-drag:\s*none/,
+    'a captura voltou a ser arrastável e o gesto de voltar morre no primeiro pixel');
+});
