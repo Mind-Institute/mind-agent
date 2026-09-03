@@ -29,11 +29,14 @@ begin
   if position('10 ou mais' in coalesce(v_b2b,'')) = 0 then
     raise exception 'regra de handoff por volume ausente';
   end if;
-  if position('nome e sobrenome' in coalesce(v_b2b,'')) = 0
-     or position('empresa' in coalesce(v_b2b,'')) = 0
-     or position('cargo' in coalesce(v_b2b,'')) = 0
-     or position('e-mail' in coalesce(v_b2b,'')) = 0 then
-    raise exception 'campos progressivos ausentes';
+  if position('NÃO COLETE CADASTRO' in coalesce(v_b2b,'')) = 0 then
+    raise exception 'regra de não coletar cadastro ausente';
+  end if;
+  if position('IDENTIDADE E CONTATO — COMPLETAR, NÃO REPETIR' in coalesce(v_b2b,'')) > 0
+     or position('complete somente os campos ausentes' in coalesce(v_b2b,'')) > 0
+     or position('Qual é a empresa?' in coalesce(v_b2b,'')) > 0
+     or position('Qual e-mail você prefere usar' in coalesce(v_b2b,'')) > 0 then
+    raise exception 'coleta cadastral antiga ainda presente';
   end if;
   if position('Classifique quem chegou:' in coalesce(v_b2b,'')) > 0 then
     raise exception 'playbook_router ainda montado no B2B';
