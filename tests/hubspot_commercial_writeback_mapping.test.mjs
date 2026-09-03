@@ -34,6 +34,27 @@ test("vocabulário real do analisador para ganho e perda é aceito", () => {
   }, null).stage, STAGES.LOST);
 });
 
+test("estado terminal do comprador exige confirmação transacional", () => {
+  for (const analysis of [
+    {
+      buyer_state: "CLOSED_WON",
+      transaction: { deal_status: "unknown", purchase_status: "unknown" },
+    },
+    {
+      buyer_state: "CLOSED_WON",
+      transaction: { deal_status: "open", purchase_status: "not_purchased" },
+    },
+    {
+      buyer_state: "CLOSED_LOST",
+      transaction: { deal_status: "open", purchase_status: "not_purchased" },
+    },
+  ]) {
+    const result = mapCommercialAnalysis(analysis, null);
+    assert.equal(result.stage, null);
+    assert.equal(result.blockedReason, "estado_terminal_sem_confirmacao_transacional");
+  }
+});
+
 test("sinais terminais contraditórios bloqueiam a escrita", () => {
   const result = mapCommercialAnalysis({
     buyer_state: "CLOSED_LOST",
@@ -172,3 +193,4 @@ test("runtime não contém fallback de pipeline e exige credencial administrativ
   assert.match(index, /seenParticipants/);
   assert.match(index, /participante_duplicado_no_lote/);
 });
+
