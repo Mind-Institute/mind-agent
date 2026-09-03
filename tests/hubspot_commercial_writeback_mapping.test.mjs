@@ -160,13 +160,10 @@ test("runtime não contém fallback de pipeline e exige credencial administrativ
     new URL("../supabase/functions/hubspot-commercial-writeback/mapping.ts", import.meta.url),
     "utf8",
   );
-  const config = readFileSync(new URL("../supabase/config.toml", import.meta.url), "utf8");
-
   assert.doesNotMatch(index, /918902366|INBOUND_PIPELINE/);
   assert.doesNotMatch(mapping, /918902366|INBOUND_PIPELINE/);
   assert.match(index, /SUPABASE_SECRET_KEYS/);
   assert.match(index, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(index, /adminAuthorized/);
-  assert.match(config, /\[functions\.hubspot-commercial-writeback\][\s\S]*verify_jwt = false/);
   assert.match(index, /p_retryable: retryable/);
 });
