@@ -531,6 +531,26 @@ de todas as conversas e a fila humana de divergência de estágio permanecem no
 `BACKLOG.md` §7. O próximo gate é um teste HTTP autenticado em `preview` por uma execução
 server-side autorizada; só depois cabe discutir habilitar `apply` num teste controlado.
 
+**03/09 — auditoria incremental e trava terminal (#81).** Enquanto o HTTP autenticado de preview
+aguarda execução em ambiente local confiável, foram auditadas as 722 conversas que já possuíam
+análise comercial desde 29/08, sem produzir backfill. Cinco análises tinham estado terminal
+incompatível com a própria transação: 3 `CLOSED_WON` sem compra/negócio ganho e 2
+`CLOSED_LOST` com negócio ainda aberto. A leitura das conversas confirmou falsos positivos
+materiais, incluindo nota 5 da pesquisa de encerramento confundida com venda, checkout falho
+confundido com ganho e encerramento operacional confundido com perda.
+
+A PR #81 foi mergeada em `a6bcbdcb268bd40620017b67d45252bd70d537eb`. A Edge
+`hubspot-commercial-writeback` foi republicada como **version 2 / ACTIVE**, com
+`verify_jwt=true`. Agora ganho exige `purchase_status=purchased` ou
+`deal_status=won/closed_won`; perda exige `deal_status=lost/closed_lost`. Estado terminal
+sem confirmação fica bloqueado por `estado_terminal_sem_confirmacao_transacional`.
+Passaram 16/16 contratos. `apply` continua desligado, o ledger continua com zero linhas e
+não houve escrita no HubSpot nem em identidade.
+
+A revisão dos 15 casos do runtime novo mostrou boa coerência geral nos drivers usados pelo
+write-back. `asked_discount` perde parte dos pedidos explícitos de condição especial, mas não
+tem consumidor no runtime, SQL ou write-back atual; não foi alterado.
+
 Chunk atual aceito tecnicamente:
 
 - `mind_memoria_fatos(pessoa_id)` pronto/desligado;
