@@ -16,7 +16,13 @@ import {
   respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
-import { bucketDeRollout, modeloInicialDoTurno, saidaEstruturadaMinimaValida } from "../_shared/agent-model-routing.ts";
+import {
+  bucketDeRollout,
+  modeloInicialDoTurno,
+  podeExecutarTool,
+  podeTentarModelo,
+  saidaEstruturadaMinimaValida,
+} from "../_shared/agent-model-routing.ts";
 import { contactFromPersonFacts } from "../_shared/contact-profile.ts";
 
 type ChatRequest = {
@@ -1311,7 +1317,7 @@ Deno.serve(async (req: Request) => {
     let forcarBuscaNaProximaVolta = false;
     const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
 
-    for (let tentativaModelo = 0; tentativaModelo < MAX_TENTATIVAS_MODELO; tentativaModelo++) {
+    for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
       tentativasModelo++;
       const restante = fimDoOrcamento - Date.now();
       if (restante <= 0) throw new DOMException("orcamento_do_turno", "AbortError");
@@ -1341,7 +1347,7 @@ Deno.serve(async (req: Request) => {
             ...(toolsParaModelo.length > 0
               ? {
                 tools: toolsParaModelo,
-                tool_choice: rodadasTool >= MAX_RODADAS_TOOL
+                tool_choice: !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL)
                   ? "none"
                   : forcarBuscaNaProximaVolta
                   ? { type: "function", name: "buscar_intelligence" }
@@ -1375,7 +1381,7 @@ Deno.serve(async (req: Request) => {
       if (!openAiResponse.ok) {
         if (
           model === modelFast && modelFast !== modelComplex &&
-          tentativaModelo + 1 < MAX_TENTATIVAS_MODELO && [400, 404].includes(openAiResponse.status)
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
         ) {
           model = modelComplex;
           modelEscalation = "modelo_rapido_indisponivel";
@@ -1390,7 +1396,7 @@ Deno.serve(async (req: Request) => {
         outputText = extractOutputText(openAiPayload);
         if (
           model === modelFast && modelFast !== modelComplex &&
-          tentativaModelo + 1 < MAX_TENTATIVAS_MODELO && !saidaEstruturadaMinimaValida(outputText)
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && !saidaEstruturadaMinimaValida(outputText)
         ) {
           model = modelComplex;
           modelEscalation = "saida_invalida";
@@ -1398,8 +1404,8 @@ Deno.serve(async (req: Request) => {
           continue;
         }
         if (
-          tentativaModelo + 1 < MAX_TENTATIVAS_MODELO &&
-          rodadasTool < MAX_RODADAS_TOOL && toolsParaModelo.length > 0 &&
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) &&
+          podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) && toolsParaModelo.length > 0 &&
           respostaExigeBuscaAntesDeDesistir(outputText)
         ) {
           /* `tool_choice:auto` é proposital para não buscar em toda pergunta,
