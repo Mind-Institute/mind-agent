@@ -73,6 +73,15 @@ const CAMINHOS: Record<IconeAviso, React.ReactNode> = {
     </>
   ),
   estrela: <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
+  carro: (
+    <>
+      <path d="M4 16.5v-3.6c0-.5.1-1 .4-1.4l2-4.1A2 2 0 0 1 8.2 6.3h7.6a2 2 0 0 1 1.8 1.1l2 4.1c.3.4.4.9.4 1.4v3.6" />
+      <path d="M4.6 11.5h14.8" />
+      <circle cx="8" cy="17" r="1.8" />
+      <circle cx="16" cy="17" r="1.8" />
+      <path d="M4 17h2.2M9.8 17h4.4M17.8 17H20" />
+    </>
+  ),
 };
 
 export function IconeDoApp({ nome, className }: { nome: IconeAviso; className?: string }) {
