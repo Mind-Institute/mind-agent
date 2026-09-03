@@ -23,7 +23,7 @@ test('seletor guarda nomes canônicos, respeita máximo três e evita zoom no iO
   assert.match(app, /q\.campo\]\s*=\s*selecionadas\.slice\(\)/);
   assert.match(app, /enviarSinalJornada\('palestrantes_imperdiveis',\s*selecionadas\.slice\(\)\)/);
   assert.match(app, /selecionadas\.length\s*>=\s*\(q\.max\s*\|\|\s*3\)/);
-  assert.match(styles, /\.ins-palestrantes-busca\s*\{[^}]*font-size:\s*16px/s);
+  assert.match(styles, /\.busca-palestrante\s*\{[^}]*font-size:\s*16px/s);
   assert.match(styles, /\.ins textarea\s*\{[^}]*font-size:\s*16px/s);
 });
 
