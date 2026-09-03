@@ -793,3 +793,39 @@ jobs 0→6, interesses 4→13, cargo 2→4 (de 33).
 Ficou para a Lane D (BACKLOG §18): marcador durável de "pulada" no `analisar-conversa` (não
 versionado aqui); 1.253 memórias `proposta` de `analise_vendas_summit` invisíveis a todo leitor;
 analisadores de prompt vazio.
+
+
+---
+
+## 5E. 03/09 — o App volta a ler a programação do banco (gate #26 fechado)
+
+Sintoma reportado pela Adriana: "o agente no App não está carregando a programação". Causa:
+`api.mindagent_bootstrap` ainda lia `summit.*`/`comum.*` (extintos na faxina de 22/08) →
+`relation "summit.events" does not exist` → PostgREST 404 → Edge `mindagent-bootstrap` 503 em
+todo carregamento (assim em todas as horas registradas nas 24h anteriores). O App caía no
+`dados/summit.json` de 28/08 com 53 sessões; o banco tinha 77. O chat do Concierge nunca foi
+afetado: lê o banco pelo Kit e o retrieval estava saudável.
+
+Autorizado pela Adriana ("faça o certo autonomamente e teste") e aplicado em produção:
+
+- `20260903070000_temas_do_summit_ganham_casa.sql` — `ecossistema.taxonomy` (sucessora de
+  `comum.taxonomy`: 10 temas + 14 rótulos de tipo de sessão), `summit_2026.speaker_profiles`
+  (vitrine curada de 39 palestrantes, casada por nome/alias, falha alto se não casar) e
+  `sessions.topicos_aprendizado` preenchido nas 77 sessões por `site_session_id` — 43 com os
+  temas curados do JSON, 20 inferidos do título/descrição (marcados `(i)` na migration) e 14
+  operacionais sem tema de propósito (credenciamento, abertura, intervalos, almoços, em curadoria);
+- `20260903071000_mindagent_bootstrap_no_schema_vivo.sql` — a função reapontada para
+  `summit_2026`/`ecossistema`, mesmo contrato de saída mais `sessoes[].tipo`; `formato` continua
+  sendo o balde que o App filtra; `etiqueta` = rótulo + sufixo do ingresso (Masterclass Prime,
+  Workshop VIP, Autógrafos Prime); `trilhas` = `ingressos`; `sessoes[].id` = `site_session_id`;
+  pessoas sem perfil curado recebem credencial/resumo/temas derivados, nunca inventados.
+
+Validação viva: `tests/bootstrap_summit_2026_contract.sql` (ROLLBACK) — contratos 1 a 5 passaram,
+inclusive a leitura como `anon` (a chave pública que a Edge usa): 77 sessões, 63 pessoas, 10 temas,
+38 fotos, 4 destaques. `dados/summit.json` regenerado a partir da função (53→77 sessões, 39→63
+pessoas), aprovado por `conferir()`, `npm run build` monta 115 arquivos, `git diff --check` limpo.
+A Edge `mindagent-bootstrap` não mudou (só proxy da RPC); o primeiro carregamento real do App
+depois de 06:30 UTC deve aparecer 200 em `function_edge_logs`.
+
+Sync do site (`summit-programacao-sync`) casa por `site_session_id` e não escreve
+`topicos_aprendizado`: os temas sobrevivem ao próximo sync.
