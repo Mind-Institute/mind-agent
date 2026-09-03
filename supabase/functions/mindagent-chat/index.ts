@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import {
+  checkoutCurto,
   checkoutRastreado,
   escolherCheckoutOficial,
   idEventoCheckout,
@@ -1474,7 +1475,10 @@ Deno.serve(async (req: Request) => {
     if (checkoutOficial) {
       checkoutEventoId = await idEventoCheckout(conversationId, clientMessageId, checkoutOficial.url);
       const urlRastreada = checkoutRastreado(checkoutOficial, checkoutEventoId, "app", "mindagent-chat");
-      respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlRastreada, checkoutCandidato);
+      const redirectBase = Deno.env.get("CHECKOUT_REDIRECT_BASE") ??
+        `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/mindagent-checkout`;
+      const urlEntregue = checkoutCurto(checkoutEventoId, redirectBase) ?? urlRastreada;
+      respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlEntregue, checkoutCandidato);
     }
     // Sem `.slice(0, 2)`: um turno pode revelar seis interesses legítimos, e o teto
     // descartava os quatro últimos em silêncio. Quem filtra por sensibilidade e por
