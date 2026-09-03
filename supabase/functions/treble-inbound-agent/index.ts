@@ -136,6 +136,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { decidirGuardrailPreco, precosOficiais } from "./guardrail-preco.ts";
 import {
+  checkoutCurto,
   checkoutRastreado,
   escolherCheckoutOficial,
   idEventoCheckout,
@@ -1116,7 +1117,10 @@ Deno.serve(async (req: Request) => {
       const urlRastreada = checkoutRastreado(
         checkoutOficial, checkoutEventoId, "whatsapp", "treble-inbound-agent",
       );
-      respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlRastreada, checkoutCandidato);
+      const redirectBase = Deno.env.get("CHECKOUT_REDIRECT_BASE") ??
+        `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/mindagent-checkout`;
+      const urlEntregue = checkoutCurto(checkoutEventoId, redirectBase) ?? urlRastreada;
+      respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlEntregue, checkoutCandidato);
     }
     const checkoutSentFinal = checkoutEventoId !== null;
 
