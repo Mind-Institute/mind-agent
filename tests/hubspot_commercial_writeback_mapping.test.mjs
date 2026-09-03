@@ -144,6 +144,11 @@ test("contrato SQL usa apenas coletores canônicos e preserva o ledger", () => {
   assert.match(sql, /w\.action = 'update'/);
   assert.match(sql, /w\.attempt_count < 3/);
   assert.match(sql, /interval '15 minutes'/);
+
+  const latestStart = sql.indexOf("latest_per_conversation as materialized");
+  const eligibleStart = sql.indexOf("eligible as materialized");
+  assert.ok(latestStart >= 0 && eligibleStart > latestStart);
+  assert.doesNotMatch(sql.slice(latestStart, eligibleStart), /hubspot_commercial_writeback/);
 });
 
 test("runtime não contém fallback de pipeline e exige service role", () => {
