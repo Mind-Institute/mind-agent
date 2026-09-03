@@ -933,6 +933,13 @@ quando o espelho traz o token e expõe pedido, status, valor, quantidade, ingres
 rota, motivo e conversa — sem nome, e-mail, telefone, documento ou endereço. A integração atual
 já preserva `utm_content`; `utm_term` fica como redundância para a evolução do conector.
 
+No WhatsApp, o checkout oficial é resolvido antes da decisão final do guardrail de preço. Se o
+modelo escolher um `checkout_url` válido do Kit, mas escrever na mesma copy um valor rejeitado,
+o runtime remove a resposta livre inteira e entrega somente uma frase neutra sem preço com o
+checkout rastreado. Isso preserva a conversão sem permitir que o valor incorreto chegue ao lead.
+Quando não existe checkout oficial validado, o guardrail continua bloqueando e acionando handoff.
+Comportamento vivo no `treble-inbound-agent` version 35 / v1.6.2.
+
 Institute e pré-venda do Summit seguinte não foram inventados nesta entrega. O encanamento aceita
 novas ofertas automaticamente quando cada checkout e regra comercial oficial forem adicionados
 ao Kit correto.
