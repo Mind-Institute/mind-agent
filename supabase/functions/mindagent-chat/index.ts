@@ -16,7 +16,7 @@ import {
   respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
-import { modeloInicialDoTurno, saidaEstruturadaMinimaValida } from "../_shared/agent-model-routing.ts";
+import { bucketDeRollout, modeloInicialDoTurno, saidaEstruturadaMinimaValida } from "../_shared/agent-model-routing.ts";
 import { contactFromPersonFacts } from "../_shared/contact-profile.ts";
 
 type ChatRequest = {
@@ -54,6 +54,8 @@ const VERSION = "1.13.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
+const DEFAULT_FAST_ROLLOUT_PERCENT = 50;
+const MAX_TENTATIVAS_MODELO = MAX_RODADAS_TOOL + 2;
 
 // O CANAL DESTE RUNTIME. Constante, nunca inferida da conversa: quem chama sabe
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
@@ -530,6 +532,7 @@ function montarResponseSchema(rotasDoCanal: string[]) {
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
+  const telemetry: Record<string, unknown> = {};
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
 
@@ -541,6 +544,9 @@ Deno.serve(async (req: Request) => {
       version: VERSION,
       model: Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX,
       fast_model: Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST,
+      fast_model_rollout_percent: Math.max(0, Math.min(100,
+        Number(Deno.env.get("OPENAI_FAST_ROLLOUT_PERCENT") ?? DEFAULT_FAST_ROLLOUT_PERCENT),
+      )),
       model_routing: true,
       openai_configured: Boolean(Deno.env.get("OPENAI_API_KEY")),
     }, requestId);
@@ -617,6 +623,12 @@ Deno.serve(async (req: Request) => {
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   const modelComplex = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
   const modelFast = Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST;
+  const rolloutConfigurado = Number(
+    Deno.env.get("OPENAI_FAST_ROLLOUT_PERCENT") ?? DEFAULT_FAST_ROLLOUT_PERCENT,
+  );
+  const modelFastRolloutPercent = Number.isFinite(rolloutConfigurado)
+    ? Math.max(0, Math.min(100, rolloutConfigurado))
+    : DEFAULT_FAST_ROLLOUT_PERCENT;
   if (!supabaseUrl || !publishableKey || !secretKey) {
     return json(req, 503, { ok: false, error: { code: "database_unavailable", message: "Serviço temporariamente indisponível." } }, requestId);
   }
@@ -1151,6 +1163,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     const kitMs = Date.now() - kitStartedAt;
+    telemetry.kit_ms = kitMs;
 
     // FAIL-CLOSED. Sem Kit disponível, sem playbook ou sem nenhum bloco, o modelo
     // não é chamado: responder sem a verdade mínima é como a invenção começa.
@@ -1237,12 +1250,11 @@ Deno.serve(async (req: Request) => {
       user_question: maskedContact.text,
     };
     // ------------------------------------------------------- TOOL LOOP
-    // O turno deixa de ser uma geração só. O modelo pode pedir ferramenta, ler o
-    // resultado e pedir de novo — no máximo `MAX_RODADAS_TOOL` vezes. Na última
-    // rodada `tool_choice` vira "none": as ferramentas continuam declaradas (o
-    // histórico da conversa referencia as chamadas já feitas), mas o modelo não
-    // tem escolha senão responder. É assim que "no máximo 2 rodadas" vira garantia
-    // do runtime em vez de pedido no prompt.
+    // O turno deixa de ser uma geração só. O orçamento de chamadas ao modelo e o
+    // orçamento de ferramentas são independentes: promover o mini para o completo
+    // não pode consumir uma das duas leituras permitidas. Ao atingir
+    // `MAX_RODADAS_TOOL`, `tool_choice` vira "none"; `MAX_TENTATIVAS_MODELO`
+    // limita retries e o relógio absoluto continua limitando o turno a 30 segundos.
     //
     // MÚLTIPLAS CHAMADAS NUMA RODADA SÃO EXECUTADAS JUNTAS. Se o modelo pedir três
     // leituras de uma vez, forçar uma por vez gastaria três rodadas para fazer o
@@ -1258,12 +1270,18 @@ Deno.serve(async (req: Request) => {
     const instrucoes = kit.playbook as string;
 
     const aiContextChars = JSON.stringify(aiContext).length;
+    const instructionsChars = instrucoes.length;
+    const historyChars = JSON.stringify(historico).length;
+    const schemaChars = JSON.stringify(responseSchema).length;
+    const toolsChars = JSON.stringify(toolsParaModelo).length;
+    const rolloutBucket = bucketDeRollout(authUserId);
     const modelDecision = modeloInicialDoTurno(
       message,
       rotaDecidida,
       historico.length,
       modelFast,
       modelComplex,
+      rolloutBucket < modelFastRolloutPercent,
     );
     const modelInicial = modelDecision.model;
     let model = modelInicial;
@@ -1271,6 +1289,19 @@ Deno.serve(async (req: Request) => {
     const modelsUsed = new Set<string>();
     let openAiMs = 0;
     let toolMs = 0;
+    let toolResultChars = 0;
+    let tentativasModelo = 0;
+    Object.assign(telemetry, {
+      model_inicial: modelInicial,
+      model_reason: modelDecision.reason,
+      model_rollout_bucket: rolloutBucket,
+      model_rollout_percent: modelFastRolloutPercent,
+      ai_context_chars: aiContextChars,
+      instructions_chars: instructionsChars,
+      history_chars: historyChars,
+      schema_chars: schemaChars,
+      tools_chars: toolsChars,
+    });
 
     let openAiResponse!: Response;
     let openAiPayload: Record<string, unknown> = {};
@@ -1280,7 +1311,8 @@ Deno.serve(async (req: Request) => {
     let forcarBuscaNaProximaVolta = false;
     const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
 
-    for (let volta = 0; volta <= MAX_RODADAS_TOOL; volta++) {
+    for (let tentativaModelo = 0; tentativaModelo < MAX_TENTATIVAS_MODELO; tentativaModelo++) {
+      tentativasModelo++;
       const restante = fimDoOrcamento - Date.now();
       if (restante <= 0) throw new DOMException("orcamento_do_turno", "AbortError");
 
@@ -1309,7 +1341,7 @@ Deno.serve(async (req: Request) => {
             ...(toolsParaModelo.length > 0
               ? {
                 tools: toolsParaModelo,
-                tool_choice: volta >= MAX_RODADAS_TOOL
+                tool_choice: rodadasTool >= MAX_RODADAS_TOOL
                   ? "none"
                   : forcarBuscaNaProximaVolta
                   ? { type: "function", name: "buscar_intelligence" }
@@ -1328,13 +1360,22 @@ Deno.serve(async (req: Request) => {
         });
       } finally {
         openAiMs += Date.now() - openAiStartedAt;
+        Object.assign(telemetry, {
+          model,
+          model_escalation: modelEscalation,
+          models_used: [...modelsUsed],
+          openai_ms: openAiMs,
+          tool_ms: toolMs,
+          tool_result_chars: toolResultChars,
+          tentativas_modelo: tentativasModelo,
+        });
         clearTimeout(timeout);
       }
 
       if (!openAiResponse.ok) {
         if (
           model === modelFast && modelFast !== modelComplex &&
-          volta < MAX_RODADAS_TOOL && [400, 404].includes(openAiResponse.status)
+          tentativaModelo + 1 < MAX_TENTATIVAS_MODELO && [400, 404].includes(openAiResponse.status)
         ) {
           model = modelComplex;
           modelEscalation = "modelo_rapido_indisponivel";
@@ -1349,7 +1390,7 @@ Deno.serve(async (req: Request) => {
         outputText = extractOutputText(openAiPayload);
         if (
           model === modelFast && modelFast !== modelComplex &&
-          volta < MAX_RODADAS_TOOL && !saidaEstruturadaMinimaValida(outputText)
+          tentativaModelo + 1 < MAX_TENTATIVAS_MODELO && !saidaEstruturadaMinimaValida(outputText)
         ) {
           model = modelComplex;
           modelEscalation = "saida_invalida";
@@ -1357,7 +1398,8 @@ Deno.serve(async (req: Request) => {
           continue;
         }
         if (
-          volta < MAX_RODADAS_TOOL && toolsParaModelo.length > 0 &&
+          tentativaModelo + 1 < MAX_TENTATIVAS_MODELO &&
+          rodadasTool < MAX_RODADAS_TOOL && toolsParaModelo.length > 0 &&
           respostaExigeBuscaAntesDeDesistir(outputText)
         ) {
           /* `tool_choice:auto` é proposital para não buscar em toda pergunta,
@@ -1412,10 +1454,21 @@ Deno.serve(async (req: Request) => {
       }
 
       for (const r of resultados) {
+        toolResultChars += r.output.length;
         entradaDoModelo.push({ type: "function_call_output", call_id: r.call_id, output: r.output });
         chamadasFeitas.push({ nome: r.nome, ok: r.ok });
       }
       rodadasTool++;
+      Object.assign(telemetry, {
+        model,
+        model_escalation: modelEscalation,
+        models_used: [...modelsUsed],
+        openai_ms: openAiMs,
+        tool_ms: toolMs,
+        tool_result_chars: toolResultChars,
+        tentativas_modelo: tentativasModelo,
+        rodadas_tool: rodadasTool,
+      });
     }
     // O ERRO DA OPENAI CONTINUA SENDO TRADUZIDO COMO ANTES. O loop pode sair por
     // resposta não-ok em qualquer rodada — inclusive depois de uma ferramenta já ter
@@ -1716,7 +1769,11 @@ Deno.serve(async (req: Request) => {
       new_session: newSession,
       model, model_inicial: modelInicial, model_reason: modelDecision.reason,
       model_escalation: modelEscalation, models_used: [...modelsUsed],
-      openai_ms: openAiMs, tool_ms: toolMs, kit_ms: kitMs, context_chars: aiContextChars,
+      openai_ms: openAiMs, tool_ms: toolMs, kit_ms: kitMs,
+      ai_context_chars: aiContextChars, instructions_chars: instructionsChars,
+      history_chars: historyChars, schema_chars: schemaChars, tools_chars: toolsChars,
+      tool_result_chars: toolResultChars, tentativas_modelo: tentativasModelo,
+      model_rollout_bucket: rolloutBucket, model_rollout_percent: modelFastRolloutPercent,
       interests: interests.length, duration_ms: Date.now() - startedAt,
       rota: rotaDecidida, rota_origem: rotaOrigem, router_falha: rotaFalha, router_ms: routerMs,
       origem_codigo: origemDaConversa || null,
@@ -1756,6 +1813,7 @@ Deno.serve(async (req: Request) => {
       request_id: requestId, status: isTimeout ? 504 : 500,
       event: isTimeout ? "ai_timeout" : "unexpected_error",
       reason: error instanceof Error ? error.message : "unknown",
+      ...telemetry,
       duration_ms: Date.now() - startedAt,
     }));
     return json(req, isTimeout ? 504 : 500, {
