@@ -13,6 +13,7 @@ import {
   MAX_RODADAS_TOOL,
   ORCAMENTO_TURNO_MS,
   produtoDoContexto,
+  respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 import { contactFromPersonFacts } from "../_shared/contact-profile.ts";
@@ -47,7 +48,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.11.0";
+const VERSION = "1.11.1";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL = "gpt-5.4";
 
@@ -1231,6 +1232,8 @@ Deno.serve(async (req: Request) => {
     let openAiPayload: Record<string, unknown> = {};
     let outputText = "";
     let rodadasTool = 0;
+    let recuperacaoForcada = false;
+    let forcarBuscaNaProximaVolta = false;
     const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
 
     for (let volta = 0; volta <= MAX_RODADAS_TOOL; volta++) {
@@ -1258,7 +1261,14 @@ Deno.serve(async (req: Request) => {
               },
             },
             ...(toolsParaModelo.length > 0
-              ? { tools: toolsParaModelo, tool_choice: volta >= MAX_RODADAS_TOOL ? "none" : "auto" }
+              ? {
+                tools: toolsParaModelo,
+                tool_choice: volta >= MAX_RODADAS_TOOL
+                  ? "none"
+                  : forcarBuscaNaProximaVolta
+                  ? { type: "function", name: "buscar_intelligence" }
+                  : "auto",
+              }
               : {}),
             // Com ferramenta o teto sobe: `max_output_tokens` inclui os tokens de
             // raciocínio, e estourar o teto devolve resposta `incomplete` — texto
@@ -1280,8 +1290,27 @@ Deno.serve(async (req: Request) => {
       const chamadas = extrairChamadas(openAiPayload);
       if (chamadas.length === 0) {
         outputText = extractOutputText(openAiPayload);
+        if (
+          volta < MAX_RODADAS_TOOL && toolsParaModelo.length > 0 &&
+          respostaExigeBuscaAntesDeDesistir(outputText)
+        ) {
+          /* `tool_choice:auto` é proposital para não buscar em toda pergunta,
+             mas o modelo não pode desistir sem investigar quando o recorte do
+             Kit veio insuficiente. A primeira abstinência vira contexto e a
+             próxima volta força apenas a lupa de leitura. */
+          entradaDoModelo.push({ role: "assistant", content: outputText });
+          entradaDoModelo.push({
+            role: "user",
+            content: "Antes de concluir que não há fonte, investigue a necessidade atual com buscar_intelligence.",
+          });
+          forcarBuscaNaProximaVolta = true;
+          recuperacaoForcada = true;
+          outputText = "";
+          continue;
+        }
         break;
       }
+      forcarBuscaNaProximaVolta = false;
 
       // A chamada volta para a entrada ANTES do resultado: a Responses API precisa
       // do par completo para continuar a conversa na próxima geração.
@@ -1343,6 +1372,7 @@ Deno.serve(async (req: Request) => {
         model,
         rota: rotaDecidida,
         rodadas_tool: rodadasTool,
+        recuperacao_forcada: recuperacaoForcada,
         duration_ms: Date.now() - startedAt,
       }));
       return json(req, status === 429 ? 429 : 502, {
@@ -1551,6 +1581,7 @@ Deno.serve(async (req: Request) => {
         rota_origem: rotaOrigem,
         origem_codigo: origemDaConversa || null,
         rodadas_tool: rodadasTool,
+        recuperacao_forcada: recuperacaoForcada,
         ferramentas: chamadasFeitas,
         checkout_sent: checkoutEventoId !== null,
         checkout_event_id: checkoutEventoId,
@@ -1604,6 +1635,7 @@ Deno.serve(async (req: Request) => {
       next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
       checkout_event_id: checkoutEventoId,
       tools_expostas: nomesDasFerramentas.length, rodadas_tool: rodadasTool,
+      recuperacao_forcada: recuperacaoForcada,
       historico: historico.length,
       chamadas_tool: chamadasFeitas.length,
       identity_email_received: identityEmailReceived,

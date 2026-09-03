@@ -73,6 +73,22 @@ test('o campo de mensagem nunca é desabilitado', () => {
     + 'o guarda contra envio duplicado é `respostaEmAndamento`, não o `disabled`');
 });
 
+test('o foco não aciona zoom do iOS nem permite estouro horizontal', () => {
+  const i = css.indexOf('.doca input {');
+  const input = css.slice(i, css.indexOf('\n}', i));
+  assert.match(input, /font-size:\s*16px/,
+    'input abaixo de 16px faz o Safari ampliar a página quando o teclado abre');
+  assert.match(input, /min-width:\s*0/,
+    'o campo pode alargar a doca em uma linha flex estreita');
+
+  const j = css.indexOf('.mensagens {');
+  const mensagens = css.slice(j, css.indexOf('\n}', j));
+  assert.match(mensagens, /overflow-x:\s*hidden/,
+    'uma resposta longa voltou a criar rolagem lateral na conversa');
+  assert.match(css, /\.bolha\s*\{[^}]*overflow-wrap:\s*anywhere/,
+    'URL ou palavra longa do agente pode voltar a alargar a tela');
+});
+
 test('o runtime do teclado é ligado antes de qualquer tela', () => {
   assert.match(app, /import\s*\{[^}]*ligarTeclado[^}]*\}\s*from\s*'\.\/teclado\.js'/,
     'app.js parou de importar o módulo do teclado');
