@@ -500,3 +500,28 @@ test('depois de se apresentar, o Concierge pergunta — mas não por cima de nin
   assert.match(app, /if \(direto\) return setTimeout\(\(\) => perguntaDaJornada\(0\)/,
     'o modo direto parou de ir à primeira pergunta');
 });
+
+test('o andaime de momento não manda em produção', () => {
+  /* O seletor das quatro telas só é DESENHADO em localhost ou com
+     `?dev=1` — mas a escolha ia para o `sessionStorage` e vencia o
+     servidor em qualquer carga seguinte daquela aba, produção inclusive.
+
+     Quem tocasse nele uma vez ficava presa numa tela que o painel não
+     escolheu, e sem saída: o seletor nem aparece em produção para trocar
+     de volta. Só a tela "antes" tem contagem regressiva e nome no título,
+     então o sintoma era os dois sumirem juntos. */
+  assert.match(estado, /export function seletorDisponivel\(\)/,
+    'a regra de onde o andaime vale saiu de `estado.js`');
+  const i = estado.indexOf('export function momentoAtual()');
+  const fn = estado.slice(i, estado.indexOf('\n}', i));
+  assert.ok(i > 0 && fn.includes('if (seletorDisponivel())'),
+    'o momento guardado voltou a valer onde o seletor nem aparece');
+  assert.ok(fn.indexOf('seletorDisponivel()') < fn.indexOf('sessionStorage'),
+    'o guardado é lido antes de conferir se o andaime vale');
+  assert.match(estado, /return momentoServidor \|\| 'antes';/,
+    'a tela deixou de cair no que o painel manda');
+
+  /* Uma regra só: duas cópias divergem, e divergir aqui é tela presa. */
+  assert.match(homeJs, /const mostrarSeletor = seletorDisponivel;/,
+    'o `home.js` voltou a ter a própria cópia da regra');
+});
