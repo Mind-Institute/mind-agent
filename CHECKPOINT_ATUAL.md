@@ -711,3 +711,22 @@ Já fechado e não precisa ser rediscutido:
 7. não pare por CI, review ou espera técnica; pare somente em gate real.
 
 GitHub é o barramento entre lanes. Coordene por comentário/review nas issues/PRs, não por Adriana.
+
+
+---
+
+## 5C. 03/09 — B2B ligado ao produto do playbook
+
+Gate explícito dado pela Adriana e publicado em produção:
+
+- migration `20260903050000_contexto_produto_b2b_por_playbook.sql` aplicada;
+- `playbook_summit_b2b` version 8 ligado a `mind-summit-2026` por `produto_codigo`;
+- B2B recebe somente o produto ligado ao próprio playbook, nunca o catálogo inteiro;
+- catálogo confirma `ativo` e `vende`; quando `vendavel_agora=false`, ofertas e preços por volume ficam vazios e nenhum checkout pode ser oferecido;
+- coleta cadastral removida: não pedir e-mail, sobrenome, empresa ou cargo para completar CRM, liberar resposta, calculadora, checkout ou handoff;
+- módulos genéricos duplicados deixaram de ser montados no B2B; B2C permaneceu inalterado;
+- avisos operacionais do Concierge e ofertas duplicadas dentro de inclusões deixaram o Kit B2B.
+
+Validação viva: contrato SQL passou; prompt B2B caiu de 77.018 para 32.184 caracteres e o `structured` de 46.093 para 24.616. B2C continua em 80.757 + 36.335 e ainda recebe quatro produtos, portanto exige auditoria própria. Busca dinâmica de agenda/palestrantes continua ativada em `treble.config.bloco_agenda_busca=true`.
+
+A compra prévia da pessoa não é equivalente à vendabilidade global. Exemplo: uma participante Prime não deve receber nova oferta individual do Summit, mas ainda pode comprar uma delegação corporativa. A elegibilidade por pessoa, momento, produto já possuído e upgrade permitido ficou para a auditoria B2C/person-state. Código reconciliado no commit `28d682bdbb6a4e4c90a0426aeaa295959b9705bc`.
