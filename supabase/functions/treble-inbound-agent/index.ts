@@ -1,5 +1,9 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.6.1 — IDENTIDADE B2B PROGRESSIVA. A rota summit_b2b completa somente os dados
+// ausentes de nome, sobrenome, empresa, cargo e e-mail, sem atrasar resposta ou
+// checkout. O WhatsApp do canal já é conhecido e só é confirmado se necessário.
+//
 // v1.6.0 — CHECKOUT ATRIBUIDO AO ENVIO. O modelo aponta o checkout_url exato
 // recebido no Kit; o runtime valida que ele é oficial, gera um evento opaco e
 // devolve a URL com canal, motivo e token. A venda pode então voltar da Eduzz
@@ -127,7 +131,7 @@ import {
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
 
-const VERSION = "1.6.0";
+const VERSION = "1.6.1";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -751,14 +755,23 @@ Deno.serve(async (req: Request) => {
         utm_de_origem: conv.utm ?? null,
         produto: conv.produto_codigo ?? null,
       },
-      // Identidade NÃO é formulário. Nada aqui manda coletar cadastro.
+      // Identidade é progressiva e sensível à rota: o B2B precisa completar os
+      // campos comerciais ausentes; nas demais rotas, dados só entram quando ajudam.
       quem_esta_falando: {
         ja_identificada: idConhecida,
         perfil: idPerfil,
         como_agir: [
           "USE O QUE JÁ SABEMOS ANTES DE PERGUNTAR: nunca peça o que já está em perfil.",
-          "Só pergunte um dado se ele for necessário para resolver o que a pessoa quer AGORA.",
-          "Se a pessoa contar algo sobre si espontaneamente, aproveite — mas não puxe.",
+          ...(rotaAplicada === "summit_b2b"
+            ? [
+              "No B2B, complete progressivamente apenas os dados ausentes: nome, sobrenome, empresa, cargo e e-mail. O WhatsApp desta conversa já vem do canal; só confirme se estiver ausente, inconsistente ou se a pessoa pedir retorno em outro número.",
+              "Peça no máximo um dado por mensagem, integrado à conversa e explicando a utilidade quando necessário. Nunca despeje uma ficha cadastral.",
+              "Responder, entregar valor e facilitar a compra vêm antes do cadastro: não atrase preço, proposta, checkout ou solução por causa de campo faltante. Depois, retome o próximo dado ausente com naturalidade.",
+            ]
+            : [
+              "Só pergunte um dado se ele for necessário para resolver o que a pessoa quer AGORA.",
+              "Se a pessoa contar algo sobre si espontaneamente, aproveite — mas não puxe.",
+            ]),
           "Os e-mails aparecem mascarados como [email_1], [email_2]. Nunca repita o rótulo na resposta ao lead: fale do e-mail em linguagem natural ('o e-mail que você passou').",
         ].join(" "),
       },
