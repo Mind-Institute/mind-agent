@@ -18,11 +18,66 @@ insert into intelligence.analise_conversa (
   1
 );
 
+-- Two conversations for the same person must produce exactly one candidate.
+insert into pessoas.pessoas (
+  id, primeiro_nome, sobrenome, origem
+) values (
+  '30000000-0000-4000-8000-000000000001', 'Contract', 'Participant', 'bot'
+);
+
+insert into engagement.conversas (id, participante_id, canal, agente)
+values
+  (
+    '10000000-0000-4000-8000-000000000002',
+    '30000000-0000-4000-8000-000000000001',
+    'whatsapp',
+    'treble-inbound-agent'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000003',
+    '30000000-0000-4000-8000-000000000001',
+    'whatsapp',
+    'treble-inbound-agent'
+  );
+
+insert into intelligence.analise_conversa (
+  id, conversa_id, participante_id, analisador, funcao,
+  dados, prompt_versao, analisado_em
+) values
+  (
+    '20000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000002',
+    '30000000-0000-4000-8000-000000000001',
+    'analise_vendas_summit', 'vendas', '{}', 1,
+    clock_timestamp() - interval '2 minutes'
+  ),
+  (
+    '20000000-0000-4000-8000-000000000003',
+    '10000000-0000-4000-8000-000000000003',
+    '30000000-0000-4000-8000-000000000001',
+    'analise_vendas_summit', 'vendas', '{}', 1,
+    clock_timestamp() - interval '1 minute'
+  );
+
 do $contract$
 declare
   v_ok boolean;
   v_row crm.hubspot_commercial_writeback%rowtype;
+  v_candidate_count integer;
+  v_candidate_analysis uuid;
 begin
+  select count(*), min(c.analysis_id::text)::uuid
+    into v_candidate_count, v_candidate_analysis
+    from public.hubspot_commercial_candidates(
+      25,
+      clock_timestamp() - interval '1 hour'
+    ) c
+   where c.participant_id = '30000000-0000-4000-8000-000000000001';
+  assert v_candidate_count = 1,
+    'one person with multiple conversations must produce one candidate';
+  assert v_candidate_analysis = '20000000-0000-4000-8000-000000000003',
+    'the newest analysis for the person must win';
+
   v_ok := public.hubspot_commercial_reserve(
     '20000000-0000-4000-8000-000000000001', 'create-hash',
     '10000000-0000-4000-8000-000000000001', 'contact-test',
