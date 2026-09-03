@@ -94,7 +94,7 @@ function identidade() {
   };
 }
 
-async function chamar(message, clientMessageId) {
+async function chamar(message, clientMessageId, extra) {
   const auth = await autenticar();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 32000);
@@ -118,6 +118,7 @@ async function chamar(message, clientMessageId) {
           /* Porta de entrada, não identidade. Só tem efeito na abertura da
              conversa — depois disso o banco já gravou e não reescreve. */
           origem_codigo: obterOrigemCodigo() || undefined,
+          ...(extra || {}),
         }),
         cache: 'no-store',
         signal: controller.signal,
@@ -148,6 +149,34 @@ export async function enviarMensagem(message) {
 
   if (!resultado.response.ok || !resultado.payload?.ok) {
     throw new Error(resultado.payload?.error?.message || 'Não consegui responder agora. Tente novamente.');
+  }
+  if (resultado.payload.session) salvar(CHAVES.session, resultado.payload.session);
+  return resultado.payload;
+}
+
+/* Respostas de botão também são conversa. Elas usam a mesma sessão e vão ao
+   Core sem chamar o LLM. A chave permanece igual no retry para que a evidência
+   não duplique quando a rede oscila. */
+export async function enviarSinalJornada(field, values) {
+  const lista = (Array.isArray(values) ? values : [values])
+    .filter((item) => typeof item === 'string' && item.trim())
+    .map((item) => item.trim());
+  if (!field || !lista.length) throw new Error('Resposta da jornada vazia.');
+  const clientActionId = id();
+  const extra = { journey_signal: { field, values: lista }, client_action_id: clientActionId };
+
+  let resultado = await chamar('', clientActionId, extra);
+  if (resultado.response.status === 401) {
+    remover(CHAVES.auth);
+    remover(CHAVES.session);
+    await autenticar(true);
+    resultado = await chamar('', clientActionId, extra);
+  } else if (resultado.payload?.error?.code === 'session_expired') {
+    remover(CHAVES.session);
+    resultado = await chamar('', clientActionId, extra);
+  }
+  if (!resultado.response.ok || !resultado.payload?.ok) {
+    throw new Error(resultado.payload?.error?.message || 'Não consegui guardar esta resposta.');
   }
   if (resultado.payload.session) salvar(CHAVES.session, resultado.payload.session);
   return resultado.payload;

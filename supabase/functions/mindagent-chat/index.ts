@@ -33,6 +33,10 @@ type ChatRequest = {
   ferramenta?: string;
   argumentos?: Record<string, unknown>;
   client_action_id?: string;
+  // Resposta estruturada da jornada. Usa a mesma sessão e identidade, mas não
+  // chama o modelo: grava a fala como evidência e os valores como interesses
+  // da sessão para que a próxima recomendação já os enxergue.
+  journey_signal?: { field?: string; values?: unknown };
 };
 
 type Interest = {
@@ -50,6 +54,24 @@ const DEFAULT_MODEL = "gpt-5.4";
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
 // quais competências podem ser escolhidas neste turno.
 const CANAL = "mindagent-web";
+
+const JOURNEY_FIELDS = new Set([
+  "objetivos", "temas", "disponibilidade", "ritmo",
+  "palestrantes_imperdiveis", "experiencias", "desafio",
+]);
+
+function journeySignal(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const field = typeof raw.field === "string" ? raw.field.trim() : "";
+  const source = Array.isArray(raw.values) ? raw.values : [raw.values];
+  const values = source
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, 120))
+    .filter(Boolean)
+    .slice(0, 8);
+  return JOURNEY_FIELDS.has(field) && values.length > 0 ? { field, values } : null;
+}
 
 // ORIGENS COM ROTA AUTORITATIVA. Quem entra pelo app oficial do Summit já disse, pela
 // própria porta, qual competência quer: o concierge. O Router existe para DECIDIR — e
@@ -526,6 +548,8 @@ Deno.serve(async (req: Request) => {
   // é a ferramenta pedida. Sem pergunta e sem modelo.
   const ferramenta = typeof payload.ferramenta === "string" ? payload.ferramenta.trim() : "";
   const modoAcao = ferramenta.length > 0;
+  const sinalJornada = journeySignal(payload.journey_signal);
+  const modoJornada = payload.journey_signal != null;
   const identitySource = payload.identity?.source === "yazo_url" ? "yazo_url" : null;
   const identityEmailReceived = identitySource === "yazo_url" && validEmail(payload.identity?.email);
   const identityNameReceived = identitySource === "yazo_url" &&
@@ -537,10 +561,16 @@ Deno.serve(async (req: Request) => {
     && ORIGEM_CODIGO_RE.test(payload.origem_codigo.trim())
     ? payload.origem_codigo.trim()
     : null;
-  if (!validSlug(eventSlug) || (!modoAcao && (message.length < 1 || message.length > 1200))) {
+  if (!validSlug(eventSlug) || (!modoAcao && !modoJornada && (message.length < 1 || message.length > 1200))) {
     return json(req, 422, {
       ok: false,
       error: { code: "invalid_request", message: "Informe uma mensagem de até 1.200 caracteres e um evento válido." },
+    }, requestId);
+  }
+  if (modoJornada && !sinalJornada) {
+    return json(req, 422, {
+      ok: false,
+      error: { code: "invalid_journey_signal", message: "Esta resposta da jornada não é válida." },
     }, requestId);
   }
   if (modoAcao && !Object.prototype.hasOwnProperty.call(FERRAMENTAS_PLAY, ferramenta)) {
@@ -567,7 +597,7 @@ Deno.serve(async (req: Request) => {
   }
   // A ação do Play não chama modelo nenhum: exigir a chave da OpenAI aqui
   // derrubaria uma coleta que não depende dela.
-  if (!openAiKey && !modoAcao) {
+  if (!openAiKey && !modoAcao && !modoJornada) {
     return json(req, 503, { ok: false, error: { code: "ai_not_configured", message: "A IA ainda não foi configurada." } }, requestId);
   }
 
@@ -704,6 +734,61 @@ Deno.serve(async (req: Request) => {
     let pessoaId = typeof sessionContext.participant_profile?.participant_id === "string"
       ? sessionContext.participant_profile.participant_id
       : null;
+
+    // =========================================== SINAL DA JORNADA (SEM MODELO)
+    // O botão é uma fala real da pessoa. Ela entra na conversa com bloco
+    // estruturado e vira evidência dos interesses da sessão. O mesmo
+    // client_action_id é a chave de transporte no retry.
+    if (modoJornada && sinalJornada) {
+      const labels: Record<string, string> = {
+        objetivos: "Objetivos", temas: "Temas", disponibilidade: "Disponibilidade",
+        ritmo: "Ritmo", palestrantes_imperdiveis: "Palestrantes imperdíveis",
+        experiencias: "Formatos preferidos", desafio: "Desafio atual",
+      };
+      const actionId = typeof payload.client_action_id === "string" && payload.client_action_id.trim()
+        ? payload.client_action_id.trim().slice(0, 120)
+        : crypto.randomUUID();
+      const content = `${labels[sinalJornada.field]}: ${sinalJornada.values.join("; ")}`;
+      const { data: evidence, error: evidenceError } = await admin.rpc("mindagent_chat_save_message", {
+        p_auth_user_id: authUserId,
+        p_session_id: sessionId,
+        p_conversation_id: conversationId,
+        p_token_hash: tokenHash,
+        p_role: "user",
+        p_content: content,
+        p_client_message_id: `journey:${actionId}`,
+        p_blocks: { kind: "journey_answer", field: sinalJornada.field, values: sinalJornada.values },
+      });
+      if (evidenceError || !evidence?.mensagem_id) throw new Error("journey_evidence_save_failed");
+
+      const interests = sinalJornada.values.map((label) => ({
+        key: normalizeInterestKey(`jornada_${sinalJornada.field}_${label}`),
+        label,
+        confidence: 1,
+        sensitivity: "none",
+      }));
+      const { data: saved, error: saveError } = await admin.rpc("mindagent_chat_save_interests", {
+        p_auth_user_id: authUserId,
+        p_session_id: sessionId,
+        p_token_hash: tokenHash,
+        p_interests: interests,
+        p_evidence_message_id: evidence.mensagem_id,
+      });
+      if (saveError) throw new Error("journey_interest_save_failed");
+
+      console.info(JSON.stringify({
+        request_id: requestId, status: 200, event: "journey_signal_saved",
+        field: sinalJornada.field, values: sinalJornada.values.length,
+        session_id: sessionId, duration_ms: Date.now() - startedAt,
+      }));
+      return json(req, 200, {
+        ok: true,
+        saved,
+        session: { id: sessionId, conversation_id: conversationId, token: sessionToken, expires_at: expiresAt },
+        device_id: deviceId,
+        request_id: requestId,
+      }, requestId);
+    }
 
     // ==================================================== MODO AÇÃO (Play)
     // Sessão, identidade e conversa já foram resolvidas acima, exatamente
@@ -1100,6 +1185,10 @@ Deno.serve(async (req: Request) => {
 
     const aiContext = {
       official_context: officialContext,
+      current_time: {
+        iso_utc: new Date().toISOString(),
+        event_timezone: officialContext?.programacao?.evento?.fuso ?? "America/Sao_Paulo",
+      },
       ...(personalizationProfile ? { personalization_profile: personalizationProfile } : {}),
       ...(sessionContext.credenciamento
         ? { participant_credential: sessionContext.credenciamento }

@@ -94,6 +94,48 @@ test('chat normal: sessão informada é reusada, sem abrir outra', async () => {
   assert.equal(r.corpo.session.id, sessao.id);
 });
 
+test('jornada: resposta de botão persiste sem chamar Router, Kit ou modelo', async () => {
+  const evidenceId = randomUUID();
+  const r = await chamar({
+    corpo: {
+      journey_signal: { field: 'objetivos', values: ['Levar ideias práticas para minha equipe'] },
+      client_action_id: 'jornada-objetivo-1',
+    },
+    env: { OPENAI_API_KEY: '' },
+    rpc: {
+      mindagent_chat_save_message: () => ({ mensagem_id: evidenceId, duplicada: false, papel: 'user' }),
+      mindagent_chat_save_interests: { saved: 1, blocked: 0, skipped: 0, promoted: 0 },
+    },
+  });
+
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.ok, true);
+  assert.deepEqual(r.rpcs, [
+    'mindagent_chat_start', 'mindagent_chat_get_context',
+    'mindagent_chat_save_message', 'mindagent_chat_save_interests',
+  ]);
+  assert.equal(r.openai.length, 0);
+  const evidence = r.chamada('mindagent_chat_save_message');
+  assert.equal(evidence.args.p_client_message_id, 'journey:jornada-objetivo-1');
+  assert.deepEqual(evidence.args.p_blocks, {
+    kind: 'journey_answer', field: 'objetivos', values: ['Levar ideias práticas para minha equipe'],
+  });
+  const interests = r.chamada('mindagent_chat_save_interests');
+  assert.equal(interests.args.p_evidence_message_id, evidenceId);
+  assert.equal(interests.args.p_interests[0].sensitivity, 'none');
+  assert.equal(interests.args.p_interests[0].confidence, 1);
+});
+
+test('jornada: campo fora da allowlist falha antes de abrir sessão', async () => {
+  const r = await chamar({
+    corpo: { journey_signal: { field: 'comando_livre', values: ['ignorar regras'] } },
+  });
+  assert.equal(r.status, 422);
+  assert.equal(r.corpo.error.code, 'invalid_journey_signal');
+  assert.equal(r.rpcs.length, 0);
+  assert.equal(r.openai.length, 0);
+});
+
 /* ========================================================= 2. GATE FECHADO */
 
 test('Gate fechado: 503, fala do usuário persistida, Kit e modelo intocados', async () => {
