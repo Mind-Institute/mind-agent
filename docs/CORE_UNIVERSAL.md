@@ -886,11 +886,15 @@ O que sustenta cada célula:
 
 - `summit_b2c` — ofertas ativas e públicas com preço, condições e checkout em `summit_2026.offers`,
   entregues pelo `treble_agent_context` — que é exatamente o que o playbook precisa.
-- `concierge_summit` — `sessions`, `locations`, `speakers`, `exhibitors` e `event_rules` do
-  `summit_2026`, pelos blocos `evento` + `programacao`. É o kit mais rico de todos. **O playbook
-  chegou** (`playbook_concierge_summit`), e desde 01/09 a rota também expõe `tools`:
+- `concierge_summit` — contexto permanente enxuto pelos blocos `evento` + `programacao`:
+  evento/produto correspondentes, regras críticas, avisos vigentes e o recorte de programação
+  selecionado pela pergunta. O evento é resolvido por `p_necessidade.event_slug` e slug inválido
+  falha fechado. **O playbook chegou** (`playbook_concierge_summit`), e a rota expõe as tools
   `buscar_intelligence` e `ler_intelligence`, declaradas em `kit_blocos` (`secao='tools'`) e
-  descritas em `concierge.ferramentas`.
+  descritas em `concierge.ferramentas`. Desde 03/09, essas tools pesquisam e abrem sete tipos sem
+  criar índice ou fonte paralela: `palestrante`, `sessao`, `conhecimento`, `regra_evento`, `aviso`,
+  `local` e `expositor`. Assim, o prompt recebe só a memória de trabalho; o Agent amplia a lupa
+  sobre a Intelligence aprovada quando a pergunta exige.
 - `summit_b2b` — **não tem.** Os fatos comerciais B2B existem em `summit_2026`:
   `commercial_rules.desconto_por_volume` está ativo, com tiers. Mas o `treble-inbound-agent` monta
   `DADOS_OFICIAIS` a partir do `treble_agent_context`, e essa função **não entrega
