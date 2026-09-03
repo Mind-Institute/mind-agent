@@ -45,3 +45,13 @@ update concierge.avisos set
   descricao = E'Especialmente os livros importados poderão estar disponíveis em quantidades limitadas.\n\nSe você é Prime e quer garantir um exemplar para a assinatura de Jan-Emmanuel De Neve, Christina Maslach, Sonja Lyubomirsky ou Amy Edmondson, recomendamos levar seu próprio livro.',
   disparo_em = '2026-09-15 20:55:00+00', atualizado_em = now()
 where chave = 'livros_autografos';
+
+-- Gravações (texto literal da Adriana, 03/09): o primeiro parágrafo vira o resumo do card e a
+-- frase "O ingresso Mind não inclui as gravações." sai. O botão para a plataforma (App Store /
+-- Google Play) fica para quando o link existir em alguma casa do banco.
+update concierge.avisos set
+  titulo = 'Gravações',
+  subtitulo = 'Participantes VIP receberão as gravações das Arenas Mind, LinkedIn e Sextante, com liberação prevista em até 45 dias.',
+  descricao = E'Participantes Prime também receberão as quatro Masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.',
+  atualizado_em = now()
+where chave = 'gravacoes';

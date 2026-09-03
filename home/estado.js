@@ -263,8 +263,8 @@ const CRUS = [
 
   { id: 'gravacoes', ico: ICO.sino, cat: 'no_evento', em: '2026-09-15T14:30', situacao: 'no-ar',
     titulo: 'Gravações',
-    resumo: 'O ingresso Mind não inclui as gravações.',
-    mensagem: 'Participantes VIP receberão as gravações das Arenas Mind, LinkedIn e Sextante, com liberação prevista em até 45 dias.\n\nParticipantes Prime também receberão as quatro Masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.' },
+    resumo: 'Participantes VIP receberão as gravações das Arenas Mind, LinkedIn e Sextante, com liberação prevista em até 45 dias.',
+    mensagem: 'Participantes Prime também receberão as quatro Masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.' },
 ];
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
