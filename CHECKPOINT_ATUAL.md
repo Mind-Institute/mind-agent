@@ -679,6 +679,36 @@ Kits antes de permitir qualquer envio.
 
 ## 6. Gates vigentes
 
+### 03/09 — Concierge com Intelligence unificada
+
+Implementado e publicado no Supabase, sem Edge nova e sem alterar o playbook:
+
+- `mind_intelligence_buscar` agora consulta palestrantes, sessões, Knowledge Documents,
+  regras do evento, avisos vigentes, locais e expositores;
+- `mind_intelligence_ler` abre os sete tipos por `tipo + id`;
+- `mind_kit_evento` resolve `p_necessidade.event_slug`, falha fechado para evento inexistente
+  e injeta somente regras críticas (`prioridade <= 2`) e avisos vigentes;
+- a regra canônica de livros/autógrafos entrou em `summit_2026.event_rules` e o aviso
+  proativo entrou em `concierge.avisos`, categoria `antes_de_ir`, situação `no-ar`;
+- as tools continuam somente para `service_role`; `anon` e `authenticated` não executam
+  as RPCs diretamente;
+- contratos novos: `tests/concierge_intelligence_coverage.test.mjs` e
+  `tests/concierge_intelligence_unificada_contract.sql`.
+
+Migrations aplicadas pelo MCP: `concierge_intelligence_unificada` versão
+`20260903053649` e `acentuacao_livros_autografos` versão `20260903054216`.
+
+Verificação viva: busca de livros devolveu regra + aviso + conhecimento + sessão + local;
+Rhino foi encontrado; Maslach e Knowledge Documents foram preservados; o Kit real da rota
+`concierge_summit` recebeu as duas tools, seis regras críticas e o aviso de livros; evento
+inexistente devolveu `NULL`. Contrato SQL passou em `BEGIN/ROLLBACK`; contrato offline 3/3.
+
+Os advisors não apontaram regressão nova desta mudança. Permanecem avisos preexistentes do
+projeto, fora deste escopo. A suíte geral continua com sete falhas antigas em testes do
+`mindagent-chat` que descrevem uma arquitetura anterior; os três testes novos passam.
+
+---
+
 Exigem decisão/gate explícito antes da execução perigosa:
 
 - preço, desconto ou regra comercial;
