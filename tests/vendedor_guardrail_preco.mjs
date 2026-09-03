@@ -3,15 +3,23 @@
 //
 // Determinístico e offline: não sobe Edge Function, não chama modelo, não toca banco.
 //
-// A fixture espelha o Kit VIVO: as 12 linhas de `precos_por_volume` que
-// `public.mind_precos_por_volume()` devolve hoje em produção — Mind/VIP/Prime nas
-// quatro faixas — mais as 3 ofertas, as inclusões e as regras comerciais. Conferido
-// contra o banco em 30/08/2026:
+// A fixture espelha o Kit VIVO: as 24 linhas de `precos_por_volume` que
+// `public.mind_precos_por_volume()` devolve hoje em produção — as três experiências
+// e os três upgrades, cada um nas quatro faixas — mais as 6 ofertas, as inclusões e
+// as regras comerciais. Conferido contra o banco em 30/08/2026 e reconferido em
+// 03/09/2026:
 //
-//              cheio    5+ (10%)   10+ (20%)   15+ (30%)   20+ (35%)
-//     Mind     1647     1482       1318        1153        1071
-//     VIP      2647     2382       2118        1853        1721
-//     Prime    6297     5667       5038        4408        4093
+//                            cheio    5+ (10%)   10+ (20%)   15+ (30%)   20+ (35%)
+//     Mind                   1647     1482       1318        1153        1071
+//     VIP                    2647     2382       2118        1853        1721
+//     Prime                  6297     5667       5038        4408        4093
+//     Upgrade Mind→VIP       1000      900        800         700         650
+//     Upgrade VIP→Prime      4000     3600       3200        2800        2600
+//     Upgrade Mind→Prime     5000     4500       4000        3500        3250
+//
+// Os upgrades entraram no Kit DEPOIS da conferência de 30/08 e não estavam aqui: eram
+// 12 das 24 linhas que o Kit devolve, ou seja, metade do que o Vendedor pode citar
+// nunca tinha passado por este contrato.
 //
 // O que ele trava, em três camadas:
 //
@@ -40,6 +48,39 @@ const TIERS = [
   [20, 35, "Mind", 1647.0, 1071, 576, 89], [20, 35, "VIP", 2647.0, 1721, 926, 143], [20, 35, "Prime", 6297.0, 4093, 2204, 341],
 ];
 
+// Os upgrades saem da MESMA função e das MESMAS quatro faixas, mas com rótulo próprio
+// ("Upgrade X para Y", sem "Lote 6") — por isso vivem numa lista separada em vez de
+// virarem mais três valores de `exp`.
+const UPGRADES = [
+  // aPartirDe, pct, rótulo, cheio, unitário, economia, parcela
+  [5, 10, "Upgrade Mind para VIP", 1000.0, 900, 100, 75],
+  [10, 20, "Upgrade Mind para VIP", 1000.0, 800, 200, 67],
+  [15, 30, "Upgrade Mind para VIP", 1000.0, 700, 300, 58],
+  [20, 35, "Upgrade Mind para VIP", 1000.0, 650, 350, 54],
+  [5, 10, "Upgrade VIP para Prime", 4000.0, 3600, 400, 300],
+  [10, 20, "Upgrade VIP para Prime", 4000.0, 3200, 800, 267],
+  [15, 30, "Upgrade VIP para Prime", 4000.0, 2800, 1200, 233],
+  [20, 35, "Upgrade VIP para Prime", 4000.0, 2600, 1400, 217],
+  [5, 10, "Upgrade Mind para Prime", 5000.0, 4500, 500, 375],
+  [10, 20, "Upgrade Mind para Prime", 5000.0, 4000, 1000, 333],
+  [15, 30, "Upgrade Mind para Prime", 5000.0, 3500, 1500, 292],
+  [20, 35, "Upgrade Mind para Prime", 5000.0, 3250, 1750, 271],
+];
+
+// Uma linha de `precos_por_volume` como o Kit a devolve. Existe para que experiência e
+// upgrade sejam montados pelo MESMO caminho — se um dia divergirem, que seja por dado,
+// não por duas montagens diferentes na fixture.
+const linhaDeVolume = ([a, pct, experiencia, cheio, unit, econ, parc]) => ({
+  faixa: `${a} ingressos · ${pct}% off`,
+  experiencia,
+  desconto_percentual: pct,
+  a_partir_de_ingressos: a,
+  economia_por_ingresso: econ,
+  valor_cheio_por_ingresso: cheio,
+  valor_por_ingresso_com_desconto: unit,
+  parcelamento_com_desconto: `12x de R$ ${parc}`,
+});
+
 const KIT = {
   evento: {
     bloco: "evento",
@@ -58,6 +99,19 @@ const KIT = {
       { nome: "Experiência Prime — Lote 6", codigo: "prime-lote-6", moeda: "BRL", valor: 6297.0, categoria: "prime",
         condicoes_pagamento: "12x de R$ 525",
         elegibilidade: { lote: 6, categoria: "prime", eduzz_product_id: "3061050" } },
+      // Os três upgrades são ofertas públicas e ativas em produção, lado a lado com os
+      // lotes. A parcela deles vem com CENTAVOS ("83,33"), formato que as ofertas de
+      // lote não têm — e é justamente o tipo de valor que o guardrail precisa saber
+      // reconhecer como parcela, nunca como preço de ingresso.
+      { nome: "Upgrade Mind para VIP", codigo: "upgrade-mind-vip", moeda: "BRL", valor: 1000.0, categoria: "vip",
+        condicoes_pagamento: "12x de R$ 83,33 sem juros",
+        elegibilidade: { tipo: "upgrade", origem: "mind", destino: "vip", categoria: "vip" } },
+      { nome: "Upgrade VIP para Prime", codigo: "upgrade-vip-prime", moeda: "BRL", valor: 4000.0, categoria: "prime",
+        condicoes_pagamento: "12x de R$ 333,33 sem juros",
+        elegibilidade: { tipo: "upgrade", origem: "vip", destino: "prime", categoria: "prime" } },
+      { nome: "Upgrade Mind para Prime", codigo: "upgrade-mind-prime", moeda: "BRL", valor: 5000.0, categoria: "prime",
+        condicoes_pagamento: "12x de R$ 416,67 sem juros",
+        elegibilidade: { tipo: "upgrade", origem: "mind", destino: "prime", categoria: "prime" } },
     ],
   },
   inclusoes: {
@@ -98,16 +152,11 @@ const KIT = {
   },
   precos_por_volume: {
     bloco: "precos_por_volume",
-    precos_por_volume: TIERS.map(([a, pct, exp, cheio, unit, econ, parc]) => ({
-      faixa: `${a} ingressos · ${pct}% off`,
-      experiencia: `Experiência ${exp} — Lote 6`,
-      desconto_percentual: pct,
-      a_partir_de_ingressos: a,
-      economia_por_ingresso: econ,
-      valor_cheio_por_ingresso: cheio,
-      valor_por_ingresso_com_desconto: unit,
-      parcelamento_com_desconto: `12x de R$ ${parc}`,
-    })),
+    precos_por_volume: [
+      ...TIERS.map(([a, pct, exp, cheio, unit, econ, parc]) =>
+        linhaDeVolume([a, pct, `Experiência ${exp} — Lote 6`, cheio, unit, econ, parc])),
+      ...UPGRADES.map(linhaDeVolume),
+    ],
   },
   regras_comerciais: {
     bloco: "regras_comerciais",
@@ -262,8 +311,10 @@ for (const a of afirmacoes("Para 10 pessoas o Mind fica R$ 1.318 por pessoa, tot
   console.log(`  ${a.texto.padEnd(12)} papel=${String(a.papel).padEnd(11)} qtd=${a.quantidade} exp=[${a.experiencias}]`);
 }
 
-// Fidelidade da fixture ao Kit vivo, conferida contra produção em 30/08/2026.
-const FORMA_DE_PRODUCAO = { ofertas: 3, experiencias: 3, ofertas_vigentes: 3, linhas_volume: 12 };
+// Fidelidade da fixture ao Kit vivo, conferida contra produção em 30/08/2026 e
+// reconferida em 03/09/2026 — `mind_kit_ofertas()` e `mind_precos_por_volume()`
+// devolvem hoje 6 ofertas (3 lotes + 3 upgrades) e 24 linhas de volume.
+const FORMA_DE_PRODUCAO = { ofertas: 6, experiencias: 3, ofertas_vigentes: 3, linhas_volume: 24 };
 const forma = {
   ofertas: KIT.ofertas.ofertas.length,
   experiencias: KIT.inclusoes.experiencias.length,
@@ -275,7 +326,7 @@ if (!fiel) falhas++;
 console.log(`\n${fiel ? "✓" : "✗"} fixture espelha a forma do Kit vivo: ` +
   Object.entries(forma).map(([k, v]) => `${k}=${v}/${FORMA_DE_PRODUCAO[k]}`).join(" · "));
 console.log(`  fatos monetários extraídos: ${KIT_OF.fatos.length}` +
-  `  (3 ofertas × [preço + parcela] + 3 ofertas vigentes + 12 faixas × [unitário + cheio + economia + parcela] = 57)`);
+  `  (6 ofertas × [preço + parcela] + 3 ofertas vigentes + 24 faixas × [unitário + cheio + economia + parcela] = 111)`);
 console.log(`\n${CASOS.length - falhas}/${CASOS.length} casos passaram.`);
 
 console.log("\nDecisão do guardrail quando há checkout oficial:");

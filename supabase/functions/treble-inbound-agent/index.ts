@@ -259,6 +259,43 @@ function json(status: number, body: unknown) {
   });
 }
 
+// FALHA DE RUNTIME NÃO PODE VIRAR SILÊNCIO.
+//
+// O `catch` do fim do turno já resolvia isto: devolve 200 com uma fala de desculpa e
+// `needs_human`, e a Treble transfere. Mas os `return` de falha que acontecem ANTES
+// dele saíam com HTTP puro e sem `user_session_keys` — quem estava do outro lado só
+// recebia alguma coisa se o fluxo tratasse não-2xx, e isso não é garantia deste lado.
+//
+// Esta função é A MESMA SAÍDA DO `catch`, num lugar só: mesma fala, mesmo
+// `needs_human`, mesmo status 200. Não há rota nova, estado novo nem decisão nova —
+// é a saída que já existia aplicada aos caminhos que escapavam dela.
+//
+// O diagnóstico não se perde: `error` continua com o código de sempre e
+// `status_origem` guarda o HTTP que aquele caminho devolvia, para log e monitoramento
+// distinguirem `ia_indisponivel` de `config_indisponivel` como antes.
+//
+// `unauthorized` de propósito NÃO passa por aqui: token errado é erro de configuração
+// da integração, não turno de uma pessoa esperando resposta, e deve continuar alto.
+//
+// A fala é a `RESPOSTA_HANDOFF` que este runtime já usava — copy aprovada, não se
+// inventa mensagem para o lead aqui.
+function falhaComTransferencia(
+  statusOrigem: number,
+  codigo: string,
+  extra: Record<string, unknown> = {},
+) {
+  return json(200, {
+    ok: false,
+    error: codigo,
+    status_origem: statusOrigem,
+    ...extra,
+    user_session_keys: [
+      { key: "resposta_ia", value: RESPOSTA_HANDOFF },
+      { key: "needs_human", value: "true" },
+    ],
+  });
+}
+
 // O e-mail nunca sai daqui em texto claro para a OpenAI, mas o modelo precisa
 // conseguir DIZER QUAL deles é o do próprio lead. Então cada e-mail vira um
 // rótulo estável ([email_1], [email_2]...) e a lista fica só do lado de cá:
@@ -470,7 +507,7 @@ Deno.serve(async (req: Request) => {
     supabase.rpc("treble_agent_config"),
     supabase.rpc("analise_config"),
   ]);
-  if (cfgError || !cfg?.webhook_token) return json(503, { ok: false, error: "config_indisponivel" });
+  if (cfgError || !cfg?.webhook_token) return falhaComTransferencia(503, "config_indisponivel");
   if (url.searchParams.get("token") !== cfg.webhook_token) {
     console.warn(JSON.stringify({ request_id: requestId, status: 401 }));
     return json(401, { ok: false, error: "unauthorized" });
@@ -480,7 +517,7 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    return json(400, { ok: false, error: "invalid_json" });
+    return falhaComTransferencia(400, "invalid_json");
   }
 
   const sessionId = pick(body, ["session_external_id", "sessionExternalId", "session_id", "sessionId", "conversation_id", "cellphone", "celular"]);
@@ -576,11 +613,13 @@ Deno.serve(async (req: Request) => {
       tem_session: Boolean(sessionId), tem_mensagem: Boolean(message),
       tem_arquivo: Boolean(fileUrl), arquivo_e_audio: Boolean(audioUrl),
     }));
-    return json(422, { ok: false, error: "faltam_campos", detalhe: "esperado identificador de sessão e mensagem do lead" });
+    return falhaComTransferencia(422, "faltam_campos", {
+      detalhe: "esperado identificador de sessão e mensagem do lead",
+    });
   }
 
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  if (!openAiKey) return json(503, { ok: false, error: "ia_nao_configurada" });
+  if (!openAiKey) return falhaComTransferencia(503, "ia_nao_configurada");
   const model = (typeof cfg.openai_model === "string" && cfg.openai_model) ||
     Deno.env.get("OPENAI_MODEL") || DEFAULT_MODEL;
   const routerTimeoutMs = Number(cfg.router_timeout_ms) > 0 ? Number(cfg.router_timeout_ms) : ROUTER_TIMEOUT_MS;
@@ -605,13 +644,7 @@ Deno.serve(async (req: Request) => {
   });
   if (convError || !conv) {
     console.error(JSON.stringify({ request_id: requestId, event: "ingestao_falhou", detalhe: convError?.message }));
-    return json(200, {
-      ok: false,
-      user_session_keys: [
-        { key: "resposta_ia", value: "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!" },
-        { key: "needs_human", value: "true" },
-      ],
-    });
+    return falhaComTransferencia(500, "ingestao_falhou");
   }
 
   console.info(JSON.stringify({
@@ -977,7 +1010,7 @@ Deno.serve(async (req: Request) => {
 
     if (!aiResponse.ok) {
       console.error(JSON.stringify({ request_id: requestId, event: "openai_error", status: aiResponse.status }));
-      return json(502, { ok: false, error: "ia_indisponivel" });
+      return falhaComTransferencia(502, "ia_indisponivel", { upstream_status: aiResponse.status });
     }
 
     const turn = JSON.parse(outputText || extractOutputText(aiPayload)) as {
@@ -1290,12 +1323,6 @@ Deno.serve(async (req: Request) => {
       reason: error instanceof Error ? error.message : "unknown",
       duration_ms: Date.now() - startedAt,
     }));
-    return json(200, {
-      ok: false,
-      user_session_keys: [
-        { key: "resposta_ia", value: "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!" },
-        { key: "needs_human", value: "true" },
-      ],
-    });
+    return falhaComTransferencia(isTimeout ? 504 : 500, isTimeout ? "timeout" : "erro_interno");
   }
 });
