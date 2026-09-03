@@ -69,7 +69,7 @@ as $$
       end as pipeline_id,
       count(*)::bigint as config_count
     from pipeline_config
-  ), latest as materialized (
+  ), latest_per_conversation as materialized (
     select distinct on (a.conversa_id)
       a.id,
       a.conversa_id,
@@ -81,36 +81,39 @@ as $$
     where c.agente = 'treble-inbound-agent'
       and a.analisador = 'analise_vendas_summit'
       and a.analisado_em >= p_after
-      and not exists (
-        select 1
-          from crm.hubspot_commercial_writeback w
-         where w.analysis_id = a.id
-           and (
-             w.status = 'sent'
-             or (
-               w.status = 'reserved'
-               and (
-                 w.action = 'create'
-                 or w.attempt_count >= 3
-                 or w.reserved_at > now() - interval '15 minutes'
-               )
-             )
-             or (
-               w.status = 'failed'
-               and (
-                 not w.retryable
-                 or w.action = 'create'
-                 or w.attempt_count >= 3
-                 or w.next_retry_at is null
-                 or w.next_retry_at > now()
-               )
-             )
-           )
-      )
     order by a.conversa_id, a.analisado_em desc, a.id desc
+  ), eligible as materialized (
+    select a.*
+      from latest_per_conversation a
+     where not exists (
+       select 1
+         from crm.hubspot_commercial_writeback w
+        where w.analysis_id = a.id
+          and (
+            w.status = 'sent'
+            or (
+              w.status = 'reserved'
+              and (
+                w.action = 'create'
+                or w.attempt_count >= 3
+                or w.reserved_at > now() - interval '15 minutes'
+              )
+            )
+            or (
+              w.status = 'failed'
+              and (
+                not w.retryable
+                or w.action = 'create'
+                or w.attempt_count >= 3
+                or w.next_retry_at is null
+                or w.next_retry_at > now()
+              )
+            )
+          )
+     )
   ), selected as materialized (
     select l.*
-      from latest l
+      from eligible l
      order by l.analisado_em, l.id
      limit greatest(1, least(coalesce(p_limit, 25), 50))
   ), facts as materialized (
