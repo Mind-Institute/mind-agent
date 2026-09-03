@@ -471,7 +471,7 @@ test('a abertura do Concierge não promete pergunta que não vem', () => {
   assert.equal(app.split(anuncio).length - 1, 1,
     'o anúncio das perguntas aparece mais de uma vez — quem só abriu o chat '
     + 'para perguntar uma coisa passa a receber a promessa de um questionário');
-  const j = app.indexOf('  jornada() {');
+  const j = app.indexOf('  jornada(direto) {');
   assert.ok(j > 0 && app.indexOf(anuncio) > j && app.indexOf(anuncio) < j + 400,
     'o anúncio das perguntas saiu de dentro de `FLUXOS.jornada`');
 
@@ -479,4 +479,24 @@ test('a abertura do Concierge não promete pergunta que não vem', () => {
     'a abertura do Concierge mudou');
   assert.match(app, /bolha\(saudacao\(\) \+ 'Sou o agente do Mind/,
     'a abertura deixou de vir depois da saudação com o primeiro nome');
+});
+
+test('depois de se apresentar, o Concierge pergunta — mas não por cima de ninguém', () => {
+  /* A conversa começava num vazio para quem abria o Concierge sem pedir
+     nada: apresentação e mais nada, esperando que a pessoa soubesse o que
+     pedir. Agora a jornada entra sozinha, e DIRETA — sem o "Começar →",
+     que é passo a mais entre a apresentação e a primeira pergunta.
+
+     Mas só para quem chega SEM ASSUNTO. Quem tocou num card tem o fluxo
+     do card; quem digitou uma pergunta na home tem a resposta dela.
+     Perguntar por cima disso é falar em cima da pessoa. */
+  assert.match(app, /if \(!opcoes \|\| !opcoes\.comAssunto\) setTimeout\(\(\) => FLUXOS\.jornada\(true\)/,
+    'a pergunta inicial sumiu, ou deixou de depender de haver assunto');
+  assert.match(app, /abrirVista\('chat', \{ comAssunto: Boolean\(intencao\) \}\)/,
+    'a intenção de card parou de contar como assunto — o card vira pergunta em cima do fluxo');
+  assert.match(app, /abrirConversa\(Boolean\(v\)\);/,
+    'a pergunta digitada na home parou de contar como assunto');
+  assert.match(app, /jornada\(direto\) \{/, 'a jornada perdeu o modo direto');
+  assert.match(app, /if \(direto\) return setTimeout\(\(\) => perguntaDaJornada\(0\)/,
+    'o modo direto parou de ir à primeira pergunta');
 });
