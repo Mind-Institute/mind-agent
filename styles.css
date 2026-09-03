@@ -1715,6 +1715,40 @@ html[data-teclado="aberto"] .doca {
   background: rgba(104, 238, 149, .16); border-color: var(--verde); color: var(--verde);
 }
 
+/* A busca não fecha a lista em oito nomes: o campo filtra todas as pessoas
+   da grade e a escolha guardada continua sendo o nome canônico. */
+.jornada-palestrantes { min-width: 0; }
+.busca-palestrante {
+  appearance: none;
+  width: 100%; min-height: 46px;
+  background: var(--surface); color: var(--texto);
+  border: 1px solid var(--hairline); border-radius: 14px;
+  padding: 11px 13px;
+  font: inherit; font-size: 16px; line-height: 1.35;
+}
+.busca-palestrante:focus { outline: none; border-color: var(--verde); }
+.sugestoes-palestrantes {
+  max-height: 190px; overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid var(--hairline); border-radius: 14px;
+  background: var(--surface-deep);
+}
+.sugestoes-palestrantes[hidden] { display: none; }
+.sugestoes-palestrantes button {
+  appearance: none; display: block; width: 100%;
+  border: 0; border-bottom: 1px solid var(--hairline);
+  background: transparent; color: var(--texto);
+  padding: 10px 12px; text-align: left;
+  font: inherit; font-size: 14px; cursor: pointer;
+}
+.sugestoes-palestrantes button:last-child { border-bottom: 0; }
+.sugestoes-palestrantes button:focus,
+.sugestoes-palestrantes button:hover { outline: none; background: rgba(104, 238, 149, .10); }
+.sugestoes-palestrantes p {
+  padding: 10px 12px; color: var(--texto-mudo);
+  font-size: 12px; line-height: 1.4;
+}
+.palestrantes-escolhidos:empty { display: none; }
+
 /* Palestrante sem retrato: iniciais no lugar da imagem. */
 .cs .foto .iniciais {
   width: 100%; height: 100%;
@@ -1786,7 +1820,7 @@ html[data-teclado="aberto"] .doca {
   width: 100%; min-height: 76px; resize: none;
   background: var(--surface); border: 1px solid var(--hairline);
   border-radius: 14px; padding: 11px 13px;
-  color: var(--texto); font: inherit; font-size: 13.5px; line-height: 1.45;
+  color: var(--texto); font: inherit; font-size: 16px; line-height: 1.45;
 }
 .ins textarea:focus { outline: none; border-color: var(--verde); }
 .ins-dica { font-size: 11.5px; color: var(--texto-mudo); line-height: 1.4; }

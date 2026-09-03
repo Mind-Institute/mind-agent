@@ -2059,26 +2059,11 @@ const PERGUNTAS_JORNADA = [
 
   {
     campo: 'palestrantesImperdiveis',
-    tipo: 'multipla',
+    tipo: 'palestrantes',
     max: 3,
     opcional: true,
     pergunta: 'Tem alguém que você não quer perder?',
-    micro: 'Até 3. Se não tiver, pode pular.',
-    /* Os nomes vêm da base: os destaques primeiro, depois quem mais
-       combina com os temas que a pessoa acabou de marcar. Nenhuma lista
-       escrita à mão. */
-    opcoes: () => {
-      const naGrade = (DADOS.pessoas || []).filter((p) => p.na_grade);
-      const destaques = naGrade.filter((p) => p.destaque);
-      const porAfinidade = naGrade
-        .filter((p) => !p.destaque)
-        .map((p) => ({ p, a: afinidade(p.temas) }))
-        .filter((x) => x.a !== null)
-        .sort((x, y) => y.a - x.a)
-        .map((x) => x.p);
-      return [...destaques, ...porAfinidade].slice(0, 8)
-        .map((p) => ({ valor: p.nome, rotulo: p.nome }));
-    },
+    micro: 'Digite o nome e escolha até 3 pessoas. Se não tiver, pode pular.',
   },
 
   {
@@ -2130,6 +2115,127 @@ function perguntaDaJornada(indice) {
   setTimeout(() => escolhasDaJornada(q, indice), 380);
 }
 
+/* Busca aberta sobre a lista canônica inteira. O texto digitado só filtra:
+   o valor guardado continua sendo o nome exato que veio do bootstrap. */
+function normalizarBuscaPalestrante(valor) {
+  return String(valor || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function seletorPalestrantesDaJornada(q, indice, alvo) {
+  const nomes = (DADOS.pessoas || [])
+    .filter((p) => p.na_grade && p.nome)
+    .map((p) => p.nome)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const selecionadas = [];
+
+  const caixa = document.createElement('div');
+  caixa.className = 'ins jornada-palestrantes';
+
+  const campo = document.createElement('input');
+  campo.type = 'search';
+  campo.className = 'busca-palestrante';
+  campo.placeholder = 'Digite o nome do palestrante';
+  campo.autocomplete = 'off';
+  campo.setAttribute('aria-label', 'Buscar palestrante');
+
+  const escolhidas = document.createElement('div');
+  escolhidas.className = 'chips palestrantes-escolhidos';
+  escolhidas.setAttribute('aria-live', 'polite');
+
+  const resultados = document.createElement('div');
+  resultados.className = 'sugestoes-palestrantes';
+  resultados.setAttribute('role', 'listbox');
+  resultados.hidden = true;
+
+  const ok = botaoAvancar('Pular', () => {
+    PERFIL.jornada[q.campo] = selecionadas.slice();
+    ok.remove();
+    if (selecionadas.length) {
+      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice())
+        .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+    }
+    perguntaDaJornada(indice + 1);
+  });
+
+  function renderEscolhidas() {
+    escolhidas.replaceChildren();
+    selecionadas.forEach((nome) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', 'true');
+      b.setAttribute('aria-label', 'Remover ' + nome);
+      b.textContent = nome + ' ×';
+      b.addEventListener('click', () => {
+        selecionadas.splice(selecionadas.indexOf(nome), 1);
+        renderEscolhidas();
+        renderResultados();
+      });
+      escolhidas.appendChild(b);
+    });
+    ok.textContent = selecionadas.length ? 'Continuar' : 'Pular';
+  }
+
+  function selecionar(nome) {
+    if (selecionadas.includes(nome) || selecionadas.length >= (q.max || 3)) return;
+    selecionadas.push(nome);
+    campo.value = '';
+    renderEscolhidas();
+    renderResultados();
+    campo.focus();
+  }
+
+  function renderResultados() {
+    resultados.replaceChildren();
+    const busca = normalizarBuscaPalestrante(campo.value);
+    if (busca.length < 2) {
+      resultados.hidden = true;
+      return;
+    }
+    const candidatos = nomes
+      .filter((nome) => !selecionadas.includes(nome) &&
+        normalizarBuscaPalestrante(nome).includes(busca))
+      .sort((a, b) => {
+        const aComeca = normalizarBuscaPalestrante(a).startsWith(busca);
+        const bComeca = normalizarBuscaPalestrante(b).startsWith(busca);
+        return Number(bComeca) - Number(aComeca) || a.localeCompare(b, 'pt-BR');
+      });
+    resultados.hidden = false;
+    if (!candidatos.length) {
+      const vazio = document.createElement('p');
+      vazio.textContent = 'Não encontrei esse nome na grade.';
+      resultados.appendChild(vazio);
+      return;
+    }
+    candidatos.forEach((nome) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'option');
+      b.textContent = nome;
+      b.addEventListener('click', () => selecionar(nome));
+      resultados.appendChild(b);
+    });
+  }
+
+  campo.addEventListener('input', renderResultados);
+  campo.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const primeira = resultados.querySelector('button');
+    if (!primeira) return;
+    e.preventDefault();
+    primeira.click();
+  });
+
+  caixa.appendChild(campo);
+  caixa.appendChild(resultados);
+  caixa.appendChild(escolhidas);
+  alvo.appendChild(caixa);
+  alvo.appendChild(ok);
+  mensagens.scrollTop = mensagens.scrollHeight;
+  campo.focus();
+}
+
 function escolhasDaJornada(q, indice) {
   const alvo = painel('');
   if (q.micro) {
@@ -2137,6 +2243,10 @@ function escolhasDaJornada(q, indice) {
     m.className = 'ins-dica';
     m.textContent = q.micro;
     alvo.appendChild(m);
+  }
+
+  if (q.tipo === 'palestrantes') {
+    return seletorPalestrantesDaJornada(q, indice, alvo);
   }
 
   if (q.tipo === 'texto') {
