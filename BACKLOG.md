@@ -607,12 +607,16 @@ legítima da função ou no fechamento da etapa, não reaplicar SQL só por come
 
 ### 12.9 Legado ainda ligado a `comum.speakers`
 
-A investigação mais recente encontrou **8 funções** ainda lendo a tabela apagada
+A investigação mais recente encontrou **7 funções** ainda lendo a tabela apagada
 `comum.speakers`:
 
-`api.speakers` · `api.sessions` · `api.mindagent_bootstrap` · `api.treble_event_bundle` ·
+`api.speakers` · `api.sessions` · `api.treble_event_bundle` ·
 `api.changed_since` · `mind_admin_read_resource` · `mind_admin_mutate_resource` ·
 `mind_admin_dashboard_counts`.
+
+`api.mindagent_bootstrap` saiu desta lista na PR #88: foi refeito contra os schemas
+vivos e validado em produção. Ele é consumidor ativo do frontend e **não deve ser
+apagado**.
 
 Não corrigir em massa. Quando retomar, classificar consumidor real vs legado e corrigir/apagar
 proporcionalmente. Este achado é mais recente e específico para speaker do que o inventário histórico
