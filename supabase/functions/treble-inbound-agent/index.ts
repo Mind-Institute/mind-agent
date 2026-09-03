@@ -757,7 +757,6 @@ Deno.serve(async (req: Request) => {
         perfil: idPerfil,
         como_agir: [
           "USE O QUE JÁ SABEMOS ANTES DE PERGUNTAR: nunca peça o que já está em perfil.",
-          "Não colete cadastro. Não peça e-mail, sobrenome, empresa ou cargo para 'completar' nada.",
           "Só pergunte um dado se ele for necessário para resolver o que a pessoa quer AGORA.",
           "Se a pessoa contar algo sobre si espontaneamente, aproveite — mas não puxe.",
           "Os e-mails aparecem mascarados como [email_1], [email_2]. Nunca repita o rótulo na resposta ao lead: fale do e-mail em linguagem natural ('o e-mail que você passou').",
