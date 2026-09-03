@@ -148,7 +148,7 @@ test('abstinência sem lupa força uma busca antes da resposta final', async () 
   assert.equal(salva.args.p_blocks.rodadas_tool, 1);
 });
 
-test('fallback rápido preserva orçamento para busca forçada e resposta final', async () => {
+test('fallback rápido preserva duas tools e uma tentativa final de resposta', async () => {
   const kitComLupa = clone(KIT_COMPLETO);
   kitComLupa.tools = [{
     nome: 'buscar_intelligence', descricao: 'Busca candidatos.',
@@ -190,6 +190,10 @@ test('fallback rápido preserva orçamento para busca forçada e resposta final'
         type: 'function_call', call_id: 'call_busca_fallback', name: 'buscar_intelligence',
         arguments: JSON.stringify({ necessidade: 'local do credenciamento', limite: 6 }),
       }] } },
+      { __payload: { output: [{
+        type: 'function_call', call_id: 'call_busca_detalhe', name: 'buscar_intelligence',
+        arguments: JSON.stringify({ necessidade: 'detalhe do foyer principal', limite: 3 }),
+      }] } },
       respostaFinal,
     ],
   });
@@ -197,17 +201,18 @@ test('fallback rápido preserva orçamento para busca forçada e resposta final'
   assert.equal(r.status, 200);
   assert.equal(r.corpo.answer, respostaFinal.answer);
   const respostas = r.openai.filter((chamada) => chamada.url.endsWith('/v1/responses'));
-  assert.equal(respostas.length, 4, 'retry de modelo não pode consumir as duas rodadas de tool');
+  assert.equal(respostas.length, 5, 'duas tools ainda precisam deixar uma geração final');
   assert.deepEqual(respostas.map((chamada) => chamada.corpo.model), [
-    'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.4', 'gpt-5.4',
+    'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.4', 'gpt-5.4', 'gpt-5.4',
   ]);
   assert.deepEqual(respostas[2].corpo.tool_choice, { type: 'function', name: 'buscar_intelligence' });
-  assert.ok(r.rpcs.includes('mind_intelligence_buscar_contextual'));
+  assert.equal(respostas[4].corpo.tool_choice, 'none', 'última tentativa nunca pode abrir outra tool');
+  assert.equal(r.rpcs.filter((nome) => nome === 'mind_intelligence_buscar_contextual').length, 2);
   const salva = r.chamadasDe('mindagent_chat_save_message').at(-1);
   assert.equal(salva.args.p_blocks.recuperacao_forcada, true);
-  assert.equal(salva.args.p_blocks.rodadas_tool, 1);
+  assert.equal(salva.args.p_blocks.rodadas_tool, 2);
   const telemetriaFinal = r.logs.find((log) => log.status === 200 && log.tentativas_modelo != null);
-  assert.equal(telemetriaFinal.tentativas_modelo, 4);
+  assert.equal(telemetriaFinal.tentativas_modelo, 5);
 });
 
 test('jornada: resposta de botão persiste sem chamar Router, Kit ou modelo', async () => {
