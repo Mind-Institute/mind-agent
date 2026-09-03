@@ -2040,19 +2040,9 @@ const PERGUNTAS_JORNADA = [
     pergunta: 'Em que você está mexendo agora? Isso é o que mais pesa no que eu vou sugerir.',
   },
 
-  {
-    campo: 'disponibilidade',
-    tipo: 'unica',
-    pergunta: 'Em quais dias você vem?',
-    /* Os dias saem da base, não daqui. */
-    opcoes: () => {
-      const dias = (DADOS.evento.dias || []);
-      return [
-        ...dias.map((d, i) => ({ valor: d, rotulo: 'Dia ' + (i + 1) + ' — ' + DIA_CURTO(d) })),
-        { valor: 'todos', rotulo: dias.length > 1 ? 'Os dois dias' : 'Vou ao evento' },
-      ];
-    },
-  },
+  /* "Em quais dias você vem?" saiu em 03/09 a pedido da Adriana: não se
+     pergunta; o roteiro cobre os dois dias. `disponibilidade` ausente já
+     era lido como "todos" por quem monta o roteiro. */
 
   {
     campo: 'ritmo',
