@@ -39,6 +39,14 @@ export function modeloInicialDoTurno(
     : { model: modeloCompleto, reason: exigeCompleto ? "complexidade_detectada" : "ambiguidade_conservadora" };
 }
 
+export function podeTentarModelo(tentativas: number, maximo: number) {
+  return tentativas < maximo;
+}
+
+export function podeExecutarTool(rodadas: number, maximo: number) {
+  return rodadas < maximo;
+}
+
 export function saidaEstruturadaMinimaValida(outputText: string) {
   try {
     const value = JSON.parse(outputText) as Record<string, unknown>;
