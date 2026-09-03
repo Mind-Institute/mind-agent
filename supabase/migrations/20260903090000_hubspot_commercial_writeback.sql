@@ -82,9 +82,15 @@ as $$
       and a.analisador = 'analise_vendas_summit'
       and a.analisado_em >= p_after
     order by a.conversa_id, a.analisado_em desc, a.id desc
+  ), latest_per_participant as materialized (
+    select distinct on (a.participante_id)
+      a.*
+    from latest_per_conversation a
+    where a.participante_id is not null
+    order by a.participante_id, a.analisado_em desc, a.id desc
   ), eligible as materialized (
     select a.*
-      from latest_per_conversation a
+      from latest_per_participant a
      where not exists (
        select 1
          from crm.hubspot_commercial_writeback w
