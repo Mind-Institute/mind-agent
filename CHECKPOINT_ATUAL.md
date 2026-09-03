@@ -515,7 +515,7 @@ ausente/ambígua ficam fail-closed. O fallback hardcoded do pipeline foi removid
 O ledger preserva histórico (FKs sem CASCADE), exclui itens já enviados ou ainda reservados antes
 do limite e permite no máximo três tentativas automáticas apenas para PATCH idempotente. Falha ou
 reserva incerta de criação de Lead não é repetida automaticamente, evitando Lead duplicado.
-O runtime exige service role, continua com `preview` por padrão e mantém `apply` atrás da flag.
+O runtime valida credencial administrativa, continua com `preview` por padrão e mantém `apply` atrás da flag; a verificação JWT padrão do gateway não foi desligada.
 O backfill de todas as conversas e a fila humana de divergência de estágio estão em
 `BACKLOG.md` §7 e não fazem parte do primeiro go-live.
 
