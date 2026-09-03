@@ -502,52 +502,34 @@ inerte, e falta saber se a barra é do app hospedeiro.
 - **PR #51:** memória segura + D1/D2, draft
   - HEAD mais recente: **`5712fe027531a42a5f057695b7c8d83deff40c60`**
 
-- **PR #70:** write-back comercial HubSpot, draft
-  - branch: `codex/hubspot-commercial-writeback-preview`
-  - estado: somente código/preview; migration não aplicada, Edge não publicada e zero escrita no HubSpot
+- **PR #70:** write-back comercial HubSpot — **MERGEADA** em `6f9c899bc994e7f8a9d8f2fe312f8368c636943f`
+  - migration registrada em produção: `20260903041743_hubspot_commercial_writeback`;
+  - Edge `hubspot-commercial-writeback` **version 1 / ACTIVE**, `verify_jwt=true`;
+  - modo padrão `preview`; `apply` continua atrás de `HUBSPOT_COMMERCIAL_WRITEBACK_ENABLED=true` e permanece desligado.
 
-**03/09 — revisão de identidade e segurança da #70.** O candidato passou a consumir
-`public.mind_crm_comercial(pessoa_id)` e `public.mind_pessoa_fatos(pessoa_id)`, sem reconstruir
-identidade por campos legados e sem escrever em identidade. Múltiplos contatos sem Lead único,
-múltiplos Leads, pendência de identidade, contato sem espelho e configuração de pipeline
-ausente/ambígua ficam fail-closed. O fallback hardcoded do pipeline foi removido.
+**03/09 — gate aprovado e publicação segura da #70.** A migration exata do commit mergeado foi
+aplicada e registrada no ledger oficial do Supabase. O contrato SQL versionado passou novamente
+em produção dentro de `BEGIN/ROLLBACK`: DDL, RLS/grants, FKs sem cascade, deduplicação por pessoa,
+idempotência, backoff e teto de três tentativas apenas para update, sem retry automático para
+create. O rollback removeu todas as fixtures; a tabela `crm.hubspot_commercial_writeback`
+permaneceu com **zero linhas**.
 
-O ledger preserva histórico (FKs sem CASCADE), exclui itens já enviados ou ainda reservados antes
-do limite e permite no máximo três tentativas automáticas apenas para PATCH idempotente. Falha ou
-reserva incerta de criação de Lead não é repetida automaticamente, evitando Lead duplicado.
-O runtime valida credencial administrativa, continua com `preview` por padrão e mantém `apply` atrás da flag; a verificação JWT padrão do gateway não foi desligada.
-O backfill de todas as conversas e a fila humana de divergência de estágio estão em
-`BACKLOG.md` §7 e não fazem parte do primeiro go-live.
+A Edge publicada corresponde ao código mergeado, exige JWT no gateway e valida credencial
+administrativa no runtime. Smoke com chave pública foi recusado com **401 `unauthorized`**.
+Não foi criado atalho, não se desligou JWT e não se expôs chave administrativa para completar
+o teste HTTP.
 
-**03/09 — prova de preview da #70.** As duas vagas persistentes de preview Supabase estavam
-ocupadas por PRs ainda abertos (#46 e #52), portanto nenhuma branch foi apagada ou substituída.
-A migration da #70 foi aplicada na preview isolada da própria lane D (#46) dentro de uma única
-transação e revertida. Passaram as asserções de DDL, RLS/grants, FKs sem cascade, execução do
-coletor, idempotência, backoff, teto de três tentativas apenas para update e ausência de retry
-automático para create. O rollback removeu ledger, RPCs e fixtures; zero alteração persistiu.
+A prévia de negócio em produção, com corte `2026-09-02T00:00:00Z`, encontrou exatamente
+1 pessoa candidata e terminou em **0 creates, 0 updates e 1 bloqueio**
+(`contato_hubspot_ausente`). O ledger ficou vazio. A amostra histórica de Marianne Santana
+continua inalterada no HubSpot: estágio `1401915457` (Novo lead), sem `hs_lead_label`;
+portanto a sugestão Novo lead → Aguardando contato humano + HOT não foi aplicada.
 
-Como previews Supabase são data-less por padrão, a prévia de negócio foi calculada por leitura no
-banco real, com corte explícito em `2026-09-02T00:00:00Z`, sem migration nem escrita. Resultado:
-1 análise mais recente em 1 conversa, 0 creates, 0 updates e 1 bloqueio
-(`contato_hubspot_ausente`). A análise indicava `TRANSACTIONAL` + `very_high`, que mapearia
-para Negociação + HOT se a identidade canônica tivesse exatamente um contato confiável.
-
-A investigação do bloqueio provou que o telefone do teste é fictício, não existe como contato no
-HubSpot e a pessoa tem somente identidade WhatsApp. O espelho HubSpot estava saudável; não havia
-vínculo quebrado para reparar. Na procura de outra amostra apareceu um risco real: a mesma pessoa
-podia ter várias conversas e o lote antigo selecionava uma análise por conversa, permitindo
-múltiplos creates antes do próximo sync. A seleção passou a colapsar primeiro por conversa e depois
-por pessoa, sempre mantendo a análise mais recente; a Edge ganhou uma segunda trava contra pessoa
-duplicada no mesmo lote. O contrato agora cria duas conversas da mesma pessoa e exige exatamente
-um candidato, o mais recente.
-
-Prévia histórica, somente leitura, com corte `2026-08-29T00:00:00Z`: quatro pessoas únicas,
-0 creates, 1 update seguro e 3 bloqueios por identidade/contato. O update seria no Lead já existente
-de Marianne Santana: Novo lead → Aguardando contato humano e temperatura HOT, motivado por
-`handoff_status=accepted`; nada foi aplicado. A Edge continua não publicada, `apply` continua
-desligado e HubSpot/identidade continuam sem escrita. O contrato transacional reproduzível está em
-`tests/hubspot_commercial_writeback_contract.sql`.
-
+A implementação continua sem escrever identidade e consome somente os contratos canônicos
+`public.mind_crm_comercial(pessoa_id)` e `public.mind_pessoa_fatos(pessoa_id)`. O backfill
+de todas as conversas e a fila humana de divergência de estágio permanecem no
+`BACKLOG.md` §7. O próximo gate é um teste HTTP autenticado em `preview` por uma execução
+server-side autorizada; só depois cabe discutir habilitar `apply` num teste controlado.
 
 Chunk atual aceito tecnicamente:
 
