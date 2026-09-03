@@ -147,7 +147,7 @@ export function listaDeAvisos(aoAbrir) {
         '<span class="av-ico' + (a.cat ? ' c-' + a.cat : '') + '">' + a.ico + '</span>' +
         '<span class="av-corpo">' +
           '<strong>' + escapar(a.titulo) + '</strong>' +
-          '<small>' + escapar(a.resumo) + '</small>' +
+          (a.resumo ? '<small>' + escapar(a.resumo) + '</small>' : '') +
           '<em>' + escapar(a.quando) + '</em>' +
         '</span>' +
         (naoLido ? '<span class="av-ponto" aria-label="Não lido"></span>' : '') +

@@ -811,3 +811,46 @@ Gate explícito dado pela Adriana e publicado em produção:
 Validação viva: contrato SQL passou; prompt B2B caiu de 77.018 para 32.184 caracteres e o `structured` de 46.093 para 24.616. B2C continua em 80.757 + 36.335 e ainda recebe quatro produtos, portanto exige auditoria própria. Busca dinâmica de agenda/palestrantes continua ativada em `treble.config.bloco_agenda_busca=true`.
 
 A compra prévia da pessoa não é equivalente à vendabilidade global. Exemplo: uma participante Prime não deve receber nova oferta individual do Summit, mas ainda pode comprar uma delegação corporativa. A elegibilidade por pessoa, momento, produto já possuído e upgrade permitido ficou para a auditoria B2C/person-state. Código reconciliado no commit `28d682bdbb6a4e4c90a0426aeaa295959b9705bc`.
+
+
+---
+
+## 5D. 03/09 — pós-turno: fila por recência, ICP visível, backfill e classificador v3
+
+Auditoria do pós-turno/memória (Lane B, 03/09 05:30 UTC, sistema real) e quatro correções
+autorizadas pela Adriana e aplicadas em produção. Detalhe e evidência na issue #42.
+
+O que estava acontecendo:
+
+- `analise_pendentes` ordenava por uuid, e o `analisar-conversa` pula sem gravar nada a conversa
+  sem texto do lead ou classificada para analisador de prompt vazio; as 10 menores uuids pendentes
+  eram todas desse tipo → 77 conversas substantivas (10 do App) presas atrás da cabeça; das 31
+  análises feitas desde 02/09 20:00, 30 tinham uuid menor que a cabeça;
+- na janela de rollout do Passo 4 (02/09 06:45–10:15 UTC), 28 análises `analise_concierge` do App
+  emitiram 63 itens válidos — incluindo os 16 únicos ICP/JTBD já emitidos pelo sistema — e nenhum
+  chegou a `participante_memoria`;
+- todo ICP emitido era `medium` → `proposta` → invisível; `crm.contato_espelho.icp` preenchido em
+  13 de 12.394 contatos;
+- o classificador v2 não mandava cargo/empresa/desafio profissional ao `analise_concierge`, único
+  analisador que conhece ICP/JTBD (258 análises de vendas com cargo/empresa; 16 também concierge).
+
+O que foi feito (migrations persistidas neste repo; aplicadas via MCP em 03/09 05:45–05:55 UTC):
+
+- `20260903060000_fila_do_pos_turno_por_recencia.sql` — `order by ult_msg desc` e fala do lead
+  com texto (o mesmo filtro que `analise_montar_contexto` já aplicava);
+- `20260903061000_icp_medium_ocupa_slot_vazio.sql` — patch cirúrgico no writer (padrão Passo 4 §4):
+  ICP `medium` vira `ativa` só quando não há ICP ativo; `medium` continua não derrubando ativo;
+  `high` continua substituindo;
+- `20260903062000_backfill_projecoes_perdidas_0209.sql` — replay do writer nas análises concierge
+  sem memória vinculada, sem passar por `analise_gravar` (não reexecuta Silence): 72 linhas
+  ligadas às 28 análises (62 ativas); ICP 2 ativos, JTBD 6 ativos + 6 propostas;
+- `20260903063000_classificador_v3_conhece_a_pessoa.sql` — critério 5 inclui cargo/função/empresa/
+  desafio profissional; o exemplo do RH com 30 gestores passa a acionar vendas + concierge.
+
+Validação viva: `tests/pos_turno_fila_e_icp_contract.sql` (transação encerrada em ROLLBACK) —
+contratos 1, 2 e 3 PASSARAM. Pessoas do App com Customer Intelligence visível ao Kit: ICP 0→2,
+jobs 0→6, interesses 4→13, cargo 2→4 (de 33).
+
+Ficou para a Lane D (BACKLOG §18): marcador durável de "pulada" no `analisar-conversa` (não
+versionado aqui); 1.253 memórias `proposta` de `analise_vendas_summit` invisíveis a todo leitor;
+analisadores de prompt vazio.

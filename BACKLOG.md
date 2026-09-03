@@ -930,3 +930,24 @@ Não criar placeholder. Para cada produto/oferta, cadastrar e validar na fonte o
 Dependência de produto: a Adriana ainda vai fornecer os dados comerciais do Institute e da
 pré-venda. Até lá, o Agent deve falar apenas com o contexto factual disponível e nunca construir
 preço, condição ou link.
+
+
+## 18. Pós-turno — o que a auditoria de 03/09 deixou para depois
+
+Contexto e evidência: `CHECKPOINT_ATUAL.md` §5D e issue #42.
+
+1. **Marcador durável de "pulada" no `analisar-conversa`.** A fila agora ordena por recência, então
+   conversa pulada (lead só com mídia, ou classificada para analisador de prompt vazio) vai para o
+   fim — mas continua sendo retentada em todo ciclo em que a fila está curta, custando um
+   classificador por vez. A função não está versionada neste repo; o delta é gravar uma linha em
+   `intelligence.analise_conversa` (ex.: `analisador='pulada'`) para que `conversa_atualizada_ate`
+   feche a janela.
+2. **1.253 memórias `proposta` de `analise_vendas_summit` (519 pessoas) invisíveis a todo leitor.**
+   A política do writer para vendas só ativa `stable`+`high`; a do concierge ativa `high` em qualquer
+   escopo. Decidir: alinhar a política (aceitando memória de vendas sem evidência validada) ou manter
+   `proposta` como quarentena com promoção explícita.
+3. **Analisadores de casca vazia**: `analise_atendimento`, `analise_vendas_institute`,
+   `analise_vendas_dash` e o fallback `analise_contexto_geral` têm prompt vazio. Quando o
+   classificador escolhe só um deles, a conversa não gera análise nenhuma.
+4. Dedupe de memória é por slug do texto: "montar um plano de cultura para 2027" e "montar plano de
+   cultura para 2027" viram dois objetivos. Sem consumidor reclamando ainda.
