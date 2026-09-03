@@ -2,8 +2,8 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **02/09/2026** (lane C: Passos 5 e 6 aplicados e publicados — ver §C, bloco 02/09).
-> `main` no momento desta atualização: **`0f210953fc783aed63ade6ca87b77337b08b6b7c`**.
+> Atualizado em **03/09/2026** (checkout atribuído no App e WhatsApp; venda contextual habilitada no App).
+> `main` verificado antes desta entrega: **`04384d838115119def2a9f1fc0e854649397582a`**.
 >
 > Este é o ponto de retomada operacional. `PROJECT_STATE.md` preserva arquitetura/decisões congeladas; `GO_LIVE_PARALLEL_20260830.md` preserva ownership; `BACKLOG.md` preserva investigações deferidas; `docs/CORE_UNIVERSAL.md` descreve o sistema vivo, mas ainda contém snapshot de 29/08 em alguns trechos. **PRs e issues são mais frescos que este arquivo para trabalho ainda não integrado.**
 
@@ -590,6 +590,31 @@ B — review final do HEAD vivo → merge → deploy manual Edge → flag → E2
 ```
 
 **Ordem de deploy ≠ ordem de trabalho.** D/E podem corrigir coisas independentes enquanto B/C fecham.
+
+---
+
+## 5B. 03/09 — checkout atribuído + venda contextual no App
+
+Gate de produto dado pela Adriana nesta conversa. Implementado e publicado em produção:
+
+- migration `20260903002220_checkout_attribution_agents.sql` aplicada;
+- `mindagent-chat` **version 32 / v1.10.0**, `verify_jwt=true`;
+- `treble-inbound-agent` **version 32 / v1.6.0**, `verify_jwt=false` como antes;
+- `mindagent-web → summit_b2c` ativo, sem mudar a entrada `mind_summit_app → concierge_summit`;
+- checkout aceito somente se for `https://*.eduzz.com` e corresponder exatamente a um
+  `checkout_url` oficial do Kit, preservando parâmetros de negócio como cupom;
+- URL emitida com canal, `ai_agent`, campanha/id, motivo, Agent e token opaco; nenhuma PII;
+- ledger idempotente em `engagement.agente_eventos` e leitura de conversões em
+  `intelligence.v_conversoes_agente`.
+
+Evidência: 10/10 testes novos, 16/16 contrato de resposta longa, 71/71 guardrail comercial e
+contrato SQL real em `BEGIN/ROLLBACK`. O teste SQL provou retry sem duplicação e venda espelhada
+voltando para evento + conversa. Não houve compra real: `envios_reais=0` e `conversoes_reais=0`
+logo após o deploy.
+
+Institute e pré-venda do Summit seguinte ficaram deliberadamente sem oferta/URL nesta entrega.
+O runtime já suporta ambos; falta cadastrar a verdade comercial e o `checkout_url` oficial nos
+Kits antes de permitir qualquer envio.
 
 ---
 
