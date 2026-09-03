@@ -45,7 +45,9 @@ test('os três atalhos levam a destinos que existem', () => {
      `abrirTourCompleto('mapa')`. O que saiu foi o atalho, não o caminho. */
   assert.match(app, /if \(acao\.startsWith\('roteiro:'\)\) return abrirTourCompleto/,
     'a ação de roteiro guiado deixou de ser tratada');
-  const roteiroMapa = app.slice(app.indexOf('  mapa: {'), app.indexOf('  ingresso: {'));
+  const m = app.indexOf('  mapa: {');
+  const roteiroMapa = app.slice(m, app.indexOf('  ingresso: {', m));
+  assert.ok(m > 0 && roteiroMapa.length > 100, 'não achei o roteiro do mapa');
   assert.match(roteiroMapa, /de: 'menu'/,
     'o roteiro do mapa deixou de começar no Menu');
 
@@ -385,8 +387,16 @@ test('a notificação é grande e clara o bastante para ler', () => {
   assert.ok(tam >= 15, 'o resumo do aviso na home encolheu para ' + tam + 'px');
   assert.match(regra, /color:\s*var\(--texto-suave\)/,
     'o resumo do aviso na home voltou ao cinza de apoio');
-  assert.ok(!/color:\s*var\(--texto-mudo\)/.test(
-    css.slice(css.indexOf('.av-corpo small'), css.indexOf('.av-ponto'))),
+  /* O fim procurado A PARTIR do início, e o recorte conferido antes de
+     valer: com as duas buscas a partir do zero, bastava `.av-ponto`
+     subir no arquivo para o recorte sair vazio — e um `assert.ok(!…)`
+     sobre string vazia passa sempre. Foi assim que três testes meus
+     passaram hoje sem comparar nada. */
+  const k = css.indexOf('.av-corpo small');
+  const recorte = css.slice(k, css.indexOf('.av-ponto', k));
+  assert.ok(k > 0 && recorte.includes('.av-corpo em'),
+    'não achei as duas linhas cinzas da lista de avisos');
+  assert.ok(!/color:\s*var\(--texto-mudo\)/.test(recorte),
     'a lista de avisos voltou ao cinza de apoio');
 });
 
