@@ -530,9 +530,22 @@ Como previews Supabase são data-less por padrão, a prévia de negócio foi cal
 banco real, com corte explícito em `2026-09-02T00:00:00Z`, sem migration nem escrita. Resultado:
 1 análise mais recente em 1 conversa, 0 creates, 0 updates e 1 bloqueio
 (`contato_hubspot_ausente`). A análise indicava `TRANSACTIONAL` + `very_high`, que mapearia
-para Negociação + HOT se a identidade canônica tivesse exatamente um contato confiável. A Edge
-continua não publicada, `apply` continua desligado e HubSpot/identidade continuam sem escrita.
-O contrato transacional reproduzível está em
+para Negociação + HOT se a identidade canônica tivesse exatamente um contato confiável.
+
+A investigação do bloqueio provou que o telefone do teste é fictício, não existe como contato no
+HubSpot e a pessoa tem somente identidade WhatsApp. O espelho HubSpot estava saudável; não havia
+vínculo quebrado para reparar. Na procura de outra amostra apareceu um risco real: a mesma pessoa
+podia ter várias conversas e o lote antigo selecionava uma análise por conversa, permitindo
+múltiplos creates antes do próximo sync. A seleção passou a colapsar primeiro por conversa e depois
+por pessoa, sempre mantendo a análise mais recente; a Edge ganhou uma segunda trava contra pessoa
+duplicada no mesmo lote. O contrato agora cria duas conversas da mesma pessoa e exige exatamente
+um candidato, o mais recente.
+
+Prévia histórica, somente leitura, com corte `2026-08-29T00:00:00Z`: quatro pessoas únicas,
+0 creates, 1 update seguro e 3 bloqueios por identidade/contato. O update seria no Lead já existente
+de Marianne Santana: Novo lead → Aguardando contato humano e temperatura HOT, motivado por
+`handoff_status=accepted`; nada foi aplicado. A Edge continua não publicada, `apply` continua
+desligado e HubSpot/identidade continuam sem escrita. O contrato transacional reproduzível está em
 `tests/hubspot_commercial_writeback_contract.sql`.
 
 
