@@ -106,7 +106,7 @@ begin
   );
 
   if jsonb_array_length(v_kit->'structured'->'product_intelligence'->'produtos')
-       <> case when v_vendavel then 1 else 0 end then
+       <> (case when v_vendavel then 1 else 0 end) then
     raise exception 'Product Intelligence entregou catálogo inteiro ou produto não vendável';
   end if;
   if v_vendavel
