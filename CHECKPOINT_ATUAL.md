@@ -519,6 +519,22 @@ O runtime valida credencial administrativa, continua com `preview` por padrão e
 O backfill de todas as conversas e a fila humana de divergência de estágio estão em
 `BACKLOG.md` §7 e não fazem parte do primeiro go-live.
 
+**03/09 — prova de preview da #70.** As duas vagas persistentes de preview Supabase estavam
+ocupadas por PRs ainda abertos (#46 e #52), portanto nenhuma branch foi apagada ou substituída.
+A migration da #70 foi aplicada na preview isolada da própria lane D (#46) dentro de uma única
+transação e revertida. Passaram as asserções de DDL, RLS/grants, FKs sem cascade, execução do
+coletor, idempotência, backoff, teto de três tentativas apenas para update e ausência de retry
+automático para create. O rollback removeu ledger, RPCs e fixtures; zero alteração persistiu.
+
+Como previews Supabase são data-less por padrão, a prévia de negócio foi calculada por leitura no
+banco real, com corte explícito em `2026-09-02T00:00:00Z`, sem migration nem escrita. Resultado:
+1 análise mais recente em 1 conversa, 0 creates, 0 updates e 1 bloqueio
+(`contato_hubspot_ausente`). A análise indicava `TRANSACTIONAL` + `very_high`, que mapearia
+para Negociação + HOT se a identidade canônica tivesse exatamente um contato confiável. A Edge
+continua não publicada, `apply` continua desligado e HubSpot/identidade continuam sem escrita.
+O contrato transacional reproduzível está em
+`tests/hubspot_commercial_writeback_contract.sql`.
+
 
 Chunk atual aceito tecnicamente:
 
