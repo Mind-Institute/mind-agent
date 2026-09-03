@@ -110,9 +110,9 @@ const vistas = {
   summit: document.getElementById('vista-summit'),
   tour: document.getElementById('vista-tour'),
 };
-function abrirVista(nome) {
+function abrirVista(nome, opcoes) {
   Object.entries(vistas).forEach(([n, el]) => el.classList.toggle('ativa', n === nome));
-  if (nome === 'chat') iniciarChat();
+  if (nome === 'chat') iniciarChat(opcoes);
   if (nome === 'summit') desenharSummit();
 }
 document.querySelectorAll('[data-volta]').forEach((b) =>
@@ -130,7 +130,7 @@ ajuda.addEventListener('click', (e) => { if (e.target === ajuda) ajuda.classList
    decisão mora aqui. É o único ponto que conhece as duas pontas, e é por
    ele que a integração real vai entrar. */
 function irParaConversa(intencao) {
-  abrirVista('chat');
+  abrirVista('chat', { comAssunto: Boolean(intencao) });
   if (intencao) setTimeout(() => abrirIntencao(intencao), 200);
 }
 
@@ -488,11 +488,11 @@ const campoHome = document.getElementById('campo-home');
 
    Trocar de vista e mover o foco acontecem no MESMO evento, de propósito:
    no celular, focar outro campo fora do gesto do usuário fecha o teclado. */
-function abrirConversa() {
+function abrirConversa(comAssunto) {
   if (vistas.chat.classList.contains('ativa')) return;
   const rascunho = campoHome.value;
   campoHome.value = '';
-  abrirVista('chat');
+  abrirVista('chat', { comAssunto: Boolean(comAssunto) });
   if (rascunho) campoChat.value = rascunho;
   campoChat.focus();
   /* Voltar para a conversa é voltar para o fim dela, não para onde parou
@@ -525,7 +525,7 @@ document.getElementById('form-home').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = campoHome.value.trim();
   campoHome.value = '';
-  abrirConversa();
+  abrirConversa(Boolean(v));
   if (v) setTimeout(() => perguntar(v), 200);
 });
 enviarComEnter(document.getElementById('form-home'));
@@ -1600,7 +1600,18 @@ function saudacao() {
   return nome ? 'Oi, ' + nome + '! 💚 ' : 'Oi! 💚 ';
 }
 
-function iniciarChat() {
+/* DEPOIS DE SE APRESENTAR, ELE PERGUNTA.
+
+   Quem chega COM ASSUNTO já tem o próximo passo: uma intenção de card
+   abre o fluxo dela, e uma pergunta digitada na home é respondida.
+   Perguntar por cima disso seria falar em cima da pessoa.
+
+   Sem assunto — o `?` do aviso, a home com o campo vazio — a conversa
+   começava num vazio: a apresentação e mais nada, esperando que a pessoa
+   soubesse o que pedir. É aí que a agenda passa a ser montada, e por isso
+   a jornada entra DIRETA, sem o "Começar →": quem não escolheu começar
+   não precisa de um botão para confirmar que quer. */
+function iniciarChat(opcoes) {
   if (chatIniciado) return;
   chatIniciado = true;
   /* A ABERTURA É DA ADRIANA, palavra por palavra. O segundo parágrafo do
@@ -1610,6 +1621,7 @@ function iniciarChat() {
   bolha(saudacao() + 'Sou o agente do Mind e serei seu concierge no Mind Summit. Estou aqui para responder perguntas e para contribuir para que você saia do Mind Summit com algo mais concreto do que boas ideias — agenda montada, gente certa, e o que fazer na segunda-feira.', 'mind');
   /* O convite proativo mora em `oferecerPalestrantes`: ele só aparece
      depois que alguém da grade foi realmente citado na conversa. */
+  if (!opcoes || !opcoes.comAssunto) setTimeout(() => FLUXOS.jornada(true), 500);
 }
 
 formChat.addEventListener('submit', (e) => {
@@ -2224,8 +2236,12 @@ function fecharJornada() {
 }
 
 const FLUXOS = {
-  jornada() {
+  /* `direto` pula o "Começar →". Ele existe para quem tocou num card e
+     merece confirmar antes de entrar; para quem só abriu o Concierge, o
+     botão seria um passo entre a apresentação e a primeira pergunta. */
+  jornada(direto) {
     bolha('Vou montar uma jornada que faça sentido para você. São algumas perguntas rápidas sobre o que você quer levar destes dois dias.', 'mind');
+    if (direto) return setTimeout(() => perguntaDaJornada(0), 450);
     const alvo = painel('');
     alvo.appendChild(botaoAvancar('Começar →', function () {
       this.remove();

@@ -148,7 +148,7 @@ const CRUS = [
     mensagem: 'Faça o agendamento no app e confirme em Minha Agenda. No dia, sua vaga ficará garantida somente até 5 minutos antes do início.' },
 
   { id: 'doc_fisico', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T17:50', situacao: 'no-ar',
-    titulo: 'Leve um documento oficial físico com foto',
+    titulo: 'Importante! Trazer um documento físico de identidade: RG ou CNH',
     resumo: 'Para retirar o fone de tradução simultânea, você precisará deixar um documento oficial físico com foto, que ficará retido durante o uso do equipamento.',
     mensagem: 'Ao devolver o fone, seu documento será devolvido imediatamente. Documentos digitais ou apresentados pelo celular não serão aceitos.\n\nSepare o documento com antecedência para não esquecer.' },
 
