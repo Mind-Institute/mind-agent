@@ -10,7 +10,7 @@ const migration = readFileSync(
 );
 
 test('jornada não pergunta dias e pesquisa toda a base canônica de palestrantes', () => {
-  assert.doesNotMatch(app, /pergunta:\\s*'Em quais dias você vem\\?'/);
+  assert.doesNotMatch(app, /pergunta:\s*'Em quais dias você vem\?'/);
   assert.match(app, /tipo:\s*'palestrantes'/);
   assert.match(app, /function seletorPalestrantesDaJornada/);
   assert.match(app, /normalizarBusca/);
