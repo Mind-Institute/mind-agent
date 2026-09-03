@@ -1,5 +1,6 @@
 -- Summit B2B: playbook executável, coleta progressiva e um único Router.
 -- A Edge Function correspondente está em supabase/functions/treble-inbound-agent/index.ts.
+-- Idempotente: reexecução não incrementa a versão nem regrava conteúdo igual.
 
 begin;
 
@@ -14,8 +15,8 @@ begin
 end
 $guard$;
 
-update agentes.prompts
-set conteudo = $playbook$
+with desejado as (
+  select $playbook$
 MODO CORPORATIVO — SUMMIT B2B
 
 OBJETIVO
@@ -154,11 +155,16 @@ Exemplos:
 - “Prefere seguir pelo checkout ou falar com um consultor sobre a composição?”
 
 Nunca invente urgência. Use apenas prazo, lote ou disponibilidade que constem nos DADOS_OFICIAIS.
-$playbook$,
-    versao = versao + 1,
+$playbook$::text as conteudo
+)
+update agentes.prompts p
+set conteudo = d.conteudo,
+    versao = greatest(p.versao, 6),
     atualizado_em = now()
-where chave = 'playbook_summit_b2b'
-  and ativo;
+from desejado d
+where p.chave = 'playbook_summit_b2b'
+  and p.ativo
+  and (p.conteudo is distinct from d.conteudo or p.versao < 6);
 
 create or replace function public.treble_agent_prompt(
   p_audience text default 'desconhecido'::text,
