@@ -166,7 +166,8 @@ const MINUTOS = (h) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
 const INSTANTE_DEMO = '08:50';
 
 function agoraNoEvento() {
-  const dias = (DADOS && DADOS.evento && DADOS.evento.dias) || [];
+  const dias = ((DADOS && DADOS.evento && DADOS.evento.dias) || [])
+    .filter((dia) => typeof dia === 'string');
   if (!dias.length) return null;
   const hoje = new Date();
   const iso = hoje.getFullYear() + '-' +
@@ -298,7 +299,8 @@ const HORA_DE_ABERTURA = 7;
 let relogioContagem = null;
 
 function inicioDoEvento() {
-  const dias = (DADOS && DADOS.evento && DADOS.evento.dias) || [];
+  const dias = ((DADOS && DADOS.evento && DADOS.evento.dias) || [])
+    .filter((data) => typeof data === 'string');
   if (!dias.length) return null;
   const [ano, mes, dia] = dias[0].split('-').map(Number);
   if (!ano || !mes || !dia) return null;
