@@ -3,7 +3,9 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v6 — 30/08/2026.**
+> **Versão do checkpoint arquitetural: v7 — 03/09/2026.**
+>
+> v7 congela a correção de produto pedida pela Adriana: o App continua entrando como Concierge e usando momento do evento + contexto da pessoa, mas também pode vender quando houver intenção explícita de compra ou upgrade. O mesmo contrato de checkout atribuído vale no App e no WhatsApp e já nasce extensível para Institute e pré-venda do Summit seguinte quando essas ofertas oficiais entrarem nos Kits.
 >
 > v6 substitui duas partes desatualizadas de v5: (1) o modelo operacional vigente volta a refletir o workflow realmente usado — **ChatGPT arquiteto/supervisor + Claude Code executor + GitHub como memória/barramento**; (2) `Passo 12B` deixou de ser “passo atual”: Kit/Gate/Core já estão integrados e o go-live está em lanes B/C/D/E. v6 também explicita a diferença entre merge de migrations/app e publicação manual das Edge Functions neste repo sem `supabase/config.toml`.
 >
@@ -122,6 +124,14 @@ Quatro responsabilidades:
 | **AGENT** | o que efetivamente diz/faz |
 
 > **PLAYBOOK DECIDE COMO PENSAR. INTELLIGENCE INFORMA O QUE É VERDADE AGORA.**
+
+### App Concierge com venda contextual — CONGELADO em v7
+
+- `mind_summit_app` continua abrindo em `concierge_summit`; não vira vendedor por padrão.
+- Momento do evento e produtos/ingressos já conhecidos da pessoa orientam a resposta. Durante o Summit, programação, acesso e experiência continuam no Concierge.
+- Havendo intenção explícita de compra ou upgrade, o App pode trocar a competência ativa para `summit_b2c` e emitir checkout oficial.
+- WhatsApp e App só podem enviar um `checkout_url` que tenha vindo do Kit oficial. O runtime substitui o link por uma versão atribuída e registra canal, Agent, rota, motivo e conversa em `engagement.agente_eventos`.
+- Institute e pré-venda do Summit seguinte serão vendáveis pelo Concierge quando suas ofertas, regras e URLs oficiais forem cadastradas nos Kits. Até isso acontecer, o Agent não cria URL, preço ou condição.
 
 Coletor factual não decide, não pontua, não recomenda e não escreve.
 
