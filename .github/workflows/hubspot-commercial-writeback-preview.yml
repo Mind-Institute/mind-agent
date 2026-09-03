@@ -1,0 +1,91 @@
+name: HubSpot commercial write-back preview
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: hubspot-commercial-writeback-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: >-
+      github.actor == 'adriana-cmd' &&
+      github.event.issue.number == 42 &&
+      github.event.comment.body == '/hubspot-commercial-writeback-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    env:
+      SUPABASE_URL: https://ymnmotgglsrxmjmonwjz.supabase.co
+      SUPABASE_ADMIN_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PREVIEW_AFTER: 2026-09-02T00:00:00Z
+
+    steps:
+      - name: Require an administrative Supabase key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_ADMIN_KEY}" ]]; then
+            echo "Configure SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY as a repository secret."
+            exit 1
+          fi
+
+      - name: Invoke preview
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          jq -n \
+            --arg after "${PREVIEW_AFTER}" \
+            '{mode: "preview", after: $after, limit: 25}' > request.json
+
+          status="$({
+            curl \
+              --silent \
+              --show-error \
+              --output response.json \
+              --write-out '%{http_code}' \
+              --connect-timeout 10 \
+              --max-time 60 \
+              --request POST \
+              "${SUPABASE_URL}/functions/v1/hubspot-commercial-writeback" \
+              --header "Authorization: Bearer ${SUPABASE_ADMIN_KEY}" \
+              --header "apikey: ${SUPABASE_ADMIN_KEY}" \
+              --header 'Content-Type: application/json' \
+              --data @request.json
+          })"
+
+          if [[ "${status}" != "200" ]]; then
+            echo "Preview failed with HTTP ${status}."
+            jq '{error, message}' response.json 2>/dev/null || true
+            exit 1
+          fi
+
+          jq -e '
+            .ok == true and
+            .mode == "preview" and
+            (.applied | length) == 0
+          ' response.json >/dev/null
+
+          jq '{
+            ok,
+            mode,
+            after,
+            candidate_count: (.candidates | length),
+            actions: (
+              .candidates
+              | group_by(.action)
+              | map({action: .[0].action, count: length})
+            ),
+            blocked_reasons: (
+              .candidates
+              | map(select(.action == "blocked"))
+              | group_by(.reason)
+              | map({reason: .[0].reason, count: length})
+            ),
+            applied_count: (.applied | length)
+          }' response.json
