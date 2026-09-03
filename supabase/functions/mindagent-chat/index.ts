@@ -39,6 +39,7 @@ type ChatRequest = {
   // chama o modelo: grava a fala como evidência e os valores como interesses
   // da sessão para que a próxima recomendação já os enxergue.
   journey_signal?: { field?: string; values?: unknown };
+  journey_signals?: unknown;
 };
 
 type Interest = {
@@ -48,9 +49,10 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.11.1";
+const VERSION = "1.13.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
-const DEFAULT_MODEL = "gpt-5.4";
+const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
+const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
 
 // O CANAL DESTE RUNTIME. Constante, nunca inferida da conversa: quem chama sabe
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
@@ -73,6 +75,17 @@ function journeySignal(value: unknown) {
     .filter(Boolean)
     .slice(0, 8);
   return JOURNEY_FIELDS.has(field) && values.length > 0 ? { field, values } : null;
+}
+
+function journeySignals(value: unknown) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > JOURNEY_FIELDS.size) return null;
+  const parsed = value.map(journeySignal);
+  if (parsed.some((signal) => signal === null)) return null;
+  const valid = parsed.filter(
+    (signal): signal is NonNullable<ReturnType<typeof journeySignal>> => signal !== null,
+  );
+  if (new Set(valid.map((signal) => signal.field)).size !== valid.length) return null;
+  return valid;
 }
 
 // ORIGENS COM ROTA AUTORITATIVA. Quem entra pelo app oficial do Summit já disse, pela
@@ -512,6 +525,40 @@ function montarResponseSchema(rotasDoCanal: string[]) {
   };
 }
 
+
+type ModelDecision = { model: string; reason: string };
+
+function modeloInicialDoTurno(
+  mensagem: string,
+  rota: string | null,
+  historico: number,
+  modeloRapido: string,
+  modeloCompleto: string,
+): ModelDecision {
+  if (modeloRapido === modeloCompleto) return { model: modeloCompleto, reason: "config_unica" };
+  if (rota !== "concierge_summit") return { model: modeloCompleto, reason: "rota_complexa" };
+
+  const texto = mensagem.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const exigeCompleto = mensagem.length > 180 || historico > 8 ||
+    /\b(compar\w*|recomend\w*|melhor|vale a pena|por que|porque|explic\w*|estrateg\w*|empresa\w*|equipe\w*|lideran\w*|desafio\w*|objetiv\w*|vender|comprar|upgrade|preco|valor|desconto|ingresso)\b/.test(texto);
+  const factualSimples =
+    /\b(onde fica|qual (?:e |a )?sala|que horas|qual (?:e |o )?horario|quando (?:comeca|termina)|endereco|mapa|wifi|wi-fi|banheiro|estacionamento|credenciamento|guarda.?volumes|almoco)\b/.test(texto);
+
+  return factualSimples && !exigeCompleto
+    ? { model: modeloRapido, reason: "factual_simples" }
+    : { model: modeloCompleto, reason: exigeCompleto ? "complexidade_detectada" : "ambiguidade_conservadora" };
+}
+
+function saidaEstruturadaMinimaValida(outputText: string) {
+  try {
+    const value = JSON.parse(outputText) as Record<string, unknown>;
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
+      typeof value.answer === "string" && value.answer.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
@@ -524,7 +571,9 @@ Deno.serve(async (req: Request) => {
       ok: true,
       service: "mindagent-chat",
       version: VERSION,
-      model: Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL,
+      model: Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX,
+      fast_model: Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST,
+      model_routing: true,
       openai_configured: Boolean(Deno.env.get("OPENAI_API_KEY")),
     }, requestId);
   }
@@ -551,7 +600,12 @@ Deno.serve(async (req: Request) => {
   const ferramenta = typeof payload.ferramenta === "string" ? payload.ferramenta.trim() : "";
   const modoAcao = ferramenta.length > 0;
   const sinalJornada = journeySignal(payload.journey_signal);
-  const modoJornada = payload.journey_signal != null;
+  const sinaisJornada = payload.journey_signals != null
+    ? journeySignals(payload.journey_signals)
+    : sinalJornada
+    ? [sinalJornada]
+    : null;
+  const modoJornada = payload.journey_signal != null || payload.journey_signals != null;
   const identitySource = payload.identity?.source === "yazo_url" ? "yazo_url" : null;
   const identityEmailReceived = identitySource === "yazo_url" && validEmail(payload.identity?.email);
   const identityNameReceived = identitySource === "yazo_url" &&
@@ -569,7 +623,7 @@ Deno.serve(async (req: Request) => {
       error: { code: "invalid_request", message: "Informe uma mensagem de até 1.200 caracteres e um evento válido." },
     }, requestId);
   }
-  if (modoJornada && !sinalJornada) {
+  if (modoJornada && !sinaisJornada) {
     return json(req, 422, {
       ok: false,
       error: { code: "invalid_journey_signal", message: "Esta resposta da jornada não é válida." },
@@ -593,7 +647,8 @@ Deno.serve(async (req: Request) => {
   const publishableKey = readKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
   const secretKey = readKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  const model = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL;
+  const modelComplex = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
+  const modelFast = Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST;
   if (!supabaseUrl || !publishableKey || !secretKey) {
     return json(req, 503, { ok: false, error: { code: "database_unavailable", message: "Serviço temporariamente indisponível." } }, requestId);
   }
@@ -741,7 +796,7 @@ Deno.serve(async (req: Request) => {
     // O botão é uma fala real da pessoa. Ela entra na conversa com bloco
     // estruturado e vira evidência dos interesses da sessão. O mesmo
     // client_action_id é a chave de transporte no retry.
-    if (modoJornada && sinalJornada) {
+    if (modoJornada && sinaisJornada) {
       const labels: Record<string, string> = {
         objetivos: "Objetivos", temas: "Temas", disponibilidade: "Disponibilidade",
         ritmo: "Ritmo", palestrantes_imperdiveis: "Palestrantes imperdíveis",
@@ -750,7 +805,9 @@ Deno.serve(async (req: Request) => {
       const actionId = typeof payload.client_action_id === "string" && payload.client_action_id.trim()
         ? payload.client_action_id.trim().slice(0, 120)
         : crypto.randomUUID();
-      const content = `${labels[sinalJornada.field]}: ${sinalJornada.values.join("; ")}`;
+      const content = sinaisJornada
+        .map((sinal) => `${labels[sinal.field]}: ${sinal.values.join("; ")}`)
+        .join("\n");
       const { data: evidence, error: evidenceError } = await admin.rpc("mindagent_chat_save_message", {
         p_auth_user_id: authUserId,
         p_session_id: sessionId,
@@ -759,16 +816,18 @@ Deno.serve(async (req: Request) => {
         p_role: "user",
         p_content: content,
         p_client_message_id: `journey:${actionId}`,
-        p_blocks: { kind: "journey_answer", field: sinalJornada.field, values: sinalJornada.values },
+        p_blocks: sinaisJornada.length === 1
+          ? { kind: "journey_answer", field: sinaisJornada[0].field, values: sinaisJornada[0].values }
+          : { kind: "journey_answers", signals: sinaisJornada },
       });
       if (evidenceError || !evidence?.mensagem_id) throw new Error("journey_evidence_save_failed");
 
-      const interests = sinalJornada.values.map((label) => ({
-        key: normalizeInterestKey(`jornada_${sinalJornada.field}_${label}`),
+      const interests = sinaisJornada.flatMap((sinal) => sinal.values.map((label) => ({
+        key: normalizeInterestKey(`jornada_${sinal.field}_${label}`),
         label,
         confidence: 1,
         sensitivity: "none",
-      }));
+      })));
       const { data: saved, error: saveError } = await admin.rpc("mindagent_chat_save_interests", {
         p_auth_user_id: authUserId,
         p_session_id: sessionId,
@@ -779,8 +838,8 @@ Deno.serve(async (req: Request) => {
       if (saveError) throw new Error("journey_interest_save_failed");
 
       console.info(JSON.stringify({
-        request_id: requestId, status: 200, event: "journey_signal_saved",
-        field: sinalJornada.field, values: sinalJornada.values.length,
+        request_id: requestId, status: 200, event: "journey_signals_saved",
+        signals: sinaisJornada.length, values: interests.length,
         session_id: sessionId, duration_ms: Date.now() - startedAt,
       }));
       return json(req, 200, {
@@ -1104,6 +1163,7 @@ Deno.serve(async (req: Request) => {
     // selecionado. Concatenar os dois — como a v1.4.0 fazia — apagava a
     // listagem de agenda e fazia pergunta sem lastro receber conteúdo de
     // interesse. `event_slug` preserva o contrato que o payload já tinha.
+    const kitStartedAt = Date.now();
     const { data: kit, error: kitError } = await admin.rpc("mind_agent_kit", {
       p_rota: rotaDecidida,
       p_conversa_id: conversationId,
@@ -1122,6 +1182,7 @@ Deno.serve(async (req: Request) => {
         interesses: personalizationProfile?.interesses ?? [],
       },
     });
+    const kitMs = Date.now() - kitStartedAt;
 
     // FAIL-CLOSED. Sem Kit disponível, sem playbook ou sem nenhum bloco, o modelo
     // não é chamado: responder sem a verdade mínima é como a invenção começa.
@@ -1228,6 +1289,21 @@ Deno.serve(async (req: Request) => {
     // da rota com a camada transversal `base` na frente.
     const instrucoes = kit.playbook as string;
 
+    const aiContextChars = JSON.stringify(aiContext).length;
+    const modelDecision = modeloInicialDoTurno(
+      message,
+      rotaDecidida,
+      historico.length,
+      modelFast,
+      modelComplex,
+    );
+    const modelInicial = modelDecision.model;
+    let model = modelInicial;
+    let modelEscalation: string | null = null;
+    const modelsUsed = new Set<string>();
+    let openAiMs = 0;
+    let toolMs = 0;
+
     let openAiResponse!: Response;
     let openAiPayload: Record<string, unknown> = {};
     let outputText = "";
@@ -1242,6 +1318,8 @@ Deno.serve(async (req: Request) => {
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), restante);
+      const openAiStartedAt = Date.now();
+      modelsUsed.add(model);
       try {
         openAiResponse = await fetch("https://api.openai.com/v1/responses", {
           method: "POST",
@@ -1281,15 +1359,35 @@ Deno.serve(async (req: Request) => {
           signal: controller.signal,
         });
       } finally {
+        openAiMs += Date.now() - openAiStartedAt;
         clearTimeout(timeout);
       }
 
-      if (!openAiResponse.ok) break;
+      if (!openAiResponse.ok) {
+        if (
+          model === modelFast && modelFast !== modelComplex &&
+          volta < MAX_RODADAS_TOOL && [400, 404].includes(openAiResponse.status)
+        ) {
+          model = modelComplex;
+          modelEscalation = "modelo_rapido_indisponivel";
+          continue;
+        }
+        break;
+      }
 
       openAiPayload = await openAiResponse.json() as Record<string, unknown>;
       const chamadas = extrairChamadas(openAiPayload);
       if (chamadas.length === 0) {
         outputText = extractOutputText(openAiPayload);
+        if (
+          model === modelFast && modelFast !== modelComplex &&
+          volta < MAX_RODADAS_TOOL && !saidaEstruturadaMinimaValida(outputText)
+        ) {
+          model = modelComplex;
+          modelEscalation = "saida_invalida";
+          outputText = "";
+          continue;
+        }
         if (
           volta < MAX_RODADAS_TOOL && toolsParaModelo.length > 0 &&
           respostaExigeBuscaAntesDeDesistir(outputText)
@@ -1305,6 +1403,10 @@ Deno.serve(async (req: Request) => {
           });
           forcarBuscaNaProximaVolta = true;
           recuperacaoForcada = true;
+          if (model === modelFast && modelFast !== modelComplex) {
+            model = modelComplex;
+            modelEscalation = "abstinencia_exige_busca";
+          }
           outputText = "";
           continue;
         }
@@ -1320,12 +1422,18 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      const toolStartedAt = Date.now();
       const resultados = await executarChamadas(admin, chamadas, {
         rota: rotaDecidida,
         canal: CANAL,
         produtoCodigo: produtoDoContexto(structuredDoKit),
         openAiKey,
       });
+      toolMs += Date.now() - toolStartedAt;
+      if (model === modelFast && modelFast !== modelComplex) {
+        model = modelComplex;
+        modelEscalation = "ferramenta_solicitada";
+      }
 
       for (const r of resultados) {
         if (!r.ok && "detalhe" in r && r.detalhe) {
@@ -1370,6 +1478,14 @@ Deno.serve(async (req: Request) => {
         upstream_code: upstreamCode,
         upstream_type: upstreamType,
         model,
+        model_inicial: modelInicial,
+        model_reason: modelDecision.reason,
+        model_escalation: modelEscalation,
+        models_used: [...modelsUsed],
+        openai_ms: openAiMs,
+        tool_ms: toolMs,
+        kit_ms: kitMs,
+        context_chars: aiContextChars,
         rota: rotaDecidida,
         rodadas_tool: rodadasTool,
         recuperacao_forcada: recuperacaoForcada,
@@ -1629,7 +1745,11 @@ Deno.serve(async (req: Request) => {
 
     console.info(JSON.stringify({
       request_id: requestId, status: 200, event_slug: eventSlug, session_id: sessionId,
-      new_session: newSession, model, interests: interests.length, duration_ms: Date.now() - startedAt,
+      new_session: newSession,
+      model, model_inicial: modelInicial, model_reason: modelDecision.reason,
+      model_escalation: modelEscalation, models_used: [...modelsUsed],
+      openai_ms: openAiMs, tool_ms: toolMs, kit_ms: kitMs, context_chars: aiContextChars,
+      interests: interests.length, duration_ms: Date.now() - startedAt,
       rota: rotaDecidida, rota_origem: rotaOrigem, router_falha: rotaFalha, router_ms: routerMs,
       origem_codigo: origemDaConversa || null,
       next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
