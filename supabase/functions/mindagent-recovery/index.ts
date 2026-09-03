@@ -25,7 +25,7 @@ type Draft = {
 };
 
 const GROUPS = [
-  "price", "availability_logistics", "payment_technical", "internal_approval",
+  "checkout_abandonment", "price", "availability_logistics", "payment_technical", "internal_approval",
   "stopped_replying", "interested_not_bought", "promised_to_return", "other",
 ] as const;
 const HEAT = ["cold", "warm", "hot", "very_hot"] as const;
@@ -167,7 +167,11 @@ Deno.serve(async (req: Request) => {
 
   if (mode === "refresh") {
     const { data, error } = await admin.rpc("mind_recovery_refresh", { p_limit: limit });
-    return error ? json({ ok: false, error: "refresh_failed" }, 502) : json({ ...data, version: VERSION });
+    if (error) return json({ ok: false, error: "refresh_failed" }, 502);
+    const { data: abandonment, error: abandonmentError } = await admin.rpc("mind_checkout_abandonment_refresh");
+    return abandonmentError
+      ? json({ ok: false, error: "abandonment_refresh_failed" }, 502)
+      : json({ ...data, abandonment, version: VERSION });
   }
   if (mode === "prepare") {
     const { data, error } = await admin.rpc("mind_recovery_prepare_queue", { p_limit: limit });
