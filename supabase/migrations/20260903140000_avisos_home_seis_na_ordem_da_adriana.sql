@@ -1,6 +1,6 @@
 -- Avisos da home (03/09, pedido da Adriana): seis na ordem dela, sem "agora", datas e horários
--- nos textos que ela não reescreveu; o do ingresso volta ao ar em "Antes de ir ao Summit"; reserve_exp e
--- autógrafos com o texto literal dela (título + resumo no card fechado; mensagem ao abrir).
+-- nos textos que ela não reescreveu; o do ingresso volta ao ar em "Antes de ir ao Summit"; reserve_exp,
+-- Rhino, credenciamento e autógrafos com o texto literal dela (título + resumo no card fechado; mensagem ao abrir).
 -- A ordem da home é decidida por disparo_em desc (api.mindagent_home_publico), então os seis
 -- recebem os seis horários mais recentes, um minuto de diferença cada, em 15/09 à noite.
 -- Idempotente: cada update casa pela chave e grava o estado final.
@@ -14,10 +14,9 @@ update concierge.avisos set
 where chave = 'reserve_exp';
 
 update concierge.avisos set
-  titulo = 'A Rhino leva você para o Mind Summit',
-  descricao = replace(descricao,
-    'O cupom fica ativo até 31 de dezembro e, depois do cadastro no app, deve ser utilizado em até 30 dias.',
-    'Depois do cadastro no app, o cupom deve ser utilizado em até 30 dias.'),
+  titulo = 'Venha de Rhino para o Mind Summit',
+  subtitulo = 'Quem nunca utilizou o serviço recebe R$ 200 de desconto na primeira corrida usando o cupom MINDSUMMIT.',
+  descricao = E'💡 Dica para utilização: se for/voltar em mais de uma pessoa do evento, uma pode se cadastrar na ida e outra na volta, aproveitando o desconto nos dois momentos!\n\n📍 Regras de valor mínimo:\nCorridas de até 10 km: valor fixo de R$49\nCorridas acima de 10 km: valor mínimo de R$149\n\nCupom ativo e com validade até 31 de dezembro, depois de cadastrado no app precisa ser usado em 30 dias',
   disparo_em = '2026-09-15 20:59:00+00', atualizado_em = now()
 where chave = 'rhino';
 

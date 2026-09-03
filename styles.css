@@ -755,6 +755,10 @@ body {
 .av-texto {
   margin-top: 16px;
   font-size: 18px; line-height: 1.6; color: var(--texto);
+  /* Quebra de linha simples vale dentro do parágrafo: o aviso da Rhino lista
+     duas regras de valor em linhas separadas, e coladas viravam uma frase só.
+     Parágrafo continua sendo linha em branco (`paragrafos`). */
+  white-space: pre-line;
 }
 /* Cada parágrafo é um `<p class="av-texto">`; do segundo em diante o
    espaço entre eles vem daqui, não de `margin-top` repetido. */

@@ -335,7 +335,7 @@ test('a home mostra os seis avisos na ordem que a Adriana pediu', () => {
   const titulos = [...bloco.matchAll(/titulo: '([^']+)'/g)].map((m) => m[1]).slice(0, 6);
   assert.deepEqual(titulos, [
     'Reserve agora as experiências que você não quer perder',
-    'A Rhino leva você para o Mind Summit',
+    'Venha de Rhino para o Mind Summit',
     'Importante! Trazer um documento físico de identidade: RG ou CNH',
     'Seu ingresso está no app, no menu Ingresso!',
     'Chegue cedo e siga para o Pavilhão 3',

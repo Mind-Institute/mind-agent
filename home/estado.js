@@ -171,9 +171,9 @@ const CRUS = [
     mensagem: 'Faça o agendamento no app e confirme em Minha Agenda. No dia, sua vaga ficará garantida somente até 5 minutos antes do início.' },
 
   { id: 'rhino', ico: ICO.estrela, cat: 'antes_de_ir', em: '2026-09-15T17:59', situacao: 'no-ar',
-    titulo: 'A Rhino leva você para o Mind Summit',
-    resumo: 'Use o cupom MINDSUMMIT no app da Rhino. Quem nunca utilizou o serviço recebe R$ 200 de desconto na primeira corrida.',
-    mensagem: 'Em trajetos de até 10 km, o valor é fixo de R$ 49. Acima de 10 km, o valor mínimo é de R$ 149.\n\nDepois do cadastro no app, o cupom deve ser utilizado em até 30 dias.' },
+    titulo: 'Venha de Rhino para o Mind Summit',
+    resumo: 'Quem nunca utilizou o serviço recebe R$ 200 de desconto na primeira corrida usando o cupom MINDSUMMIT.',
+    mensagem: '💡 Dica para utilização: se for/voltar em mais de uma pessoa do evento, uma pode se cadastrar na ida e outra na volta, aproveitando o desconto nos dois momentos!\n\n📍 Regras de valor mínimo:\nCorridas de até 10 km: valor fixo de R$49\nCorridas acima de 10 km: valor mínimo de R$149\n\nCupom ativo e com validade até 31 de dezembro, depois de cadastrado no app precisa ser usado em 30 dias' },
 
   { id: 'doc_fisico', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T17:58', situacao: 'no-ar',
     titulo: 'Importante! Trazer um documento físico de identidade: RG ou CNH',
