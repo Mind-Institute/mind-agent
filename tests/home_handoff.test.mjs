@@ -331,7 +331,7 @@ test('a home mostra os cinco avisos que a Adriana condensou', () => {
   const titulos = [...bloco.matchAll(/titulo: '([^']+)'/g)].map((m) => m[1]).slice(0, 5);
   assert.deepEqual(titulos, [
     'Reserve agora as experiências que você não quer perder',
-    'Leve um documento oficial físico com foto',
+    'Importante! Trazer um documento físico de identidade: RG ou CNH',
     'Chegue cedo e siga para o Pavilhão 3',
     'Venha de Rhino para o Mind Summit',
     'Veja como o Summit funciona antes de chegar',
