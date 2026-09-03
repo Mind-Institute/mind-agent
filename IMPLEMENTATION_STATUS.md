@@ -24,6 +24,7 @@ PRs mesclados:
 - [#87 — clique e abandono de checkout](https://github.com/Mind-Institute/mind-agent/pull/87)
 - [#88 — abandono transacional e bootstrap vivo](https://github.com/Mind-Institute/mind-agent/pull/88)
 - [#89 — índices e registro operacional](https://github.com/Mind-Institute/mind-agent/pull/89)
+- [#91 — recuperação do Concierge e hotfix da Home](https://github.com/Mind-Institute/mind-agent/pull/91)
 
 ### Cadastro e CRM
 
@@ -79,10 +80,18 @@ PRs mesclados:
 - O deploy automático da Cloudflare foi confirmado após os merges: o app público
   já serve a validação nova e a rota `/c/:event_id` responde 307 para a Edge
   Function de checkout.
+- A Home agora aceita avisos `no-ar` sem `disparo_em`; eles aparecem como `Agora`
+  sem fabricar horário no banco.
+- Se o modelo tenta dizer que não encontrou a informação sem usar a lupa, o runtime
+  força uma chamada a `buscar_intelligence` antes da resposta final. Respostas
+  factuais já sustentadas pelo Kit continuam sem busca e sem latência adicional.
+- O input móvel usa 16px e a conversa contém URLs/palavras longas, evitando zoom
+  automático do iOS e estouro horizontal.
+- Diagnóstico completo: `INCIDENTE_CONCIERGE_20260903.md`.
 
 ## Testes executados
 
-- 151/151 testes Edge/contrato.
+- 156/156 testes Edge/contrato.
 - 76/76 contratos do guardrail de preço.
 - Build completo do app Cloudflare e painel Admin.
 - E2E real do App até o checkout Eduzz com identidade fictícia, sem informar
@@ -106,13 +115,14 @@ Edge Functions ativas após esta entrega:
 
 | Função | Versão | JWT | Papel |
 | --- | ---: | --- | --- |
-| `mindagent-chat` | 36 | sim | App/Concierge/venda |
+| `mindagent-chat` | 37 | sim | App/Concierge/venda |
 | `treble-inbound-agent` | 38 | webhook próprio | WhatsApp B2C/B2B |
 | `mindagent-checkout` | 1 | público controlado | clique e 302 para Eduzz |
 | `mindagent-recovery` | 2 | sim/admin | refresh e rascunhos, sem envio |
 
 Migrations desta sequência foram aplicadas manualmente, inclusive atribuição,
-inbox, redirecionador, status transacional, bootstrap, temas e índices.
+inbox, redirecionador, status transacional, bootstrap, temas, índices e a regra de
+busca antes da abstinência do Concierge.
 
 O Advisor ainda apresenta alertas antigos do projeto (principalmente funções
 com `search_path` mutável, funções `security definer` historicamente expostas,

@@ -2,7 +2,22 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **03/09/2026** (Core unificado em preparação; captura inicial de contato B2B/B2C e create/enrich de Contact HubSpot adicionados à branch, ainda sem deploy).
+> Atualizado em **03/09/2026**. O estado operacional mais recente está consolidado
+> em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
+> `INCIDENTE_CONCIERGE_20260903.md`.
+
+### Hotfix operacional mais recente — PR #91
+
+- commit de produto da PR #91: `3ad409969135effc70ead9374fcebd764869f9fc`;
+- Home tolera aviso `no-ar` sem `disparo_em` e o exibe como `Agora`;
+- Concierge força `buscar_intelligence` quando tenta abster sem investigar;
+- E2E real: resposta direta com zero tools; recuperação com uma tool e
+  `recuperacao_forcada=true`;
+- `mindagent-chat` viva na versão 37, `ACTIVE`, `verify_jwt=true`;
+- playbook `playbook_concierge_summit` ativo na versão 6;
+- 156/156 testes e build Cloudflare/Admin verdes;
+- embeddings continuam pendentes: 30 chunks, zero vetores. A busca lexical está
+  funcional; o indexador requer invocação administrativa em ambiente confiável.
 
 ### Captura comercial e Contact HubSpot — decisão mais recente
 
