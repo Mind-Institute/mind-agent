@@ -76,6 +76,9 @@ PRs mesclados:
 - A curadoria de temas foi reposta na grade viva; 38 sessões têm tema hoje.
 - O frontend também valida campos internos antes de desenhar, para que um valor
   nulo caia no fallback em vez de derrubar a Home.
+- O deploy automático da Cloudflare foi confirmado após os merges: o app público
+  já serve a validação nova e a rota `/c/:event_id` responde 307 para a Edge
+  Function de checkout.
 
 ## Testes executados
 
@@ -124,28 +127,25 @@ Referências do Advisor:
 
 ## Pendências que exigem acesso ou decisão
 
-1. **Publicar o frontend na Cloudflare.** O build passa, mas o Wrangler deste
-   ambiente exige OAuth interativo. Sem essa publicação, as mudanças visuais do
-   PR #85 e o endurecimento do frontend do PR #88 ainda não chegam ao Worker.
-   O bootstrap do banco já está corrigido e responde ao frontend vivo.
-2. **Domínio curto.** Configurar `go.mindsummit.com.br/c/:event_id` na
-   Cloudflare e definir `CHECKOUT_REDIRECT_BASE`. Até lá, a URL curta funcional é
-   a própria Edge Function do Supabase.
-3. **Embeddings.** O indexador está publicado, mas precisa ser invocado com
+1. **Domínio curto próprio.** A rota equivalente já funciona no Worker público;
+   falta configurar `go.mindsummit.com.br/c/:event_id` na Cloudflare e definir
+   `CHECKOUT_REDIRECT_BASE`. Até lá, a URL curta funcional continua sendo a Edge
+   Function do Supabase.
+2. **Embeddings.** O indexador está publicado, mas precisa ser invocado com
    credencial `service_role`/admin para gerar os embeddings. Busca lexical e
    lupa continuam funcionando enquanto isso.
-4. **Rascunhos de retomada.** Invocar `mindagent-recovery` com credencial admin
+3. **Rascunhos de retomada.** Invocar `mindagent-recovery` com credencial admin
    para `refresh` e `draft`; revisar os textos. Não usar `prepare`/fila para envio
    antes dessa revisão.
-5. **Teste WhatsApp assinado.** Requer credencial Treble e deve ser feito em
+4. **Teste WhatsApp assinado.** Requer credencial Treble e deve ser feito em
    número controlado. Não houve mensagem real nem tentativa de contornar a
    assinatura do webhook.
-6. **HubSpot APPLY.** Revisar preview, confirmar propriedades/pipeline e só então
+5. **HubSpot APPLY.** Revisar preview, confirmar propriedades/pipeline e só então
    ativar `HUBSPOT_COMMERCIAL_WRITEBACK_ENABLED`.
-7. **Produtos no Summit.** Institute, upgrade e pré-venda 2027 dependem de preço,
+6. **Produtos no Summit.** Institute, upgrade e pré-venda 2027 dependem de preço,
    regra de elegibilidade, argumento e checkout oficiais. Até isso chegar, o
    agente não deve inventar nem vender uma oferta incompleta.
-8. **Camarote.** A categoria existe no credenciamento, mas falta regra oficial de
+7. **Camarote.** A categoria existe no credenciamento, mas falta regra oficial de
    acesso por sessão; recomendações continuam conservadoras para ela.
 
 ## Ordem segura para liberar disparos
