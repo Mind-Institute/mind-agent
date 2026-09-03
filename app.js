@@ -2153,7 +2153,7 @@ function seletorPalestrantesDaJornada(q, indice, alvo) {
     PERFIL.jornada[q.campo] = selecionadas.slice();
     ok.remove();
     if (selecionadas.length) {
-      enviarSinalJornada('palestrantes_imperdiveis', selecionadas)
+      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice())
         .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
     }
     perguntaDaJornada(indice + 1);
