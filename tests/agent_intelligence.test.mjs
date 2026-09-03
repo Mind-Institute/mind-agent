@@ -68,6 +68,18 @@ test('abstinência sem busca é reconhecida sem confundir resposta factual', () 
     answer: 'Não encontrei essa informação nos dados disponíveis.',
   })), true);
   assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'Não tenho essa informação.',
+  })), true);
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'Isso não consta nos dados.',
+  })), true);
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'A informação não está disponível.',
+  })), true);
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'Não foi informado nos dados.',
+  })), true);
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
     answer: 'O credenciamento abre às 7h30, no Pavilhão 3.',
   })), false);
 });

@@ -115,8 +115,10 @@ export function respostaExigeBuscaAntesDeDesistir(outputText: string) {
      dado não existe e expõe detalhes como `sessions: []`. O runtime dá uma
      segunda chance somente nesses casos; uma resposta factual normal não paga
      busca nem latência extra. */
-  return /\b(?:nao consigo|nao consegui|nao encontrei|nao achei|nao tenho como)\b/.test(texto) ||
-    /\b(?:dados?|fontes?|informacoes?|lista|campo|sessoes?)\b.{0,50}\b(?:vazi[oa]s?|nao (?:veio|vieram|esta|estao|tem|ha)|insuficiente)\b/.test(texto) ||
+  return /\b(?:nao consigo|nao consegui|nao encontrei|nao achei|nao tenho como|nao tenho (?:essa|esta) informacao|nao foi informad[oa])\b/.test(texto) ||
+    /\b(?:dados?|fontes?|informacoes?|lista|campo|sessoes?)\b.{0,50}\b(?:vazi[oa]s?|nao (?:veio|vieram|esta|estao|tem|ha)|insuficiente|indisponivel|nao consta|nao foi informad[oa])\b/.test(texto) ||
+    /\b(?:isso )?nao consta (?:nos?|em) dados\b/.test(texto) ||
+    /\ba informacao nao (?:esta disponivel|foi informada)\b/.test(texto) ||
     /\bcom (?:este|esse) json\b/.test(texto);
 }
 
