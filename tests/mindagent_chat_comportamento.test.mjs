@@ -22,7 +22,7 @@ const clone = (valor) => structuredClone(valor);
 
 /* ========================================================== 1. CHAT NORMAL */
 
-test('chat normal: ordem canônica preservada, sem Router e sem retrieval direto', async () => {
+test('chat normal: ordem canônica preservada, com Router e sem retrieval antecipado', async () => {
   const r = await chamar({ corpo: { message: 'que horas começa a abertura?' } });
 
   assert.equal(r.status, 200);
@@ -31,11 +31,13 @@ test('chat normal: ordem canônica preservada, sem Router e sem retrieval direto
     'mindagent_chat_start',
     'mindagent_chat_get_context',
     'mindagent_chat_save_message',   // user
+    'mind_canal_rotas',              // universo do Router
+    'analise_config',                // credencial do Router
     'mind_rota_capacidade',          // Gate
     'mind_agent_kit',                // Kit
     'mindagent_chat_save_message',   // assistant
   ]);
-  // Quem busca é o Kit. O executor não fala com o retrieval.
+  // Sem chamada de ferramenta pelo modelo, o executor não antecipa retrieval.
   assert.ok(!r.rpcs.includes('mindagent_chat_search'));
 
   const [userMsg, assistantMsg] = r.chamadasDe('mindagent_chat_save_message');
@@ -54,11 +56,10 @@ test('chat normal: ordem canônica preservada, sem Router e sem retrieval direto
   assert.equal(kit.args.p_necessidade.event_slug, 'mind-summit-2026');
   assert.deepEqual(kit.args.p_necessidade.interesses, ['saúde mental corporativa']);
 
-  // A competência vem do playbook do Kit; o contrato do executor vem depois.
+  // A competência e as políticas transversais vêm do playbook composto pelo Kit.
   assert.equal(r.openai.length, 1);
   const enviado = r.openai[0].corpo;
   assert.ok(enviado.instructions.startsWith(KIT_COMPLETO.playbook));
-  assert.match(enviado.instructions, /starts_at_local\/ends_at_local/);
   assert.equal(enviado.store, false);
   const contexto = JSON.parse(enviado.input[0].content.replace(/^[^{]*/, ''));
   assert.deepEqual(contexto.official_context, KIT_COMPLETO.structured);
@@ -127,16 +128,12 @@ test('Gate: erro de RPC também fecha, não abre', async () => {
 /* ======================================================== 3. KIT INCOMPLETO */
 
 test('Kit incompleto: fail-closed antes da OpenAI, em cada forma de incompletude', async () => {
-  const semProgramacao = clone(KIT_COMPLETO);
-  delete semProgramacao.structured.programacao;
-  const semEvento = clone(KIT_COMPLETO);
-  delete semEvento.structured.evento;
+  const semStructured = { ...clone(KIT_COMPLETO), structured: {} };
   const semPlaybook = { ...clone(KIT_COMPLETO), playbook: '   ' };
   const indisponivel = { ...clone(KIT_COMPLETO), meta: { kit_disponivel: false } };
 
   for (const [nome, kit] of [
-    ['sem bloco programacao', semProgramacao],
-    ['sem bloco evento', semEvento],
+    ['sem nenhum bloco structured', semStructured],
     ['playbook vazio', semPlaybook],
     ['kit_disponivel false', indisponivel],
     ['kit recusado', { ok: false, motivo: 'rota_sem_kit' }],

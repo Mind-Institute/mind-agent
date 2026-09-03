@@ -222,6 +222,15 @@ pipeline — persiste-se a inteligência e faz-se **dispatch para os responsáve
 **Status:** aprovado por Adriana em 03/09/2026 para entrar no backlog. **Não executar junto
 com o primeiro go-live do write-back.**
 
+**Inbox operacional de recuperação aprovado em 03/09/2026:** criar tabela interna que, por
+pessoa e conversa parada, registre compra confirmada, janela de 24 horas, temperatura, objeção,
+resumo factual, próximo passo e mensagem sugerida. Compradores confirmados saem da recuperação e
+podem atualizar o Lead para ganho somente com prova transacional. Não compradores dentro de 24
+horas ficam elegíveis para teste controlado; fora da janela são agrupados por motivo — preço,
+silêncio, interesse sem compra, retorno prometido e outras objeções sustentadas pela conversa —
+para criação de HSMs específicos. Tabela e análise podem ser publicadas antes do frontend;
+dispatcher e cron permanecem desligados até autorização posterior ao teste.
+
 Depois de estabilizar o fluxo incremental para conversas novas, analisar **todas as conversas
 com mensagens que estão ou já estiveram em andamento** nos canais armazenados no database. O
 backfill deve usar o analisador canônico vigente, registrar versão/proveniência e processar em

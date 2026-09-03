@@ -1,6 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import { mapCommercialAnalysis, stablePayload } from "./mapping.ts";
+import {
+  contactEnrichment,
+  contactFromPersonFacts,
+  type ContactFields,
+  mapCommercialAnalysis,
+  stablePayload,
+} from "./mapping.ts";
 
 const HUBSPOT = "https://api.hubapi.com";
 const MAX_LIMIT = 50;
@@ -79,6 +85,94 @@ async function sha256(value: unknown) {
   return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const CONTACT_PROPERTIES = ["firstname", "lastname", "email", "phone", "company", "jobtitle"];
+
+type HubSpotContact = { id: string; properties?: Record<string, unknown> };
+
+async function hubspotRequest(
+  token: string,
+  path: string,
+  init: RequestInit = {},
+  allowNotFound = false,
+): Promise<Record<string, unknown> | null> {
+  const response = await fetch(`${HUBSPOT}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (allowNotFound && response.status === 404) return null;
+  const body = await response.text();
+  if (!response.ok) throw new Error(`hubspot_contact_${response.status}: ${body.slice(0, 300)}`);
+  return body ? JSON.parse(body) as Record<string, unknown> : {};
+}
+
+async function ensureHubSpotContact(
+  token: string,
+  knownContactId: string | null,
+  fields: ContactFields,
+): Promise<{ id: string; action: "created" | "enriched" | "matched" }> {
+  const propertiesQuery = encodeURIComponent(CONTACT_PROPERTIES.join(","));
+  let contact: HubSpotContact | null = null;
+
+  if (knownContactId) {
+    contact = await hubspotRequest(
+      token,
+      `/crm/objects/2026-03/contacts/${encodeURIComponent(knownContactId)}?properties=${propertiesQuery}`,
+    ) as HubSpotContact;
+  } else {
+    contact = await hubspotRequest(
+      token,
+      `/crm/objects/2026-03/contacts/${encodeURIComponent(fields.email)}?idProperty=email&properties=${propertiesQuery}`,
+      {},
+      true,
+    ) as HubSpotContact | null;
+
+    if (!contact) {
+      const phoneSearch = await hubspotRequest(token, "/crm/objects/2026-03/contacts/search", {
+        method: "POST",
+        body: JSON.stringify({
+          filterGroups: [
+            { filters: [{ propertyName: "phone", operator: "EQ", value: fields.phone }] },
+            { filters: [{ propertyName: "mobilephone", operator: "EQ", value: fields.phone }] },
+          ],
+          properties: [...CONTACT_PROPERTIES, "mobilephone"],
+          limit: 2,
+        }),
+      });
+      const results = Array.isArray(phoneSearch?.results)
+        ? phoneSearch.results as HubSpotContact[]
+        : [];
+      if (results.length > 1) throw new Error("hubspot_contact_phone_ambiguous");
+      contact = results[0] ?? null;
+      const existingEmail = String(contact?.properties?.email ?? "").trim().toLowerCase();
+      if (existingEmail && existingEmail !== fields.email.toLowerCase()) {
+        throw new Error("hubspot_contact_email_conflict");
+      }
+    }
+  }
+
+  if (!contact) {
+    const created = await hubspotRequest(token, "/crm/objects/2026-03/contacts", {
+      method: "POST",
+      body: JSON.stringify({ properties: fields }),
+    }) as HubSpotContact;
+    if (!created?.id) throw new Error("hubspot_contact_create_without_id");
+    return { id: created.id, action: "created" };
+  }
+
+  const enrichment = contactEnrichment(fields, contact.properties ?? {});
+  if (Object.keys(enrichment).length === 0) return { id: contact.id, action: "matched" };
+  await hubspotRequest(token, `/crm/objects/2026-03/contacts/${encodeURIComponent(contact.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ properties: enrichment }),
+  });
+  return { id: contact.id, action: "enriched" };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
@@ -146,73 +240,112 @@ Deno.serve(async (req: Request) => {
       blockedReason = "pendencia_de_identidade_aberta";
     } else if (candidate.lead_count > 1) {
       blockedReason = "multiplos_leads_inbound";
-    } else if (!candidate.contact_id) {
-      blockedReason = candidate.contact_count > 1
-        ? "multiplos_contatos_hubspot_sem_lead_unico"
-        : "contato_hubspot_ausente";
+    } else if (candidate.contact_count > 1 && !candidate.contact_id) {
+      blockedReason = "multiplos_contatos_hubspot_sem_lead_unico";
     } else if (!candidate.existing_lead_id && candidate.contact_mirror_missing_count > 0) {
       blockedReason = "contato_hubspot_sem_espelho_crm";
     }
+
+    const { data: personFacts, error: personError } = await supabase.rpc(
+      "mind_pessoa_fatos",
+      { p_pessoa_id: candidate.participant_id },
+    );
+    const contactPlan = contactFromPersonFacts(personFacts);
+    if (personError) blockedReason ??= "pessoa_fatos_indisponivel";
+    else blockedReason ??= contactPlan.blockedReason;
 
     const mapping = mapCommercialAnalysis(candidate.analysis ?? {}, candidate.current_stage);
     blockedReason ??= mapping.blockedReason;
     const action = candidate.existing_lead_id ? "update" : "create";
 
-    if (blockedReason || !candidate.contact_id || !candidate.pipeline_id || !mapping.stage) {
+    if (blockedReason || !contactPlan.fields || !candidate.pipeline_id || !mapping.stage) {
       preview.push({
         analysis_id: candidate.analysis_id,
         participant_id: candidate.participant_id,
         action: "blocked",
         reason: blockedReason,
+        missing: contactPlan.missing,
       });
       continue;
     }
 
-    const payload = stablePayload({
-      action,
-      contactId: candidate.contact_id,
-      leadId: candidate.existing_lead_id,
-      leadName: candidate.lead_name,
-      pipeline: candidate.pipeline_id,
-      stage: mapping.stage,
-      label: mapping.label,
-    });
-    // Ausência de confiança não apaga a propriedade enumerada atual do HubSpot.
-    if (!mapping.label) delete (payload.properties as Record<string, unknown>).hs_lead_label;
-    const payloadHash = await sha256(payload);
-
-    const item = {
+    const previewItem = {
       analysis_id: candidate.analysis_id,
       participant_id: candidate.participant_id,
       lead_id: candidate.existing_lead_id,
       action,
+      contact_action: candidate.contact_id ? "enrich_if_missing" : "resolve_or_create",
       from_stage: candidate.current_stage,
       to_stage: mapping.stage,
       label: mapping.label,
-      payload_hash: payloadHash,
     };
-    preview.push(item);
+    preview.push(previewItem);
     if (mode === "preview") continue;
 
-    const { data: reserved, error: reserveError } = await supabase.rpc(
-      "hubspot_commercial_reserve",
-      {
-        p_analysis_id: candidate.analysis_id,
-        p_payload_hash: payloadHash,
-        p_conversation_id: candidate.conversation_id,
-        p_contact_id: candidate.contact_id,
-        p_lead_id: candidate.existing_lead_id,
-        p_action: action,
-        p_payload: payload,
-      },
-    );
-    if (reserveError || reserved !== true) {
-      applied.push({ ...item, result: reserveError ? "reserve_failed" : "not_reserved" });
-      continue;
-    }
-
-    let retryable = action === "update";
+    let payloadHash: string | null = null;
+    let item: Record<string, unknown> = previewItem;
+    let reserved = false;
+    let retryable = false;
     try {
+      const contact = await ensureHubSpotContact(
+        hubspotToken!,
+        candidate.contact_id,
+        contactPlan.fields,
+      );
+      const { data: linked, error: linkError } = await supabase.rpc("pessoa_vincular_hubspot", {
+        p_pessoa_id: candidate.participant_id,
+        p_hubspot_id: contact.id,
+      });
+      const linkedIdentity = linked?.identidade;
+      if (
+        linkError ||
+        linked?.ok !== true ||
+        linkedIdentity?.conflito != null ||
+        linkedIdentity?.pessoa_id !== candidate.participant_id
+      ) {
+        throw new Error(
+          `hubspot_contact_link_failed: ${
+            linkError?.message ??
+            linkedIdentity?.conflito?.tipo ??
+            linked?.motivo ??
+            "identity_conflict_or_mismatch"
+          }`,
+        );
+      }
+
+      const payload = stablePayload({
+        action,
+        contactId: contact.id,
+        leadId: candidate.existing_lead_id,
+        leadName: candidate.lead_name,
+        pipeline: candidate.pipeline_id,
+        stage: mapping.stage,
+        label: mapping.label,
+      });
+      // Ausência de confiança não apaga a propriedade enumerada atual do HubSpot.
+      if (!mapping.label) delete (payload.properties as Record<string, unknown>).hs_lead_label;
+      payloadHash = await sha256(payload);
+      item = { ...previewItem, contact_id: contact.id, contact_result: contact.action, payload_hash: payloadHash };
+
+      const { data: reservation, error: reserveError } = await supabase.rpc(
+        "hubspot_commercial_reserve",
+        {
+          p_analysis_id: candidate.analysis_id,
+          p_payload_hash: payloadHash,
+          p_conversation_id: candidate.conversation_id,
+          p_contact_id: contact.id,
+          p_lead_id: candidate.existing_lead_id,
+          p_action: action,
+          p_payload: payload,
+        },
+      );
+      if (reserveError || reservation !== true) {
+        applied.push({ ...item, result: reserveError ? "reserve_failed" : "not_reserved" });
+        continue;
+      }
+      reserved = true;
+      retryable = action === "update";
+
       const properties = payload.properties;
       const path = action === "create"
         ? "/crm/objects/2026-03/leads"
@@ -221,7 +354,7 @@ Deno.serve(async (req: Request) => {
         ? {
           properties,
           associations: [{
-            to: { id: candidate.contact_id },
+            to: { id: contact.id },
             types: [{
               associationCategory: "HUBSPOT_DEFINED",
               associationTypeId: LEAD_TO_CONTACT_ASSOCIATION_TYPE,
@@ -264,18 +397,23 @@ Deno.serve(async (req: Request) => {
       applied.push({ ...item, lead_id: leadId, result: "sent" });
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "unknown_error";
-      const { data: failureRecorded, error: failError } = await supabase.rpc(
-        "hubspot_commercial_fail",
-        {
+      let failureRecorded: unknown = null;
+      let failError: { message?: string } | null = null;
+      if (reserved && payloadHash) {
+        const failure = await supabase.rpc("hubspot_commercial_fail", {
           p_analysis_id: candidate.analysis_id,
           p_payload_hash: payloadHash,
           p_error: message,
           p_retryable: retryable,
-        },
-      );
+        });
+        failureRecorded = failure.data;
+        failError = failure.error;
+      }
       applied.push({
         ...item,
-        result: failError || failureRecorded !== true ? "failed_ledger_unconfirmed" : "failed",
+        result: reserved
+          ? (failError || failureRecorded !== true ? "failed_ledger_unconfirmed" : "failed")
+          : "contact_writeback_failed",
         retryable,
         error: message,
       });

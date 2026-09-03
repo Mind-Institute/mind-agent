@@ -20,6 +20,8 @@ import { randomUUID } from 'node:crypto';
 
 const FONTE = new URL('../../supabase/functions/mindagent-chat/index.ts', import.meta.url);
 const CHECKOUT_SHARED = new URL('../../supabase/functions/_shared/checkout-attribution.ts', import.meta.url);
+const INTELLIGENCE_SHARED = new URL('../../supabase/functions/_shared/agent-intelligence.ts', import.meta.url);
+const CONTACT_SHARED = new URL('../../supabase/functions/_shared/contact-profile.ts', import.meta.url);
 const STUB = new URL('./supabase-stub.mjs', import.meta.url);
 const IMPORT_VIVO = '"npm:@supabase/supabase-js@2.112.3"';
 
@@ -70,6 +72,8 @@ async function carregarHandler() {
   mkdirSync(pastaFuncao, { recursive: true });
   mkdirSync(pastaShared, { recursive: true });
   copyFileSync(CHECKOUT_SHARED, join(pastaShared, 'checkout-attribution.ts'));
+  copyFileSync(INTELLIGENCE_SHARED, join(pastaShared, 'agent-intelligence.ts'));
+  copyFileSync(CONTACT_SHARED, join(pastaShared, 'contact-profile.ts'));
   const arquivo = join(pastaFuncao, 'index.mts');
   writeFileSync(arquivo, partes.join(JSON.stringify(STUB.href)));
 
@@ -114,6 +118,15 @@ function respostasPadrao() {
     mind_rota_capacidade: { ok: true, pode_executar: true, reason: null },
     mind_canal_rotas: { ok: true, canal: 'mindagent-web', rotas: ['cliente_suporte', 'concierge_summit'] },
     mind_agent_kit: KIT_COMPLETO,
+    mind_pessoa_fatos: {
+      ok: true,
+      perfil: { primeiro_nome: 'Adriana', sobrenome: 'Drulla', empresa: 'Mind', cargo: 'CEO' },
+      identificadores: [
+        { canal: 'email', identificador: 'adriana@example.com' },
+        { canal: 'whatsapp', identificador: '5511999999999' },
+      ],
+      conflitos_perfil: [],
+    },
     mind_checkout_envio_registrar: (args) => ({
       ok: true,
       event_id: args.p_evento_id,
@@ -146,7 +159,12 @@ export async function chamar({
   rpc = {},
   usuario = { id: AUTH_USER_ID },
   autorizacao = 'Bearer token-de-acesso-de-teste',
-  modelo = { answer: 'Resposta oficial de teste.', interests: [], checkout_sent: false, checkout_url: null, next_route: null },
+  modelo = {
+    answer: 'Resposta oficial de teste.', interests: [], checkout_sent: false,
+    checkout_url: null, next_route: null, nome_informado: null,
+    email_informado: null, whatsapp_informado: null,
+    empresa_informada: null, cargo_informado: null,
+  },
   openaiStatus = 200,
   metodo = 'POST',
   caminho = '/functions/v1/mindagent-chat',

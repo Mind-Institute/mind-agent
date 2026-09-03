@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { chamar, KIT_COMPLETO } from "./helpers/edge-harness.mjs";
+import { chamar, KIT_COMPLETO, PESSOA_ID } from "./helpers/edge-harness.mjs";
 
 const APP = readFileSync(new URL("../supabase/functions/mindagent-chat/index.ts", import.meta.url), "utf8");
 const WHATSAPP = readFileSync(new URL("../supabase/functions/treble-inbound-agent/index.ts", import.meta.url), "utf8");
@@ -39,7 +39,7 @@ test("app registra e devolve checkout rastreado quando a rota ativa é de venda"
     corpo: { message: "quero fazer upgrade", client_message_id: "upgrade-123" },
     rpc: {
       mindagent_chat_get_context: {
-        participant_profile: { participant_id: null, interests: [] },
+        participant_profile: { participant_id: PESSOA_ID, interests: [] },
         expires_at: "2026-09-03T12:00:00+00:00",
         messages: [],
         origem_codigo: "mind_summit_app",

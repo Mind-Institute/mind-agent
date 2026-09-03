@@ -1,9 +1,10 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
-// v1.7.0 — CREDENCIAMENTO + CADASTRO B2B COMPLETO. O agente recebe dados do
-// participante e categoria(s) de ingresso pelo pessoa_id canônico, sem dados do
-// comprador. Na rota B2B, todo campo mínimo ausente é coletado progressivamente:
-// nome, sobrenome, e-mail, WhatsApp, empresa e cargo.
+// v1.8.0 — CORE AGÊNTICO COMPARTILHADO + CREDENCIAMENTO. O Treble recebe dados
+// person-bound de participante e ingresso pelo Core e consome o mesmo bundle do Kit,
+// as mesmas ferramentas de Intelligence e a mesma política de raciocínio do App.
+// B2B e B2C ampliam a lupa sob demanda sem receber o catálogo inteiro. Nas duas rotas
+// de venda, o contato mínimo é completado no início e antes de calculadora ou checkout.
 //
 // v1.6.2 — CHECKOUT OFICIAL SOBREVIVE AO GUARDRAIL DE PREÇO. Se o modelo
 // selecionou um carrinho que veio do Kit, mas escreveu um preço inconsistente,
@@ -11,9 +12,8 @@
 // oficial rastreado e registra o checkout. Sem checkout oficial, o fail-closed e
 // o handoff continuam intactos.
 //
-// v1.6.1 — IDENTIDADE B2B PROGRESSIVA. A rota summit_b2b completa somente os dados
-// ausentes de nome, sobrenome, empresa, cargo e e-mail, sem atrasar resposta ou
-// checkout. O WhatsApp do canal já é conhecido e só é confirmado se necessário.
+// v1.6.1 — IDENTIDADE COMERCIAL PROGRESSIVA. As rotas summit_b2b e summit_b2c
+// completam somente os dados ausentes de nome, empresa, cargo, e-mail e WhatsApp.
 //
 // v1.6.0 — CHECKOUT ATRIBUIDO AO ENVIO. O modelo aponta o checkout_url exato
 // recebido no Kit; o runtime valida que ele é oficial, gera um evento opaco e
@@ -141,9 +141,18 @@ import {
   idEventoCheckout,
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
+import {
+  executarChamadas,
+  esforcoDeRaciocinio,
+  extrairChamadas,
+  MAX_RODADAS_TOOL,
+  ORCAMENTO_TURNO_MS,
+  produtoDoContexto,
+  toolsDeIntelligence,
+} from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.7.0";
-const DEFAULT_MODEL = "gpt-5.4-mini";
+const VERSION = "1.8.0";
+const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
 // treble-inbound-agent; não há alias.
@@ -322,6 +331,61 @@ async function sha256(value: string) {
 // Só valida/extrai o valor DEPOIS que a semântica "é o meu e-mail" já foi
 // estabelecida pelo modelo. Nunca para varrer a mensagem atrás de identidade.
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+type CampoContato = "nome_completo" | "email" | "whatsapp" | "empresa" | "cargo";
+
+function valorPresente(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function objeto(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function nomeCompleto(value: unknown): boolean {
+  return typeof value === "string" && value.trim().split(/\s+/).length >= 2;
+}
+
+function camposContatoAusentes(
+  perfilValue: unknown,
+  credenciamentoValue: unknown,
+  turno: {
+    nome: string | null;
+    email: string | null;
+    whatsapp: string | null;
+    empresa: string | null;
+    cargo: string | null;
+  },
+): CampoContato[] {
+  const perfil = objeto(perfilValue);
+  const participante = objeto(objeto(credenciamentoValue).participante);
+  const temNome = (
+    valorPresente(perfil.primeiro_nome) && valorPresente(perfil.sobrenome)
+  ) || nomeCompleto(participante.nome) || nomeCompleto(turno.nome);
+
+  const conhecidos: Record<CampoContato, boolean> = {
+    nome_completo: temNome,
+    email: valorPresente(perfil.email) || valorPresente(participante.email) || valorPresente(turno.email),
+    whatsapp: valorPresente(perfil.whatsapp) || valorPresente(participante.whatsapp) || valorPresente(turno.whatsapp),
+    empresa: valorPresente(perfil.empresa) || valorPresente(turno.empresa),
+    cargo: valorPresente(perfil.cargo) || valorPresente(turno.cargo),
+  };
+  return (["nome_completo", "empresa", "cargo", "email", "whatsapp"] as CampoContato[])
+    .filter((campo) => !conhecidos[campo]);
+}
+
+function perguntaContato(campo: CampoContato): string {
+  const perguntas: Record<CampoContato, string> = {
+    nome_completo: "Qual é o seu nome completo?",
+    empresa: "Em qual empresa você trabalha?",
+    cargo: "Qual é o seu cargo?",
+    email: "Qual é o seu melhor e-mail profissional?",
+    whatsapp: "Qual é o seu número de WhatsApp com DDD?",
+  };
+  return perguntas[campo];
+}
 
 // ROTA — quem decide é a Edge Function `router` (Passo 10), e só ela. Aqui não há
 // heurística, lista de palavra-chave nem fallback que escolha rota: ou o Router
@@ -518,7 +582,6 @@ Deno.serve(async (req: Request) => {
   if (!openAiKey) return json(503, { ok: false, error: "ia_nao_configurada" });
   const model = (typeof cfg.openai_model === "string" && cfg.openai_model) ||
     Deno.env.get("OPENAI_MODEL") || DEFAULT_MODEL;
-  const timeoutMs = Number(cfg.timeout_ms) > 0 ? Number(cfg.timeout_ms) : 8500;
   const routerTimeoutMs = Number(cfg.router_timeout_ms) > 0 ? Number(cfg.router_timeout_ms) : ROUTER_TIMEOUT_MS;
 
   // O token do Router. Sem ele o Core não decide rota — e não existe mais um segundo
@@ -606,6 +669,8 @@ Deno.serve(async (req: Request) => {
     let needsHumanDoGate = false;
     let dadosOficiais: unknown = null;
     let instructions = PROMPT_FALLBACK;
+    let toolsDoTurno: unknown = [];
+    let produtoDoTurno: string | null = null;
 
     // Quanto o Router custa neste caminho é a pergunta em aberto do Passo 6B (§8/§10 do
     // Core): dois turnos observados mostram que a Treble entregou um de ~4,43 s e não
@@ -635,21 +700,17 @@ Deno.serve(async (req: Request) => {
       // execução só onde este runtime é dono.
       const ehDoVendedor = ROTAS_DO_VENDEDOR.has(rotaDecidida);
       const vazio = Promise.resolve({ data: null, error: null });
-      const [{ data: gate }, kitR, playbookR] = await Promise.all([
+      const [{ data: gate }, kitR] = await Promise.all([
         supabase.rpc("mind_rota_capacidade", { p_rota: rotaDecidida, p_canal: CANAL }),
         ehDoVendedor
           ? supabase.rpc("mind_agent_kit", {
             p_rota: rotaDecidida,
             p_conversa_id: conv.conversation_id,
-            p_necessidade: { texto: message },
+            p_necessidade: { texto: message, pergunta: message, rota: rotaDecidida, canal: CANAL },
           })
-          : vazio,
-        ehDoVendedor
-          ? supabase.rpc("treble_agent_prompt", { p_audience: rotaDecidida })
           : vazio,
       ]);
       const kit = kitR.data;
-      const playbookDaRota = playbookR.data;
 
       gateReason = typeof gate?.reason === "string" ? gate.reason : null;
       needsHumanDoGate = gate?.needs_human === true;
@@ -659,12 +720,14 @@ Deno.serve(async (req: Request) => {
         kit && kit.ok !== false &&
         kit.meta?.kit_disponivel === true &&
         kit.structured && Object.keys(kit.structured as Record<string, unknown>).length > 0 &&
-        typeof playbookDaRota === "string" && playbookDaRota.trim().length > 0;
+        typeof kit.playbook === "string" && kit.playbook.trim().length > 0;
 
       if (kitServe) {
         rotaAplicada = rotaDecidida;
         dadosOficiais = kit.structured;
-        instructions = playbookDaRota as string;
+        instructions = kit.playbook as string;
+        toolsDoTurno = kit.tools;
+        produtoDoTurno = produtoDoContexto(kit.structured);
       } else {
         // O Core não serve este turno. Desde a v1.5.0 não há piso para onde cair: o
         // turno encerra com transferência logo abaixo. Quem decide `needs_human` é o
@@ -798,20 +861,20 @@ Deno.serve(async (req: Request) => {
         utm_de_origem: conv.utm ?? null,
         produto: conv.produto_codigo ?? null,
       },
-      // Identidade e credenciamento chegam resolvidos pelo Core. No B2B, o runtime
-      // garante a coleta progressiva dos seis campos mínimos ainda ausentes.
+      // Identidade e credenciamento chegam resolvidos pelo Core. Nas rotas de venda,
+      // o contato é completado no início sem repetir o que já existe.
       quem_esta_falando: {
         ja_identificada: idConhecida,
         perfil: idPerfil,
         credenciamento: conv.credenciamento ?? null,
         como_agir: [
           "USE O QUE JÁ SABEMOS ANTES DE PERGUNTAR: confira perfil e credenciamento e nunca repita um dado conhecido.",
-          ...(rotaAplicada === "summit_b2b"
+          ...(["summit_b2b", "summit_b2c"].includes(rotaAplicada ?? "")
             ? [
-              "No B2B, o cadastro mínimo obrigatório é: primeiro nome, sobrenome, e-mail, WhatsApp, empresa e cargo. Um campo só falta quando não aparece nem no perfil nem no credenciamento.",
-              "Se qualquer campo estiver ausente, SEMPRE colete o próximo. Faça uma pergunta curta por mensagem; nome e sobrenome podem ser pedidos juntos como nome completo. Nunca despeje uma ficha cadastral.",
+              "Nesta rota de venda, o contato mínimo obrigatório é: nome completo, e-mail, WhatsApp, empresa e cargo. Um campo só falta quando não aparece nem no perfil nem no credenciamento.",
+              "Comece pelos campos ausentes e SEMPRE colete o próximo. Faça uma pergunta curta por mensagem; nunca despeje uma ficha cadastral.",
               "O campo WhatsApp só conta como conhecido quando perfil.whatsapp ou credenciamento.participante.whatsapp estiver preenchido. Caso contrário, peça o WhatsApp.",
-              "Responda e execute primeiro o que a pessoa pediu. Depois, na mesma mensagem, peça o próximo campo ausente. Preço, calculadora, checkout e handoff não bloqueiam nem encerram a coleta.",
+              "Você pode responder perguntas objetivas enquanto coleta. Não envie calculadora, proposta ou checkout antes de completar o contato mínimo. Pedido explícito por humano, risco ou suporte urgente não fica bloqueado.",
             ]
             : [
               "Só pergunte um dado se ele for necessário para resolver o que a pessoa quer AGORA.",
@@ -824,30 +887,91 @@ Deno.serve(async (req: Request) => {
       mensagem_do_lead: mascarado.texto,
     };
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    let aiResponse: Response;
-    try {
-      aiResponse = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${openAiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          instructions,
-          input: [{ role: "user", content: JSON.stringify(aiInput) }],
-          reasoning: { effort: "none" },
-          text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: RESPONSE_SCHEMA } },
-          // Orcamento de TOKENS, nao de caracteres: precisa caber a `answer` (ate
-          // 2.000 chars ~ 700 tokens em portugues) mais os outros doze campos do
-          // JSON estruturado. Com 700 no total, uma resposta longa esgotava o
-          // orcamento antes de fechar o objeto.
-          max_output_tokens: 1500,
-          store: false,
-        }),
-        signal: controller.signal,
+    const { tools: toolsParaModelo, semExecutor } = toolsDeIntelligence(toolsDoTurno);
+    if (semExecutor > 0) {
+      console.warn(JSON.stringify({
+        request_id: requestId, event: "tool_sem_executor",
+        rota: rotaAplicada, quantidade: semExecutor,
+      }));
+    }
+
+    const entradaDoModelo: Array<Record<string, unknown>> = [
+      { role: "user", content: JSON.stringify(aiInput) },
+    ];
+    const fimDoOrcamento = startedAt + ORCAMENTO_TURNO_MS;
+    let aiResponse!: Response;
+    let aiPayload: Record<string, unknown> = {};
+    let outputText = "";
+    let rodadasTool = 0;
+    const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
+
+    for (let volta = 0; volta <= MAX_RODADAS_TOOL; volta++) {
+      const restante = fimDoOrcamento - Date.now();
+      if (restante <= 0) throw new DOMException("orcamento_do_turno", "AbortError");
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), restante);
+      try {
+        aiResponse = await fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${openAiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            instructions,
+            input: entradaDoModelo,
+            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
+            text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: RESPONSE_SCHEMA } },
+            ...(toolsParaModelo.length > 0
+              ? { tools: toolsParaModelo, tool_choice: volta >= MAX_RODADAS_TOOL ? "none" : "auto" }
+              : {}),
+            max_output_tokens: toolsParaModelo.length > 0 ? 3000 : 1500,
+            store: false,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!aiResponse.ok) break;
+
+      aiPayload = await aiResponse.json() as Record<string, unknown>;
+      const chamadas = extrairChamadas(aiPayload);
+      if (chamadas.length === 0) {
+        outputText = extractOutputText(aiPayload);
+        break;
+      }
+
+      for (const chamada of chamadas) {
+        entradaDoModelo.push({
+          type: "function_call",
+          call_id: chamada.call_id,
+          name: chamada.name,
+          arguments: chamada.arguments,
+        });
+      }
+
+      const resultados = await executarChamadas(supabase, chamadas, {
+        rota: rotaAplicada ?? rotaDecidida ?? "desconhecido",
+        canal: CANAL,
+        produtoCodigo: produtoDoTurno,
+        openAiKey,
       });
-    } finally {
-      clearTimeout(timeout);
+      for (const resultado of resultados) {
+        entradaDoModelo.push({
+          type: "function_call_output",
+          call_id: resultado.call_id,
+          output: resultado.output,
+        });
+        chamadasFeitas.push({ nome: resultado.nome, ok: resultado.ok });
+        if (!resultado.ok && "detalhe" in resultado && resultado.detalhe) {
+          console.warn(JSON.stringify({
+            request_id: requestId, event: "tool_falhou",
+            tool: resultado.nome, detalhe: resultado.detalhe,
+          }));
+        }
+      }
+      rodadasTool++;
     }
 
     if (!aiResponse.ok) {
@@ -855,8 +979,7 @@ Deno.serve(async (req: Request) => {
       return json(502, { ok: false, error: "ia_indisponivel" });
     }
 
-    const aiPayload = await aiResponse.json() as Record<string, unknown>;
-    const turn = JSON.parse(extractOutputText(aiPayload)) as {
+    const turn = JSON.parse(outputText || extractOutputText(aiPayload)) as {
       answer: string; audience: string; intent: string; ticket_interest: string | null;
       objection: string | null; needs_human: boolean; checkout_sent: boolean;
       checkout_url: string | null;
@@ -869,8 +992,32 @@ Deno.serve(async (req: Request) => {
     // `.slice(0, 700)`, e um turno real chegou ao WhatsApp com exatamente 700
     // caracteres, partido no meio de "Mind". Mensagem completa vale mais que
     // frase mutilada: a brevidade e comportamento do prompt, nao tesoura aqui.
-    const answer = String(turn.answer ?? "").trim();
+    let answer = String(turn.answer ?? "").trim();
     if (!answer) throw new Error("resposta_vazia");
+
+    // O que o lead contou sobre si NESTE turno é extraído antes das ações. Assim,
+    // o último campo informado já pode liberar o checkout no próprio turno.
+    const nomeDito = (turn.nome_informado ?? "").trim() || null;
+    const rotuloEmail = (turn.email_informado ?? "").trim().match(/^\[?email_(\d+)\]?$/i);
+    const emailDito = rotuloEmail &&
+        validacaoIdentificadores[`email_${Number(rotuloEmail[1])}`]?.valido === true
+      ? (mascarado.emails[Number(rotuloEmail[1]) - 1] ?? "").match(EMAIL_RE)?.[0] ?? null
+      : null;
+    const rotuloWhatsapp = (turn.whatsapp_informado ?? "").trim().match(/^\[?whatsapp_(\d+)\]?$/i);
+    const whatsappDito = rotuloWhatsapp &&
+        validacaoIdentificadores[`whatsapp_${Number(rotuloWhatsapp[1])}`]?.valido === true
+      ? mascarado.whatsapps[Number(rotuloWhatsapp[1]) - 1] ?? null
+      : null;
+    const empresaDita = (turn.empresa_informada ?? "").trim() || null;
+    const cargoDito = (turn.cargo_informado ?? "").trim() || null;
+
+    const rotaDeVenda = ["summit_b2b", "summit_b2c"].includes(rotaAplicada ?? "");
+    const contatoAusente = rotaDeVenda
+      ? camposContatoAusentes(idPerfil, conv.credenciamento, {
+        nome: nomeDito, email: emailDito, whatsapp: whatsappDito,
+        empresa: empresaDita, cargo: cargoDito,
+      })
+      : [];
 
     // A rota manda no `audience`.
     //
@@ -902,7 +1049,7 @@ Deno.serve(async (req: Request) => {
     const checkoutCandidato = typeof turn.checkout_url === "string" && turn.checkout_url.trim()
       ? turn.checkout_url.trim()
       : null;
-    const checkoutOficial = escolherCheckoutOficial(dadosOficiais, checkoutCandidato, answer);
+    let checkoutOficial = escolherCheckoutOficial(dadosOficiais, checkoutCandidato, answer);
     const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
     if (checkoutSolicitado && !checkoutOficial) {
       console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial" }));
@@ -914,6 +1061,24 @@ Deno.serve(async (req: Request) => {
           { key: "checkout_sent", value: "false" },
         ],
       });
+    }
+
+    // Defesa em profundidade: prompt orienta a coleta inicial, mas o runtime não
+    // libera ativos transacionais se o modelo ignorar a regra. O dado informado
+    // neste próprio turno conta, portanto não se cria uma rodada artificial extra.
+    const tentouAtivoComercial = checkoutOficial !== null ||
+      /https:\/\/calculadora\.mindsummit\.company\/?/i.test(answer) ||
+      /https:\/\/pdf\.mindsummit\.company\/?/i.test(answer);
+    if (rotaDeVenda && contatoAusente.length > 0 && tentouAtivoComercial && !needsHumanFinal) {
+      console.info(JSON.stringify({
+        request_id: requestId,
+        event: "ativo_comercial_aguarda_contato",
+        campos_ausentes: contatoAusente,
+      }));
+      checkoutOficial = null;
+      turn.checkout_sent = false;
+      turn.checkout_url = null;
+      answer = `Antes de te enviar esse acesso, preciso completar seu contato. ${perguntaContato(contatoAusente[0])}`;
     }
 
     // O checkout oficial é resolvido ANTES do guardrail porque ele muda a ação segura:
@@ -954,24 +1119,6 @@ Deno.serve(async (req: Request) => {
       respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlRastreada, checkoutCandidato);
     }
     const checkoutSentFinal = checkoutEventoId !== null;
-
-    // O que o lead contou sobre si — o que ele DISSE, não o que pedimos.
-    const nomeDito = (turn.nome_informado ?? "").trim() || null;
-    // O modelo devolve o RÓTULO ([email_2]) do e-mail que o lead disse ser dele.
-    // Aqui o rótulo vira valor de novo — a regex só valida o que já tem a
-    // semântica de "é o meu e-mail" estabelecida pelo modelo.
-    const rotuloEmail = (turn.email_informado ?? "").trim().match(/^\[?email_(\d+)\]?$/i);
-    const emailDito = rotuloEmail &&
-        validacaoIdentificadores[`email_${Number(rotuloEmail[1])}`]?.valido === true
-      ? (mascarado.emails[Number(rotuloEmail[1]) - 1] ?? "").match(EMAIL_RE)?.[0] ?? null
-      : null;
-    const rotuloWhatsapp = (turn.whatsapp_informado ?? "").trim().match(/^\[?whatsapp_(\d+)\]?$/i);
-    const whatsappDito = rotuloWhatsapp &&
-        validacaoIdentificadores[`whatsapp_${Number(rotuloWhatsapp[1])}`]?.valido === true
-      ? mascarado.whatsapps[Number(rotuloWhatsapp[1]) - 1] ?? null
-      : null;
-    const empresaDita = (turn.empresa_informada ?? "").trim() || null;
-    const cargoDito = (turn.cargo_informado ?? "").trim() || null;
 
     // PORTA ÚNICA DE IDENTIDADE. O e-mail que o lead disse ser dele passa pelo
     // resolvedor universal, ancorado na conversa: se for compatível, anexa à
@@ -1073,6 +1220,10 @@ Deno.serve(async (req: Request) => {
         rota: rotaDecidida, rota_aplicada: rotaAplicada,
         precisa_esclarecer: precisaEsclarecer, candidatas,
         gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
+        tools_expostas: toolsParaModelo.length,
+        rodadas_tool: rodadasTool,
+        ferramentas: chamadasFeitas,
+        reasoning_effort: esforcoDeRaciocinio(message, toolsParaModelo.length),
         checkout_event_id: checkoutEventoId,
         checkout_reason: checkoutOficial?.motivo ?? null,
       },
@@ -1105,6 +1256,9 @@ Deno.serve(async (req: Request) => {
       needs_human: needsHumanFinal, gate_reason: gateReason,
       desfecho: turn.desfecho, identificada: idConhecida,
       email_proprio: emailDito != null,
+      tools_expostas: toolsParaModelo.length,
+      rodadas_tool: rodadasTool,
+      chamadas_tool: chamadasFeitas.length,
       checkout_event_id: checkoutEventoId,
       chars_resposta: respostaFinal.length,
       duration_ms: Date.now() - startedAt,

@@ -43,18 +43,16 @@ test('credenciamento person-bound entra no contexto do modelo', () => {
   assert.match(src, /sessionContext\.credenciamento/);
   assert.match(src, /participant_credential/);
   assert.ok(
-    pos('participant_credential: sessionContext.credenciamento') < pos('user_question: redactForAi(message)'),
+    pos('participant_credential: sessionContext.credenciamento') < pos('user_question: maskedContact.text'),
     'credenciamento precisa ser montado junto do contexto, antes da pergunta ao modelo',
   );
 });
 
-test('o Gate é consultado e a rota é fixa, sem Router', () => {
-  assert.match(src, /p_rota: "concierge_summit"/);
-  assert.match(src, /p_canal: "mindagent-web"/);
-  // A aplicação já sabe a rota: chamar o Router aqui seria decidir de novo o
-  // que já está decidido.
-  assert.doesNotMatch(src, /rpc\(\s*["']router["']/);
-  assert.doesNotMatch(src, /functions\/v1\/router/);
+test('Router escolhe dentro do canal e o Gate valida a rota escolhida', () => {
+  assert.match(src, /mind_canal_rotas/);
+  assert.match(src, /decidirRota/);
+  assert.match(src, /p_rota: rotaDecidida/);
+  assert.match(src, /p_canal: CANAL/);
 });
 
 test('o Kit falha fechado antes de chamar o modelo', () => {
@@ -66,16 +64,17 @@ test('o Kit falha fechado antes de chamar o modelo', () => {
     'kit.ok !== false',
     'kit.meta?.kit_disponivel === true',
     'typeof kit.playbook === "string"',
-    'kit.structured?.evento',
-    'kit.structured?.programacao',
+    'Object.keys(structuredDoKit).length > 0',
   ]) {
     assert.ok(src.includes(exigencia), `fail-closed precisa exigir: ${exigencia}`);
   }
 });
 
-test('o executor não faz retrieval direto — quem busca é o Kit', () => {
+test('o executor não pré-carrega retrieval — a lupa só abre por tool call', () => {
   assert.doesNotMatch(src, /mindagent_chat_search/);
   assert.doesNotMatch(src, /personalizedSearchQuery/);
+  assert.match(src, /extrairChamadas\(openAiPayload\)/);
+  assert.match(src, /executarChamadas\(admin, chamadas/);
 });
 
 test('necessidade atual e memória viajam em campos separados', () => {
@@ -89,28 +88,21 @@ test('necessidade atual e memória viajam em campos separados', () => {
 
 test('a competência vem do playbook do Kit, não de texto no código', () => {
   assert.doesNotMatch(src, /SYSTEM_INSTRUCTIONS/);
-  assert.match(src, /instructions: `\$\{kit\.playbook\}/);
-  assert.match(src, /CONTRATO_DO_EXECUTOR/);
+  assert.match(src, /const instrucoes = kit\.playbook as string/);
+  assert.match(src, /instructions: instrucoes/);
 });
 
-test('o contrato do executor declara o limite de capacidade deste runtime', () => {
-  // O playbook v7 fala de propor_memoria, jornada, check-in por QR, prints e
-  // continuidade entre dias. Nada disso existe aqui, e o executor tem de dizer
-  // isso em vez de deixar o modelo prometer.
-  for (const limite of ['reservar', 'check-in', 'QR Code', 'print de tela', 'ferramenta']) {
-    assert.ok(
-      src.includes(limite),
-      `o contrato do executor precisa nomear o que não consegue fazer: ${limite}`,
-    );
-  }
-  assert.match(src, /starts_at_local\/ends_at_local/);
+test('o runtime limita a lupa por orçamento e número de rodadas', () => {
+  assert.match(src, /MAX_RODADAS_TOOL/);
+  assert.match(src, /ORCAMENTO_TURNO_MS/);
+  assert.match(src, /tool_choice: volta >= MAX_RODADAS_TOOL \? "none" : "auto"/);
 });
 
 /* -------------------------------------------------------- SENSITIVITY */
 
 test('sensitivity é obrigatório no schema de cada interesse', () => {
-  assert.match(src, /sensitivity: \{ type: "string", enum: \[\.\.\.SENSIBILIDADES\] \}/);
-  assert.match(src, /required: \["key", "label", "confidence", "confirmed", "sensitivity"\]/);
+  assert.match(src, /sensitivity:\s*\{\s*type: "string", enum: \[\.\.\.SENSIBILIDADES\]/);
+  assert.match(src, /required: \["key", "label", "confidence", "sensitivity"\]/);
 });
 
 test('o enum de sensibilidade é `none` mais as chaves ativas de memoria_bloqueios', () => {

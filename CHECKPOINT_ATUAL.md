@@ -2,10 +2,28 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **03/09/2026** (checkout atribuído; falso handoff de compra corrigido no WhatsApp; write-back HubSpot publicado em preview).
+> Atualizado em **03/09/2026** (Core unificado em preparação; captura inicial de contato B2B/B2C e create/enrich de Contact HubSpot adicionados à branch, ainda sem deploy).
+
+### Captura comercial e Contact HubSpot — decisão mais recente
+
+- nas rotas de venda B2B e B2C, coletar no início nome completo, e-mail, WhatsApp, empresa e cargo;
+- consultar primeiro `pessoas.pessoas`, CRM e credenciamento e nunca reperguntar dado conhecido;
+- persistir cada resposta imediatamente na pessoa canônica;
+- não liberar calculadora, proposta ou checkout enquanto o conjunto mínimo estiver incompleto;
+- o `hubspot-commercial-writeback` passa a localizar o Contact por vínculo/e-mail/telefone, criar quando não existir ou enriquecer apenas campos vazios;
+- divergência de identidade ou perfil bloqueia o write-back, sem merge ou sobrescrita automática;
+- depois do Contact, vincular o `hubspot_id` por `engagement.identidades` e só então criar/atualizar o Lead;
+- `apply` e qualquer cron/outbound continuam desligados até publicação e teste controlado.
 > Commit de produto verificado nesta entrega: **`6f9c899bc994e7f8a9d8f2fe312f8368c636943f`** (merge da #70; atualizações documentais posteriores).
 >
 > Este é o ponto de retomada operacional. `PROJECT_STATE.md` preserva arquitetura/decisões congeladas; `GO_LIVE_PARALLEL_20260830.md` preserva ownership; `BACKLOG.md` preserva investigações deferidas; `docs/CORE_UNIVERSAL.md` descreve o sistema vivo, mas ainda contém snapshot de 29/08 em alguns trechos. **PRs e issues são mais frescos que este arquivo para trabalho ainda não integrado.**
+
+> **Mudança pendente em 03/09/2026:** a branch `codex/unify-agent-runtime` unifica
+> App/WhatsApp e B2B/B2C sobre o mesmo `kit.playbook`, decisioning comercial e runtime
+> de Intelligence. Acrescenta contexto compacto, busca híbrida sob demanda, indexador de
+> embeddings, `gpt-5.4` e RLS defensivo. A migração passou completa em produção dentro de
+> `BEGIN/ROLLBACK`, sem alteração persistida; instruções medidas: B2B 19.122 caracteres e
+> B2C 22.606. Ver `CORE_AGENTICO_UNIFICADO.md`, na raiz. **Não está em produção.**
 
 ---
 
