@@ -16,6 +16,7 @@ import {
   respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
+import { modeloInicialDoTurno, saidaEstruturadaMinimaValida } from "../_shared/agent-model-routing.ts";
 import { contactFromPersonFacts } from "../_shared/contact-profile.ts";
 
 type ChatRequest = {
@@ -525,39 +526,6 @@ function montarResponseSchema(rotasDoCanal: string[]) {
   };
 }
 
-
-type ModelDecision = { model: string; reason: string };
-
-function modeloInicialDoTurno(
-  mensagem: string,
-  rota: string | null,
-  historico: number,
-  modeloRapido: string,
-  modeloCompleto: string,
-): ModelDecision {
-  if (modeloRapido === modeloCompleto) return { model: modeloCompleto, reason: "config_unica" };
-  if (rota !== "concierge_summit") return { model: modeloCompleto, reason: "rota_complexa" };
-
-  const texto = mensagem.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const exigeCompleto = mensagem.length > 180 || historico > 8 ||
-    /\b(compar\w*|recomend\w*|melhor|vale a pena|por que|porque|explic\w*|estrateg\w*|empresa\w*|equipe\w*|lideran\w*|desafio\w*|objetiv\w*|vender|comprar|upgrade|preco|valor|desconto|ingresso)\b/.test(texto);
-  const factualSimples =
-    /\b(onde fica|qual (?:e |a )?sala|que horas|qual (?:e |o )?horario|quando (?:comeca|termina)|endereco|mapa|wifi|wi-fi|banheiro|estacionamento|credenciamento|guarda.?volumes|almoco)\b/.test(texto);
-
-  return factualSimples && !exigeCompleto
-    ? { model: modeloRapido, reason: "factual_simples" }
-    : { model: modeloCompleto, reason: exigeCompleto ? "complexidade_detectada" : "ambiguidade_conservadora" };
-}
-
-function saidaEstruturadaMinimaValida(outputText: string) {
-  try {
-    const value = JSON.parse(outputText) as Record<string, unknown>;
-    return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
-      typeof value.answer === "string" && value.answer.trim().length > 0;
-  } catch {
-    return false;
-  }
-}
 
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
