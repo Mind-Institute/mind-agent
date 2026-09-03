@@ -54,12 +54,17 @@ export function mapCommercialAnalysis(
   const handoffStatus = text(ownership.handoff_status).toLowerCase();
   const humanRequired = analysis.human_required === true || ownership.human_required === true;
 
-  const wonSignal = purchaseStatus === "purchased" ||
-    dealStatus === "won" || dealStatus === "closed_won" || buyerState === "CLOSED_WON";
-  const lostSignal = dealStatus === "lost" ||
-    dealStatus === "closed_lost" || buyerState === "CLOSED_LOST";
+  const transactionWon = purchaseStatus === "purchased" ||
+    dealStatus === "won" || dealStatus === "closed_won";
+  const transactionLost = dealStatus === "lost" || dealStatus === "closed_lost";
+  const buyerWon = buyerState === "CLOSED_WON";
+  const buyerLost = buyerState === "CLOSED_LOST";
 
-  if (wonSignal && lostSignal) {
+  if (
+    (transactionWon && transactionLost) ||
+    (buyerWon && transactionLost) ||
+    (buyerLost && transactionWon)
+  ) {
     return {
       stage: null,
       label: mapLabel(analysis.purchase_intent),
@@ -67,7 +72,15 @@ export function mapCommercialAnalysis(
     };
   }
 
-  const explicitTerminal = wonSignal ? STAGES.WON : lostSignal ? STAGES.LOST : null;
+  if ((buyerWon && !transactionWon) || (buyerLost && !transactionLost)) {
+    return {
+      stage: null,
+      label: mapLabel(analysis.purchase_intent),
+      blockedReason: "estado_terminal_sem_confirmacao_transacional",
+    };
+  }
+
+  const explicitTerminal = transactionWon ? STAGES.WON : transactionLost ? STAGES.LOST : null;
   if (currentStage && TERMINAL.has(currentStage) && explicitTerminal !== currentStage) {
     return {
       stage: null,
@@ -135,3 +148,4 @@ export function stablePayload(input: {
     properties,
   };
 }
+
