@@ -2,7 +2,7 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **03/09/2026** (checkout atribuído; venda contextual no App; write-back HubSpot publicado em preview).
+> Atualizado em **03/09/2026** (checkout atribuído; falso handoff de compra corrigido no WhatsApp; write-back HubSpot publicado em preview).
 > Commit de produto verificado nesta entrega: **`6f9c899bc994e7f8a9d8f2fe312f8368c636943f`** (merge da #70; atualizações documentais posteriores).
 >
 > Este é o ponto de retomada operacional. `PROJECT_STATE.md` preserva arquitetura/decisões congeladas; `GO_LIVE_PARALLEL_20260830.md` preserva ownership; `BACKLOG.md` preserva investigações deferidas; `docs/CORE_UNIVERSAL.md` descreve o sistema vivo, mas ainda contém snapshot de 29/08 em alguns trechos. **PRs e issues são mais frescos que este arquivo para trabalho ainda não integrado.**
@@ -640,6 +640,16 @@ Evidência: 10/10 testes novos, 16/16 contrato de resposta longa, 71/71 guardrai
 contrato SQL real em `BEGIN/ROLLBACK`. O teste SQL provou retry sem duplicação e venda espelhada
 voltando para evento + conversa. Não houve compra real: `envios_reais=0` e `conversoes_reais=0`
 logo após o deploy.
+
+Correção de conversão publicada depois na PR **#76** (`c2f62103e4145b904f517136275308069019b6c6`):
+`treble-inbound-agent` **version 35 / v1.6.2**. O checkout oficial agora é resolvido antes da
+decisão do guardrail. Se a copy livre do modelo contiver um preço rejeitado, o runtime descarta
+toda a copy, mantém somente uma frase neutra sem preço e envia o checkout oficial rastreado. Sem
+checkout oficial, o bloqueio e o handoff continuam fail-closed. E2E direto na Edge com
+“Quero comprar um ingresso Prime agora. Pode me enviar o checkout?” retornou HTTP 200,
+`checkout_sent=true`, `needs_human=false`, rota `summit_b2c` e gravou
+`checkout_link_enviado` (`7d09e03f-85ef-50a0-bde3-160516ed00b8`). Contratos locais: 76/76 do
+guardrail e 10/10 de atribuição/runtime.
 
 Institute e pré-venda do Summit seguinte ficaram deliberadamente sem oferta/URL nesta entrega.
 O runtime já suporta ambos; falta cadastrar a verdade comercial e o `checkout_url` oficial nos
