@@ -523,7 +523,8 @@ com a pessoa A e a conversa B.
 
 ```
 conversa_id → conversas.participante_id → pessoa_id
-            → mind_pessoa_fatos · mind_crm_fatos · mind_crm_comercial · mind_engagement_fatos
+            → mind_pessoa_fatos · mind_crm_fatos · mind_crm_comercial
+            → mind_credenciamento_fatos · mind_engagement_fatos
 ```
 
 **Compõe, não reimplementa.** Cada coletor é chamado uma vez e entra **integral**, na linguagem
@@ -534,6 +535,7 @@ dele. Esta função não reinterpreta nenhum deles, e nenhum precisou mudar para
 | `person` | `mind_pessoa_fatos` |
 | `crm` | `mind_crm_fatos` |
 | `commercial` | `mind_crm_comercial` |
+| `credenciamento` | `mind_credenciamento_fatos` |
 | `entry` | `engagement.conversas` + `engagement.origens` |
 | `conversation` | a conversa atual, tirada de `mind_engagement_fatos.conversas` |
 | `engagement` | `resumo` + `conversas_anteriores` + `meta` do mesmo coletor |
@@ -541,6 +543,19 @@ dele. Esta função não reinterpreta nenhum deles, e nenhum precisou mudar para
 **`conversation` é a conversa atual; `engagement` é a pessoa inteira.** As duas coexistem porque
 o histórico é pessoa-wide (§8): as conversas anteriores vêm **completas, com suas mensagens** —
 não reduzidas a contadores. Engagement factual não é Memory.
+
+**`credenciamento` é Intelligence da pessoa, não Kit de produto.** O coletor recebe somente o
+`pessoa_id` já resolvido. Para o participante, devolve os dados presentes no credenciamento
+oficial — nome, e-mail e WhatsApp quando inequívocos — mais categoria(s) ativa(s) e quantidade.
+Dados do comprador permanecem armazenados no espelho, mas nunca entram no contexto do modelo,
+não são tratados como dados do participante e não ganharam endpoint de consulta. Se houver
+categorias diferentes, `categoria_unica` fica nula e todas são preservadas. O mesmo bloco chega
+ao WhatsApp por `mind_conversa_estado` e ao App por `mindagent_chat_get_context`.
+
+E-mail e WhatsApp declarados na conversa são validados pelo formato canônico antes de qualquer
+gravação. Validação de formato não significa propriedade ou entregabilidade. O WhatsApp
+declarado é salvo como evidência não verificada, com confiança média; o número do próprio canal
+continua sendo a evidência forte. Conflito nunca troca a pessoa ancorada na conversa.
 
 ### `entry` — só o fato da entrada atual
 
@@ -1075,9 +1090,11 @@ aqui **não abre nada** — não existe app OAuth para a conta 14449348.
 
 ### `credenciamento_summit_2026`
 
-**Existe e está carregado:** 1.035 participantes + a fila e o espelho da Yazo. Fonte futura para
-suporte, acesso e credenciamento. A coluna `password` da origem **não** é espelhada — o corte é
-feito na porta do projeto de origem.
+**Existe e está carregado:** 1.272 registros no espelho em 03/09/2026 + a fila e o espelho da
+Yazo. `credenciamento_summit_2026.v_participantes` liga o registro ao `pessoa_id` canônico por
+e-mail e, quando inequívoco, WhatsApp. `mind_credenciamento_fatos` é a porta interna mínima de
+leitura para agentes; nunca usa nome como identidade e nunca expõe dados do comprador. A coluna
+`password` da origem **não** é espelhada — o corte é feito na porta do projeto de origem.
 
 > Não existe ainda uma source-of-truth definitiva entre Eduzz, credenciamento e HubSpot além
 > das decisões já tomadas acima. Não inventar uma.

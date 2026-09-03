@@ -8,7 +8,7 @@
 --
 -- Testa o CONTRATO OBSERVAVEL. Nao reimplementa mind_agent_context para
 -- comparar duas copias da mesma logica: quando precisa de referencia, compara
--- com as fontes canonicas ja fechadas (engagement.conversas e os quatro
+-- com as fontes canonicas ja fechadas (engagement.conversas e os cinco
 -- coletores factuais).
 --
 -- Qualquer contrato quebrado aborta com uma exception que diz qual.
@@ -32,6 +32,31 @@ values ('p9-origem-teste', 'outro', 'Botao de teste do Passo 9',
 insert into pessoas.pessoas (id, primeiro_nome, sobrenome, empresa, cargo, origem)
 values ('09000000-0000-4000-8000-000000000001',
         'Pessoa', 'Contrato', 'Empresa Teste', 'Cargo Teste', 'manual');
+
+-- O espelho resolve o credenciamento pela identidade canônica antes de o coletor
+-- ser chamado. Nome nunca é usado como identidade.
+insert into engagement.identidades
+  (pessoa_id, canal, identificador, verificado, confianca)
+values
+  ('09000000-0000-4000-8000-000000000001',
+   'email', 'p9-credenciamento@example.test', true, 'alta');
+
+insert into credenciamento_summit_2026.participantes
+  (id, name, email, cellphone, telefone_norm, ticket_type, ticket_name,
+   status, revogado_em, sincronizado_em)
+values
+  ('09000000-0000-4000-8000-0000000000e1', 'Pessoa Credenciada',
+   'p9-credenciamento@example.test', '+55 11 98888-7777', '5511988887777',
+   'VIP', 'VIP', 'ativo', null, now() - interval '2 minutes'),
+  ('09000000-0000-4000-8000-0000000000e2', 'Pessoa Credenciada',
+   'p9-credenciamento@example.test', '+55 11 98888-7777', '5511988887777',
+   'VIP', 'VIP', 'ativo', null, now() - interval '1 minute'),
+  ('09000000-0000-4000-8000-0000000000e3', 'Pessoa Credenciada',
+   'p9-credenciamento@example.test', '+55 11 98888-7777', '5511988887777',
+   'SEM MAPA', 'SEM MAPA', 'ativo', null, now()),
+  ('09000000-0000-4000-8000-0000000000e4', 'Pessoa Credenciada',
+   'p9-credenciamento@example.test', '+55 11 98888-7777', '5511988887777',
+   'Mind', 'Mind', 'revogado', now(), now());
 
 -- CONVERSA A -- a mais recente. variables em ARRAY. Carrega estado do agente
 -- (audience, stage e as chaves de resultado) para provar que ele nao vaza.
@@ -157,7 +182,8 @@ declare
   v         jsonb := public.mind_agent_context('09000000-0000-4000-8000-0000000000a1');
   v_chaves  text[];
   v_esperado constant text[] := array[
-    'commercial','conversa_id','conversation','crm','engagement','entry','ok','person','pessoa_id'];
+    'commercial','conversa_id','conversation','credenciamento','crm',
+    'engagement','entry','ok','person','pessoa_id'];
 begin
   select array_agg(k order by k) into v_chaves from jsonb_object_keys(v) k;
   if v_chaves <> v_esperado then
@@ -182,6 +208,9 @@ begin
   end if;
   if v->'commercial' <> public.mind_crm_comercial(v_pid) then
     raise exception 'CONTRATO 4: context.commercial difere de mind_crm_comercial(%)', v_pid;
+  end if;
+  if v->'credenciamento' <> public.mind_credenciamento_fatos(v_pid) then
+    raise exception 'CONTRATO 4: context.credenciamento difere de mind_credenciamento_fatos(%)', v_pid;
   end if;
 end
 $c4$;
@@ -480,8 +509,171 @@ end
 $c12$;
 
 
-select 'todos os 12 contratos passaram' as resultado,
-       12 as contratos_verificados,
+-- ------------------ CONTRATO 13 - PARTICIPANTE SIM, COMPRADOR NUNCA
+do $c13$
+declare
+  v_pid constant uuid := '09000000-0000-4000-8000-000000000001';
+  v jsonb := public.mind_credenciamento_fatos(v_pid);
+  v_chaves text[];
+  r record;
+  v_exec text[];
+begin
+  select array_agg(k order by k) into v_chaves from jsonb_object_keys(v) k;
+  if v_chaves <> array[
+    'categoria_unica','categorias','evento_codigo','ingressos','meta','ok',
+    'participante','pessoa_id','tem_ingresso_ativo'] then
+    raise exception 'CONTRATO 13.1: chaves do credenciamento são %', v_chaves;
+  end if;
+
+  if v->>'pessoa_id' <> v_pid::text
+     or v->>'evento_codigo' <> 'mind-summit-2026'
+     or (v->>'tem_ingresso_ativo')::boolean is not true
+     or v->'participante' <> jsonb_build_object(
+       'nome','Pessoa Credenciada',
+       'email','p9-credenciamento@example.test',
+       'whatsapp','5511988887777')
+     or v->>'categoria_unica' <> 'VIP'
+     or v->'categorias' <> '["VIP"]'::jsonb
+     or v->'ingressos' <> '[{"categoria":"VIP","quantidade":2}]'::jsonb then
+    raise exception 'CONTRATO 13.2: ativo/revogado/SEM MAPA ou agregação divergiram: %', v;
+  end if;
+
+  select array_agg(k order by k) into v_chaves from jsonb_object_keys(v->'meta') k;
+  if v_chaves <> array['dados_comprador_omitidos','fonte','sincronizado_em']
+     or (v->'meta'->>'dados_comprador_omitidos')::boolean is not true
+     or v->'meta'->>'fonte' <> 'credenciamento_oficial' then
+    raise exception 'CONTRATO 13.3: meta do credenciamento divergiu: %', v->'meta';
+  end if;
+
+  select array_agg(k order by k) into v_chaves
+    from jsonb_object_keys(v->'ingressos'->0) k;
+  if v_chaves <> array['categoria','quantidade'] then
+    raise exception 'CONTRATO 13.4: ingresso expôs campo além de categoria/quantidade: %',
+      v->'ingressos'->0;
+  end if;
+
+  if v::text ~ 'buyer_(name|email|company|cpf|cnpj)|"comprador"'
+     or v ? 'comprador'
+     or v->'participante' ? 'buyer_name'
+     or v->'participante' ? 'buyer_email' then
+    raise exception 'CONTRATO 13.5: dado do comprador vazou no contexto: %', v;
+  end if;
+
+  if public.mind_credenciamento_fatos(null)
+     <> jsonb_build_object('ok', false, 'motivo', 'sem_pessoa') then
+    raise exception 'CONTRATO 13.6: pessoa nula não falhou de forma controlada';
+  end if;
+
+  select p.provolatile, p.prosecdef, p.proconfig, p.proacl
+    into r
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'mind_credenciamento_fatos';
+
+  if r is null or r.provolatile <> 's' or not r.prosecdef
+     or r.proconfig is null
+     or not exists (select 1 from unnest(r.proconfig) c where c like 'search_path=%') then
+    raise exception 'CONTRATO 13.7: propriedades de segurança/estabilidade inválidas: %', row_to_json(r);
+  end if;
+
+  select array_agg(distinct a.grantee::regrole::text order by a.grantee::regrole::text)
+    into v_exec
+    from aclexplode(r.proacl) a
+   where a.privilege_type = 'EXECUTE';
+
+  if v_exec is null
+     or not ('postgres' = any(v_exec))
+     or not ('service_role' = any(v_exec))
+     or 'public' = any(v_exec)
+     or 'anon' = any(v_exec)
+     or 'authenticated' = any(v_exec) then
+    raise exception 'CONTRATO 13.8: ACL do coletor inválida: %', v_exec;
+  end if;
+end
+$c13$;
+
+
+-- ----------------------- CONTRATO 14 - VALIDAÇÃO E WHATSAPP DECLARADO
+do $c14$
+declare
+  v_pid constant uuid := '09000000-0000-4000-8000-000000000001';
+  v jsonb;
+  v_exec text[];
+  r record;
+  v_nome text;
+begin
+  if (public.mind_identificador_validar('email','Pessoa@Example.COM')->>'valido')::boolean is not true
+     or (public.mind_identificador_validar('email','pessoa@example')->>'valido')::boolean is not false
+     or (public.mind_identificador_validar('whatsapp','(11) 97777-6666')->>'valido')::boolean is not true
+     or (public.mind_identificador_validar('whatsapp','123')->>'valido')::boolean is not false then
+    raise exception 'CONTRATO 14.1: validação de e-mail/WhatsApp divergiu';
+  end if;
+
+  v := public.mind_identificador_declarado_registrar(
+    v_pid, 'whatsapp', '(11) 97777-6666'
+  );
+  if v->>'ok' <> 'true' or v->>'status' <> 'registrado'
+     or v->>'verificado' <> 'false' or v->>'confianca' <> 'media' then
+    raise exception 'CONTRATO 14.2: writer não registrou declaração corretamente: %', v;
+  end if;
+
+  if not exists (
+    select 1 from engagement.identidades i
+    where i.pessoa_id = v_pid
+      and i.canal = 'whatsapp'
+      and i.identificador = '5511977776666'
+      and i.verificado is false
+      and i.confianca = 'media'
+  ) then
+    raise exception 'CONTRATO 14.3: WhatsApp não foi normalizado/gravado na identidade canônica';
+  end if;
+
+  if (select p.whatsapp from pessoas.pessoas p where p.id=v_pid)
+     is distinct from '5511977776666' then
+    raise exception 'CONTRATO 14.4: projeção vazia de pessoas.pessoas.whatsapp não foi preenchida';
+  end if;
+
+  perform public.mind_identificador_declarado_registrar(
+    v_pid, 'whatsapp', '+55 11 97777-6666'
+  );
+  if (select count(*) from engagement.identidades i
+      where i.canal='whatsapp' and i.identificador='5511977776666') <> 1 then
+    raise exception 'CONTRATO 14.5: retry duplicou a identidade';
+  end if;
+
+  if (public.mind_identificador_declarado_registrar(v_pid,'whatsapp','123')->>'ok')::boolean
+     is not false then
+    raise exception 'CONTRATO 14.6: WhatsApp inválido foi aceito';
+  end if;
+
+  foreach v_nome in array array[
+    'mind_identificador_validar',
+    'mind_identificador_declarado_registrar'
+  ] loop
+    select p.prosecdef, p.proconfig, p.proacl into r
+    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname=v_nome;
+
+    select array_agg(distinct a.grantee::regrole::text order by a.grantee::regrole::text)
+      into v_exec
+      from aclexplode(r.proacl) a
+     where a.privilege_type='EXECUTE';
+
+    if r is null or not r.prosecdef or r.proconfig is null
+       or v_exec is null
+       or not ('postgres'=any(v_exec))
+       or not ('service_role'=any(v_exec))
+       or 'public'=any(v_exec)
+       or 'anon'=any(v_exec)
+       or 'authenticated'=any(v_exec) then
+      raise exception 'CONTRATO 14.7: segurança inválida em %, ACL %', v_nome, v_exec;
+    end if;
+  end loop;
+end
+$c14$;
+
+
+select 'todos os 14 contratos passaram' as resultado,
+       14 as contratos_verificados,
        (select count(*) from engagement.conversas
          where id::text like '09000000-0000-4000-8000-%') as fixtures_na_transacao;
 

@@ -39,6 +39,15 @@ test('a fala do usuário é persistida ANTES do Gate e do Kit', () => {
   assert.ok(save < kit, 'save_message(user) precisa vir antes do Kit');
 });
 
+test('credenciamento person-bound entra no contexto do modelo', () => {
+  assert.match(src, /sessionContext\.credenciamento/);
+  assert.match(src, /participant_credential/);
+  assert.ok(
+    pos('participant_credential: sessionContext.credenciamento') < pos('user_question: redactForAi(message)'),
+    'credenciamento precisa ser montado junto do contexto, antes da pergunta ao modelo',
+  );
+});
+
 test('o Gate é consultado e a rota é fixa, sem Router', () => {
   assert.match(src, /p_rota: "concierge_summit"/);
   assert.match(src, /p_canal: "mindagent-web"/);

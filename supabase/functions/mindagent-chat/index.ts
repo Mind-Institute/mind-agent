@@ -32,7 +32,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.10.0";
+const VERSION = "1.11.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
@@ -1108,6 +1108,9 @@ Deno.serve(async (req: Request) => {
     const aiContext = {
       official_context: officialContext,
       ...(personalizationProfile ? { personalization_profile: personalizationProfile } : {}),
+      ...(sessionContext.credenciamento
+        ? { participant_credential: sessionContext.credenciamento }
+        : {}),
       user_question: redactForAi(message),
     };
     // ------------------------------------------------------- TOOL LOOP

@@ -677,6 +677,34 @@ Kits antes de permitir qualquer envio.
 
 ---
 
+## 5D. 03/09 — credenciamento person-bound + cadastro B2B obrigatório
+
+Gate explícito dado pela Adriana nesta conversa. Implementação registrada para publicação:
+
+- `public.mind_credenciamento_fatos(pessoa_id)` lê o espelho existente pelo `pessoa_id`
+  canônico e devolve cadastro do participante, categoria(s) ativa(s) e quantidade;
+- nome, e-mail e WhatsApp do participante entram somente quando são inequívocos; dados do
+  comprador permanecem armazenados no espelho, mas não entram no contexto do modelo, não são
+  tratados como dados do participante e não ganharam endpoint de consulta;
+- `mind_agent_context`, `mind_conversa_estado` e `mindagent_chat_get_context` recebem o mesmo
+  bloco factual; WhatsApp e App deixam de ter leituras diferentes do ingresso;
+- `SEM MAPA` e registros revogados não viram ingresso ativo; múltiplas categorias são
+  preservadas sem inventar hierarquia;
+- no B2B, se faltar primeiro nome, sobrenome, e-mail, WhatsApp, empresa ou cargo em perfil ou
+  credenciamento, o agente sempre coleta o próximo campo, uma pergunta por mensagem;
+- resposta, preço, calculadora, checkout e handoff vêm antes da pergunta cadastral no turno, mas
+  não encerram a coleta enquanto faltarem campos e houver conversa;
+- e-mail e WhatsApp informados chegam mascarados ao modelo e têm o formato validado pelo Core;
+  WhatsApp declarado é gravado como evidência não verificada, sem substituir o número do canal;
+- nome coletado também hidrata a identidade sem usar nome como chave;
+- o ingresso é Intelligence da pessoa, não bloco do Product Kit. O Kit continua responsável por
+  produto, disponibilidade, oferta e restrições.
+
+Dry-run em produção dentro de `BEGIN/ROLLBACK`: 13 contratos SQL passaram, incluindo fixture
+com 2 ingressos VIP ativos, 1 `SEM MAPA` e 1 Mind revogado. Nenhuma fixture sobreviveu.
+
+---
+
 ## 6. Gates vigentes
 
 Exigem decisão/gate explícito antes da execução perigosa:
@@ -743,7 +771,7 @@ Gate explícito dado pela Adriana e publicado em produção:
 - `playbook_summit_b2b` version 8 ligado a `mind-summit-2026` por `produto_codigo`;
 - B2B recebe somente o produto ligado ao próprio playbook, nunca o catálogo inteiro;
 - catálogo confirma `ativo` e `vende`; quando `vendavel_agora=false`, ofertas e preços por volume ficam vazios e nenhum checkout pode ser oferecido;
-- coleta cadastral removida: não pedir e-mail, sobrenome, empresa ou cargo para completar CRM, liberar resposta, calculadora, checkout ou handoff;
+- a proibição de coleta cadastral registrada neste passo foi superada pela decisão explícita da seção 5D;
 - módulos genéricos duplicados deixaram de ser montados no B2B; B2C permaneceu inalterado;
 - avisos operacionais do Concierge e ofertas duplicadas dentro de inclusões deixaram o Kit B2B.
 

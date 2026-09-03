@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Contrato estático: a identidade B2B é progressiva e sensível à rota.
+// Contrato estático: B2B recebe credenciamento e completa os seis campos validados.
 // Não chama modelo, não toca banco e não cria conversa.
 
 import { readFileSync } from "node:fs";
@@ -11,14 +11,20 @@ const fonte = join(aqui, "..", "supabase", "functions", "treble-inbound-agent", 
 const src = readFileSync(fonte, "utf8");
 
 const checks = [
-  ["runtime 1.6.1", src.includes('const VERSION = "1.6.1"')],
-  ["regra sensível à rota B2B", src.includes('rotaAplicada === "summit_b2b"')],
-  ["campos B2B progressivos", src.includes("nome, sobrenome, empresa, cargo e e-mail")],
-  ["WhatsApp reaproveitado do canal", src.includes("O WhatsApp desta conversa já vem do canal")],
-  ["uma informação por mensagem", src.includes("Peça no máximo um dado por mensagem")],
-  ["compra antes do cadastro", src.includes("não atrase preço, proposta, checkout ou solução")],
-  ["bloqueio antigo removido", !src.includes("Não colete cadastro.")],
-  ["proibição antiga removida", !src.includes("Não peça e-mail, sobrenome, empresa ou cargo")],
+  ["runtime 1.7.0", src.includes('const VERSION = "1.7.0"')],
+  ["credenciamento entra no contexto", src.includes("credenciamento: conv.credenciamento ?? null")],
+  ["regra restrita ao B2B", src.includes('rotaAplicada === "summit_b2b"')],
+  ["seis campos mínimos", src.includes("primeiro nome, sobrenome, e-mail, WhatsApp, empresa e cargo")],
+  ["coleta sempre o que falta", src.includes("SEMPRE colete o próximo")],
+  ["uma pergunta por mensagem", src.includes("Faça uma pergunta curta por mensagem")],
+  ["ação antes da coleta", src.includes("Responda e execute primeiro o que a pessoa pediu")],
+  ["WhatsApp ausente é pedido", src.includes("Caso contrário, peça o WhatsApp")],
+  ["e-mail e WhatsApp usam rótulos", src.includes("[email_1]") && src.includes("[whatsapp_1]")],
+  ["formato validado pelo Core", src.includes("mind_identificador_validar") && src.includes("VALIDACAO_IDENTIFICADORES")],
+  ["WhatsApp declarado usa writer próprio", src.includes("mind_identificador_declarado_registrar")],
+  ["nome coletado hidrata identidade ancorada", src.includes("if (emailDito || nomeDito)")],
+  ["proibição invertida não voltou", !src.includes("Não colete cadastro.")],
+  ["dados de comprador não entram no runtime", !/buyer_(name|email|company|cpf|cnpj)/.test(src)],
 ];
 
 const falhas = checks.filter(([, ok]) => !ok).map(([nome]) => nome);

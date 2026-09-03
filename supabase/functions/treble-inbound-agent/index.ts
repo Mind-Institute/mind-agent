@@ -1,5 +1,10 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.7.0 — CREDENCIAMENTO + CADASTRO B2B COMPLETO. O agente recebe dados do
+// participante e categoria(s) de ingresso pelo pessoa_id canônico, sem dados do
+// comprador. Na rota B2B, todo campo mínimo ausente é coletado progressivamente:
+// nome, sobrenome, e-mail, WhatsApp, empresa e cargo.
+//
 // v1.6.2 — CHECKOUT OFICIAL SOBREVIVE AO GUARDRAIL DE PREÇO. Se o modelo
 // selecionou um carrinho que veio do Kit, mas escreveu um preço inconsistente,
 // o runtime remove toda a copy livre, envia apenas uma frase sem preço + o link
@@ -137,7 +142,7 @@ import {
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
 
-const VERSION = "1.6.2";
+const VERSION = "1.7.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -210,6 +215,10 @@ const RESPONSE_SCHEMA = {
       type: ["string", "null"], maxLength: 200,
       description: "Os e-mails da mensagem chegam MASCARADOS como [email_1], [email_2]... Devolva EXATAMENTE o rótulo (ex.: \"[email_2]\") daquele que o lead disse ser O E-MAIL DELE PRÓPRIO. Se ele pedir para enviar para a colega, o chefe, o financeiro ou qualquer terceiro, esse e-mail NÃO é dele: devolva null. null também se não houver e-mail no turno. Nunca escreva um e-mail por extenso aqui.",
     },
+    whatsapp_informado: {
+      type: ["string", "null"], maxLength: 40,
+      description: "Os números de WhatsApp da mensagem chegam MASCARADOS como [whatsapp_1], [whatsapp_2]... Devolva EXATAMENTE o rótulo do WhatsApp que o lead disse ser DELE PRÓPRIO. WhatsApp de colega, chefe ou terceiro retorna null. null também se não houver WhatsApp próprio no turno.",
+    },
     empresa_informada: {
       type: ["string", "null"], maxLength: 160,
       description: "A empresa onde o lead trabalha, se ele disse NESTE turno. Só o nome da empresa dele — não a empresa de um terceiro, nem o nome de um evento ou produto. null se não disse.",
@@ -222,7 +231,8 @@ const RESPONSE_SCHEMA = {
   required: [
     "answer", "audience", "intent", "ticket_interest", "objection",
     "needs_human", "checkout_sent", "checkout_url", "stage", "desfecho",
-    "nome_informado", "email_informado", "empresa_informada", "cargo_informado",
+    "nome_informado", "email_informado", "whatsapp_informado",
+    "empresa_informada", "cargo_informado",
   ],
 };
 
@@ -243,15 +253,19 @@ function json(status: number, body: unknown) {
 // conseguir DIZER QUAL deles é o do próprio lead. Então cada e-mail vira um
 // rótulo estável ([email_1], [email_2]...) e a lista fica só do lado de cá:
 // o modelo estabelece a semântica, e nós resolvemos o valor.
-function mascarar(value: string): { texto: string; emails: string[] } {
+function mascarar(value: string): { texto: string; emails: string[]; whatsapps: string[] } {
   const emails: string[] = [];
+  const whatsapps: string[] = [];
   const texto = value
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, (m) => {
       emails.push(m);
       return `[email_${emails.length}]`;
     })
-    .replace(/(?:\+?\d[\d\s().-]{9,}\d)/g, "[telefone omitido]");
-  return { texto, emails };
+    .replace(/(?:\+?\d[\d\s().-]{9,}\d)/g, (m) => {
+      whatsapps.push(m);
+      return `[whatsapp_${whatsapps.length}]`;
+    });
+  return { texto, emails, whatsapps };
 }
 
 function pick(body: Record<string, unknown>, keys: string[]): string {
@@ -729,9 +743,32 @@ Deno.serve(async (req: Request) => {
 
     const mascarado = mascarar(message);
 
+    // Formato é validado pelo mesmo Core que normaliza a identidade. A IA recebe
+    // apenas o rótulo e o resultado; o valor real continua deste lado do runtime.
+    const candidatosIdentificador = [
+      ...mascarado.emails.map((valor, i) => ({ chave: `email_${i + 1}`, canal: "email", valor })),
+      ...mascarado.whatsapps.map((valor, i) => ({ chave: `whatsapp_${i + 1}`, canal: "whatsapp", valor })),
+    ];
+    const paresValidacao = await Promise.all(candidatosIdentificador.map(async (candidato) => {
+      const { data, error } = await supabase.rpc("mind_identificador_validar", {
+        p_canal: candidato.canal,
+        p_valor: candidato.valor,
+      });
+      if (error || !data) {
+        return [candidato.chave, { valido: false, motivo: "validacao_indisponivel" }] as const;
+      }
+      return [candidato.chave, {
+        valido: data.valido === true,
+        motivo: typeof data.motivo === "string" ? data.motivo : null,
+      }] as const;
+    }));
+    const validacaoIdentificadores: Record<string, { valido: boolean; motivo: string | null }> =
+      Object.fromEntries(paresValidacao);
+
     const aiInput = {
       DADOS_OFICIAIS: dadosOficiais,
       AGENDA_E_PALESTRANTES: agendaSegura,
+      VALIDACAO_IDENTIFICADORES: validacaoIdentificadores,
       // CLARIFY DO ROUTER. Quando ele devolve `rota = null` com candidatas, a resposta
       // dele é "ainda não dá para saber ENTRE ESTAS" — e é isso que o turno faz: uma
       // pergunta que separe as candidatas. O classificador do prompt legado não vira
@@ -761,24 +798,26 @@ Deno.serve(async (req: Request) => {
         utm_de_origem: conv.utm ?? null,
         produto: conv.produto_codigo ?? null,
       },
-      // Identidade é progressiva e sensível à rota: o B2B precisa completar os
-      // campos comerciais ausentes; nas demais rotas, dados só entram quando ajudam.
+      // Identidade e credenciamento chegam resolvidos pelo Core. No B2B, o runtime
+      // garante a coleta progressiva dos seis campos mínimos ainda ausentes.
       quem_esta_falando: {
         ja_identificada: idConhecida,
         perfil: idPerfil,
+        credenciamento: conv.credenciamento ?? null,
         como_agir: [
-          "USE O QUE JÁ SABEMOS ANTES DE PERGUNTAR: nunca peça o que já está em perfil.",
+          "USE O QUE JÁ SABEMOS ANTES DE PERGUNTAR: confira perfil e credenciamento e nunca repita um dado conhecido.",
           ...(rotaAplicada === "summit_b2b"
             ? [
-              "No B2B, complete progressivamente apenas os dados ausentes: nome, sobrenome, empresa, cargo e e-mail. O WhatsApp desta conversa já vem do canal; só confirme se estiver ausente, inconsistente ou se a pessoa pedir retorno em outro número.",
-              "Peça no máximo um dado por mensagem, integrado à conversa e explicando a utilidade quando necessário. Nunca despeje uma ficha cadastral.",
-              "Responder, entregar valor e facilitar a compra vêm antes do cadastro: não atrase preço, proposta, checkout ou solução por causa de campo faltante. Depois, retome o próximo dado ausente com naturalidade.",
+              "No B2B, o cadastro mínimo obrigatório é: primeiro nome, sobrenome, e-mail, WhatsApp, empresa e cargo. Um campo só falta quando não aparece nem no perfil nem no credenciamento.",
+              "Se qualquer campo estiver ausente, SEMPRE colete o próximo. Faça uma pergunta curta por mensagem; nome e sobrenome podem ser pedidos juntos como nome completo. Nunca despeje uma ficha cadastral.",
+              "O campo WhatsApp só conta como conhecido quando perfil.whatsapp ou credenciamento.participante.whatsapp estiver preenchido. Caso contrário, peça o WhatsApp.",
+              "Responda e execute primeiro o que a pessoa pediu. Depois, na mesma mensagem, peça o próximo campo ausente. Preço, calculadora, checkout e handoff não bloqueiam nem encerram a coleta.",
             ]
             : [
               "Só pergunte um dado se ele for necessário para resolver o que a pessoa quer AGORA.",
               "Se a pessoa contar algo sobre si espontaneamente, aproveite — mas não puxe.",
             ]),
-          "Os e-mails aparecem mascarados como [email_1], [email_2]. Nunca repita o rótulo na resposta ao lead: fale do e-mail em linguagem natural ('o e-mail que você passou').",
+          "E-mails e WhatsApps aparecem mascarados como [email_1] e [whatsapp_1]. Consulte VALIDACAO_IDENTIFICADORES: se valido=false, peça confirmação ou correção e não trate o campo como preenchido. valido=true confirma apenas formato, não propriedade ou entregabilidade. Nunca repita o rótulo na resposta.",
         ].join(" "),
       },
       historico,
@@ -823,6 +862,7 @@ Deno.serve(async (req: Request) => {
       checkout_url: string | null;
       stage: string; desfecho: string | null;
       nome_informado: string | null; email_informado: string | null;
+      whatsapp_informado: string | null;
       empresa_informada: string | null; cargo_informado: string | null;
     };
     // NUNCA cortar por caractere. Ate a v1.5.0 esta linha terminava em
@@ -921,8 +961,14 @@ Deno.serve(async (req: Request) => {
     // Aqui o rótulo vira valor de novo — a regex só valida o que já tem a
     // semântica de "é o meu e-mail" estabelecida pelo modelo.
     const rotuloEmail = (turn.email_informado ?? "").trim().match(/^\[?email_(\d+)\]?$/i);
-    const emailDito = rotuloEmail
+    const emailDito = rotuloEmail &&
+        validacaoIdentificadores[`email_${Number(rotuloEmail[1])}`]?.valido === true
       ? (mascarado.emails[Number(rotuloEmail[1]) - 1] ?? "").match(EMAIL_RE)?.[0] ?? null
+      : null;
+    const rotuloWhatsapp = (turn.whatsapp_informado ?? "").trim().match(/^\[?whatsapp_(\d+)\]?$/i);
+    const whatsappDito = rotuloWhatsapp &&
+        validacaoIdentificadores[`whatsapp_${Number(rotuloWhatsapp[1])}`]?.valido === true
+      ? mascarado.whatsapps[Number(rotuloWhatsapp[1]) - 1] ?? null
       : null;
     const empresaDita = (turn.empresa_informada ?? "").trim() || null;
     const cargoDito = (turn.cargo_informado ?? "").trim() || null;
@@ -931,7 +977,7 @@ Deno.serve(async (req: Request) => {
     // resolvedor universal, ancorado na conversa: se for compatível, anexa à
     // mesma pessoa; se apontar para outra, vira conflito pendente. Nenhum
     // identificador é movido, e a conversa nunca troca de pessoa.
-    if (emailDito) {
+    if (emailDito || nomeDito) {
       const { data: ident, error: identError } = await supabase.rpc("treble_agent_identificar", {
         p_session_external_id: sessionId,
         p_email: emailDito,
@@ -947,6 +993,23 @@ Deno.serve(async (req: Request) => {
         idConhecida = true;
         idPessoa = (ident.pessoa_id ?? idPessoa) as string | null;
         idPerfil = (ident.perfil ?? idPerfil) as Record<string, unknown> | null;
+      }
+    }
+
+    // WhatsApp declarado é normalizado e gravado como declaração não verificada.
+    // O número do próprio canal continua sendo a evidência forte; conflito nunca
+    // move identidade nem sobrescreve um WhatsApp já conhecido.
+    if (idPessoa && whatsappDito) {
+      const { data: whatsappIdent, error: whatsappError } = await supabase.rpc(
+        "mind_identificador_declarado_registrar",
+        { p_pessoa_id: idPessoa, p_canal: "whatsapp", p_valor: whatsappDito },
+      );
+      if (whatsappError || whatsappIdent?.ok !== true) {
+        console.warn(JSON.stringify({
+          request_id: requestId,
+          event: "whatsapp_identificar_falhou",
+          motivo: whatsappIdent?.motivo ?? whatsappError?.message ?? "desconhecido",
+        }));
       }
     }
 
