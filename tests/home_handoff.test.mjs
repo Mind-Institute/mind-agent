@@ -103,9 +103,13 @@ test('a escala grande do hero fica presa à tela que foi desenhada', () => {
 });
 
 test('categoria de aviso é dado, com queda para o verde', () => {
-  for (const c of ['antes_de_ir', 'no_evento', 'reservas', 'ingressos']) {
+  for (const c of ['antes_de_ir', 'no_evento', 'reservas']) {
     assert.ok(estado.includes("'" + c + "'"), 'a categoria ' + c + ' sumiu de estado.js');
   }
+  /* `ingressos` deixou de ser toggle em 03/09 (pedido da Adriana: três, e só
+     três). Um aviso gravado assim no painel continua aparecendo — cai no
+     verde pela queda abaixo — mas não ganha chip próprio. */
+  assert.ok(!estado.includes("id: 'ingressos'"), 'a categoria ingressos voltou como toggle');
   assert.match(estado, /categoriaValida\(a\.categoria \|\| a\.cat\)/,
     'a leitura da categoria vinda do banco mudou de forma');
   /* Aviso gravado antes da coluna existir chega sem categoria. Ele tem
@@ -308,12 +312,12 @@ test('a porta do ingresso não vira uma forma de descobrir quem tem ingresso', (
     'a rota passou a registrar o e-mail em log');
 });
 
-test('a home mostra os cinco avisos que a Adriana condensou', () => {
+test('a home mostra os seis avisos na ordem que a Adriana pediu', () => {
   /* Quem escolhe os cards da home é a ORDEM DE DISPARO — os `quantos`
-     mais recentes. Os cinco textos curtos foram escritos para o card, e
-     é por isso que eles são os mais recentes da lista. Mexer no `em` de
+     mais recentes. Os seis da home receberam, no banco, os seis horários
+     mais recentes, um minuto de diferença cada. Mexer no `em` de
      qualquer aviso reordena a home sem tocar em layout nenhum. */
-  assert.match(estado, /\{ tipo: 'avisos', quantos: 5 \}/,
+  assert.match(estado, /\{ tipo: 'avisos', quantos: 6 \}/,
     'a home voltou a mostrar outro número de avisos');
   /* O fim é procurado A PARTIR do início: `\n];` aparece antes, no fim de
      `CATEGORIAS_AVISO`, e o slice saía vazio — com listas vazias os dois
@@ -324,18 +328,25 @@ test('a home mostra os cinco avisos que a Adriana condensou', () => {
   /* O espaço antes de `em:` não é enfeite: sem ele o `mensagem:` de cada
      aviso também casa, e a lista de datas vem cheia de texto. */
   const datas = [...bloco.matchAll(/ em: '([^']+)'/g)].map((m) => m[1]);
-  assert.equal(datas.length, 17, 'a lista embutida deixou de ter 17 avisos');
+  assert.equal(datas.length, 19, 'a lista embutida deixou de ter os 19 avisos em circulação');
   const ordenado = [...datas].sort().reverse();
   assert.deepEqual(datas, ordenado,
-    'a lista embutida saiu da ordem de disparo, e a home passa a mostrar outros cinco');
-  const titulos = [...bloco.matchAll(/titulo: '([^']+)'/g)].map((m) => m[1]).slice(0, 5);
+    'a lista embutida saiu da ordem de disparo, e a home passa a mostrar outros seis');
+  const titulos = [...bloco.matchAll(/titulo: '([^']+)'/g)].map((m) => m[1]).slice(0, 6);
   assert.deepEqual(titulos, [
     'Reserve agora as experiências que você não quer perder',
+    'A Rhino leva você para o Mind Summit',
     'Importante! Trazer um documento físico de identidade: RG ou CNH',
+    'Seu ingresso está no app, no menu Ingresso!',
     'Chegue cedo e siga para o Pavilhão 3',
-    'Venha de Rhino para o Mind Summit',
-    'Veja como o Summit funciona antes de chegar',
-  ], 'os cinco da home mudaram');
+    'Vai aos autógrafos dos Legends? Prefira levar o livro',
+  ], 'os seis da home mudaram');
+  /* Três toggles, e só três: a Adriana pediu (03/09). "Ingressos" saiu e o
+     aviso do ingresso passou a morar em "Antes de ir ao Summit". */
+  const cats = [...estado.matchAll(/rotulo: '([^']+)',\s+ponto: true/g)].map((m) => m[1]);
+  assert.deepEqual(cats, ['Antes de ir ao Summit', 'Reservas e Agenda', 'Durante e Depois'],
+    'a tela de avisos deixou de ter exatamente os três toggles');
+  assert.ok(!/id: 'ingressos'/.test(estado), 'a categoria "ingressos" voltou como toggle');
 });
 
 test('nenhum filtro de categoria fica fora da tela', () => {
