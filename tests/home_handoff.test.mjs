@@ -28,6 +28,9 @@ const homeJs = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8')
 const migracao = readFileSync(new URL('../supabase/migrations/20260902220000_camarote_tambem_e_tipo_de_ingresso.sql', import.meta.url), 'utf8');
 const funcaoHome = readFileSync(new URL('../supabase/functions/mindagent-home/index.ts', import.meta.url), 'utf8');
 const config = readFileSync(new URL('../config.js', import.meta.url), 'utf8');
+const bootstrap = readFileSync(new URL('../supabase/migrations/20260903151000_bootstrap_app_schema_vivo.sql', import.meta.url), 'utf8');
+const temasVivos = readFileSync(new URL('../supabase/migrations/20260903152000_temas_grade_viva.sql', import.meta.url), 'utf8');
+const temasHorariosVivos = readFileSync(new URL('../supabase/migrations/20260903153000_temas_grade_horarios_vivos.sql', import.meta.url), 'utf8');
 
 test('os três atalhos levam a destinos que existem', () => {
   /* Um atalho é uma promessa: "toque e você chega em Meu ingresso". Se o
@@ -268,6 +271,37 @@ test('a tela confere a FORMA do tipo, não uma lista de nomes', () => {
   for (const ruim of ['', 'x', '<b>oi</b>', 'Uma frase inteira que nao cabe no cabecalho']) {
     assert.ok(!re.test(ruim), 'a forma passou a aceitar lixo no cabeçalho: ' + JSON.stringify(ruim));
   }
+});
+
+test('a origem inválida cai no fallback antes de qualquer campo nulo chegar à Home', () => {
+  assert.match(dados, /evento\.dias\.length > 0/,
+    'a camada de dados deixou passar evento sem dia utilizável');
+  assert.match(dados, /typeof dia === 'string' && \/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\//,
+    'a camada de dados deixou passar dia nulo ou fora do contrato ISO');
+  assert.match(dados, /sessão sem id, dia, início ou título/,
+    'a camada de dados deixou passar sessão que derruba o desenho');
+  assert.match(app, /\.filter\(\(data\) => typeof data === 'string'\)/,
+    'a contagem regressiva voltou a chamar split em um valor nulo');
+});
+
+test('o bootstrap vivo usa os schemas atuais e preserva avisos e composição da Home', () => {
+  assert.match(bootstrap, /from summit_2026\.events/);
+  assert.match(bootstrap, /ecossistema\.palestrantes_especialistas/);
+  assert.match(bootstrap, /from concierge\.avisos/);
+  assert.match(bootstrap, /from concierge\.config/);
+  assert.doesNotMatch(bootstrap, /from summit\./,
+    'o bootstrap voltou a consultar o schema removido summit');
+  assert.doesNotMatch(bootstrap, /from comum\./,
+    'o bootstrap voltou a consultar o schema removido comum');
+});
+
+test('a grade viva recebe a curadoria que alimenta afinidade e recomendações', () => {
+  assert.equal((temasVivos.match(/\('2026-09-/g) || []).length, 39,
+    'o mapa curado deixou de cobrir as 39 sessões já classificadas');
+  assert.match(temasVivos, /set topicos_aprendizado=m\.temas/);
+  assert.match(temasVivos, /e\.slug='mind-summit-2026'/);
+  assert.match(temasHorariosVivos, /'2026-09-17'::date[\s\S]*'Bem-estar começa na agenda'/);
+  assert.match(temasHorariosVivos, /'2026-09-16'::date[\s\S]*'Falhar melhor'/);
 });
 
 test('sem tipo de ingresso, o cabeçalho é exatamente o de antes', () => {
