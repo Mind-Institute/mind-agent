@@ -379,13 +379,16 @@ test('o texto do aviso vira parágrafos, e entra escapado', () => {
     'os parágrafos voltaram a ficar colados');
 });
 
-test('o aviso sabe levar ao Concierge, não só à demonstração', () => {
-  /* `verNoApp` só conhecia roteiro da demonstração; "Precisa de ajuda
-     para reservar?" precisa abrir o chat, que é vista do app. */
+test('o aviso sabe levar ao Concierge, à demonstração e ao mapa', () => {
+  /* `verNoApp` só conhecia roteiro da demonstração; o caminho para o chat
+     (vista do app) continua existindo para qualquer aviso que o peça. Em
+     03/09 a Adriana reescreveu "Não sabe como reservar?" com o botão
+     "Veja como funciona a reserva", que abre a demonstração — o texto do
+     card é que manda a pessoa ao Concierge. */
   assert.match(app, /if \(destino === 'chat'\) return irParaConversa\(null\)/,
     'o aviso perdeu o caminho para o Concierge');
-  assert.match(estado, /verNoApp: 'chat', botaoVerNoApp: 'Falar com o Concierge'/,
-    'o aviso de ajuda perdeu o botão do Concierge');
+  assert.match(estado, /verNoApp: 'reserva', botaoVerNoApp: 'Veja como funciona a reserva'/,
+    'o aviso de ajuda perdeu o botão da demonstração');
   assert.match(estado, /verNoApp: 'mapa'/, 'o aviso do mapa perdeu o botão');
 });
 

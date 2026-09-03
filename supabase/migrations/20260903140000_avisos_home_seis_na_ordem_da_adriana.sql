@@ -69,3 +69,13 @@ where chave = 'chegada_expo';
 -- o aviso já está no app. Arquivado, não apagado — como os outros avisos aposentados.
 update concierge.avisos set situacao = 'encerrado', arquivado_em = coalesce(arquivado_em, now()), atualizado_em = now()
 where chave = 'acesso_app' and situacao <> 'encerrado';
+
+-- "Não sabe como reservar?" (texto literal da Adriana, 03/09): título + resumo e o botão que abre a
+-- demonstração de reserva no app. Sem mensagem longa — o aviso é o que está no card.
+update concierge.avisos set
+  titulo = 'Não sabe como reservar?',
+  subtitulo = 'Peça ajuda ao Concierge.',
+  descricao = '',
+  ver_no_app = 'reserva', botao_ver_no_app = 'Veja como funciona a reserva',
+  atualizado_em = now()
+where chave = 'ajuda_reservar';

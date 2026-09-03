@@ -240,10 +240,10 @@ const CRUS = [
     mensagem: 'Se duas experiências acontecerem ao mesmo tempo, você precisará escolher qual delas quer acompanhar. Veja o mapa do evento para entender os deslocamentos necessários e onde acontecerá cada experiência.' },
 
   { id: 'ajuda_reservar', ico: ICO.megafone, cat: 'reservas', em: '2026-09-15T15:00', situacao: 'no-ar',
-    verNoApp: 'chat', botaoVerNoApp: 'Falar com o Concierge',
-    titulo: 'Precisa de ajuda para reservar?',
+    verNoApp: 'reserva', botaoVerNoApp: 'Veja como funciona a reserva',
+    titulo: 'Não sabe como reservar?',
     resumo: 'Peça ajuda ao Concierge.',
-    mensagem: 'Ele pode explicar como funciona a reserva e abrir o tutorial passo a passo para você.' },
+    mensagem: '' },
 
   { id: 'consulte_app', ico: ICO.agenda, cat: 'no_evento', em: '2026-09-15T14:50', situacao: 'no-ar',
     verNoApp: 'reserva', botaoVerNoApp: 'Ver como consultar e reservar',
