@@ -22,11 +22,19 @@ import { INDICE_PAINEL, decidirAntes, decidirApos404 } from './roteamento.js';
 export interface Env {
   /** Binding declarado em `wrangler.jsonc` → `assets.binding`. */
   ASSETS: { fetch(request: Request): Promise<Response> };
+  CHECKOUT_REDIRECT_ORIGIN?: string;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.method === 'GET' && /^\/c\/[0-9a-f-]{36}$/i.test(url.pathname)) {
+      const eventId = url.pathname.slice(3);
+      const origin = (env.CHECKOUT_REDIRECT_ORIGIN ||
+        'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-checkout').replace(/\/+$/, '');
+      return Response.redirect(origin + '/' + eventId, 307);
+    }
 
     const antes = decidirAntes(request.method, url.pathname);
     if (antes.tipo === 'redirecionar') {

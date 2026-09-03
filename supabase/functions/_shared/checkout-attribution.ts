@@ -171,6 +171,22 @@ export function checkoutRastreado(
   return url.toString();
 }
 
+export function checkoutCurto(eventoId: string, redirectBase: string): string | null {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventoId)) {
+    return null;
+  }
+  try {
+    const base = new URL(redirectBase);
+    if (base.protocol !== "https:") return null;
+    base.search = "";
+    base.hash = "";
+    base.pathname = `${base.pathname.replace(/\/+$/, "")}/${eventoId}`;
+    return base.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function inserirCheckoutNaResposta(
   resposta: string,
   checkout: CheckoutOficial,
