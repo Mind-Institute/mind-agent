@@ -1603,7 +1603,11 @@ function saudacao() {
 function iniciarChat() {
   if (chatIniciado) return;
   chatIniciado = true;
-  bolha(saudacao() + 'Sou o Mind Agent. Não estou aqui só para responder pergunta: estou para você sair daqui com algo mais concreto do que boas ideias — agenda montada, gente certa, e o que fazer na segunda-feira.', 'mind');
+  /* A ABERTURA É DA ADRIANA, palavra por palavra. O segundo parágrafo do
+     que ela mandou já existe, em `FLUXOS.jornada` — é ele que anuncia as
+     perguntas, logo antes do "Começar →". Repetido aqui, viraria promessa
+     de perguntas para quem só abriu o chat para perguntar uma coisa. */
+  bolha(saudacao() + 'Sou o agente do Mind e serei seu concierge no Mind Summit. Estou aqui para responder perguntas e para contribuir para que você saia do Mind Summit com algo mais concreto do que boas ideias — agenda montada, gente certa, e o que fazer na segunda-feira.', 'mind');
   /* O convite proativo mora em `oferecerPalestrantes`: ele só aparece
      depois que alguém da grade foi realmente citado na conversa. */
 }
