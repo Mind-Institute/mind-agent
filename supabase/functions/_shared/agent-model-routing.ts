@@ -27,8 +27,10 @@ export function modeloInicialDoTurno(
   if (rota !== "concierge_summit") return { model: modeloCompleto, reason: "rota_complexa" };
 
   const texto = mensagem.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const seguimentoAnaforico = historico > 0 &&
-    /^(e|mas|isso|essa|esse|esta|este|ela|ele|aquela|aquele|tambem|nesse caso)\b/.test(texto);
+  const seguimentoAnaforico = historico > 0 && (
+    /^(?:e|mas|tambem|nesse caso)\b/.test(texto) ||
+    /\b(?:isso|essa|esse|esta|este|ela|ele|aquela|aquele|dessa|desse|dela|dele)\b/.test(texto)
+  );
   const exigeCompleto = mensagem.length > 180 || historico >= 4 || seguimentoAnaforico ||
     /\b(compar\w*|recomend\w*|melhor|vale a pena|por que|porque|explic\w*|estrateg\w*|empresa\w*|equipe\w*|lideran\w*|desafio\w*|objetiv\w*|vender|comprar|upgrade|preco|valor|desconto|ingresso|palestra\w*|sessao|sessoes|palestrante\w*|programacao)\b/.test(texto);
   const factualSimples =
