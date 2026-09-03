@@ -8,18 +8,18 @@
    Quando o backend chegar, é aqui que `CONTEUDO[momento]` vira uma
    resposta de API. Nada mais precisa mudar. */
 
-import { PARTICIPANTE } from '../config.js';
+import { primeiroNome } from '../config.js';
 import { CONTEUDO, MOMENTOS, AVISOS, PLACEHOLDER_CONCIERGE, momentoAtual, definirMomento } from './estado.js';
 import { heroSaudacao, montarBlocos } from './cards.js';
 
 
-/* O nome que a home mostra. A Yazo manda por `?nome=`; `capturarIdentidade()`
-   já guardou em PARTICIPANTE antes de qualquer tela subir. Sem nome, a
-   saudação não aparece — `heroSaudacao` cuida disso. Nada de "undefined",
-   nada de string vazia, e nunca o e-mail. */
+/* O nome que a home mostra: o PRIMEIRO, que é como a pessoa é chamada.
+   A Yazo manda por `?nome=`, com o nome inteiro do cadastro;
+   `capturarIdentidade()` já guardou antes de qualquer tela subir. Sem
+   nome, a saudação não aparece — `heroSaudacao` cuida disso. Nada de
+   "undefined", nada de string vazia, e nunca o e-mail. */
 function nomeDoParticipante() {
-  const n = PARTICIPANTE.nome && PARTICIPANTE.nome.trim();
-  return n || null;
+  return primeiroNome();
 }
 
 /* Bom dia até meio-dia, boa tarde até as 18h, boa noite depois. */

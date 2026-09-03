@@ -6,7 +6,7 @@
    só desenha e reage.
 */
 
-import { CONFIG, PARTICIPANTE, capturarIdentidade } from './config.js';
+import { CONFIG, PARTICIPANTE, capturarIdentidade, primeiroNome } from './config.js';
 import { carregarDadosSummit, carregarHomeDoEvento, carregarIngressoDoParticipante } from './data-service.js';
 import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
@@ -582,7 +582,13 @@ const ABAS = [
 const FOLHAS = {
   agente: { titulo: 'Concierge', texto: 'Oi! É aqui que eu moro dentro do app. Me chame para dúvidas do evento, sugestão de conteúdo, bios de palestrantes e logística.', botao: 'Legal!' },
   contato: { titulo: 'Solicitação enviada', texto: 'Quando a pessoa aceitar, ela entra em Contatos. Enquanto isso fica em Pendentes.', botao: 'Entendi' },
-  reservado: { titulo: 'Lugar reservado!', texto: 'No dia da sessão, faça o check-in aqui mesmo, na página dela, até o horário de início. A reserva é exclusiva por horário.', botao: 'Combinado' },
+  /* O texto e da Adriana, palavra por palavra. O aviso dos 5 minutos e a
+     mesma regra que "Sua reserva vale ate 5 minutos antes" conta na tela
+     de avisos: e aqui, no gesto de reservar, que ela pega. */
+  /* SEM TÍTULO: o texto já abre com "Seu lugar está reservado!", e um
+     `<h3>` dizendo "Lugar reservado!" logo acima repetia a mesma frase
+     duas vezes na mesma caixa. */
+  reservado: { titulo: null, texto: 'Seu lugar está reservado! Mas atenção: é importante chegar com pelo menos 5 minutos de antecedência para garantir o seu acesso a esta experiência. Faltando cinco minutos para o início, abriremos assentos remanescentes para a fila de espera.', botao: 'Combinado' },
 };
 
 /* As telas do app. x/y/w/h em % da foto — remedidos sobre as capturas
@@ -851,9 +857,18 @@ function abrirFolha(nome, aoConfirmar) {
   focoAntesDaFolha = document.activeElement;
   folhaEl.setAttribute('role', 'dialog');
   folhaEl.setAttribute('aria-modal', 'true');
-  folhaEl.setAttribute('aria-labelledby', 'folha-titulo');
+  /* SEM TÍTULO, o rótulo do diálogo passa a ser o próprio texto. Um
+     `aria-labelledby` apontando para um `<h3>` que não existe deixa o
+     leitor de tela anunciar um diálogo sem nome. */
+  if (f.titulo) {
+    folhaEl.setAttribute('aria-labelledby', 'folha-titulo');
+    folhaEl.removeAttribute('aria-label');
+  } else {
+    folhaEl.removeAttribute('aria-labelledby');
+    folhaEl.setAttribute('aria-label', f.texto || 'Aviso');
+  }
   folhaEl.innerHTML =
-    '<h3 id="folha-titulo">' + f.titulo + '</h3>' +
+    (f.titulo ? '<h3 id="folha-titulo">' + f.titulo + '</h3>' : '') +
     (f.texto ? '<p>' + f.texto + '</p>' : '') +
     (f.itens ? '<ul>' + f.itens.map((i) => '<li><b>' + i[0] + '</b>' + i[1] + '</li>').join('') + '</ul>' : '') +
     '<button type="button">' + f.botao + '</button>';
@@ -1578,8 +1593,10 @@ let jaPerguntou = false;
 /* Sem identidade, cumprimento sem nome — o agente não chuta quem você é.
    Quando a Yazo (ou o bootstrap) preencher PARTICIPANTE.nome, ele chama
    pelo nome sem que mais nada mude. */
+/* Mesmo nome que a home usa: quem é "Ana" no título não pode virar
+   "Ana Paula Rodrigues Silva" duas telas depois. */
 function saudacao() {
-  const nome = PARTICIPANTE.nome && PARTICIPANTE.nome.trim();
+  const nome = primeiroNome();
   return nome ? 'Oi, ' + nome + '! 💚 ' : 'Oi! 💚 ';
 }
 

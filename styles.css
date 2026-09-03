@@ -317,6 +317,10 @@ body {
   font-size: 27px; font-weight: 700; line-height: 1.18;
   letter-spacing: -.02em;
   color: var(--texto);
+  /* A quebra escrita no conteúdo vale. `pre-line` honra o `\n` e continua
+     colapsando espaço e quebrando sozinho quando a linha não cabe — o
+     nome longo ainda pode virar duas linhas, e é o certo. */
+  white-space: pre-line;
 }
 .v3-resumo {
   margin-top: 10px;

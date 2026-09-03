@@ -144,13 +144,13 @@ const ICO_POR_NOME = {
 const CRUS = [
   { id: 'reserve_exp', ico: ICO.estrela, cat: 'reservas', em: '2026-09-15T18:00', situacao: 'no-ar',
     titulo: 'Reserve agora as experiências que você não quer perder',
-    resumo: 'Arena LinkedIn, Arena Sextante, workshops e masterclasses têm lugares limitados.',
+    resumo: 'Arena LinkedIn, Arena Sextante, Workshops e Masterclasses têm lugares limitados.',
     mensagem: 'Faça o agendamento no app e confirme em Minha Agenda. No dia, sua vaga ficará garantida somente até 5 minutos antes do início.' },
 
   { id: 'doc_fisico', ico: ICO.fone, cat: 'antes_de_ir', em: '2026-09-15T17:50', situacao: 'no-ar',
-    titulo: 'Leve um documento físico com foto',
-    resumo: 'Para retirar o fone de tradução simultânea, é obrigatório apresentar um documento oficial físico com foto.',
-    mensagem: 'O documento no celular não será aceito. Já deixe o documento separado para não esquecer.' },
+    titulo: 'Leve um documento oficial físico com foto',
+    resumo: 'Para retirar o fone de tradução simultânea, você precisará deixar um documento oficial físico com foto, que ficará retido durante o uso do equipamento.',
+    mensagem: 'Ao devolver o fone, seu documento será devolvido imediatamente. Documentos digitais ou apresentados pelo celular não serão aceitos.\n\nSepare o documento com antecedência para não esquecer.' },
 
   { id: 'credenciamento', ico: ICO.relogio, cat: 'antes_de_ir', em: '2026-09-15T17:40', situacao: 'no-ar',
     titulo: 'Chegue cedo e siga para o Pavilhão 3',
@@ -196,12 +196,12 @@ const CRUS = [
   { id: 'fila_espera', ico: ICO.alerta, cat: 'reservas', em: '2026-09-15T15:30', situacao: 'no-ar',
     titulo: 'Não conseguiu reservar? Entre na fila de espera',
     resumo: 'Os lugares que não tiverem sido ocupados até 5 minutos antes do início poderão ser liberados para a fila de espera, conforme a disponibilidade.',
-    mensagem: 'A fila de espera não altera os acessos do ingresso: Mind não tem acesso a workshops ou masterclasses, VIP pode tentar vagas remanescentes em workshops e Prime pode tentar vagas remanescentes em workshops e masterclasses.' },
+    mensagem: 'A fila de espera não altera os acessos do ingresso: Mind não tem acesso a Workshops ou Masterclasses, VIP pode tentar vagas remanescentes em Workshops e Prime pode tentar vagas remanescentes em Workshops e Masterclasses.' },
 
   { id: 'acessos_ingresso', ico: ICO.ingresso, cat: 'reservas', em: '2026-09-15T15:20', situacao: 'no-ar',
     titulo: 'Confira os acessos do seu ingresso',
-    resumo: 'Participantes VIP e Prime têm acesso aos workshops.',
-    mensagem: 'As masterclasses são exclusivas para participantes Prime.' },
+    resumo: 'Participantes VIP e Prime têm acesso aos Workshops.',
+    mensagem: 'As Masterclasses são exclusivas para participantes Prime.' },
 
   { id: 'conflitos_agenda', ico: ICO.lugar, cat: 'reservas', em: '2026-09-15T15:10', situacao: 'no-ar',
     titulo: 'Evite conflitos na sua agenda',
@@ -224,12 +224,12 @@ const CRUS = [
   { id: 'certificados', ico: ICO.estrela, cat: 'no_evento', em: '2026-09-15T14:40', situacao: 'no-ar',
     titulo: 'Certificados',
     resumo: 'O certificado geral será enviado a quem tiver participado do Summit, a partir de 30 dias após o evento, para o e-mail associado ao ingresso.',
-    mensagem: 'Workshops e masterclasses terão certificados específicos, condicionados ao registro de entrada na experiência.' },
+    mensagem: 'Workshops e Masterclasses terão certificados específicos, condicionados ao registro de entrada na experiência.' },
 
   { id: 'gravacoes', ico: ICO.sino, cat: 'no_evento', em: '2026-09-15T14:30', situacao: 'no-ar',
     titulo: 'Gravações',
     resumo: 'O ingresso Mind não inclui as gravações.',
-    mensagem: 'Participantes VIP receberão as gravações das Arenas Mind, LinkedIn e Sextante, com liberação prevista em até 45 dias.\n\nParticipantes Prime também receberão as quatro masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.' },
+    mensagem: 'Participantes VIP receberão as gravações das Arenas Mind, LinkedIn e Sextante, com liberação prevista em até 45 dias.\n\nParticipantes Prime também receberão as quatro Masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.' },
 ];
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -307,7 +307,12 @@ export const CONTEUDO = {
        é assim no handoff. Sem nome, `heroSaudacao` maiusculiza a
        primeira letra e a frase segue de pé sozinha. */
     tituloComNome: true,
-    titulo: 'seu Mind Summit começa agora.',
+    /* A QUEBRA E O PONTO SÃO DECISÃO DE COPY, e vêm escritos assim.
+       "começa agora" fica na própria linha, como a Adriana escreveu; o
+       ponto final saiu, que é como ela escreveu também. A quebra chega
+       como `\n` e não como `<br>`: conteúdo aqui é texto, não marcação —
+       quem honra a linha é `white-space: pre-line` no `.v3-titulo`. */
+    titulo: 'seu Mind Summit\ncomeça agora',
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
     decorado: true,
     blocos: [

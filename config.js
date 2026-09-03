@@ -210,6 +210,24 @@ export function definirParticipante(dados) {
   return PARTICIPANTE;
 }
 
+/**
+ * O PRIMEIRO NOME, que é como a pessoa é chamada na tela.
+ *
+ * A Yazo manda o nome como está no cadastro, e ali cabe nome inteiro:
+ * "Ana Paula Rodrigues Silva, seu Mind Summit começa agora" é uma frase
+ * que ninguém escreveria. O título do app pede o primeiro nome, e a
+ * saudação do chat também — por isso a regra mora aqui, ao lado da
+ * identidade, e não copiada nas duas telas.
+ *
+ * Primeiro pedaço até o espaço, e nada mais. Não corrige caixa nem
+ * acento: o que veio é o que a pessoa escreveu no cadastro.
+ */
+export function primeiroNome() {
+  const n = obterParticipante().nome;
+  if (!n) return null;
+  return n.trim().split(/\s+/)[0] || null;
+}
+
 /** Apaga a identidade da memória e da aba. */
 export function limparIdentidade() {
   esquecer();

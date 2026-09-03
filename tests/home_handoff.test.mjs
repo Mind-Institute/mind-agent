@@ -27,6 +27,7 @@ const homeJs = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8')
    comportamento vivo que estes testes travam. */
 const migracao = readFileSync(new URL('../supabase/migrations/20260902220000_camarote_tambem_e_tipo_de_ingresso.sql', import.meta.url), 'utf8');
 const funcaoHome = readFileSync(new URL('../supabase/functions/mindagent-home/index.ts', import.meta.url), 'utf8');
+const config = readFileSync(new URL('../config.js', import.meta.url), 'utf8');
 
 test('os três atalhos levam a destinos que existem', () => {
   /* Um atalho é uma promessa: "toque e você chega em Meu ingresso". Se o
@@ -328,7 +329,7 @@ test('a home mostra os cinco avisos que a Adriana condensou', () => {
   const titulos = [...bloco.matchAll(/titulo: '([^']+)'/g)].map((m) => m[1]).slice(0, 5);
   assert.deepEqual(titulos, [
     'Reserve agora as experiências que você não quer perder',
-    'Leve um documento físico com foto',
+    'Leve um documento oficial físico com foto',
     'Chegue cedo e siga para o Pavilhão 3',
     'Use o benefício da Rhino para chegar ao Summit',
     'Veja como o Summit funciona antes de chegar',
@@ -404,4 +405,46 @@ test('o aviso sabe levar a material que mora fora do app', () => {
   const i = app.indexOf("if (/^https:");
   const j = app.indexOf('abrirTourCompleto(destino)');
   assert.ok(i > 0 && i < j, 'a URL externa deixou de ser testada antes do roteiro');
+});
+
+test('a pessoa é chamada pelo primeiro nome, e pelo mesmo nos dois lugares', () => {
+  /* A Yazo manda o nome do cadastro, e ali cabe nome inteiro: "Ana Paula
+     Rodrigues Silva, seu Mind Summit começa agora" é frase que ninguém
+     escreveria. A regra mora em `config.js`, ao lado da identidade, para
+     que o título da home e a saudação do chat não divirjam. */
+  assert.match(config, /export function primeiroNome\(\)/,
+    'a regra do primeiro nome saiu de `config.js`');
+  assert.match(config, /\.trim\(\)\.split\(\/\\s\+\/\)\[0\]/,
+    'o primeiro nome deixou de ser o primeiro pedaço até o espaço');
+  assert.match(homeJs, /return primeiroNome\(\);/,
+    'a home voltou a mostrar o nome inteiro');
+  assert.match(app, /function saudacao\(\) \{\n\s*const nome = primeiroNome\(\);/,
+    'a saudação do chat voltou a usar outro nome que não o da home');
+});
+
+test('a quebra do título vem do conteúdo, não de marcação', () => {
+  /* "começa agora" fica na própria linha, como a Adriana escreveu. A
+     quebra chega como `\n` — conteúdo aqui é texto — e quem a honra é o
+     `pre-line`. Sem ele o `\n` vira espaço e a linha some sem erro. */
+  assert.match(estado, /titulo: 'seu Mind Summit\\ncomeça agora'/,
+    'a quebra ou o ponto final do título mudaram');
+  /* Início de linha: `.v3-hero.decorado .v3-titulo {` vem antes e contém
+     a mesma substring — sem a âncora o slice pega a regra errada. */
+  const i = css.indexOf('\n.v3-titulo {');
+  assert.ok(i > 0, 'não achei a regra do título');
+  assert.match(css.slice(i, css.indexOf('\n}', i)), /white-space:\s*pre-line/,
+    'o título parou de honrar a quebra escrita no conteúdo');
+});
+
+test('a folha da reserva não repete a mesma frase duas vezes', () => {
+  /* O `<h3>` dizia "Lugar reservado!" e o texto abre com "Seu lugar está
+     reservado!" — a mesma frase duas vezes na mesma caixa. Sem título, o
+     rótulo do diálogo passa a ser o texto: `aria-labelledby` apontando
+     para um `<h3>` que não existe deixa o diálogo sem nome. */
+  assert.match(app, /reservado: \{ titulo: null, texto: 'Seu lugar está reservado!/,
+    'a folha da reserva voltou a ter título repetindo o texto');
+  assert.match(app, /\(f\.titulo \? '<h3 id="folha-titulo">' \+ f\.titulo \+ '<\/h3>' : ''\)/,
+    'o título da folha voltou a ser obrigatório');
+  assert.match(app, /folhaEl\.setAttribute\('aria-label', f\.texto \|\| 'Aviso'\)/,
+    'a folha sem título ficou sem rótulo acessível');
 });
