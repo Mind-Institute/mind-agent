@@ -328,7 +328,7 @@ test('a home mostra os seis avisos na ordem que a Adriana pediu', () => {
   /* O espaço antes de `em:` não é enfeite: sem ele o `mensagem:` de cada
      aviso também casa, e a lista de datas vem cheia de texto. */
   const datas = [...bloco.matchAll(/ em: '([^']+)'/g)].map((m) => m[1]);
-  assert.equal(datas.length, 19, 'a lista embutida deixou de ter os 19 avisos em circulação');
+  assert.equal(datas.length, 18, 'a lista embutida deixou de ter os 18 avisos em circulação');
   const ordenado = [...datas].sort().reverse();
   assert.deepEqual(datas, ordenado,
     'a lista embutida saiu da ordem de disparo, e a home passa a mostrar outros seis');

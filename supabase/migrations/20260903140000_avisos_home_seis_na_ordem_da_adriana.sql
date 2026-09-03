@@ -64,3 +64,8 @@ update concierge.avisos set
   descricao = E'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.\n\nO estacionamento é coberto e tem acesso ao pavilhão por uma passarela.',
   atualizado_em = now()
 where chave = 'chegada_expo';
+
+-- "Faça o acesso ao app com antecedência" sai de circulação (pedido da Adriana, 03/09): quem lê
+-- o aviso já está no app. Arquivado, não apagado — como os outros avisos aposentados.
+update concierge.avisos set situacao = 'encerrado', arquivado_em = coalesce(arquivado_em, now()), atualizado_em = now()
+where chave = 'acesso_app' and situacao <> 'encerrado';

@@ -155,7 +155,7 @@ const ICO_POR_NOME = {
 
    MOCK: API: virá da tabela de avisos do Summit. */
 /* A LISTA EMBUTIDA É O QUE APARECE SE A REDE FALHAR, e por isso tem que
-   ser a mesma do banco — não a de ontem. São os dezenove em circulação em
+   ser a mesma do banco — não a de ontem. São os dezoito em circulação em
    03/09, gerados a partir de `concierge.avisos`, com as mesmas categorias
    e a mesma ordem de disparo. Os seis primeiros são os da home, na ordem
    que a Adriana pediu: reserve, Rhino, documento físico, ingresso,
@@ -202,11 +202,6 @@ const CRUS = [
     titulo: 'Veja como o Summit funciona antes de chegar',
     resumo: 'O evento acontece em diferentes arenas, salas e espaços de experiência.',
     mensagem: 'Assista ao tour do Summit para conhecer a estrutura e se orientar melhor durante os dois dias.' },
-
-  { id: 'acesso_app', ico: ICO.ingresso, cat: 'antes_de_ir', em: '2026-09-15T17:00', situacao: 'no-ar',
-    titulo: 'Faça o acesso ao app com antecedência',
-    resumo: 'No app você encontra o QR Code do ingresso, a programação completa e as experiências que reservou.',
-    mensagem: 'Acesse antes de sair de casa para evitar problemas no credenciamento e chegar com sua agenda organizada.' },
 
   { id: 'pavilhao_3', ico: ICO.lugar, cat: 'antes_de_ir', em: '2026-09-15T16:40', situacao: 'no-ar',
     titulo: 'O Mind Summit é no Pavilhão 3',
