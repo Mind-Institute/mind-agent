@@ -938,19 +938,3 @@ Contexto e evidência: `CHECKPOINT_ATUAL.md` §5D e issue #42.
    classificador escolhe só um deles, a conversa não gera análise nenhuma.
 4. Dedupe de memória é por slug do texto: "montar um plano de cultura para 2027" e "montar plano de
    cultura para 2027" viram dois objetivos. Sem consumidor reclamando ainda.
-
-
-## 19. Programação do App — o que ficou depois do gate #26 (03/09)
-
-Contexto: `CHECKPOINT_ATUAL.md` §5E. O bootstrap está vivo no schema atual. Ficou:
-
-1. **20 temas de sessão inferidos** do título/descrição (alumni talks, autógrafos, lançamentos,
-   Mind Talks e sessões renomeadas desde 28/08), marcados `(i)` em
-   `supabase/migrations/20260903070000_temas_do_summit_ganham_casa.sql`. Revisar no painel
-   (`summit_2026.sessions.topicos_aprendizado`) se a curadoria discordar.
-2. **20 palestrantes sem credencial no App**: `ecossistema.palestrantes_especialistas` não tem
-   `cargo_curto` nem `instituicao` para eles e não há perfil curado; a credencial sai vazia (o card
-   já os rotula como Palestrante). Preencher cargo/instituição na fonte ou curar em
-   `summit_2026.speaker_profiles`.
-3. `sessoes[].id` passou de id sintético do JSON para `site_session_id`; sessões salvas no
-   localStorage antes de 03/09 não casam mais. Só afeta dados de teste.
