@@ -1,5 +1,3 @@
-export const INBOUND_PIPELINE = "918902366";
-
 export const STAGES = {
   NEW: "1401915457",
   CONTACT: "1401915458",
@@ -24,7 +22,7 @@ const CONTACT_STATES = new Set([
   "VALIDATING",
   "DEFERRED",
 ]);
-const HUMAN_HANDOFF = new Set(["requested", "pending", "accepted"]);
+const HUMAN_HANDOFF = new Set(["required", "requested", "pending", "accepted"]);
 
 export type Analysis = Record<string, unknown>;
 
@@ -56,12 +54,20 @@ export function mapCommercialAnalysis(
   const handoffStatus = text(ownership.handoff_status).toLowerCase();
   const humanRequired = analysis.human_required === true || ownership.human_required === true;
 
-  const explicitTerminal = purchaseStatus === "purchased" || dealStatus === "closed_won"
-    ? STAGES.WON
-    : dealStatus === "closed_lost" || buyerState === "CLOSED_LOST"
-    ? STAGES.LOST
-    : null;
+  const wonSignal = purchaseStatus === "purchased" ||
+    dealStatus === "won" || dealStatus === "closed_won" || buyerState === "CLOSED_WON";
+  const lostSignal = dealStatus === "lost" ||
+    dealStatus === "closed_lost" || buyerState === "CLOSED_LOST";
 
+  if (wonSignal && lostSignal) {
+    return {
+      stage: null,
+      label: mapLabel(analysis.purchase_intent),
+      blockedReason: "sinais_terminais_conflitantes",
+    };
+  }
+
+  const explicitTerminal = wonSignal ? STAGES.WON : lostSignal ? STAGES.LOST : null;
   if (currentStage && TERMINAL.has(currentStage) && explicitTerminal !== currentStage) {
     return {
       stage: null,
