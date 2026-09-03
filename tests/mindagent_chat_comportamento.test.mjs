@@ -148,6 +148,68 @@ test('abstinência sem lupa força uma busca antes da resposta final', async () 
   assert.equal(salva.args.p_blocks.rodadas_tool, 1);
 });
 
+test('fallback rápido preserva orçamento para busca forçada e resposta final', async () => {
+  const kitComLupa = clone(KIT_COMPLETO);
+  kitComLupa.tools = [{
+    nome: 'buscar_intelligence', descricao: 'Busca candidatos.',
+    parametros: {
+      type: 'object', properties: {
+        necessidade: { type: 'string' }, limite: { type: 'integer' },
+      }, required: ['necessidade', 'limite'], additionalProperties: false,
+    },
+  }];
+  kitComLupa.structured.programacao.locations = [];
+
+  const abstencao = {
+    answer: 'Não tenho essa informação nos dados disponíveis.', interests: [], checkout_sent: false,
+    checkout_url: null, next_route: null, nome_informado: null,
+    email_informado: null, whatsapp_informado: null,
+    empresa_informada: null, cargo_informado: null,
+  };
+  const respostaFinal = {
+    ...abstencao,
+    answer: 'O credenciamento fica no foyer principal, ao lado da entrada.',
+  };
+  const r = await chamar({
+    corpo: { message: 'Onde fica o credenciamento?' },
+    env: {
+      OPENAI_MODEL: 'gpt-5.4',
+      OPENAI_FAST_MODEL: 'gpt-5.4-mini',
+      OPENAI_FAST_ROLLOUT_PERCENT: '100',
+    },
+    rpc: {
+      mind_agent_kit: kitComLupa,
+      mind_intelligence_buscar_contextual: {
+        total: 1, candidatos: [{ tipo: 'local', id: 'l2', titulo: 'Foyer principal' }],
+      },
+    },
+    modelo: [
+      { __payload: { output_text: 'resposta sem o contrato JSON' } },
+      abstencao,
+      { __payload: { output: [{
+        type: 'function_call', call_id: 'call_busca_fallback', name: 'buscar_intelligence',
+        arguments: JSON.stringify({ necessidade: 'local do credenciamento', limite: 6 }),
+      }] } },
+      respostaFinal,
+    ],
+  });
+
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.answer, respostaFinal.answer);
+  const respostas = r.openai.filter((chamada) => chamada.url.endsWith('/v1/responses'));
+  assert.equal(respostas.length, 4, 'retry de modelo não pode consumir as duas rodadas de tool');
+  assert.deepEqual(respostas.map((chamada) => chamada.corpo.model), [
+    'gpt-5.4-mini', 'gpt-5.4', 'gpt-5.4', 'gpt-5.4',
+  ]);
+  assert.deepEqual(respostas[2].corpo.tool_choice, { type: 'function', name: 'buscar_intelligence' });
+  assert.ok(r.rpcs.includes('mind_intelligence_buscar_contextual'));
+  const salva = r.chamadasDe('mindagent_chat_save_message').at(-1);
+  assert.equal(salva.args.p_blocks.recuperacao_forcada, true);
+  assert.equal(salva.args.p_blocks.rodadas_tool, 1);
+  const telemetriaFinal = r.logs.find((log) => log.status === 200 && log.tentativas_modelo != null);
+  assert.equal(telemetriaFinal.tentativas_modelo, 4);
+});
+
 test('jornada: resposta de botão persiste sem chamar Router, Kit ou modelo', async () => {
   const evidenceId = randomUUID();
   const r = await chamar({
