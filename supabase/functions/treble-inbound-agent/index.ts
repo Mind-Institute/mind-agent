@@ -1,5 +1,10 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.6.0 — CHECKOUT ATRIBUIDO AO ENVIO. O modelo aponta o checkout_url exato
+// recebido no Kit; o runtime valida que ele é oficial, gera um evento opaco e
+// devolve a URL com canal, motivo e token. A venda pode então voltar da Eduzz
+// para a conversa e para este Agent sem PII na URL.
+//
 // v1.5.2 — O CANAL VAI AO ROUTER. Ate aqui a chamada mandava so `conversa_id`, e o
 // Router escolhia entre as seis rotas globais sem saber onde estava. Duas perguntas
 // banais de lead ("Quando sera o evento?", "quais palestrantes estarao no summit?")
@@ -115,8 +120,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { precoInventado, precosOficiais } from "./guardrail-preco.ts";
+import {
+  checkoutRastreado,
+  escolherCheckoutOficial,
+  idEventoCheckout,
+  inserirCheckoutNaResposta,
+} from "../_shared/checkout-attribution.ts";
 
-const VERSION = "1.5.2";
+const VERSION = "1.6.0";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -169,6 +180,11 @@ const RESPONSE_SCHEMA = {
     objection: { type: ["string", "null"] },
     needs_human: { type: "boolean" },
     checkout_sent: { type: "boolean" },
+    checkout_url: {
+      type: ["string", "null"],
+      maxLength: 1200,
+      description: "Quando enviar checkout, copie EXATAMENTE um checkout_url recebido nos dados oficiais. null quando não enviar. Nunca construa, corrija ou complete uma URL.",
+    },
     stage: { type: "string", minLength: 2, maxLength: 40 },
     desfecho: {
       type: ["string", "null"],
@@ -195,7 +211,7 @@ const RESPONSE_SCHEMA = {
   },
   required: [
     "answer", "audience", "intent", "ticket_interest", "objection",
-    "needs_human", "checkout_sent", "stage", "desfecho",
+    "needs_human", "checkout_sent", "checkout_url", "stage", "desfecho",
     "nome_informado", "email_informado", "empresa_informada", "cargo_informado",
   ],
 };
@@ -786,6 +802,7 @@ Deno.serve(async (req: Request) => {
     const turn = JSON.parse(extractOutputText(aiPayload)) as {
       answer: string; audience: string; intent: string; ticket_interest: string | null;
       objection: string | null; needs_human: boolean; checkout_sent: boolean;
+      checkout_url: string | null;
       stage: string; desfecho: string | null;
       nome_informado: string | null; email_informado: string | null;
       empresa_informada: string | null; cargo_informado: string | null;
@@ -835,6 +852,39 @@ Deno.serve(async (req: Request) => {
         ],
       });
     }
+
+    // CHECKOUT É AÇÃO DO RUNTIME, NÃO TEXTO LIVRE DO MODELO. O modelo pode escolher
+    // somente uma URL que veio no Kit; o runtime confere, assina e registra. Como
+    // compatibilidade, uma URL oficial já escrita em `answer` também é reconhecida.
+    const checkoutCandidato = typeof turn.checkout_url === "string" && turn.checkout_url.trim()
+      ? turn.checkout_url.trim()
+      : null;
+    const checkoutOficial = escolherCheckoutOficial(dadosOficiais, checkoutCandidato, answer);
+    const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
+    if (checkoutSolicitado && !checkoutOficial) {
+      console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial" }));
+      return json(200, {
+        ok: true, guarded: true,
+        user_session_keys: [
+          { key: "resposta_ia", value: "Não consegui abrir um checkout oficial agora. Já vou te conectar com alguém do nosso time!" },
+          { key: "needs_human", value: "true" },
+          { key: "checkout_sent", value: "false" },
+        ],
+      });
+    }
+
+    let respostaFinal = answer;
+    let checkoutEventoId: string | null = null;
+    if (checkoutOficial) {
+      checkoutEventoId = await idEventoCheckout(
+        String(conv.conversation_id), idExterno || requestId, checkoutOficial.url,
+      );
+      const urlRastreada = checkoutRastreado(
+        checkoutOficial, checkoutEventoId, "whatsapp", "treble-inbound-agent",
+      );
+      respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlRastreada, checkoutCandidato);
+    }
+    const checkoutSentFinal = checkoutEventoId !== null;
 
     // O que o lead contou sobre si — o que ele DISSE, não o que pedimos.
     const nomeDito = (turn.nome_informado ?? "").trim() || null;
@@ -914,14 +964,14 @@ Deno.serve(async (req: Request) => {
       ticket_interest: turn.ticket_interest,
       objection: turn.objection,
       needs_human: needsHumanFinal,
-      checkout_sent: turn.checkout_sent,
+      checkout_sent: checkoutSentFinal,
       stage: turn.stage,
-      desfecho: turn.desfecho,
+      desfecho: checkoutSentFinal ? "checkout_enviado" : turn.desfecho,
     };
     // Só a resposta do agente: a fala do lead já foi persistida na ingestão.
     const { error: saveError } = await supabase.rpc("mind_turno_registrar", {
       p_conversa_id: conv.conversation_id,
-      p_resposta: answer,
+      p_resposta: respostaFinal,
       p_estado: state,
       // A rota do turno fica registrada em `blocos` da mensagem do agente — nenhuma
       // coluna nova, nenhuma segunda casa. `request_id` continua sendo a chave de
@@ -931,9 +981,31 @@ Deno.serve(async (req: Request) => {
         rota: rotaDecidida, rota_aplicada: rotaAplicada,
         precisa_esclarecer: precisaEsclarecer, candidatas,
         gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
+        checkout_event_id: checkoutEventoId,
+        checkout_reason: checkoutOficial?.motivo ?? null,
       },
     });
-    if (saveError) console.error(JSON.stringify({ request_id: requestId, event: "save_falhou", detalhe: saveError.message }));
+    if (saveError) {
+      console.error(JSON.stringify({ request_id: requestId, event: "save_falhou", detalhe: saveError.message }));
+      if (checkoutEventoId) throw new Error("checkout_message_save_failed");
+    }
+
+    if (checkoutEventoId && checkoutOficial) {
+      const { error: eventoError } = await supabase.rpc("mind_checkout_envio_registrar", {
+        p_evento_id: checkoutEventoId,
+        p_conversa_id: conv.conversation_id,
+        p_checkout_url: checkoutOficial.url,
+        p_canal: "whatsapp",
+        p_agente: "treble-inbound-agent",
+        p_rota: rotaAplicada ?? rotaDecidida,
+        p_motivo: checkoutOficial.motivo,
+        p_request_id: idExterno || requestId,
+      });
+      if (eventoError) {
+        console.error(JSON.stringify({ request_id: requestId, event: "checkout_evento_falhou", detalhe: eventoError.message }));
+        throw new Error("checkout_event_save_failed");
+      }
+    }
 
     console.info(JSON.stringify({
       request_id: requestId, status: 200, session: sessionId.slice(0, 8),
@@ -941,18 +1013,19 @@ Deno.serve(async (req: Request) => {
       needs_human: needsHumanFinal, gate_reason: gateReason,
       desfecho: turn.desfecho, identificada: idConhecida,
       email_proprio: emailDito != null,
-      chars_resposta: answer.length,
+      checkout_event_id: checkoutEventoId,
+      chars_resposta: respostaFinal.length,
       duration_ms: Date.now() - startedAt,
     }));
 
     return json(200, {
       ok: true,
       user_session_keys: [
-        { key: "resposta_ia", value: answer },
+        { key: "resposta_ia", value: respostaFinal },
         { key: "needs_human", value: String(needsHumanFinal) },
         { key: "intent", value: turn.intent },
         { key: "audience", value: audienceFinal },
-        { key: "checkout_sent", value: String(turn.checkout_sent) },
+        { key: "checkout_sent", value: String(checkoutSentFinal) },
       ],
       state,
       request_id: requestId,
