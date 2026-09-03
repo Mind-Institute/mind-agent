@@ -12,13 +12,14 @@
  * manter o texto e perder o comportamento.
  * ==========================================================================*/
 
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 const FONTE = new URL('../../supabase/functions/mindagent-chat/index.ts', import.meta.url);
+const CHECKOUT_SHARED = new URL('../../supabase/functions/_shared/checkout-attribution.ts', import.meta.url);
 const STUB = new URL('./supabase-stub.mjs', import.meta.url);
 const IMPORT_VIVO = '"npm:@supabase/supabase-js@2.112.3"';
 
@@ -64,7 +65,12 @@ async function carregarHandler() {
     throw new Error('o import do cliente Supabase mudou — ajuste o harness antes de confiar nos testes');
   }
   const dir = mkdtempSync(join(tmpdir(), 'mindagent-edge-'));
-  const arquivo = join(dir, 'index.mts');
+  const pastaFuncao = join(dir, 'functions', 'mindagent-chat');
+  const pastaShared = join(dir, 'functions', '_shared');
+  mkdirSync(pastaFuncao, { recursive: true });
+  mkdirSync(pastaShared, { recursive: true });
+  copyFileSync(CHECKOUT_SHARED, join(pastaShared, 'checkout-attribution.ts'));
+  const arquivo = join(pastaFuncao, 'index.mts');
   writeFileSync(arquivo, partes.join(JSON.stringify(STUB.href)));
 
   let capturado = null;
@@ -106,7 +112,16 @@ function respostasPadrao() {
       mensagem_id: randomUUID(), duplicada: false, papel: args.p_role,
     }),
     mind_rota_capacidade: { ok: true, pode_executar: true, reason: null },
+    mind_canal_rotas: { ok: true, canal: 'mindagent-web', rotas: ['cliente_suporte', 'concierge_summit'] },
     mind_agent_kit: KIT_COMPLETO,
+    mind_checkout_envio_registrar: (args) => ({
+      ok: true,
+      event_id: args.p_evento_id,
+      conversation_id: args.p_conversa_id,
+      channel: args.p_canal,
+      agent_id: args.p_agente,
+      reason: args.p_motivo,
+    }),
     mindagent_chat_save_interests: { ok: true, saved: 1 },
     // Ledger de idempotência do Play. O padrão é o caminho sem repetição;
     // quem testa retry passa um ledger com estado (ver `ledgerEmMemoria`).
@@ -131,7 +146,7 @@ export async function chamar({
   rpc = {},
   usuario = { id: AUTH_USER_ID },
   autorizacao = 'Bearer token-de-acesso-de-teste',
-  modelo = { answer: 'Resposta oficial de teste.', interests: [] },
+  modelo = { answer: 'Resposta oficial de teste.', interests: [], checkout_sent: false, checkout_url: null, next_route: null },
   openaiStatus = 200,
   metodo = 'POST',
   caminho = '/functions/v1/mindagent-chat',
