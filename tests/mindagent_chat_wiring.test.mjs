@@ -99,7 +99,8 @@ test('a competência vem do playbook do Kit, não de texto no código', () => {
 test('o runtime limita a lupa por orçamento e número de rodadas', () => {
   assert.match(src, /MAX_RODADAS_TOOL/);
   assert.match(src, /ORCAMENTO_TURNO_MS/);
-  assert.match(src, /tool_choice: volta >= MAX_RODADAS_TOOL/);
+  assert.match(src, /tool_choice: !podeExecutarTool\(rodadasTool, MAX_RODADAS_TOOL\)/);
+  assert.match(src, /podeTentarModelo\(tentativaModelo, MAX_TENTATIVAS_MODELO\)/);
   assert.match(src, /forcarBuscaNaProximaVolta/,
     'uma abstinência inicial precisa poder forçar a lupa antes da resposta final');
 });
