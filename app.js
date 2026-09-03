@@ -11,7 +11,7 @@ import { carregarDadosSummit, carregarHomeDoEvento, carregarIngressoDoParticipan
 import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
-import { enviarMensagem } from './chat-service.js';
+import { enviarMensagem, enviarSinalJornada } from './chat-service.js';
 import { ligarTeclado, tecladoAberto } from './teclado.js';
 
 /* A altura do app passa a vir do viewport VISUAL, antes de qualquer tela
@@ -1748,10 +1748,35 @@ const choca = (a, b) =>
 
 function sessoesPorAfinidade(filtro) {
   return DADOS.sessoes
-    .filter((s) => !filtro || filtro(s))
+    .filter((s) => sessaoAcessivelPeloIngresso(s) && (!filtro || filtro(s)))
     .map((s) => ({ s, a: afinidade(s.temas) }))
     .filter((x) => x.a !== null)
     .sort((x, y) => y.a - x.a || (x.s.dia + x.s.inicio).localeCompare(y.s.dia + y.s.inicio));
+}
+
+function chaveDoIngresso() {
+  const normalizado = String(ingressoDoParticipante || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return ['mind', 'vip', 'prime'].find((chave) =>
+    new RegExp('(^|[^a-z])' + chave + '([^a-z]|$)').test(normalizado)) || null;
+}
+
+function sessaoAcessivelPeloIngresso(sessao) {
+  const chave = chaveDoIngresso();
+  /* Sem ingresso identificado, a experiência pública continua disponível.
+     Com um rótulo identificado mas ainda sem regra oficial (por exemplo uma
+     categoria nova), falhamos fechados: é melhor não recomendar do que
+     prometer um acesso que o ingresso talvez não conceda. */
+  if (!ingressoDoParticipante) return true;
+  if (!chave) return false;
+  return !Array.isArray(sessao.trilhas) || sessao.trilhas.length === 0 || sessao.trilhas.includes(chave);
+}
+
+function textoDoIngressoNaRecomendacao() {
+  if (!ingressoDoParticipante) return null;
+  return chaveDoIngresso()
+    ? 'Vou considerar os acessos do seu ingresso ' + ingressoDoParticipante + ' nas recomendações.'
+    : 'Identifiquei seu ingresso ' + ingressoDoParticipante + ', mas ainda não tenho a regra oficial de acesso dessa categoria. Não vou sugerir uma sessão sem conseguir confirmar que ela está liberada para você.';
 }
 
 /* ============================================================
@@ -1801,7 +1826,6 @@ function cardSessao(s, pct, porque) {
   const el = document.createElement('article');
   el.className = 'cs';
   const foto = fotoDe(s.quem);
-  const salva = PERFIL.sessoes.some((x) => x.id === s.id);
   el.innerHTML =
     '<span class="foto">' + (foto
       ? '<img src="./assets/' + foto + '" alt="" loading="lazy" />'
@@ -1818,19 +1842,9 @@ function cardSessao(s, pct, porque) {
         (s.vaga_limitada ? ' · <span class="limitada">vaga limitada</span>' : '') + '</p>' +
       (porque ? '<p class="porque">' + porque + '</p>' : '') +
       '<div class="acoes">' +
-        '<button type="button" class="principal" data-acao="salvar">' +
-          (salva ? 'Salva ✓' : 'Salvar no meu Summit') + '</button>' +
-        '<button type="button" data-acao="onde">Onde reservar</button>' +
+        '<button type="button" class="principal" data-acao="onde">Onde reservar no app</button>' +
       '</div>' +
     '</div>';
-  el.querySelector('[data-acao="salvar"]').addEventListener('click', (e) => {
-    if (PERFIL.sessoes.some((x) => x.id === s.id)) return;
-    PERFIL.sessoes.push(s);
-    s.temas.forEach((t) => pesoTema(t, 1));
-    e.target.textContent = 'Salva ✓';
-    el.classList.add('salva');
-    tocarPerfil();
-  });
   el.querySelector('[data-acao="onde"]').addEventListener('click', () => {
     bolha('Onde eu reservo "' + s.titulo + '"?', 'eu');
     setTimeout(() => bolha(
@@ -1921,7 +1935,13 @@ function pedirTemas(depois) {
     pesoTema(b.dataset.tema, ligado ? -2 : 2);
     ok.disabled = !Object.keys(PERFIL.temas).length;
   });
-  ok.addEventListener('click', () => { ok.remove(); depois(); });
+  ok.addEventListener('click', () => {
+    ok.remove();
+    const temas = Object.keys(PERFIL.temas).map(TEMA);
+    if (temas.length) enviarSinalJornada('temas', temas)
+      .catch(() => bolha('Não consegui guardar esses temas no seu perfil agora, mas vou seguir com eles nesta tela.', 'mind'));
+    depois();
+  });
   alvo.appendChild(chips);
   alvo.appendChild(ok);
   mensagens.scrollTop = mensagens.scrollHeight;
@@ -2131,8 +2151,11 @@ function escolhasDaJornada(q, indice) {
     const campo = document.createElement('textarea');
     campo.placeholder = q.placeholder || 'Escreva do seu jeito.';
     const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
-      PERFIL.jornada[q.campo] = campo.value.trim() || null;
+      const valor = campo.value.trim() || null;
+      PERFIL.jornada[q.campo] = valor;
       ok.remove();
+      if (valor) enviarSinalJornada(q.campo, [valor])
+        .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
       perguntaDaJornada(indice + 1);
     });
     const caixa = document.createElement('div');
@@ -2159,6 +2182,10 @@ function escolhasDaJornada(q, indice) {
     const valores = escolhidas.map((i) => opcoes[i].valor);
     PERFIL.jornada[q.campo] = q.tipo === 'unica' ? (valores[0] || null) : valores;
     ok.remove();
+    if (valores.length) enviarSinalJornada(
+      q.campo === 'palestrantesImperdiveis' ? 'palestrantes_imperdiveis' : q.campo,
+      valores,
+    ).catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
     perguntaDaJornada(indice + 1);
   });
   ok.disabled = !q.opcional;
@@ -2204,7 +2231,8 @@ function fecharJornada() {
        base entrega ao app; não há id de pessoa na sessão. */
     const querVer = j.palestrantesImperdiveis || [];
     const fixas = !querVer.length ? [] : DADOS.sessoes.filter((s) =>
-      (!dia || s.dia === dia) && querVer.some((nome) => String(s.quem || '').includes(nome)));
+      sessaoAcessivelPeloIngresso(s) && (!dia || s.dia === dia) &&
+      querVer.some((nome) => String(s.quem || '').includes(nome)));
 
     const roteiro = montarRoteiro({
       filtro: dia ? (s) => s.dia === dia : null,
@@ -2214,7 +2242,9 @@ function fecharJornada() {
     });
 
     if (!roteiro.length) {
-      return bolha('Com esses filtros não sobrou nada na grade. Me diz o que quer ver que eu procuro de outro jeito.', 'mind');
+      return bolha(chaveDoIngresso()
+        ? 'Com esses filtros não sobrou nenhuma sessão compatível com o seu ingresso. Me diz o que quer ver que eu procuro de outro jeito.'
+        : 'Ainda não consigo confirmar quais sessões estão liberadas para a categoria do seu ingresso. Não vou montar uma jornada com acesso incerto.', 'mind');
     }
 
     const alvo = painel('Sua jornada no Summit', roteiro.length + ' sessões, sem choque de horário');
@@ -2241,6 +2271,8 @@ const FLUXOS = {
      botão seria um passo entre a apresentação e a primeira pergunta. */
   jornada(direto) {
     bolha('Vou montar uma jornada que faça sentido para você. São algumas perguntas rápidas sobre o que você quer levar destes dois dias.', 'mind');
+    const ingresso = textoDoIngressoNaRecomendacao();
+    if (ingresso) bolha(ingresso, 'mind');
     if (direto) return setTimeout(() => perguntaDaJornada(0), 450);
     const alvo = painel('');
     alvo.appendChild(botaoAvancar('Começar →', function () {
