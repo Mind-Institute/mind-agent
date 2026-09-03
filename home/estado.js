@@ -158,7 +158,7 @@ const CRUS = [
     mensagem: 'Acesse o app antes de sair de casa e deixe o QR Code do ingresso pronto para agilizar sua entrada.' },
 
   { id: 'rhino', ico: ICO.estrela, cat: 'antes_de_ir', em: '2026-09-15T17:30', situacao: 'no-ar',
-    titulo: 'Use o benefício da Rhino para chegar ao Summit',
+    titulo: 'Venha de Rhino para o Mind Summit',
     resumo: 'Use o cupom MINDSUMMIT no app da Rhino. Quem nunca utilizou o serviço recebe R$ 200 de desconto na primeira corrida.',
     mensagem: 'Em trajetos de até 10 km, o valor é fixo de R$ 49. Acima de 10 km, o valor mínimo é de R$ 149.\n\nO cupom fica ativo até 31 de dezembro e, depois do cadastro no app, deve ser utilizado em até 30 dias.' },
 

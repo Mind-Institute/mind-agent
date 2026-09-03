@@ -333,7 +333,7 @@ test('a home mostra os cinco avisos que a Adriana condensou', () => {
     'Reserve agora as experiências que você não quer perder',
     'Leve um documento oficial físico com foto',
     'Chegue cedo e siga para o Pavilhão 3',
-    'Use o benefício da Rhino para chegar ao Summit',
+    'Venha de Rhino para o Mind Summit',
     'Veja como o Summit funciona antes de chegar',
   ], 'os cinco da home mudaram');
 });
