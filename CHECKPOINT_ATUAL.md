@@ -502,6 +502,24 @@ inerte, e falta saber se a barra é do app hospedeiro.
 - **PR #51:** memória segura + D1/D2, draft
   - HEAD mais recente: **`5712fe027531a42a5f057695b7c8d83deff40c60`**
 
+- **PR #70:** write-back comercial HubSpot, draft
+  - branch: `codex/hubspot-commercial-writeback-preview`
+  - estado: somente código/preview; migration não aplicada, Edge não publicada e zero escrita no HubSpot
+
+**03/09 — revisão de identidade e segurança da #70.** O candidato passou a consumir
+`public.mind_crm_comercial(pessoa_id)` e `public.mind_pessoa_fatos(pessoa_id)`, sem reconstruir
+identidade por campos legados e sem escrever em identidade. Múltiplos contatos sem Lead único,
+múltiplos Leads, pendência de identidade, contato sem espelho e configuração de pipeline
+ausente/ambígua ficam fail-closed. O fallback hardcoded do pipeline foi removido.
+
+O ledger preserva histórico (FKs sem CASCADE), exclui itens já enviados ou ainda reservados antes
+do limite e permite no máximo três tentativas automáticas apenas para PATCH idempotente. Falha ou
+reserva incerta de criação de Lead não é repetida automaticamente, evitando Lead duplicado.
+O runtime exige service role, continua com `preview` por padrão e mantém `apply` atrás da flag.
+O backfill de todas as conversas e a fila humana de divergência de estágio estão em
+`BACKLOG.md` §7 e não fazem parte do primeiro go-live.
+
+
 Chunk atual aceito tecnicamente:
 
 - `mind_memoria_fatos(pessoa_id)` pronto/desligado;
