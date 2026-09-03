@@ -2,8 +2,8 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **03/09/2026** (checkout atribuído no App e WhatsApp; venda contextual habilitada no App).
-> `main` verificado antes desta entrega: **`04384d838115119def2a9f1fc0e854649397582a`**.
+> Atualizado em **03/09/2026** (checkout atribuído; venda contextual no App; write-back HubSpot publicado em preview).
+> Commit de produto verificado nesta entrega: **`6f9c899bc994e7f8a9d8f2fe312f8368c636943f`** (merge da #70; atualizações documentais posteriores).
 >
 > Este é o ponto de retomada operacional. `PROJECT_STATE.md` preserva arquitetura/decisões congeladas; `GO_LIVE_PARALLEL_20260830.md` preserva ownership; `BACKLOG.md` preserva investigações deferidas; `docs/CORE_UNIVERSAL.md` descreve o sistema vivo, mas ainda contém snapshot de 29/08 em alguns trechos. **PRs e issues são mais frescos que este arquivo para trabalho ainda não integrado.**
 
