@@ -88,6 +88,7 @@ export const ICONES_AVISO = [
   'agenda',
   'alerta',
   'estrela',
+  'carro',
 ] as const;
 export type IconeAviso = (typeof ICONES_AVISO)[number];
 
@@ -101,6 +102,7 @@ export const ROTULO_ICONE_AVISO: Record<IconeAviso, string> = {
   agenda: 'Agenda — programação',
   alerta: 'Alerta — atenção imediata',
   estrela: 'Estrela — destaque',
+  carro: 'Carro — transporte e chegada',
 };
 
 /* Categoria: pinta o aviso no app e alimenta os chips de filtro da tela
