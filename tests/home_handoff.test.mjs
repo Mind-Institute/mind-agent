@@ -458,3 +458,25 @@ test('a folha da reserva não repete a mesma frase duas vezes', () => {
   assert.match(app, /folhaEl\.setAttribute\('aria-label', f\.texto \|\| 'Aviso'\)/,
     'a folha sem título ficou sem rótulo acessível');
 });
+
+test('a abertura do Concierge não promete pergunta que não vem', () => {
+  /* A Adriana mandou o welcome em dois parágrafos. O segundo já existia,
+     palavra por palavra, em `FLUXOS.jornada` — é ele que anuncia as
+     perguntas, logo antes do "Começar →".
+
+     Repetido na saudação, viraria promessa quebrada: duas das entradas
+     do chat (digitar na home, `chat:` de um card) não abrem pergunta
+     nenhuma. Uma ocorrência, e só dentro do fluxo. */
+  const anuncio = 'São algumas perguntas rápidas sobre o que você quer levar destes dois dias.';
+  assert.equal(app.split(anuncio).length - 1, 1,
+    'o anúncio das perguntas aparece mais de uma vez — quem só abriu o chat '
+    + 'para perguntar uma coisa passa a receber a promessa de um questionário');
+  const j = app.indexOf('  jornada() {');
+  assert.ok(j > 0 && app.indexOf(anuncio) > j && app.indexOf(anuncio) < j + 400,
+    'o anúncio das perguntas saiu de dentro de `FLUXOS.jornada`');
+
+  assert.match(app, /Sou o agente do Mind e serei seu concierge no Mind Summit\./,
+    'a abertura do Concierge mudou');
+  assert.match(app, /bolha\(saudacao\(\) \+ 'Sou o agente do Mind/,
+    'a abertura deixou de vir depois da saudação com o primeiro nome');
+});
