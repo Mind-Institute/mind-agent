@@ -76,6 +76,10 @@ PRs mesclados:
 - A curadoria de temas foi reposta na grade viva; 38 sessões têm tema hoje.
 - O frontend também valida campos internos antes de desenhar, para que um valor
   nulo caia no fallback em vez de derrubar a Home.
+- A regra de livros e autógrafos foi materializada na Intelligence pesquisável:
+  participantes Prime são orientados a levar o próprio exemplar; estoque,
+  título, quantidade e idioma da Livraria da Vila nunca são prometidos. O aviso
+  `livros_autografos` é versionado por `upsert`, sem duplicar o registro vivo.
 - O deploy automático da Cloudflare foi confirmado após os merges: o app público
   já serve a validação nova e a rota `/c/:event_id` responde 307 para a Edge
   Function de checkout.
@@ -97,6 +101,9 @@ PRs mesclados:
 - RLS revisado nas tabelas novas. `checkout_clicks`, `recovery_inbox` e
   `recovery_dispatch_queue` têm RLS ativo, nenhuma policy pública e grants apenas
   para `service_role`. Índices de todas as FKs novas foram adicionados.
+- O contrato `concierge_livros_autografos_contract.sql` passou contra produção:
+  um único documento, um único chunk e um único aviso; a lupa recuperou a regra
+  tanto em `app` quanto em `whatsapp`.
 
 ## Produção Supabase
 
@@ -113,6 +120,8 @@ Edge Functions ativas após esta entrega:
 
 Migrations desta sequência foram aplicadas manualmente, inclusive atribuição,
 inbox, redirecionador, status transacional, bootstrap, temas e índices.
+A migration `concierge_livros_autografos` também foi aplicada: o novo chunk está
+pesquisável por léxico e pendente apenas da geração assíncrona do embedding.
 
 O Advisor ainda apresenta alertas antigos do projeto (principalmente funções
 com `search_path` mutável, funções `security definer` historicamente expostas,
