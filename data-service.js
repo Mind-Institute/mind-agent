@@ -53,13 +53,33 @@ async function buscar(url) {
   return r.json();
 }
 
-/* Conferência mínima: a página prefere falhar a desenhar pela metade. */
+/* Conferência do contrato: a página prefere trocar de origem a deixar um
+   `null` atravessar até o desenho. Conferir só se os contêineres eram arrays
+   não bastava: um único dia ou horário nulo derrubava a Home depois que a
+   Promise já tinha sido resolvida, impedindo inclusive o fallback local. */
 function conferir(dados) {
   if (!dados || typeof dados !== 'object') throw new Error('resposta vazia');
   const listas = ['temas', 'sessoes', 'pessoas'];
   const faltando = listas.filter((k) => !Array.isArray(dados[k]));
   if (!dados.evento || !Array.isArray(dados.evento.dias)) faltando.push('evento.dias');
   if (faltando.length) throw new Error('faltando ' + faltando.join(', '));
+
+  const diasValidos = dados.evento.dias.length > 0 && dados.evento.dias.every(
+    (dia) => typeof dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dia),
+  );
+  if (!diasValidos) throw new Error('evento.dias inválido');
+
+  const sessaoInvalida = dados.sessoes.find((s) => !s || typeof s !== 'object'
+    || typeof s.id !== 'string' || typeof s.dia !== 'string'
+    || typeof s.inicio !== 'string' || typeof s.titulo !== 'string');
+  if (sessaoInvalida) throw new Error('sessão sem id, dia, início ou título');
+
+  const temaInvalido = dados.temas.find((t) => !t || typeof t.codigo !== 'string'
+    || typeof t.rotulo !== 'string');
+  if (temaInvalido) throw new Error('tema sem código ou rótulo');
+
+  const pessoaInvalida = dados.pessoas.find((p) => !p || typeof p.nome !== 'string');
+  if (pessoaInvalida) throw new Error('pessoa sem nome');
   return dados;
 }
 
