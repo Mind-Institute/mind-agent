@@ -72,9 +72,9 @@ const ROUTER_TIMEOUT_MS = 12_000;
 // aqui, estático e auditável. Ferramenta que o Kit exponha e este mapa não conheça é
 // descartada — o runtime nunca inventa executor.
 //
-// As duas são de LEITURA. `mind_intelligence_buscar` e `mind_intelligence_ler` já
-// existem desde 20260831070000 e leem as casas canônicas (palestrantes, sessões,
-// knowledge_documents). Nenhuma fonte da verdade nova, nenhum índice paralelo.
+// As duas são de LEITURA. `mind_intelligence_buscar` e `mind_intelligence_ler` leem
+// as casas canônicas de palestrantes, sessões, Knowledge Documents, regras, avisos,
+// locais e expositores. Nenhuma fonte da verdade nova, nenhum índice paralelo.
 const FERRAMENTAS_INTELLIGENCE: Record<
   string,
   { rpc: string; args: (bruto: Record<string, unknown>) => Record<string, unknown> }
