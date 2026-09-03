@@ -121,10 +121,22 @@ Deno.serve(async (req: Request) => {
   const candidates = (data ?? []) as Candidate[];
   const preview: Array<Record<string, unknown>> = [];
   const applied: Array<Record<string, unknown>> = [];
+  const seenParticipants = new Set<string>();
   const hubspotToken = mode === "apply" ? Deno.env.get("HUBSPOT_TOKEN") : null;
   if (mode === "apply" && !hubspotToken) return json({ error: "hubspot_token_missing" }, 500);
 
   for (const candidate of candidates) {
+    if (seenParticipants.has(candidate.participant_id)) {
+      preview.push({
+        analysis_id: candidate.analysis_id,
+        participant_id: candidate.participant_id,
+        action: "blocked",
+        reason: "participante_duplicado_no_lote",
+      });
+      continue;
+    }
+    seenParticipants.add(candidate.participant_id);
+
     let blockedReason: string | null = null;
     if (candidate.pipeline_config_count !== 1 || !candidate.pipeline_id) {
       blockedReason = candidate.pipeline_config_count > 1
