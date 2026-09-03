@@ -1,9 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import { INBOUND_PIPELINE, mapCommercialAnalysis, stablePayload } from "./mapping.ts";
+import { mapCommercialAnalysis, stablePayload } from "./mapping.ts";
 
 const HUBSPOT = "https://api.hubapi.com";
 const MAX_LIMIT = 50;
+const LEAD_TO_CONTACT_ASSOCIATION_TYPE = 578;
 
 type Candidate = {
   analysis_id: string;
@@ -11,10 +12,13 @@ type Candidate = {
   participant_id: string;
   contact_id: string | null;
   contact_count: number;
+  contact_mirror_missing_count: number;
+  identity_pending: boolean;
   existing_lead_id: string | null;
   lead_count: number;
   lead_name: string;
   pipeline_id: string | null;
+  pipeline_config_count: number;
   current_stage: string | null;
   analysis: Record<string, unknown>;
 };
@@ -30,6 +34,20 @@ function validTimestamp(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
 }
 
+function serviceRoleAuthorized(req: Request, serviceRoleKey: string): boolean {
+  const authorization = req.headers.get("authorization") ?? "";
+  const provided = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const expected = new TextEncoder().encode(serviceRoleKey);
+  const actual = new TextEncoder().encode(provided);
+  if (expected.length !== actual.length) return false;
+
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    difference |= expected[index] ^ actual[index];
+  }
+  return difference === 0;
+}
+
 async function sha256(value: unknown) {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   const hash = await crypto.subtle.digest("SHA-256", bytes);
@@ -38,6 +56,11 @@ async function sha256(value: unknown) {
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) return json({ error: "supabase_configuration_missing" }, 500);
+  if (!serviceRoleAuthorized(req, serviceRoleKey)) return json({ error: "unauthorized" }, 401);
 
   const body = await req.json().catch(() => ({})) as {
     mode?: "preview" | "apply";
@@ -60,11 +83,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: "writeback_disabled" }, 403);
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   const { data, error } = await supabase.rpc("hubspot_commercial_candidates", {
     p_limit: limit,
@@ -75,16 +96,26 @@ Deno.serve(async (req: Request) => {
   const candidates = (data ?? []) as Candidate[];
   const preview: Array<Record<string, unknown>> = [];
   const applied: Array<Record<string, unknown>> = [];
-  const token = mode === "apply" ? Deno.env.get("HUBSPOT_TOKEN") : null;
-  if (mode === "apply" && !token) return json({ error: "hubspot_token_missing" }, 500);
+  const hubspotToken = mode === "apply" ? Deno.env.get("HUBSPOT_TOKEN") : null;
+  if (mode === "apply" && !hubspotToken) return json({ error: "hubspot_token_missing" }, 500);
 
   for (const candidate of candidates) {
     let blockedReason: string | null = null;
-    if (!candidate.contact_id) blockedReason = candidate.contact_count > 1
-      ? "multiplos_contatos_hubspot_sem_lead_unico"
-      : "contato_hubspot_ausente";
-    else if (candidate.lead_count > 1) blockedReason = "multiplos_leads_inbound";
-    else if (!candidate.pipeline_id) blockedReason = "pipeline_inbound_ausente_na_config";
+    if (candidate.pipeline_config_count !== 1 || !candidate.pipeline_id) {
+      blockedReason = candidate.pipeline_config_count > 1
+        ? "pipeline_inbound_ambiguo_na_config"
+        : "pipeline_inbound_ausente_na_config";
+    } else if (candidate.identity_pending) {
+      blockedReason = "pendencia_de_identidade_aberta";
+    } else if (candidate.lead_count > 1) {
+      blockedReason = "multiplos_leads_inbound";
+    } else if (!candidate.contact_id) {
+      blockedReason = candidate.contact_count > 1
+        ? "multiplos_contatos_hubspot_sem_lead_unico"
+        : "contato_hubspot_ausente";
+    } else if (!candidate.existing_lead_id && candidate.contact_mirror_missing_count > 0) {
+      blockedReason = "contato_hubspot_sem_espelho_crm";
+    }
 
     const mapping = mapCommercialAnalysis(candidate.analysis ?? {}, candidate.current_stage);
     blockedReason ??= mapping.blockedReason;
@@ -105,11 +136,11 @@ Deno.serve(async (req: Request) => {
       contactId: candidate.contact_id,
       leadId: candidate.existing_lead_id,
       leadName: candidate.lead_name,
-      pipeline: candidate.pipeline_id || INBOUND_PIPELINE,
+      pipeline: candidate.pipeline_id,
       stage: mapping.stage,
       label: mapping.label,
     });
-    // Não envia null para propriedade enumerada: ausência de confiança mantém o valor atual.
+    // Ausência de confiança não apaga a propriedade enumerada atual do HubSpot.
     if (!mapping.label) delete (payload.properties as Record<string, unknown>).hs_lead_label;
     const payloadHash = await sha256(payload);
 
@@ -139,10 +170,11 @@ Deno.serve(async (req: Request) => {
       },
     );
     if (reserveError || reserved !== true) {
-      applied.push({ ...item, result: reserveError ? "reserve_failed" : "already_reserved" });
+      applied.push({ ...item, result: reserveError ? "reserve_failed" : "not_reserved" });
       continue;
     }
 
+    let retryable = action === "update";
     try {
       const properties = payload.properties;
       const path = action === "create"
@@ -153,36 +185,63 @@ Deno.serve(async (req: Request) => {
           properties,
           associations: [{
             to: { id: candidate.contact_id },
-            types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 578 }],
+            types: [{
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: LEAD_TO_CONTACT_ASSOCIATION_TYPE,
+            }],
           }],
         }
         : { properties };
       const response = await fetch(`${HUBSPOT}${path}`, {
         method: action === "create" ? "POST" : "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${hubspotToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(15_000),
       });
       const responseText = await response.text();
-      if (!response.ok) throw new Error(`hubspot_${response.status}: ${responseText.slice(0, 300)}`);
-      const responseBody = JSON.parse(responseText) as { id?: string };
+      if (!response.ok) {
+        retryable = action === "update" &&
+          (response.status === 408 || response.status === 429 || response.status >= 500);
+        throw new Error(`hubspot_${response.status}: ${responseText.slice(0, 300)}`);
+      }
+
+      const responseBody = responseText
+        ? JSON.parse(responseText) as { id?: string }
+        : {};
       const leadId = responseBody.id ?? candidate.existing_lead_id;
       if (!leadId) throw new Error("hubspot_response_without_lead_id");
 
-      const { error: confirmError } = await supabase.rpc("hubspot_commercial_confirm", {
-        p_analysis_id: candidate.analysis_id,
-        p_payload_hash: payloadHash,
-        p_lead_id: leadId,
-      });
-      if (confirmError) throw new Error(`confirm_failed: ${confirmError.message}`);
+      const { data: confirmed, error: confirmError } = await supabase.rpc(
+        "hubspot_commercial_confirm",
+        {
+          p_analysis_id: candidate.analysis_id,
+          p_payload_hash: payloadHash,
+          p_lead_id: leadId,
+        },
+      );
+      if (confirmError || confirmed !== true) {
+        throw new Error(confirmError
+          ? `confirm_failed: ${confirmError.message}`
+          : "confirm_failed: ledger_row_not_reserved");
+      }
       applied.push({ ...item, lead_id: leadId, result: "sent" });
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "unknown_error";
-      await supabase.rpc("hubspot_commercial_fail", {
-        p_analysis_id: candidate.analysis_id,
-        p_payload_hash: payloadHash,
-        p_error: message,
+      const { data: failureRecorded, error: failError } = await supabase.rpc(
+        "hubspot_commercial_fail",
+        {
+          p_analysis_id: candidate.analysis_id,
+          p_payload_hash: payloadHash,
+          p_error: message,
+          p_retryable: retryable,
+        },
+      );
+      applied.push({
+        ...item,
+        result: failError || failureRecorded !== true ? "failed_ledger_unconfirmed" : "failed",
+        retryable,
+        error: message,
       });
-      applied.push({ ...item, result: "failed", error: message });
     }
   }
 
