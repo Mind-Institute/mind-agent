@@ -8,8 +8,9 @@ const MAX_LIMIT = 50;
 type Candidate = {
   analysis_id: string;
   conversation_id: string;
-  person_id: string;
+  participant_id: string;
   contact_id: string | null;
+  contact_count: number;
   existing_lead_id: string | null;
   lead_count: number;
   lead_name: string;
@@ -79,7 +80,9 @@ Deno.serve(async (req: Request) => {
 
   for (const candidate of candidates) {
     let blockedReason: string | null = null;
-    if (!candidate.contact_id) blockedReason = "contato_hubspot_ausente";
+    if (!candidate.contact_id) blockedReason = candidate.contact_count > 1
+      ? "multiplos_contatos_hubspot_sem_lead_unico"
+      : "contato_hubspot_ausente";
     else if (candidate.lead_count > 1) blockedReason = "multiplos_leads_inbound";
     else if (!candidate.pipeline_id) blockedReason = "pipeline_inbound_ausente_na_config";
 
@@ -90,7 +93,7 @@ Deno.serve(async (req: Request) => {
     if (blockedReason || !candidate.contact_id || !candidate.pipeline_id || !mapping.stage) {
       preview.push({
         analysis_id: candidate.analysis_id,
-        person_id: candidate.person_id,
+        participant_id: candidate.participant_id,
         action: "blocked",
         reason: blockedReason,
       });
@@ -112,7 +115,7 @@ Deno.serve(async (req: Request) => {
 
     const item = {
       analysis_id: candidate.analysis_id,
-      person_id: candidate.person_id,
+      participant_id: candidate.participant_id,
       lead_id: candidate.existing_lead_id,
       action,
       from_stage: candidate.current_stage,
@@ -129,7 +132,6 @@ Deno.serve(async (req: Request) => {
         p_analysis_id: candidate.analysis_id,
         p_payload_hash: payloadHash,
         p_conversation_id: candidate.conversation_id,
-        p_person_id: candidate.person_id,
         p_contact_id: candidate.contact_id,
         p_lead_id: candidate.existing_lead_id,
         p_action: action,
