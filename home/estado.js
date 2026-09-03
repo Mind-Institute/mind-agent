@@ -104,6 +104,8 @@ export const ICO = {
   megafone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h3l9 4.5V4.5L7 9z"/><path d="M19 9.5a4 4 0 0 1 0 5"/><path d="M7 15v4.5"/></svg>',
   alerta:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8 2.8 19.5h18.4z"/><path d="M12 9.5v4M12 16.6v.1"/></svg>',
   estrela: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg>',
+  /* Carro: transporte e chegada — o aviso da Rhino (pedido da Adriana, 03/09). */
+  carro:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5v-3.6c0-.5.1-1 .4-1.4l2-4.1A2 2 0 0 1 8.2 6.3h7.6a2 2 0 0 1 1.8 1.1l2 4.1c.3.4.4.9.4 1.4v3.6"/><path d="M4.6 11.5h14.8"/><circle cx="8" cy="17" r="1.8"/><circle cx="16" cy="17" r="1.8"/><path d="M4 17h2.2M9.8 17h4.4M17.8 17H20"/></svg>',
   /* Os quatro dos Atalhos, copiados do handoff de 02/09 — mesmos glifos,
      mesmo traço 1.6. `qr` e `pin` existem separados de `ingresso` e
      `lugar` porque ali o desenho é outro: o QR do atalho é o código
@@ -143,6 +145,7 @@ const ICO_POR_NOME = {
   megafone: ICO.megafone, lugar: ICO.lugar, relogio: ICO.relogio,
   sino: ICO.sino, ingresso: ICO.ingresso, fone: ICO.fone,
   agenda: ICO.agenda, alerta: ICO.alerta, estrela: ICO.estrela,
+  carro: ICO.carro,
 };
 
 /* ---------- Avisos do evento ----------
@@ -170,7 +173,7 @@ const CRUS = [
     resumo: 'Arena LinkedIn, Arena Sextante, Workshops e Masterclasses têm lugares limitados.',
     mensagem: 'Faça o agendamento no app e confirme em Minha Agenda. No dia, sua vaga ficará garantida somente até 5 minutos antes do início.' },
 
-  { id: 'rhino', ico: ICO.estrela, cat: 'antes_de_ir', em: '2026-09-15T17:59', situacao: 'no-ar',
+  { id: 'rhino', ico: ICO.carro, cat: 'antes_de_ir', em: '2026-09-15T17:59', situacao: 'no-ar',
     titulo: 'Venha de Rhino para o Mind Summit',
     resumo: 'Quem nunca utilizou o serviço recebe R$ 200 de desconto na primeira corrida usando o cupom MINDSUMMIT.',
     mensagem: '💡 Dica para utilização: se for/voltar em mais de uma pessoa do evento, uma pode se cadastrar na ida e outra na volta, aproveitando o desconto nos dois momentos!\n\n📍 Regras de valor mínimo:\nCorridas de até 10 km: valor fixo de R$49\nCorridas acima de 10 km: valor mínimo de R$149\n\nCupom ativo e com validade até 31 de dezembro, depois de cadastrado no app precisa ser usado em 30 dias' },

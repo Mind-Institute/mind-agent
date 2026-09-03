@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 const FONTE = new URL('../../supabase/functions/mindagent-chat/index.ts', import.meta.url);
 const CHECKOUT_SHARED = new URL('../../supabase/functions/_shared/checkout-attribution.ts', import.meta.url);
 const INTELLIGENCE_SHARED = new URL('../../supabase/functions/_shared/agent-intelligence.ts', import.meta.url);
+const MODEL_ROUTING_SHARED = new URL('../../supabase/functions/_shared/agent-model-routing.ts', import.meta.url);
 const CONTACT_SHARED = new URL('../../supabase/functions/_shared/contact-profile.ts', import.meta.url);
 const STUB = new URL('./supabase-stub.mjs', import.meta.url);
 const IMPORT_VIVO = '"npm:@supabase/supabase-js@2.112.3"';
@@ -73,6 +74,7 @@ async function carregarHandler() {
   mkdirSync(pastaShared, { recursive: true });
   copyFileSync(CHECKOUT_SHARED, join(pastaShared, 'checkout-attribution.ts'));
   copyFileSync(INTELLIGENCE_SHARED, join(pastaShared, 'agent-intelligence.ts'));
+  copyFileSync(MODEL_ROUTING_SHARED, join(pastaShared, 'agent-model-routing.ts'));
   copyFileSync(CONTACT_SHARED, join(pastaShared, 'contact-profile.ts'));
   const arquivo = join(pastaFuncao, 'index.mts');
   writeFileSync(arquivo, partes.join(JSON.stringify(STUB.href)));
