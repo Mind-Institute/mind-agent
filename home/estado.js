@@ -55,11 +55,31 @@ export function momentoDoServidor() {
   return momentoServidor;
 }
 
-export function momentoAtual() {
+/* O SELETOR DE MOMENTO É ANDAIME, e andaime só manda onde ele aparece.
+   Ele só é desenhado em localhost ou com `?dev=1` — mas a escolha ia para
+   o `sessionStorage` e passava a VENCER O SERVIDOR em qualquer carga
+   seguinte daquela aba, inclusive em produção. Quem tivesse tocado nele
+   uma vez ficava presa numa tela que o painel não escolheu, sem contagem
+   e sem nome no título, e sem nada na interface para desfazer: o seletor
+   nem aparece ali para trocar de volta.
+
+   Agora o guardado só vale onde o seletor existe. Em produção manda o
+   painel, sempre. */
+export function seletorDisponivel() {
   try {
-    const guardado = sessionStorage.getItem(CHAVE);
-    if (guardado && MOMENTOS.some((m) => m.id === guardado)) return guardado;
-  } catch (e) { /* aba anônima */ }
+    if (new URLSearchParams(location.search).get('dev') === '1') return true;
+    const h = location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local');
+  } catch (e) { return false; }
+}
+
+export function momentoAtual() {
+  if (seletorDisponivel()) {
+    try {
+      const guardado = sessionStorage.getItem(CHAVE);
+      if (guardado && MOMENTOS.some((m) => m.id === guardado)) return guardado;
+    } catch (e) { /* aba anônima */ }
+  }
   return momentoServidor || 'antes';
 }
 

@@ -9,7 +9,7 @@
    resposta de API. Nada mais precisa mudar. */
 
 import { primeiroNome } from '../config.js';
-import { CONTEUDO, MOMENTOS, AVISOS, PLACEHOLDER_CONCIERGE, momentoAtual, definirMomento } from './estado.js';
+import { CONTEUDO, MOMENTOS, AVISOS, PLACEHOLDER_CONCIERGE, momentoAtual, definirMomento, seletorDisponivel } from './estado.js';
 import { heroSaudacao, montarBlocos } from './cards.js';
 
 
@@ -84,13 +84,10 @@ export function montarHome(raiz, aoAgir, contexto) {
 
 /* O seletor de momento é ferramenta de desenvolvimento, não produto:
    aparece em localhost e quando `?dev=1` pede, nunca no ar. */
-function mostrarSeletor() {
-  try {
-    if (new URLSearchParams(location.search).get('dev') === '1') return true;
-    const h = location.hostname;
-    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local');
-  } catch (e) { return false; }
-}
+/* Uma regra só, em `estado.js`: quem decide se o andaime aparece é quem
+   decide se a escolha dele vale. Duas cópias divergem, e a divergência
+   aqui significa uma tela presa que ninguém consegue destravar. */
+const mostrarSeletor = seletorDisponivel;
 
 export { AVISOS };
 
