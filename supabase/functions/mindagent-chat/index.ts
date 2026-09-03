@@ -61,7 +61,10 @@ const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
 const DEFAULT_FAST_ROLLOUT_PERCENT = 50;
-const MAX_TENTATIVAS_MODELO = MAX_RODADAS_TOOL + 2;
+// Pior caminho seguro: rápido inválido + abstinência + duas tools + resposta.
+// A tool nunca é exposta na última tentativa, pois precisa existir uma geração
+// posterior que transforme o resultado em resposta para a pessoa.
+const MAX_TENTATIVAS_MODELO = MAX_RODADAS_TOOL + 3;
 
 // O CANAL DESTE RUNTIME. Constante, nunca inferida da conversa: quem chama sabe
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
@@ -1347,7 +1350,8 @@ Deno.serve(async (req: Request) => {
             ...(toolsParaModelo.length > 0
               ? {
                 tools: toolsParaModelo,
-                tool_choice: !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL)
+                tool_choice: !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) ||
+                    !podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO)
                   ? "none"
                   : forcarBuscaNaProximaVolta
                   ? { type: "function", name: "buscar_intelligence" }
