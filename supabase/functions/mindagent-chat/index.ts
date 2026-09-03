@@ -1,4 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
+import {
+  checkoutRastreado,
+  escolherCheckoutOficial,
+  idEventoCheckout,
+  inserirCheckoutNaResposta,
+} from "../_shared/checkout-attribution.ts";
 
 type ChatRequest = {
   message?: string;
@@ -26,7 +32,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.9.1";
+const VERSION = "1.10.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
@@ -469,6 +475,15 @@ function montarResponseSchema(rotasDoCanal: string[]) {
         required: ["key", "label", "confidence", "sensitivity"],
       },
     },
+    checkout_sent: {
+      type: "boolean",
+      description: "true somente quando esta resposta envia um checkout oficial; false nos demais turnos.",
+    },
+    checkout_url: {
+      type: ["string", "null"],
+      maxLength: 1200,
+      description: "Quando enviar checkout, copie EXATAMENTE um checkout_url recebido no Kit. null quando não enviar. O runtime valida, rastreia e registra o envio.",
+    },
     // A COMPETÊNCIA QUE DEVE ATENDER O PRÓXIMO TURNO. `null` é o caso normal: quem
     // respondeu continua. O enum vem do banco, não daqui — e o runtime ainda revalida
     // pelo Gate antes de persistir, porque estar na política do canal não é o mesmo que
@@ -480,10 +495,13 @@ function montarResponseSchema(rotasDoCanal: string[]) {
         "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
         "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
         "passou a ser de outra competência; nunca por simples falta de informação. " +
+        "No app do Summit, permaneça no concierge para programação, acesso e experiência. " +
+        "Peça summit_b2c quando houver intenção explícita de compra ou upgrade; faça uma " +
+        "pergunta curta que permita ao próximo turno continuar sem a pessoa repetir tudo. " +
         "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
     },
   },
-  required: ["answer", "interests", "next_route"],
+  required: ["answer", "interests", "checkout_sent", "checkout_url", "next_route"],
   };
 }
 
@@ -1256,7 +1274,13 @@ Deno.serve(async (req: Request) => {
       }, requestId);
     }
 
-    let structured: { answer: string; interests: Interest[]; next_route?: string | null };
+    let structured: {
+      answer: string;
+      interests: Interest[];
+      checkout_sent?: boolean;
+      checkout_url?: string | null;
+      next_route?: string | null;
+    };
     try {
       structured = JSON.parse(outputText);
     } catch {
@@ -1265,6 +1289,27 @@ Deno.serve(async (req: Request) => {
 
     const answer = normalizeAnswerLayout(String(structured.answer ?? "")).slice(0, 2000).trim();
     if (!answer) throw new Error("empty_ai_answer");
+
+    const checkoutCandidato = typeof structured.checkout_url === "string" && structured.checkout_url.trim()
+      ? structured.checkout_url.trim()
+      : null;
+    const checkoutOficial = escolherCheckoutOficial(officialContext, checkoutCandidato, answer);
+    const checkoutSolicitado = structured.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
+    if (checkoutSolicitado && !checkoutOficial) {
+      console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial", rota: rotaDecidida }));
+      return json(req, 502, {
+        ok: false,
+        error: { code: "official_checkout_unavailable", message: "Não consegui abrir um checkout oficial agora." },
+      }, requestId);
+    }
+
+    let respostaFinal = answer;
+    let checkoutEventoId: string | null = null;
+    if (checkoutOficial) {
+      checkoutEventoId = await idEventoCheckout(conversationId, clientMessageId, checkoutOficial.url);
+      const urlRastreada = checkoutRastreado(checkoutOficial, checkoutEventoId, "app", "mindagent-chat");
+      respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlRastreada, checkoutCandidato);
+    }
     // Sem `.slice(0, 2)`: um turno pode revelar seis interesses legítimos, e o teto
     // descartava os quatro últimos em silêncio. Quem filtra por sensibilidade e por
     // confiança é `mindagent_chat_save_interests`, no banco.
@@ -1319,7 +1364,7 @@ Deno.serve(async (req: Request) => {
       p_conversation_id: conversationId,
       p_token_hash: tokenHash,
       p_role: "assistant",
-      p_content: answer,
+      p_content: respostaFinal,
       p_client_message_id: `${clientMessageId}:assistant`,
       p_blocks: {
         sources,
@@ -1337,6 +1382,9 @@ Deno.serve(async (req: Request) => {
         origem_codigo: origemDaConversa || null,
         rodadas_tool: rodadasTool,
         ferramentas: chamadasFeitas,
+        checkout_sent: checkoutEventoId !== null,
+        checkout_event_id: checkoutEventoId,
+        checkout_reason: checkoutOficial?.motivo ?? null,
         // AUDITORIA DO HANDOFF: o que o Agent pediu e o que de fato ficou valendo. Sem os
         // dois, não dá para distinguir "não pediu troca" de "pediu e o Gate recusou".
         next_route: nextRoute,
@@ -1348,6 +1396,20 @@ Deno.serve(async (req: Request) => {
       },
     });
     if (assistantMessageError || !assistantMessage) throw new Error("assistant_message_save_failed");
+
+    if (checkoutEventoId && checkoutOficial) {
+      const { error: eventoError } = await admin.rpc("mind_checkout_envio_registrar", {
+        p_evento_id: checkoutEventoId,
+        p_conversa_id: conversationId,
+        p_checkout_url: checkoutOficial.url,
+        p_canal: "app",
+        p_agente: "mindagent-chat",
+        p_rota: rotaDecidida,
+        p_motivo: checkoutOficial.motivo,
+        p_request_id: clientMessageId,
+      });
+      if (eventoError) throw new Error("checkout_event_save_failed");
+    }
 
     if (interests.length > 0) {
       const { error: interestError } = await admin.rpc("mindagent_chat_save_interests", {
@@ -1370,6 +1432,7 @@ Deno.serve(async (req: Request) => {
       rota: rotaDecidida, rota_origem: rotaOrigem, router_falha: rotaFalha, router_ms: routerMs,
       origem_codigo: origemDaConversa || null,
       next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
+      checkout_event_id: checkoutEventoId,
       tools_expostas: nomesDasFerramentas.length, rodadas_tool: rodadasTool,
       historico: historico.length,
       chamadas_tool: chamadasFeitas.length,
@@ -1381,7 +1444,7 @@ Deno.serve(async (req: Request) => {
 
     return json(req, 200, {
       ok: true,
-      answer,
+      answer: respostaFinal,
       session: { id: sessionId, conversation_id: conversationId, token: sessionToken, expires_at: expiresAt },
       device_id: deviceId,
       identity_verified: false,
@@ -1392,6 +1455,7 @@ Deno.serve(async (req: Request) => {
       },
       profile_loaded: profileLoaded,
       rota: rotaDecidida,
+      checkout_sent: checkoutEventoId !== null,
       interests,
       sources,
       request_id: requestId,
