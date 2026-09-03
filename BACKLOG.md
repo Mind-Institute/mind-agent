@@ -214,6 +214,62 @@ Uma regra que o 15B acrescenta: quando o produto **não tiver pipeline apropriad
 pipeline — persiste-se a inteligência e faz-se **dispatch para os responsáveis do produto**
 (e-mail, follow-up, o que a operação daquele produto usar).
 
+
+---
+
+## 7. Backfill histórico de conversas + revisão humana de divergência de estágio
+
+**Status:** aprovado por Adriana em 03/09/2026 para entrar no backlog. **Não executar junto
+com o primeiro go-live do write-back.**
+
+Depois de estabilizar o fluxo incremental para conversas novas, analisar **todas as conversas
+com mensagens que estão ou já estiveram em andamento** nos canais armazenados no database. O
+backfill deve usar o analisador canônico vigente, registrar versão/proveniência e processar em
+lotes idempotentes; conversa vazia/bootstrap não entra.
+
+Objetivos:
+
+1. classificar o estado comercial, intenção, temperatura, barreira, próximo passo e oportunidade;
+2. agregar por pessoa + produto/oportunidade, para não tratar cada conversa da mesma pessoa como
+   um novo lead;
+3. comparar o estágio inferido com o estágio atual do Lead no HubSpot;
+4. separar concordâncias, divergências e casos sem identidade/Lead/pipeline confiável;
+5. permitir revisão humana antes de qualquer mudança histórica em massa.
+
+Quando houver divergência, criar uma pendência auditável com:
+
+- estágio atual e estágio sugerido;
+- razão curta apoiada em evidências da conversa;
+- confiança da análise;
+- conversa/análise de origem e data;
+- decisão humana: aceitar, rejeitar ou adiar;
+- quem decidiu e quando.
+
+**Visibilidade recomendada no HubSpot:** propriedade dedicada, por exemplo
+`mind_revisar_estagio_ia`, mais uma nota associada ao Lead contendo a justificativa. Não alterar
+o título do card como mecanismo principal: o título é identidade pesquisável do Lead, o marcador
+pode se acumular e depois exige limpeza. Só usar `[REVISAR ESTÁGIO]` no título como fallback
+temporário se a operação decidir não criar a propriedade dedicada.
+
+Exemplo de nota:
+
+> Revisão de estágio sugerida pela IA: Novo lead → Em negociação. Motivo: a pessoa declarou
+> intenção de compra, perguntou sobre parcelamento e recebeu o checkout. Confiança: alta.
+> Nenhuma mudança histórica foi aplicada; requer validação humana.
+
+**Regras de segurança:**
+
+- o backfill histórico primeiro produz preview e métricas; não escreve estágio automaticamente;
+- identidade HubSpot somente por `engagement.identidades(canal='hubspot')`;
+- Lead somente por `hs_primary_contact_id`; nunca usar `pessoas.hubspot_id` ou
+  `crm.*.pessoa_id` como caminho de leitura;
+- múltiplos contatos ou múltiplos Leads ficam bloqueados para revisão;
+- Leads em estado terminal não são reabertos nem trocados de terminal automaticamente;
+- nota e flag também precisam de ledger idempotente para não duplicar;
+- criação das propriedades no HubSpot e ativação das notas exigem preview e gate explícito;
+- só considerar movimentação automática histórica depois de uma amostra revisada mostrar
+  precisão operacional aceitável.
+
 ---
 
 ## 8. 19 funções ainda apontam pros schemas antigos (`summit.*` / `comum.*`)  ⚠️
