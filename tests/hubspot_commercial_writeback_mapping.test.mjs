@@ -2,10 +2,56 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  contactEnrichment,
+  contactFromPersonFacts,
   mapCommercialAnalysis,
   STAGES,
   stablePayload,
 } from "../supabase/functions/hubspot-commercial-writeback/mapping.ts";
+
+test("contato nasce somente com os cinco dados comerciais completos", () => {
+  const plan = contactFromPersonFacts({
+    perfil: { primeiro_nome: "Ada", sobrenome: "Lovelace", empresa: "Mind", cargo: "CHRO" },
+    identificadores: [
+      { canal: "email", identificador: "ada@example.com" },
+      { canal: "whatsapp", identificador: "5511999999999" },
+    ],
+    conflitos_perfil: [],
+  });
+  assert.equal(plan.blockedReason, null);
+  assert.deepEqual(plan.fields, {
+    firstname: "Ada", lastname: "Lovelace", email: "ada@example.com",
+    phone: "5511999999999", company: "Mind", jobtitle: "CHRO",
+  });
+});
+
+test("cadastro incompleto e identidade ambígua bloqueiam write-back", () => {
+  assert.equal(contactFromPersonFacts({
+    perfil: { primeiro_nome: "Ada" }, identificadores: [], conflitos_perfil: [],
+  }).blockedReason, "cadastro_contato_incompleto");
+  assert.equal(contactFromPersonFacts({
+    perfil: { primeiro_nome: "Ada", sobrenome: "Lovelace", empresa: "Mind", cargo: "CHRO" },
+    identificadores: [
+      { canal: "email", identificador: "a@example.com" },
+      { canal: "email", identificador: "b@example.com" },
+      { canal: "whatsapp", identificador: "5511999999999" },
+    ],
+    conflitos_perfil: [],
+  }).blockedReason, "identificador_contato_ambiguo");
+});
+
+test("enriquecimento preenche vazios e não sobrescreve valores do HubSpot", () => {
+  const source = {
+    firstname: "Ada", lastname: "Lovelace", email: "ada@example.com",
+    phone: "5511999999999", company: "Mind", jobtitle: "CHRO",
+  };
+  assert.deepEqual(contactEnrichment(source, {
+    firstname: "Ada", lastname: "", email: "hubspot@example.com",
+    phone: null, company: "Empresa existente", jobtitle: "",
+  }), {
+    lastname: "Lovelace", phone: "5511999999999", jobtitle: "CHRO",
+  });
+});
 
 test("compra confirmada prevalece sobre handoff", () => {
   const result = mapCommercialAnalysis({
@@ -192,5 +238,12 @@ test("runtime não contém fallback de pipeline e exige credencial administrativ
   assert.match(index, /p_retryable: retryable/);
   assert.match(index, /seenParticipants/);
   assert.match(index, /participante_duplicado_no_lote/);
+  assert.match(index, /contactFromPersonFacts/);
+  assert.match(index, /resolve_or_create/);
+  assert.match(index, /pessoa_vincular_hubspot/);
+  assert.match(index, /linkedIdentity\?\.conflito != null/);
+  assert.match(index, /linkedIdentity\?\.pessoa_id !== candidate\.participant_id/);
+  assert.match(index, /crm\/objects\/2026-03\/contacts/);
+  assert.match(index, /contactEnrichment/);
+  assert.doesNotMatch(index, /crm\.registrar_lead|mind_lead_capturar/);
 });
-

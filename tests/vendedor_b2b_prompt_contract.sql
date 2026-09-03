@@ -1,4 +1,4 @@
--- Contrato do vendedor B2B Summit v8.
+-- Contrato do vendedor B2B Summit v9, com Core compartilhado B2B/B2C.
 -- Leitura apenas; não cria fixture nem altera dados.
 
 do $test$
@@ -29,14 +29,13 @@ begin
   if position('10 ou mais' in coalesce(v_b2b,'')) = 0 then
     raise exception 'regra de handoff por volume ausente';
   end if;
-  if position('NÃO COLETE CADASTRO' in coalesce(v_b2b,'')) = 0 then
-    raise exception 'regra de não coletar cadastro ausente';
+  if position('CADASTRO B2B OBRIGATÓRIO NO INÍCIO' in coalesce(v_b2b,'')) = 0 then
+    raise exception 'regra de cadastro B2B inicial ausente';
   end if;
-  if position('IDENTIDADE E CONTATO — COMPLETAR, NÃO REPETIR' in coalesce(v_b2b,'')) > 0
-     or position('complete somente os campos ausentes' in coalesce(v_b2b,'')) > 0
-     or position('Qual é a empresa?' in coalesce(v_b2b,'')) > 0
-     or position('Qual e-mail você prefere usar' in coalesce(v_b2b,'')) > 0 then
-    raise exception 'coleta cadastral antiga ainda presente';
+  if position('NÃO COLETE CADASTRO' in coalesce(v_b2b,'')) > 0
+     or position('Não entregue calculadora, proposta ou checkout até completar o contato mínimo' in coalesce(v_b2b,'')) = 0
+     or position('nome completo, e-mail, WhatsApp, empresa e cargo' in coalesce(v_b2b,'')) = 0 then
+    raise exception 'contrato cadastral B2B vigente não foi preservado';
   end if;
   if position('Classifique quem chegou:' in coalesce(v_b2b,'')) > 0 then
     raise exception 'playbook_router ainda montado no B2B';
@@ -46,13 +45,20 @@ begin
      or position('PRODUCT DECISIONING ENTRE SOLUÇÕES MIND' in coalesce(v_b2b,'')) > 0 then
     raise exception 'módulo genérico ainda montado no B2B';
   end if;
+  if position('DECISIONING COMERCIAL UNIVERSAL' in coalesce(v_b2b,'')) = 0 then
+    raise exception 'decisioning compartilhado ausente do B2B';
+  end if;
   if length(v_b2b) >= 35000 then
     raise exception 'prompt B2B continua excessivo: % caracteres', length(v_b2b);
   end if;
 
-  if position('SALES DECISION ENGINE' in coalesce(v_b2c,'')) = 0
-     or position('PRODUCT DECISIONING ENTRE SOLUÇÕES MIND' in coalesce(v_b2c,'')) = 0 then
-    raise exception 'B2C alterado antes da auditoria própria';
+  if position('DECISIONING COMERCIAL UNIVERSAL' in coalesce(v_b2c,'')) = 0
+     or position('PRODUCT DECISIONING ENTRE SOLUÇÕES MIND' in coalesce(v_b2c,'')) > 0 then
+    raise exception 'B2C não usa exclusivamente o decisioning compartilhado';
+  end if;
+  if position('CONTATO COMERCIAL NO INÍCIO' in coalesce(v_b2c,'')) = 0
+     or position('nome completo, e-mail, WhatsApp, empresa e cargo' in coalesce(v_b2c,'')) = 0 then
+    raise exception 'captura inicial de contato não chegou ao B2C';
   end if;
   if position('CALCULADORA CORPORATIVA' in coalesce(v_b2c,'')) > 0 then
     raise exception 'playbook B2B vazou para B2C';

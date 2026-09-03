@@ -26,6 +26,13 @@ const HUMAN_HANDOFF = new Set(["required", "requested", "pending", "accepted"]);
 
 export type Analysis = Record<string, unknown>;
 
+export {
+  contactEnrichment,
+  contactFromPersonFacts,
+  type ContactFields,
+  type ContactPlan,
+} from "../_shared/contact-profile.ts";
+
 export type Mapping = {
   stage: string | null;
   label: "HOT" | "WARM" | "COLD" | null;
@@ -41,6 +48,7 @@ function record(value: unknown): Record<string, unknown> {
     ? value as Record<string, unknown>
     : {};
 }
+
 
 export function mapCommercialAnalysis(
   analysis: Analysis,
@@ -148,4 +156,3 @@ export function stablePayload(input: {
     properties,
   };
 }
-

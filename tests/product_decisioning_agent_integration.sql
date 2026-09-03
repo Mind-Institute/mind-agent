@@ -57,7 +57,8 @@ begin
   end if;
 
   select public.treble_agent_prompt('summit_b2c','decisioning') into v_treble;
-  if position('NENHUMA RECOMENDAÇÃO É UM RESULTADO VÁLIDO' in coalesce(v_treble,''))=0 then
-    raise exception 'treble perdeu product decisioning v2';
+  if position('DECISIONING COMERCIAL UNIVERSAL' in coalesce(v_treble,''))=0
+     or position('NENHUMA RECOMENDAÇÃO É UM RESULTADO VÁLIDO' in coalesce(v_treble,''))>0 then
+    raise exception 'vendedor B2C não recebeu exclusivamente o decisioning universal';
   end if;
 end $test$;

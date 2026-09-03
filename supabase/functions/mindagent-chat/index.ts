@@ -5,6 +5,16 @@ import {
   idEventoCheckout,
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
+import {
+  executarChamadas,
+  esforcoDeRaciocinio,
+  extrairChamadas,
+  MAX_RODADAS_TOOL,
+  ORCAMENTO_TURNO_MS,
+  produtoDoContexto,
+  toolsDeIntelligence,
+} from "../_shared/agent-intelligence.ts";
+import { contactFromPersonFacts } from "../_shared/contact-profile.ts";
 
 type ChatRequest = {
   message?: string;
@@ -34,7 +44,7 @@ type Interest = {
 
 const VERSION = "1.11.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
-const DEFAULT_MODEL = "gpt-5.4-mini";
+const DEFAULT_MODEL = "gpt-5.4";
 
 // O CANAL DESTE RUNTIME. Constante, nunca inferida da conversa: quem chama sabe
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
@@ -56,48 +66,7 @@ const ROTA_POR_ORIGEM: Record<string, string> = {
 // Código de origem é identificador, não texto livre — mesmo formato que o banco valida.
 const ORIGEM_CODIGO_RE = /^[a-z][a-z0-9_]{1,59}$/;
 
-// Duas rodadas de ferramenta por turno, e não mais. Uma rodada busca; a segunda
-// lê o que a busca achou. Além disso vira ruminação: o modelo continua procurando
-// em vez de responder com o que já tem — e quem espera é uma pessoa.
-const MAX_RODADAS_TOOL = 2;
-
-// Orçamento do TURNO INTEIRO, não de uma chamada. Com tool loop existem até três
-// gerações e duas idas ao banco; medir cada uma isolada deixaria o pior caso sem teto.
-const ORCAMENTO_TURNO_MS = 30_000;
 const ROUTER_TIMEOUT_MS = 12_000;
-
-// FERRAMENTAS DE INTELLIGENCE — mesmo princípio de `FERRAMENTAS_PLAY`: o nome que
-// chega de fora NUNCA vira nome de RPC. QUAIS ferramentas estão ligadas é decisão do
-// Kit (`agentes.kit_blocos`, seção `tools`), no banco; COMO cada uma executa está
-// aqui, estático e auditável. Ferramenta que o Kit exponha e este mapa não conheça é
-// descartada — o runtime nunca inventa executor.
-//
-// As duas são de LEITURA. `mind_intelligence_buscar` e `mind_intelligence_ler` já
-// existem desde 20260831070000 e leem as casas canônicas (palestrantes, sessões,
-// knowledge_documents). Nenhuma fonte da verdade nova, nenhum índice paralelo.
-const FERRAMENTAS_INTELLIGENCE: Record<
-  string,
-  { rpc: string; args: (bruto: Record<string, unknown>) => Record<string, unknown> }
-> = {
-  buscar_intelligence: {
-    rpc: "mind_intelligence_buscar",
-    args: (a) => {
-      const limite = Number(a.limite);
-      return {
-        p_necessidade: String(a.necessidade ?? "").trim().slice(0, 400),
-        p_limite: Number.isFinite(limite) ? Math.max(1, Math.min(10, Math.trunc(limite))) : 6,
-      };
-    },
-  },
-  ler_intelligence: {
-    rpc: "mind_intelligence_ler",
-    args: (a) => ({
-      p_tipo: String(a.tipo ?? "").trim().slice(0, 40),
-      p_id: String(a.id ?? "").trim().slice(0, 80),
-      p_corte: 1200,
-    }),
-  },
-};
 
 // SENSIBILIDADE DO INTERESSE — espelha as chaves ATIVAS de
 // `intelligence.memoria_bloqueios` em 31/08/2026, mais `none`.
@@ -222,10 +191,19 @@ function normalizeInterestKey(value: string) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
 }
 
-function redactForAi(value: string) {
-  return value
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[e-mail omitido]")
-    .replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, "[telefone omitido]");
+function maskContactForAi(value: string): { text: string; emails: string[]; whatsapps: string[] } {
+  const emails: string[] = [];
+  const whatsapps: string[] = [];
+  const text = value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, (match) => {
+      emails.push(match);
+      return `[email_${emails.length}]`;
+    })
+    .replace(/(?:\+?\d[\d\s().-]{9,}\d)/g, (match) => {
+      whatsapps.push(match);
+      return `[whatsapp_${whatsapps.length}]`;
+    });
+  return { text, emails, whatsapps };
 }
 
 function normalizeAnswerLayout(value: string) {
@@ -302,25 +280,6 @@ function buildPersonalizationProfile(
     interesses,
   };
   return profile.nome || profile.cargo || profile.empresa || profile.interesses.length > 0 ? profile : null;
-}
-
-// CHAMADAS DE FERRAMENTA de uma geração da Responses API. Só o que tem forma de
-// chamada entra; qualquer outro item do output é ignorado sem virar erro.
-function extractFunctionCalls(payload: Record<string, unknown>) {
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  const calls: Array<{ call_id: string; name: string; arguments: string }> = [];
-  for (const raw of output) {
-    if (!raw || typeof raw !== "object") continue;
-    const item = raw as Record<string, unknown>;
-    if (item.type !== "function_call") continue;
-    if (typeof item.name !== "string" || typeof item.call_id !== "string") continue;
-    calls.push({
-      call_id: item.call_id,
-      name: item.name,
-      arguments: typeof item.arguments === "string" ? item.arguments : "{}",
-    });
-  }
-  return calls;
 }
 
 // ROTA — quem decide é a Edge Function `router` (Passo 10), e só ela. Este runtime
@@ -484,6 +443,26 @@ function montarResponseSchema(rotasDoCanal: string[]) {
       maxLength: 1200,
       description: "Quando enviar checkout, copie EXATAMENTE um checkout_url recebido no Kit. null quando não enviar. O runtime valida, rastreia e registra o envio.",
     },
+    nome_informado: {
+      type: ["string", "null"], maxLength: 160,
+      description: "Nome completo que a própria pessoa informou neste turno; null quando não informou.",
+    },
+    email_informado: {
+      type: ["string", "null"], maxLength: 40,
+      description: "Rótulo [email_N] do e-mail que a própria pessoa informou neste turno; nunca devolva o endereço real.",
+    },
+    whatsapp_informado: {
+      type: ["string", "null"], maxLength: 40,
+      description: "Rótulo [whatsapp_N] do número que a própria pessoa informou neste turno; nunca devolva o número real.",
+    },
+    empresa_informada: {
+      type: ["string", "null"], maxLength: 160,
+      description: "Empresa onde a própria pessoa trabalha, somente se ela informou neste turno.",
+    },
+    cargo_informado: {
+      type: ["string", "null"], maxLength: 120,
+      description: "Cargo da própria pessoa, somente se ela informou neste turno.",
+    },
     // A COMPETÊNCIA QUE DEVE ATENDER O PRÓXIMO TURNO. `null` é o caso normal: quem
     // respondeu continua. O enum vem do banco, não daqui — e o runtime ainda revalida
     // pelo Gate antes de persistir, porque estar na política do canal não é o mesmo que
@@ -501,7 +480,11 @@ function montarResponseSchema(rotasDoCanal: string[]) {
         "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
     },
   },
-  required: ["answer", "interests", "checkout_sent", "checkout_url", "next_route"],
+  required: [
+    "answer", "interests", "checkout_sent", "checkout_url", "next_route",
+    "nome_informado", "email_informado", "whatsapp_informado",
+    "empresa_informada", "cargo_informado",
+  ],
   };
 }
 
@@ -649,36 +632,35 @@ Deno.serve(async (req: Request) => {
 
     let tokenHash = await sha256(sessionToken);
 
-    if (identityEmailReceived) {
-      const bindIdentity = async () => {
-        const { data, error } = await admin.rpc("mindagent_chat_bind_identity", {
-          p_auth_user_id: authUserId,
-          p_session_id: sessionId,
-          p_conversation_id: conversationId,
-          p_token_hash: tokenHash,
-          p_email: String(payload.identity?.email ?? "").trim().toLowerCase(),
-          // O NOME ATRAVESSA. Chegava até aqui e era descartado por falta de
-          // parâmetro: o e-mail virava identidade e `pessoas.pessoas` ficava sem
-          // nome. Quem decide o que fazer com ele continua sendo
-          // `mind_identidade_resolver` — que preenche quando falta e nunca
-          // sobrescreve nome canônico existente. Aqui é só encanamento.
-          p_nome: identityNameReceived
-            ? String(payload.identity?.name ?? "").trim().slice(0, 160)
-            : null,
-        });
-        if (error) {
-          console.warn(JSON.stringify({ request_id: requestId, event: "identity_bind_failed" }));
-          return null;
-        }
-        return data as Record<string, unknown>;
-      };
+    const bindIdentity = async (email: string, name: string | null) => {
+      const { data, error } = await admin.rpc("mindagent_chat_bind_identity", {
+        p_auth_user_id: authUserId,
+        p_session_id: sessionId,
+        p_conversation_id: conversationId,
+        p_token_hash: tokenHash,
+        p_email: email.trim().toLowerCase(),
+        p_nome: name?.trim().slice(0, 160) || null,
+      });
+      if (error) {
+        console.warn(JSON.stringify({ request_id: requestId, event: "identity_bind_failed" }));
+        return null;
+      }
+      return data as Record<string, unknown>;
+    };
 
-      let binding = await bindIdentity();
+    if (identityEmailReceived) {
+      let binding = await bindIdentity(
+        String(payload.identity?.email ?? ""),
+        identityNameReceived ? String(payload.identity?.name ?? "") : null,
+      );
       if (binding?.conflict === true) {
         newSession = true;
         ({ sessionId, conversationId, sessionToken, expiresAt } = await startNewSession());
         tokenHash = await sha256(sessionToken);
-        binding = await bindIdentity();
+        binding = await bindIdentity(
+          String(payload.identity?.email ?? ""),
+          identityNameReceived ? String(payload.identity?.name ?? "") : null,
+        );
       }
       profileLoaded = binding?.found === true;
     }
@@ -719,7 +701,7 @@ Deno.serve(async (req: Request) => {
       }));
     expiresAt = expiresAt ?? (typeof sessionContext.expires_at === "string" ? sessionContext.expires_at : null);
 
-    const pessoaId = typeof sessionContext.participant_profile?.participant_id === "string"
+    let pessoaId = typeof sessionContext.participant_profile?.participant_id === "string"
       ? sessionContext.participant_profile.participant_id
       : null;
 
@@ -1041,6 +1023,9 @@ Deno.serve(async (req: Request) => {
       p_necessidade: {
         event_slug: eventSlug,
         pergunta: message,
+        texto: message,
+        rota: rotaDecidida,
+        canal: CANAL,
         // 8 cortava listas legítimas: são 12 workshops e 6 por dia. `sessions_total`
         // continua dizendo quantos existem quando ainda assim faltar.
         limite: 12,
@@ -1080,30 +1065,38 @@ Deno.serve(async (req: Request) => {
     const officialContext = kit.structured;
 
     // ------------------------------------------------------------ TOOLS
-    // QUAIS ferramentas existem neste turno é decisão do Kit, no banco. COMO cada
-    // uma executa está em `FERRAMENTAS_INTELLIGENCE`. O que o Kit expõe e este
-    // runtime não sabe executar é descartado — com registro, porque é divergência
-    // entre política e executor, não erro do turno.
-    const toolsDoKit = Array.isArray(kit.tools) ? kit.tools as Array<Record<string, unknown>> : [];
-    const ferramentasAtivas = toolsDoKit.filter((t) =>
-      typeof t?.nome === "string" &&
-      Object.prototype.hasOwnProperty.call(FERRAMENTAS_INTELLIGENCE, t.nome as string) &&
-      t?.parametros && typeof t.parametros === "object");
-    const semExecutor = toolsDoKit.length - ferramentasAtivas.length;
+    // QUAIS ferramentas existem neste turno é decisão do Kit. COMO executam é Core
+    // compartilhado com o WhatsApp, incluindo escopo de rota/produto/canal.
+    const { tools: toolsParaModelo, semExecutor } = toolsDeIntelligence(kit.tools);
     if (semExecutor > 0) {
       console.warn(JSON.stringify({
         request_id: requestId, event: "tool_sem_executor",
         rota: rotaDecidida, quantidade: semExecutor,
       }));
     }
-    const toolsParaModelo = ferramentasAtivas.map((t) => ({
-      type: "function",
-      name: String(t.nome),
-      description: typeof t.descricao === "string" ? t.descricao : "",
-      parameters: t.parametros,
-      strict: true,
-    }));
     const nomesDasFerramentas = toolsParaModelo.map((t) => t.name);
+
+    const rotaDeVenda = ["summit_b2b", "summit_b2c"].includes(rotaDecidida ?? "");
+    const { data: personFacts } = rotaDeVenda && pessoaId
+      ? await admin.rpc("mind_pessoa_fatos", { p_pessoa_id: pessoaId })
+      : { data: null };
+    const contactPlanBeforeTurn = contactFromPersonFacts(personFacts);
+    const maskedContact = maskContactForAi(message);
+    const candidates = [
+      ...maskedContact.emails.map((value, index) => ({ key: `email_${index + 1}`, channel: "email", value })),
+      ...maskedContact.whatsapps.map((value, index) => ({ key: `whatsapp_${index + 1}`, channel: "whatsapp", value })),
+    ];
+    const validationPairs = await Promise.all(candidates.map(async (candidate) => {
+      const { data, error } = await admin.rpc("mind_identificador_validar", {
+        p_canal: candidate.channel,
+        p_valor: candidate.value,
+      });
+      return [candidate.key, {
+        valido: !error && data?.valido === true,
+        motivo: error ? "validacao_indisponivel" : data?.motivo ?? null,
+      }] as const;
+    }));
+    const contactValidation = Object.fromEntries(validationPairs);
 
     const aiContext = {
       official_context: officialContext,
@@ -1111,7 +1104,17 @@ Deno.serve(async (req: Request) => {
       ...(sessionContext.credenciamento
         ? { participant_credential: sessionContext.credenciamento }
         : {}),
-      user_question: redactForAi(message),
+      ...(rotaDeVenda
+        ? {
+          contact_collection: {
+            required_at_start: true,
+            missing: contactPlanBeforeTurn.missing,
+            blocked_reason: contactPlanBeforeTurn.blockedReason,
+            identifier_validation: contactValidation,
+          },
+        }
+        : {}),
+      user_question: maskedContact.text,
     };
     // ------------------------------------------------------- TOOL LOOP
     // O turno deixa de ser uma geração só. O modelo pode pedir ferramenta, ler o
@@ -1158,7 +1161,7 @@ Deno.serve(async (req: Request) => {
             // que não deve mudar por causa desta entrega. COM ferramenta, `low`:
             // decidir se busca, o que buscar e se o resultado responde é raciocínio,
             // e com `none` o modelo tende a responder direto sem investigar.
-            reasoning: { effort: toolsParaModelo.length > 0 ? "low" : "none" },
+            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
             text: {
               format: {
                 type: "json_schema", name: "mindagent_response", strict: true, schema: responseSchema,
@@ -1184,7 +1187,7 @@ Deno.serve(async (req: Request) => {
       if (!openAiResponse.ok) break;
 
       openAiPayload = await openAiResponse.json() as Record<string, unknown>;
-      const chamadas = extractFunctionCalls(openAiPayload);
+      const chamadas = extrairChamadas(openAiPayload);
       if (chamadas.length === 0) {
         outputText = extractOutputText(openAiPayload);
         break;
@@ -1198,35 +1201,20 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      const resultados = await Promise.all(chamadas.map(async (c) => {
-        const alvo = FERRAMENTAS_INTELLIGENCE[c.name];
-        // Ferramenta fora da allowlist não executa e não derruba o turno: volta como
-        // recusa nomeada, e o modelo segue com o que tem.
-        if (!alvo) return { call_id: c.call_id, output: JSON.stringify({ erro: "ferramenta_desconhecida" }), nome: c.name, ok: false };
-        let bruto: Record<string, unknown>;
-        try {
-          const parsed = JSON.parse(c.arguments || "{}");
-          bruto = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-        } catch {
-          return { call_id: c.call_id, output: JSON.stringify({ erro: "argumentos_invalidos" }), nome: c.name, ok: false };
-        }
-        const { data, error } = await admin.rpc(alvo.rpc, alvo.args(bruto));
-        if (error) {
+      const resultados = await executarChamadas(admin, chamadas, {
+        rota: rotaDecidida,
+        canal: CANAL,
+        produtoCodigo: produtoDoContexto(structuredDoKit),
+        openAiKey,
+      });
+
+      for (const r of resultados) {
+        if (!r.ok && "detalhe" in r && r.detalhe) {
           console.warn(JSON.stringify({
-            request_id: requestId, event: "tool_falhou", tool: c.name, detalhe: error.message,
+            request_id: requestId, event: "tool_falhou", tool: r.nome, detalhe: r.detalhe,
           }));
-          return { call_id: c.call_id, output: JSON.stringify({ erro: "consulta_indisponivel" }), nome: c.name, ok: false };
         }
-        // `null` é resposta legítima: o objeto não existe ou não está visível. Vira
-        // "nao_encontrado" para o modelo não confundir ausência com falha — e para
-        // ele dizer que não achou em vez de completar de cabeça.
-        return {
-          call_id: c.call_id,
-          output: JSON.stringify(data ?? { resultado: "nao_encontrado" }).slice(0, 24_000),
-          nome: c.name,
-          ok: true,
-        };
-      }));
+      }
 
       for (const r of resultados) {
         entradaDoModelo.push({ type: "function_call_output", call_id: r.call_id, output: r.output });
@@ -1283,6 +1271,11 @@ Deno.serve(async (req: Request) => {
       checkout_sent?: boolean;
       checkout_url?: string | null;
       next_route?: string | null;
+      nome_informado?: string | null;
+      email_informado?: string | null;
+      whatsapp_informado?: string | null;
+      empresa_informada?: string | null;
+      cargo_informado?: string | null;
     };
     try {
       structured = JSON.parse(outputText);
@@ -1290,13 +1283,70 @@ Deno.serve(async (req: Request) => {
       throw new Error("invalid_ai_output");
     }
 
-    const answer = normalizeAnswerLayout(String(structured.answer ?? "")).slice(0, 2000).trim();
+    let answer = normalizeAnswerLayout(String(structured.answer ?? "")).slice(0, 2000).trim();
     if (!answer) throw new Error("empty_ai_answer");
+
+    const nomeDito = String(structured.nome_informado ?? "").trim() || null;
+    const emailLabel = String(structured.email_informado ?? "").trim().match(/^\[?email_(\d+)\]?$/i);
+    const emailDito = emailLabel && contactValidation[`email_${Number(emailLabel[1])}`]?.valido === true
+      ? maskedContact.emails[Number(emailLabel[1]) - 1]?.trim().toLowerCase() || null
+      : null;
+    const whatsappLabel = String(structured.whatsapp_informado ?? "").trim().match(/^\[?whatsapp_(\d+)\]?$/i);
+    const whatsappDito = whatsappLabel && contactValidation[`whatsapp_${Number(whatsappLabel[1])}`]?.valido === true
+      ? maskedContact.whatsapps[Number(whatsappLabel[1]) - 1]?.trim() || null
+      : null;
+    const empresaDita = String(structured.empresa_informada ?? "").trim() || null;
+    const cargoDito = String(structured.cargo_informado ?? "").trim() || null;
+
+    if (emailDito) {
+      const binding = await bindIdentity(emailDito, nomeDito);
+      if (binding?.conflict === true) throw new Error("contact_identity_conflict");
+      if (typeof binding?.pessoa_id === "string") pessoaId = binding.pessoa_id;
+    } else if (pessoaId && nomeDito) {
+      const { error } = await admin.rpc("mind_identidade_resolver", {
+        p_identificadores: { auth_user_id: authUserId },
+        p_nome: nomeDito,
+        p_canal: "mindagent-web",
+        p_pessoa_ancora: pessoaId,
+      });
+      if (error) console.warn(JSON.stringify({ request_id: requestId, event: "contact_name_save_failed" }));
+    }
+    if (pessoaId && whatsappDito) {
+      const { error } = await admin.rpc("mind_identificador_declarado_registrar", {
+        p_pessoa_id: pessoaId,
+        p_canal: "whatsapp",
+        p_valor: whatsappDito,
+      });
+      if (error) console.warn(JSON.stringify({ request_id: requestId, event: "contact_whatsapp_save_failed" }));
+    }
+    if (pessoaId && (nomeDito || empresaDita || cargoDito)) {
+      const sobrenome = nomeDito?.includes(" ")
+        ? nomeDito.slice(nomeDito.indexOf(" ") + 1).trim() || null
+        : null;
+      const { error } = await admin.rpc("mind_pessoa_completar", {
+        p_pessoa_id: pessoaId,
+        p_sobrenome: sobrenome,
+        p_empresa: empresaDita,
+        p_cargo: cargoDito,
+      });
+      if (error) console.warn(JSON.stringify({ request_id: requestId, event: "contact_profile_save_failed" }));
+    }
+
+    const currentTurnCompletes: Record<string, boolean> = {
+      firstname: Boolean(nomeDito),
+      lastname: Boolean(nomeDito && nomeDito.trim().split(/\s+/).length >= 2),
+      email: Boolean(emailDito),
+      phone: Boolean(whatsappDito),
+      company: Boolean(empresaDita),
+      jobtitle: Boolean(cargoDito),
+    };
+    const contactMissingAfterTurn = contactPlanBeforeTurn.missing
+      .filter((field) => !currentTurnCompletes[field]);
 
     const checkoutCandidato = typeof structured.checkout_url === "string" && structured.checkout_url.trim()
       ? structured.checkout_url.trim()
       : null;
-    const checkoutOficial = escolherCheckoutOficial(officialContext, checkoutCandidato, answer);
+    let checkoutOficial = escolherCheckoutOficial(officialContext, checkoutCandidato, answer);
     const checkoutSolicitado = structured.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
     if (checkoutSolicitado && !checkoutOficial) {
       console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial", rota: rotaDecidida }));
@@ -1304,6 +1354,30 @@ Deno.serve(async (req: Request) => {
         ok: false,
         error: { code: "official_checkout_unavailable", message: "Não consegui abrir um checkout oficial agora." },
       }, requestId);
+    }
+
+    const attemptedCommercialAsset = checkoutOficial !== null ||
+      /https:\/\/calculadora\.mindsummit\.company\/?/i.test(answer) ||
+      /https:\/\/pdf\.mindsummit\.company\/?/i.test(answer);
+    if (rotaDeVenda && contactMissingAfterTurn.length > 0 && attemptedCommercialAsset) {
+      const questions: Record<string, string> = {
+        firstname: "Qual é o seu nome completo?",
+        lastname: "Qual é o seu nome completo?",
+        company: "Em qual empresa você trabalha?",
+        jobtitle: "Qual é o seu cargo?",
+        email: "Qual é o seu melhor e-mail profissional?",
+        phone: "Qual é o seu número de WhatsApp com DDD?",
+      };
+      checkoutOficial = null;
+      structured.checkout_sent = false;
+      structured.checkout_url = null;
+      answer = `Antes de te enviar esse acesso, preciso completar seu contato. ${questions[contactMissingAfterTurn[0]]}`;
+      console.info(JSON.stringify({
+        request_id: requestId,
+        event: "ativo_comercial_aguarda_contato",
+        rota: rotaDecidida,
+        campos_ausentes: contactMissingAfterTurn,
+      }));
     }
 
     let respostaFinal = answer;

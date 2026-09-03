@@ -57,7 +57,9 @@ const maxLen = Number(bloco.match(/maxLength:\s*(\d+)/)?.[1] ?? 0);
 check("answer.maxLength >= 2000 no schema", maxLen >= 2000, `maxLength=${maxLen}`);
 
 // 1.3 — o orçamento de tokens tem de caber numa resposta longa.
-const maxTok = Number(src.match(/max_output_tokens:\s*(\d+)/)?.[1] ?? 0);
+const linhaMaxTok = src.split("\n").find((l) => /max_output_tokens:/.test(l)) ?? "";
+const tetosDeToken = [...linhaMaxTok.matchAll(/\b(\d{4,})\b/g)].map((m) => Number(m[1]));
+const maxTok = tetosDeToken.length ? Math.min(...tetosDeToken) : 0;
 check("max_output_tokens >= 1500", maxTok >= 1500, `max_output_tokens=${maxTok}`);
 
 // 1.4 — nenhum 700 sobrou como teto em lugar nenhum do arquivo (comentário não conta).
