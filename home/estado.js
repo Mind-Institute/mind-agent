@@ -215,8 +215,8 @@ const CRUS = [
 
   { id: 'chegada_expo', ico: ICO.lugar, cat: 'antes_de_ir', em: '2026-09-15T16:20', situacao: 'no-ar',
     titulo: 'Como chegar ao São Paulo Expo',
-    resumo: 'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.',
-    mensagem: 'O estacionamento é coberto e tem acesso ao pavilhão por uma passarela.' },
+    resumo: '',
+    mensagem: 'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.\n\nO estacionamento é coberto e tem acesso ao pavilhão por uma passarela.' },
 
   { id: 'confira_reserva', ico: ICO.agenda, cat: 'reservas', em: '2026-09-15T15:50', situacao: 'no-ar',
     titulo: 'Confira se a reserva foi concluída',

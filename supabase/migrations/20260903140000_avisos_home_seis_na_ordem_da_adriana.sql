@@ -55,3 +55,12 @@ update concierge.avisos set
   descricao = E'Participantes Prime também receberão as quatro Masterclasses, que poderão levar até 60 dias devido à tradução e à legendagem.\n\nCada gravação ficará disponível durante 90 dias, contados a partir de sua liberação na plataforma do Mind Institute.',
   atualizado_em = now()
 where chave = 'gravacoes';
+
+-- Como chegar (texto literal da Adriana, 03/09): o card fechado mostra só o título; ao abrir, os
+-- dois parágrafos. Resumo vazio é legítimo e a tela sabe não desenhar espaço para ele.
+update concierge.avisos set
+  titulo = 'Como chegar ao São Paulo Expo',
+  subtitulo = '',
+  descricao = E'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.\n\nO estacionamento é coberto e tem acesso ao pavilhão por uma passarela.',
+  atualizado_em = now()
+where chave = 'chegada_expo';

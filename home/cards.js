@@ -162,7 +162,11 @@ export function cardLinha(b, aoAgir) {
   el.type = 'button';
   el.innerHTML =
     '<span class="v3-ico">' + b.ico + '</span>' +
-    '<span class="v3-corpo"><strong>' + b.titulo + '</strong><small>' + b.texto + '</small></span>' +
+    /* Sem texto, sem `<small>`: um aviso pode ser só o título no card fechado
+       ("Como chegar ao São Paulo Expo"), e um `<small>` vazio deixava um
+       vão sob o título. */
+    '<span class="v3-corpo"><strong>' + b.titulo + '</strong>' +
+      (b.texto ? '<small>' + b.texto + '</small>' : '') + '</span>' +
     CHEVRON;
   el.addEventListener('click', () => aoAgir(b.acao, b));
   return el;
