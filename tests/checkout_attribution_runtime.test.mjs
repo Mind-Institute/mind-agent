@@ -65,16 +65,11 @@ test("app registra e devolve checkout rastreado quando a rota ativa é de venda"
   assert.equal(r.corpo.ok, true);
   assert.equal(r.corpo.checkout_sent, true);
   const url = new URL(r.corpo.answer.match(/https:\/\/\S+/)[0]);
-  assert.equal(url.searchParams.get("utm_source"), "app");
-  assert.equal(url.searchParams.get("utm_medium"), "ai_agent");
-  assert.equal(url.searchParams.get("utm_campaign"), "mind_summit_2026");
-  assert.equal(url.searchParams.get("utm_id"), "ms26_ai_sales");
-  assert.match(url.searchParams.get("utm_content"), /^checkout_prime_preco_regular__ae_[0-9a-f]{32}$/);
-  assert.equal(url.searchParams.get("agent_id"), "mindagent-chat");
-  assert.equal(url.searchParams.get("conversation_id"), url.searchParams.get("mind_evento"));
-  assert.equal(url.searchParams.get("mind_canal"), "app");
+  assert.equal(url.origin, 'https://projeto.supabase.co');
+  assert.match(url.pathname, /^\/functions\/v1\/mindagent-checkout\/[0-9a-f-]{36}$/);
 
   const evento = r.chamada("mind_checkout_envio_registrar");
+  assert.equal(url.pathname.split('/').at(-1), evento.args.p_evento_id);
   assert.equal(evento.args.p_conversa_id, r.corpo.session.conversation_id);
   assert.equal(evento.args.p_canal, "app");
   assert.equal(evento.args.p_agente, "mindagent-chat");
