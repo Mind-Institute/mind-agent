@@ -73,6 +73,20 @@ export type Oficiais = {
   faixas: { aPartirDe: number; percentual: number | null }[];
 };
 
+export type DecisaoGuardrailPreco = {
+  resposta: string;
+  valorRejeitado: string | null;
+  bloqueia: boolean;
+};
+
+// Quando existe checkout oficial selecionado, o carrinho continua sendo uma ação segura
+// do runtime mesmo que o texto livre do modelo erre um preço. Nesse caso eliminamos TODO
+// o texto gerado — não tentamos editar a afirmação monetária — e deixamos o runtime
+// acrescentar somente o link validado. Sem checkout oficial, o comportamento fail-closed
+// continua igual e o turno deve ir para handoff.
+export const RESPOSTA_CHECKOUT_SEM_PRECO =
+  "Perfeito — aqui está o checkout oficial para concluir sua compra:";
+
 // ─────────────────────────────────────────────────────────────── leitura do texto
 
 // Captura os centavos de propósito: `R$ 1.318,99` não pode passar por "1.318".
@@ -373,4 +387,21 @@ export function precoInventado(answer: string, oficiais: Oficiais): string | nul
     if (!afirmacaoEhOficial(a, oficiais)) return a.texto;
   }
   return null;
+}
+
+export function decidirGuardrailPreco(
+  answer: string,
+  oficiais: Oficiais,
+  temCheckoutOficial: boolean,
+): DecisaoGuardrailPreco {
+  const valorRejeitado = precoInventado(answer, oficiais);
+  if (!valorRejeitado) return { resposta: answer, valorRejeitado: null, bloqueia: false };
+  if (temCheckoutOficial) {
+    return {
+      resposta: RESPOSTA_CHECKOUT_SEM_PRECO,
+      valorRejeitado,
+      bloqueia: false,
+    };
+  }
+  return { resposta: answer, valorRejeitado, bloqueia: true };
 }
