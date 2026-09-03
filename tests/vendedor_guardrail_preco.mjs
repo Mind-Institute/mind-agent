@@ -24,6 +24,7 @@
 //   node tests/vendedor_guardrail_preco.mjs
 
 import {
+  decidirGuardrailPreco,
   afirmacoes,
   faixaDe,
   precoInventado,
@@ -276,4 +277,25 @@ console.log(`\n${fiel ? "✓" : "✗"} fixture espelha a forma do Kit vivo: ` +
 console.log(`  fatos monetários extraídos: ${KIT_OF.fatos.length}` +
   `  (3 ofertas × [preço + parcela] + 3 ofertas vigentes + 12 faixas × [unitário + cheio + economia + parcela] = 57)`);
 console.log(`\n${CASOS.length - falhas}/${CASOS.length} casos passaram.`);
+
+console.log("\nDecisão do guardrail quando há checkout oficial:");
+const respostaComPrecoInvalido = "Fechado! O Prime sai por R$ 6.000. Aqui está o checkout oficial.";
+const comCheckout = decidirGuardrailPreco(respostaComPrecoInvalido, KIT_OF, true);
+const semCheckout = decidirGuardrailPreco(respostaComPrecoInvalido, KIT_OF, false);
+const respostaComPrecoOficial = "Fechado! O Prime sai por R$ 6.297. Aqui está o checkout oficial.";
+const oficialComCheckout = decidirGuardrailPreco(respostaComPrecoOficial, KIT_OF, true);
+
+const decisoes = [
+  ["preço inválido + checkout oficial não bloqueia", !comCheckout.bloqueia],
+  ["preço inválido é removido por inteiro", !comCheckout.resposta.includes("R$") && !comCheckout.resposta.includes("6.000")],
+  ["copy determinística também passa no guardrail", precoInventado(comCheckout.resposta, KIT_OF) === null],
+  ["preço inválido sem checkout continua bloqueando", semCheckout.bloqueia],
+  ["preço oficial + checkout preserva a resposta", oficialComCheckout.resposta === respostaComPrecoOficial && !oficialComCheckout.bloqueia],
+];
+for (const [nome, ok] of decisoes) {
+  if (!ok) falhas++;
+  console.log(`  ${ok ? "✓" : "✗"} ${nome}`);
+}
+
+console.log(`\n${CASOS.length + decisoes.length - falhas}/${CASOS.length + decisoes.length} contratos passaram.`);
 process.exit(falhas ? 1 : 0);

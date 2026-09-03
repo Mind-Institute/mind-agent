@@ -1,5 +1,11 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.6.2 — CHECKOUT OFICIAL SOBREVIVE AO GUARDRAIL DE PREÇO. Se o modelo
+// selecionou um carrinho que veio do Kit, mas escreveu um preço inconsistente,
+// o runtime remove toda a copy livre, envia apenas uma frase sem preço + o link
+// oficial rastreado e registra o checkout. Sem checkout oficial, o fail-closed e
+// o handoff continuam intactos.
+//
 // v1.6.1 — IDENTIDADE B2B PROGRESSIVA. A rota summit_b2b completa somente os dados
 // ausentes de nome, sobrenome, empresa, cargo e e-mail, sem atrasar resposta ou
 // checkout. O WhatsApp do canal já é conhecido e só é confirmado se necessário.
@@ -123,7 +129,7 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import { precoInventado, precosOficiais } from "./guardrail-preco.ts";
+import { decidirGuardrailPreco, precosOficiais } from "./guardrail-preco.ts";
 import {
   checkoutRastreado,
   escolherCheckoutOficial,
@@ -131,7 +137,7 @@ import {
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
 
-const VERSION = "1.6.1";
+const VERSION = "1.6.2";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -850,21 +856,6 @@ Deno.serve(async (req: Request) => {
     // leitura do modelo; nunca a subtrai.
     const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
 
-    // Guardrail de preço: valor em R$ que não veio de um campo monetário dos dados
-    // oficiais derruba o turno. A lista de permitidos sai de CAMPOS, nunca de uma
-    // varredura do JSON — ver `guardrail-preco.ts` para o porquê.
-    const inventado = precoInventado(answer, precosOficiais(dadosOficiais));
-    if (inventado) {
-      console.error(JSON.stringify({ request_id: requestId, event: "preco_inventado", preco: inventado }));
-      return json(200, {
-        ok: true, guarded: true,
-        user_session_keys: [
-          { key: "resposta_ia", value: "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌" },
-          { key: "needs_human", value: "true" },
-        ],
-      });
-    }
-
     // CHECKOUT É AÇÃO DO RUNTIME, NÃO TEXTO LIVRE DO MODELO. O modelo pode escolher
     // somente uma URL que veio no Kit; o runtime confere, assina e registra. Como
     // compatibilidade, uma URL oficial já escrita em `answer` também é reconhecida.
@@ -885,7 +876,33 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    let respostaFinal = answer;
+    // O checkout oficial é resolvido ANTES do guardrail porque ele muda a ação segura:
+    // se a copy livre contiver um preço inválido, descartamos a copy inteira e ainda
+    // entregamos o carrinho validado. Sem carrinho oficial, o guardrail segue
+    // fail-closed e transfere exatamente como antes.
+    const decisaoPreco = decidirGuardrailPreco(
+      answer,
+      precosOficiais(dadosOficiais),
+      checkoutOficial !== null,
+    );
+    if (decisaoPreco.valorRejeitado) {
+      console.error(JSON.stringify({
+        request_id: requestId,
+        event: decisaoPreco.bloqueia ? "preco_inventado" : "preco_inventado_removido_checkout",
+        preco: decisaoPreco.valorRejeitado,
+      }));
+    }
+    if (decisaoPreco.bloqueia) {
+      return json(200, {
+        ok: true, guarded: true,
+        user_session_keys: [
+          { key: "resposta_ia", value: "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌" },
+          { key: "needs_human", value: "true" },
+        ],
+      });
+    }
+
+    let respostaFinal = decisaoPreco.resposta;
     let checkoutEventoId: string | null = null;
     if (checkoutOficial) {
       checkoutEventoId = await idEventoCheckout(
