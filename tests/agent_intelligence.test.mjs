@@ -7,6 +7,7 @@ import {
   MAX_RODADAS_TOOL,
   ORCAMENTO_TURNO_MS,
   produtoDoContexto,
+  respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
 } from '../supabase/functions/_shared/agent-intelligence.ts';
 
@@ -57,6 +58,18 @@ test('o raciocínio sobe só quando há lupa e complexidade comercial', () => {
   assert.equal(esforcoDeRaciocinio('compare as alternativas para aprovar a delegação', 2), 'medium');
   assert.equal(MAX_RODADAS_TOOL, 2);
   assert.equal(ORCAMENTO_TURNO_MS, 30_000);
+});
+
+test('abstinência sem busca é reconhecida sem confundir resposta factual', () => {
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'Com este JSON, não consigo confirmar: a lista de sessões veio vazia.',
+  })), true);
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'Não encontrei essa informação nos dados disponíveis.',
+  })), true);
+  assert.equal(respostaExigeBuscaAntesDeDesistir(JSON.stringify({
+    answer: 'O credenciamento abre às 7h30, no Pavilhão 3.',
+  })), false);
 });
 
 test('tool calls são extraídas e executadas com escopo de rota, canal e produto', async () => {

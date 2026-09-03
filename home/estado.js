@@ -257,9 +257,22 @@ const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'o
 /** "16 set, 09:02" a partir do ISO. Montado em partes, não por `new
  *  Date(iso)`: string sem fuso é lida como UTC em alguns navegadores. */
 function quandoLegivel(em) {
+  /* `no-ar` é publicação imediata e pode, legitimamente, não ter
+     `disparo_em`. Isso aconteceu com o aviso de livros/autógrafos: uma
+     ausência válida derrubava a home inteira no `.split()` abaixo. A
+     interface traduz essa ausência como "Agora"; não inventa horário. */
+  if (typeof em !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(em)) return 'Agora';
   const [data, hora] = em.split('T');
   const [, mes, dia] = data.split('-');
   return Number(dia) + ' ' + MESES[Number(mes) - 1] + ', ' + hora;
+}
+
+function chaveDeOrdenacao(a) {
+  /* Postgres ordena NULL primeiro em DESC, que coincide com a semântica do
+     painel: um `no-ar` sem disparo é o aviso publicado agora. Preservamos isso
+     no cliente com uma chave máxima, sem fabricar data no dado. */
+  if (a.situacao === 'no-ar' && !a.em) return '9999-12-31T23:59';
+  return typeof a.em === 'string' ? a.em : '';
 }
 
 /** Agora no formato de `em`, montado em partes para a comparação de
@@ -281,9 +294,9 @@ function ordenar(lista) {
   const agora = agoraTexto();
   return lista
     .filter((a) => a.situacao === 'no-ar' ||
-                   (a.situacao === 'agendado' && String(a.em) <= agora))
+                   (a.situacao === 'agendado' && typeof a.em === 'string' && a.em <= agora))
     .map((a) => ({ ...a, quando: quandoLegivel(a.em) }))
-    .sort((a, b) => b.em.localeCompare(a.em));
+    .sort((a, b) => chaveDeOrdenacao(b).localeCompare(chaveDeOrdenacao(a)));
 }
 
 /* A lista viva. Começa nos avisos embutidos e é trocada pela do banco

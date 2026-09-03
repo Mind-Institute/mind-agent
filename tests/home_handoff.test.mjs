@@ -372,6 +372,23 @@ test('a home mostra os cinco avisos que a Adriana condensou', () => {
   ], 'os cinco da home mudaram');
 });
 
+test('aviso no ar sem horário não derruba a home e aparece como Agora', async () => {
+  /* `no-ar` significa publicação imediata; `disparo_em` só é obrigatório para
+     agendamento. O aviso de livros/autógrafos chegou exatamente nessa forma e
+     fazia `quandoLegivel(null)` abortar todo o bootstrap da tela. */
+  const modulo = await import(new URL('../home/estado.js?teste-aviso-sem-horario', import.meta.url));
+  modulo.definirAvisos([{
+    id: 'imediato', situacao: 'no-ar', em: null, titulo: 'Aviso imediato',
+    resumo: 'Resumo', mensagem: 'Mensagem', categoria: 'antes_de_ir', icone: 'sino',
+  }, {
+    id: 'antigo', situacao: 'no-ar', em: '2026-09-15T17:00', titulo: 'Aviso antigo',
+    resumo: 'Resumo', mensagem: 'Mensagem', categoria: 'antes_de_ir', icone: 'sino',
+  }]);
+  assert.equal(modulo.AVISOS.length, 2);
+  assert.equal(modulo.AVISOS[0].id, 'imediato');
+  assert.equal(modulo.AVISOS[0].quando, 'Agora');
+});
+
 test('nenhum filtro de categoria fica fora da tela', () => {
   /* Com os rótulos que a Adriana escreveu, a fila de chips passou a medir
      617px numa tela de 390: o último ficava INTEIRO fora do quadro, com

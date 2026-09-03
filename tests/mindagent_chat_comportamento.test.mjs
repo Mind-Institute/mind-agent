@@ -94,6 +94,60 @@ test('chat normal: sessão informada é reusada, sem abrir outra', async () => {
   assert.equal(r.corpo.session.id, sessao.id);
 });
 
+test('abstinência sem lupa força uma busca antes da resposta final', async () => {
+  const kitComLupa = clone(KIT_COMPLETO);
+  kitComLupa.tools = [{
+    nome: 'buscar_intelligence', descricao: 'Busca candidatos.',
+    parametros: {
+      type: 'object', properties: {
+        necessidade: { type: 'string' }, limite: { type: 'integer' },
+      }, required: ['necessidade', 'limite'], additionalProperties: false,
+    },
+  }, {
+    nome: 'ler_intelligence', descricao: 'Lê um candidato.',
+    parametros: {
+      type: 'object', properties: {
+        tipo: { type: 'string' }, id: { type: 'string' },
+      }, required: ['tipo', 'id'], additionalProperties: false,
+    },
+  }];
+  kitComLupa.structured.programacao.sessions = [];
+
+  const respostaFinal = {
+    answer: 'Encontrei a sessão oficial às 14h.', interests: [], checkout_sent: false,
+    checkout_url: null, next_route: null, nome_informado: null,
+    email_informado: null, whatsapp_informado: null,
+    empresa_informada: null, cargo_informado: null,
+  };
+  const r = await chamar({
+    corpo: { message: 'Quem fala desse tema e em que horário?' },
+    rpc: {
+      mind_agent_kit: kitComLupa,
+      mind_intelligence_buscar_contextual: {
+        total: 1, candidatos: [{ tipo: 'sessao', id: 's2', titulo: 'Sessão oficial' }],
+      },
+    },
+    modelo: [
+      { ...respostaFinal, answer: 'Com este JSON, não consigo confirmar: sessions veio vazia.' },
+      { __payload: { output: [{
+        type: 'function_call', call_id: 'call_busca', name: 'buscar_intelligence',
+        arguments: JSON.stringify({ necessidade: 'tema e horário', limite: 6 }),
+      }] } },
+      respostaFinal,
+    ],
+  });
+
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.answer, respostaFinal.answer);
+  const respostas = r.openai.filter((chamada) => chamada.url.endsWith('/v1/responses'));
+  assert.equal(respostas.length, 3);
+  assert.deepEqual(respostas[1].corpo.tool_choice, { type: 'function', name: 'buscar_intelligence' });
+  assert.ok(r.rpcs.includes('mind_intelligence_buscar_contextual'));
+  const salva = r.chamadasDe('mindagent_chat_save_message').at(-1);
+  assert.equal(salva.args.p_blocks.recuperacao_forcada, true);
+  assert.equal(salva.args.p_blocks.rodadas_tool, 1);
+});
+
 test('jornada: resposta de botão persiste sem chamar Router, Kit ou modelo', async () => {
   const evidenceId = randomUUID();
   const r = await chamar({

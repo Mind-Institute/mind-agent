@@ -72,6 +72,7 @@ body {
      não. Ver o cabeçalho de `teclado.js` para o porquê. */
   position: fixed;
   top: 0; left: 0; right: 0;
+  width: 100%;
   margin: 0 auto;
   max-width: 480px;
   height: var(--app-altura, 100dvh);
@@ -907,14 +908,16 @@ html[data-teclado="aberto"] .doca {
    mais nada abaixo dela. A regra mirava uma classe que não existe em
    lugar nenhum do repositório, e foi removida com o teste que a prendia.
    Se um dia esta app ganhar barra própria, a regra volta junto com ela. */
-.doca form { position: relative; display: flex; }
+.doca form { position: relative; display: flex; min-width: 0; }
 .doca input {
-  flex: 1;
+  flex: 1; min-width: 0;
   background: var(--surface-deep);
   border: 1px solid var(--hairline);
   border-radius: var(--raio-pill);
   color: var(--texto);
-  font: inherit; font-size: 15px;
+  /* iOS amplia automaticamente a página quando um input focado tem menos de
+     16px. Esse zoom era a tela "explodindo" para o lado ao abrir o teclado. */
+  font: inherit; font-size: 16px;
   padding: 0 62px 0 20px;
   min-height: 54px;
   outline: none;
@@ -1011,17 +1014,22 @@ html[data-teclado="aberto"] .doca {
 }
 
 .mensagens {
-  flex: 1 1 0; min-height: 0;
+  flex: 1 1 0; min-height: 0; min-width: 0;
   display: flex; flex-direction: column; gap: 10px;
   padding: 18px var(--pad);
   overflow-y: auto;
+  overflow-x: hidden;
   /* A rolagem morre aqui. Sem isto, chegar ao fim da conversa entrega o gesto
      ao documento e o iOS devolve aquele repuxo elástico que, com o teclado
      aberto, parece a tela inteira se mexendo. */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-.bolha { max-width: 84%; }
+.bolha {
+  max-width: 84%; min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .bolha:has(.cartao-onde) { max-width: 94%; }
 /* +2px na conversa do Concierge, a pedido da Adriana. A resposta da IA
    vem em parágrafos e é o texto mais longo do app — 15px pediam esforço
@@ -1850,4 +1858,3 @@ html[data-teclado="aberto"] .doca {
   font-size: 13px; line-height: 1.55; color: var(--texto-mudo);
 }
 .erro-dados b { color: var(--coral); display: block; margin-bottom: 6px; }
-

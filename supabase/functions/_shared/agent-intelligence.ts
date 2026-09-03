@@ -96,6 +96,30 @@ export function esforcoDeRaciocinio(mensagem: string, ferramentas: number) {
   return complexa ? "medium" as const : "low" as const;
 }
 
+export function respostaExigeBuscaAntesDeDesistir(outputText: string) {
+  let resposta = outputText;
+  try {
+    const parsed = JSON.parse(outputText) as Record<string, unknown>;
+    if (typeof parsed.answer === "string") resposta = parsed.answer;
+  } catch {
+    // Se a saída não for JSON, a validação normal do runtime ainda cuidará dela.
+  }
+
+  const texto = resposta
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  /* Uma resposta de abstinência sem nenhuma tentativa de lupa reproduz o
+     defeito medido em produção: o Agent vê um recorte vazio, conclui que o
+     dado não existe e expõe detalhes como `sessions: []`. O runtime dá uma
+     segunda chance somente nesses casos; uma resposta factual normal não paga
+     busca nem latência extra. */
+  return /\b(?:nao consigo|nao consegui|nao encontrei|nao achei|nao tenho como)\b/.test(texto) ||
+    /\b(?:dados?|fontes?|informacoes?|lista|campo|sessoes?)\b.{0,50}\b(?:vazi[oa]s?|nao (?:veio|vieram|esta|estao|tem|ha)|insuficiente)\b/.test(texto) ||
+    /\bcom (?:este|esse) json\b/.test(texto);
+}
+
 function argumentos(raw: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(raw || "{}");

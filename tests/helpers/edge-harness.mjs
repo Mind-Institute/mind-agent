@@ -208,9 +208,22 @@ export async function chamar({
   const fetchOriginal = globalThis.fetch;
   globalThis.fetch = async (recurso, init = {}) => {
     const corpoEnviado = init.body ? JSON.parse(init.body) : null;
-    openai.push({ url: String(recurso), corpo: corpoEnviado, headers: init.headers ?? {} });
+    const url = String(recurso);
+    openai.push({ url, corpo: corpoEnviado, headers: init.headers ?? {} });
+    if (url.endsWith('/v1/embeddings')) {
+      return new Response(JSON.stringify({ data: [] }), {
+        status: openaiStatus,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const indice = openai.filter((chamada) => chamada.url.endsWith('/v1/responses')).length - 1;
+    const respostaDoModelo = typeof modelo === 'function'
+      ? modelo(indice, corpoEnviado)
+      : Array.isArray(modelo)
+      ? modelo[Math.min(indice, modelo.length - 1)]
+      : modelo;
     const carga = openaiStatus === 200
-      ? { output_text: JSON.stringify(modelo) }
+      ? (respostaDoModelo?.__payload ?? { output_text: JSON.stringify(respostaDoModelo) })
       : { error: { code: 'erro_de_teste', type: 'invalid_request_error' } };
     return new Response(JSON.stringify(carga), {
       status: openaiStatus,

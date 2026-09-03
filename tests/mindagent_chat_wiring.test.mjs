@@ -20,6 +20,10 @@ import { readFileSync } from 'node:fs';
 
 const FONTE = new URL('../supabase/functions/mindagent-chat/index.ts', import.meta.url);
 const src = readFileSync(FONTE, 'utf8');
+const migracaoRecuperacao = readFileSync(
+  new URL('../supabase/migrations/20260903160000_concierge_busca_antes_de_abster.sql', import.meta.url),
+  'utf8',
+);
 
 const pos = (agulha) => {
   const i = src.indexOf(agulha);
@@ -95,7 +99,17 @@ test('a competência vem do playbook do Kit, não de texto no código', () => {
 test('o runtime limita a lupa por orçamento e número de rodadas', () => {
   assert.match(src, /MAX_RODADAS_TOOL/);
   assert.match(src, /ORCAMENTO_TURNO_MS/);
-  assert.match(src, /tool_choice: volta >= MAX_RODADAS_TOOL \? "none" : "auto"/);
+  assert.match(src, /tool_choice: volta >= MAX_RODADAS_TOOL/);
+  assert.match(src, /forcarBuscaNaProximaVolta/,
+    'uma abstinência inicial precisa poder forçar a lupa antes da resposta final');
+});
+
+test('o playbook manda buscar antes de abster e proíbe expor o encanamento', () => {
+  assert.match(migracaoRecuperacao, /use buscar_intelligence antes de concluir/);
+  assert.match(migracaoRecuperacao, /use ler_intelligence/);
+  assert.match(migracaoRecuperacao, /Nunca mencione JSON/);
+  assert.match(migracaoRecuperacao, /position\('RECUPERAÇÃO ANTES DE DIZER QUE NÃO SABE'/,
+    'a migração precisa ser idempotente');
 });
 
 /* -------------------------------------------------------- SENSITIVITY */
