@@ -911,11 +911,31 @@ segue consultável quando for factual e relevante, mas não define `missing_kit`
 alcança um humano"*, que é pergunta do Passo 14. `whatsapp` é o `treble-inbound-agent`, que compõe
 playbook por `treble_agent_prompt` e cuja pilha inteira é venda; `mindagent-web` é o
 `mindagent-chat` que, **desde 01/09, não é mais concierge por construção**: ele declara o canal e
-o Router escolhe entre as competências que a política habilita ali — `concierge_summit` e
-`cliente_suporte`. O que continua fixo no código é o contrato do executor, dizendo que ele não
-vende, não compra e não altera dados. Dois canais canônicos vivos, e a
+o Router escolhe entre as competências que a política habilita ali. Desde 03/09, o universo do
+App é `concierge_summit` + `cliente_suporte` + `summit_b2c`: a entrada continua sendo Concierge,
+e `summit_b2c` só assume após intenção explícita de compra ou upgrade. O executor não inventa nem
+confirma compra; ele pode emitir um checkout oficial validado pelo runtime. Dois canais canônicos vivos, e a
 matriz fica legível dentro da função. Se aparecer um terceiro canal real, ou a necessidade concreta
 de editar capability sem deploy, revisitamos — não se antecipa isso.
+
+### Checkout atribuído ao Agent — vivo em 03/09
+
+Os dois runtimes validam a escolha contra os campos `checkout_url` do Kit. Link externo, checkout
+Eduzz que não estava no Kit ou cupom diferente são recusados. No envio real, a URL recebe:
+
+- `utm_source=whatsapp|app`, `utm_medium=ai_agent`, campanha e `utm_id` padronizados;
+- `utm_content=<motivo>__ae_<token>` e o mesmo token em `utm_term`;
+- `agent_id` e um `conversation_id` opaco, sem expor o UUID interno da conversa ou PII.
+
+O token é o id idempotente de `engagement.agente_eventos` (`tipo=checkout_link_enviado`). A view
+`intelligence.v_conversoes_agente`, com `security_invoker=true`, liga esse evento a `eduzz.vendas`
+quando o espelho traz o token e expõe pedido, status, valor, quantidade, ingresso, canal, Agent,
+rota, motivo e conversa — sem nome, e-mail, telefone, documento ou endereço. A integração atual
+já preserva `utm_content`; `utm_term` fica como redundância para a evolução do conector.
+
+Institute e pré-venda do Summit seguinte não foram inventados nesta entrega. O encanamento aceita
+novas ofertas automaticamente quando cada checkout e regra comercial oficial forem adicionados
+ao Kit correto.
 
 ### `pode_executar`, `needs_human` e os reasons
 

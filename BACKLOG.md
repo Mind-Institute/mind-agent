@@ -828,3 +828,36 @@ função a partir dele apagaria os três em silêncio e a home pararia de virar 
 dia 16. **Antes de mexer nessa função, leia o `prosrc` vivo, não o arquivo.** A migration
 `20260902180000_aviso_ganha_categoria.sql` já partiu do corpo vivo e travou as três
 linhas em `do $g$`.
+
+---
+
+## 17. Ofertas do Concierge no Summit — Institute + pré-venda do Summit seguinte
+
+### Decisão de produto fechada em 03/09
+
+Durante o Summit, o Concierge do App pode vender — especialmente upgrade — sem deixar de ser
+Concierge por padrão. Além disso, deverá vender o Mind Institute e a pré-venda da próxima edição
+do Summit quando essas ofertas forem liberadas.
+
+### O que já está pronto
+
+O App pode trocar de `concierge_summit` para `summit_b2c` após intenção explícita. App e WhatsApp
+aceitam somente `checkout_url` vindo do Kit e registram o envio com UTM + token opaco em
+`engagement.agente_eventos`; a venda espelhada fecha em `intelligence.v_conversoes_agente`.
+O código deriva `utm_content` de novos códigos de oferta, então não exige um caso especial para
+cada produto futuro.
+
+### O que falta antes de vender
+
+Não criar placeholder. Para cada produto/oferta, cadastrar e validar na fonte oficial:
+
+1. código, nome, preço, parcelamento e vigência;
+2. regras comerciais e elegibilidade (inclusive upgrade por ingresso atual);
+3. `checkout_url` Eduzz oficial e eventual cupom;
+4. campanha/`utm_id` desejados;
+5. bloco do Kit e playbook/rota que podem oferecer aquilo;
+6. teste E2E com compra controlada e retorno do pedido pago.
+
+Dependência de produto: a Adriana ainda vai fornecer os dados comerciais do Institute e da
+pré-venda. Até lá, o Agent deve falar apenas com o contexto factual disponível e nunca construir
+preço, condição ou link.
