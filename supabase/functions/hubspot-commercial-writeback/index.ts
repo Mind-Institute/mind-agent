@@ -34,10 +34,8 @@ function validTimestamp(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
 }
 
-function serviceRoleAuthorized(req: Request, serviceRoleKey: string): boolean {
-  const authorization = req.headers.get("authorization") ?? "";
-  const provided = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-  const expected = new TextEncoder().encode(serviceRoleKey);
+function constantTimeEqual(provided: string, secret: string): boolean {
+  const expected = new TextEncoder().encode(secret);
   const actual = new TextEncoder().encode(provided);
   if (expected.length !== actual.length) return false;
 
@@ -46,6 +44,33 @@ function serviceRoleAuthorized(req: Request, serviceRoleKey: string): boolean {
     difference |= expected[index] ^ actual[index];
   }
   return difference === 0;
+}
+
+function adminCredentials(): { clientKey: string; acceptedKeys: string[] } | null {
+  const legacyKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  let secretKey = "";
+  try {
+    const configured = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}") as {
+      default?: unknown;
+    };
+    if (typeof configured.default === "string") secretKey = configured.default;
+  } catch {
+    return null;
+  }
+
+  const acceptedKeys = [...new Set([secretKey, legacyKey].filter(Boolean))];
+  const clientKey = secretKey || legacyKey;
+  return clientKey && acceptedKeys.length > 0 ? { clientKey, acceptedKeys } : null;
+}
+
+function adminAuthorized(req: Request, acceptedKeys: string[]): boolean {
+  const authorization = req.headers.get("authorization") ?? "";
+  const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const apiKey = req.headers.get("apikey") ?? "";
+  return acceptedKeys.some((secret) =>
+    (apiKey.length > 0 && constantTimeEqual(apiKey, secret)) ||
+    (bearer.length > 0 && constantTimeEqual(bearer, secret))
+  );
 }
 
 async function sha256(value: unknown) {
@@ -58,9 +83,9 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) return json({ error: "supabase_configuration_missing" }, 500);
-  if (!serviceRoleAuthorized(req, serviceRoleKey)) return json({ error: "unauthorized" }, 401);
+  const credentials = adminCredentials();
+  if (!supabaseUrl || !credentials) return json({ error: "supabase_configuration_missing" }, 500);
+  if (!adminAuthorized(req, credentials.acceptedKeys)) return json({ error: "unauthorized" }, 401);
 
   const body = await req.json().catch(() => ({})) as {
     mode?: "preview" | "apply";
@@ -83,7 +108,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "writeback_disabled" }, 403);
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, credentials.clientKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
