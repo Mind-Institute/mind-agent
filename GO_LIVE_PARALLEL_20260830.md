@@ -1,5 +1,8 @@
 # Go-live — execução paralela Vendedor + Concierge
 
+> **HISTÓRICO (30/08/2026).** As lanes aqui descritas já foram integradas. Não
+> use este arquivo como checklist atual; consulte `CHECKPOINT_ATUAL.md`.
+
 > Documento operacional de ownership. Para o ponto exato de retomada, leia primeiro **`CHECKPOINT_ATUAL.md`**.
 >
 > Regra central: **ordem de deploy não é ordem de trabalho**. Uma lane pode adiantar o que é independente, mas continua dona da capacidade até E2E ou gate real.

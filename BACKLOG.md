@@ -2,6 +2,11 @@
 
 Este arquivo preserva **trabalho conhecido que ainda não foi feito e investigação já realizada que não pode se perder**.
 
+> **Nota de estado — 04/09/2026:** o índice abaixo preserva a sequência histórica
+> de construção do Core. Ele não é mais a fila operacional: os passos 12B–18 foram
+> absorvidos pelas entregas já integradas. Para pendências atuais e gates fechados,
+> use [`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md).
+
 Para reconstruir o projeto sem contexto, a ordem obrigatória de leitura é:
 
 1. `PROJECT_STATE.md` — arquitetura congelada, ordem de execução, versões e checkpoint atual;
@@ -27,14 +32,14 @@ O significado detalhado, as decisões congeladas e o runtime estão em `PROJECT_
 | 10 | Router universal | ✅ fechado |
 | 11 | Registry de rotas + Capability Gate | ✅ fechado |
 | 12A | Auditoria/reforma Product Intelligence + Knowledge | ⏸️ parcial; 12A.1 concluído, restante investigado/deferido abaixo |
-| 12B | Source Registry mínimo + Kit Loader universal | 🚧 passo atual — investigação enviada ao Claude |
-| 13 | Finalizar cérebro de vendas Summit | ⬜ |
-| 14 | Contrato universal de ação + handoff/escalation | ⬜ |
-| 15 | Análise pós-turno + memória universal | ⬜ |
-| 15B | Write-back + dispatch operacional pós-turno | ⬜ |
-| 16 | Continuidade / Silence | ⬜ |
-| 17 | E2E vendas Summit via Treble | ⬜ |
-| 18 | Hardening + documentação + travas Core Universal | ⬜ |
+| 12B | Source Registry mínimo + Kit Loader universal | ✅ integrado |
+| 13 | Finalizar cérebro de vendas Summit | ✅ integrado |
+| 14 | Contrato universal de ação + handoff/escalation | ✅ integrado |
+| 15 | Análise pós-turno + memória universal | ✅ integrado |
+| 15B | Write-back + dispatch operacional pós-turno | ✅ infraestrutura integrada; ativação externa sob gate |
+| 16 | Continuidade / Silence | ✅ infraestrutura integrada; outbound sob gate |
+| 17 | E2E vendas Summit via Treble | ✅ runtime publicado; smoke recorrente continua operacional |
+| 18 | Hardening + documentação + travas Core Universal | ✅ baseline integrado; manutenção contínua |
 
 ### Regra para não perder decisões nem investigações
 

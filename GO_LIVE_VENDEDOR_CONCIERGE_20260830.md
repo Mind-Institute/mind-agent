@@ -1,5 +1,8 @@
 # Go-live 30/08/2026 — Vendedor Summit + Concierge Summit
 
+> **HISTÓRICO (30/08/2026).** Plano inicial preservado para rastreabilidade.
+> O estado vivo está em `CHECKPOINT_ATUAL.md`.
+
 > **Ordem operacional congelada para a entrega de hoje.**
 >
 > Este arquivo NÃO redefine a arquitetura do `PROJECT_STATE.md`. Ele transforma a arquitetura já congelada em uma sequência executável para o go-live de hoje, preservando dependências, critérios de pronto e limites de escopo para que Codex/Claude possam continuar sem depender da conversa.

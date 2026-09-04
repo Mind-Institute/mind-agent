@@ -1,5 +1,8 @@
 # Prompt para Claude Code — implementar Passos 5 e 6 do Concierge Mind Summit
 
+> **HISTÓRICO.** Prompt de implementação já executado; não representa trabalho
+> pendente. Consulte `IMPLEMENTATION_STATUS.md`.
+
 Você vai implementar **somente** os Passos 5 e 6 já fechados do Concierge Mind Summit 2026.
 
 Não redesenhe arquitetura. Não crie novas frentes. Não altere nada além do necessário para estes dois passos e das regressões diretamente afetadas.

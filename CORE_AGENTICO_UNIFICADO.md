@@ -1,6 +1,8 @@
 # Core agêntico unificado — B2B, B2C e App
 
-Estado deste documento: implementação na branch `codex/unify-agent-runtime`; ainda não publicada.
+Estado deste documento: **implementado em `main` e publicado em produção**.
+Snapshot de verificação: 04/09/2026; `mindagent-chat` v39 e
+`treble-inbound-agent` v38.
 
 ## Decisão
 

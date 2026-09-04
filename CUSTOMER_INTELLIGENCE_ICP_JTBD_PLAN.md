@@ -1,5 +1,8 @@
 # Customer Intelligence do Mind — ICPs, JTBD e Product Fit
 
+> **HISTÓRICO.** Plano de investigação que originou os Passos 1–4. Para o
+> contrato implementado, consulte `CUSTOMER_INTELLIGENCE_STEP4_IMPLEMENTATION.md`.
+
 Status: **decisão arquitetural fechada / plano de trabalho**  
 Data: 2026-09-02  
 Escopo atual: registrar contexto e investigar o sistema existente. **Não implementar ainda.**

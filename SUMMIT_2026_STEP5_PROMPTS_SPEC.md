@@ -1,5 +1,8 @@
 # Mind Summit 2026 — Passo 5 — Especificação final de prompts e memória
 
+> **HISTÓRICO.** Especificação de implementação preservada como registro de
+> decisão; o runtime atual está resumido em `MAPA_DO_SISTEMA.md`.
+
 > **STATUS: ESPECIFICAÇÃO APROVADA PARA IMPLEMENTAÇÃO — NÃO É O ESTADO VIVO DOS PROMPTS.**
 >
 > Criado em 2026-09-02 como saída do Passo 5 de `SUMMIT_2026_EXECUTION_RUNBOOK.md`.

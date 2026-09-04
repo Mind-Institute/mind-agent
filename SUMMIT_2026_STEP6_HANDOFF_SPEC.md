@@ -1,5 +1,8 @@
 # Mind Summit 2026 — Passo 6 — Handoff Concierge → Atendimento
 
+> **HISTÓRICO.** Especificação da etapa de implementação já integrada. O gate
+> operacional vigente está em `CHECKPOINT_ATUAL.md`.
+
 > **STATUS: ESPECIFICAÇÃO FECHADA PARA IMPLEMENTAÇÃO. NÃO É O ESTADO VIVO.**
 >
 > Saída do Passo 6 de `SUMMIT_2026_EXECUTION_RUNBOOK.md`, investigada contra o Supabase vivo em 2026-09-02.

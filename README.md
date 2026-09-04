@@ -10,31 +10,26 @@ Se você está entrando sem contexto:
 
 1. **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)** — ponto exato onde o go-live está agora.
 2. **[`PROJECT_STATE.md`](PROJECT_STATE.md)** — arquitetura/gates/decisões congeladas.
-3. **[`GO_LIVE_PARALLEL_20260830.md`](GO_LIVE_PARALLEL_20260830.md)** — lanes e ordem de integração.
-4. **[`BACKLOG.md`](BACKLOG.md)** — investigação deferida; leia só a frente relevante.
-5. **[`docs/CORE_UNIVERSAL.md`](docs/CORE_UNIVERSAL.md)** — contratos e componentes já vivos.
+3. **[`MAPA_DO_SISTEMA.md`](MAPA_DO_SISTEMA.md)** — componentes e fluxo que estão vivos.
+4. **[`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md)** — entrega consolidada e gates externos.
+5. **[`BACKLOG.md`](BACKLOG.md)** — investigação deferida; leia só a frente relevante.
+6. **[`docs/CORE_UNIVERSAL.md`](docs/CORE_UNIVERSAL.md)** — contratos e componentes já vivos.
 
 Se documentação divergir do sistema real, verifique o sistema e reconcilie a documentação. **HEAD de PR ativo é mais fresco que qualquer checkpoint escrito.**
 
 ## Estado atual resumido
 
-Core já em `main`/produção:
+Estado verificado em **04/09/2026**, com `main` em
+`44d831018772b39a764dd311b9cc839a9e2d1c43`:
 
-- ingestão/identidade/CRM/Engagement e `AGENT_CONTEXT` universal;
-- Router universal com seis rotas;
-- Capability Gate;
-- Kit Loader mínimo;
-- speakers/session links canônicos completos (81/81);
-- `mind_kit_evento` corrigido para produto correspondente (#49, main `a226e288...`).
+- Core compartilhado integrado para Vendedor B2C/B2B e Concierge/App;
+- `mindagent-chat` v39 e `treble-inbound-agent` v38 ativos;
+- identidade, Router, Gate, Kit, Intelligence, checkout e pós-turno vivos;
+- memória segura e inbox de recuperação ativos, com outbound ainda fechado;
+- write-back HubSpot publicado em modo seguro, com `apply` condicionado;
+- programação Summit com 77 sessões e 81 vínculos sessão–palestrante.
 
-Go-live em lanes:
-
-- **B / #47** — Vendedor Summit: runtime/guardrail preparados; falta correção operacional final do telefone de smoke, depois merge + deploy manual + flag + E2E WhatsApp.
-- **C / #50** — Concierge: retrieval/Kit/playbook + `mindagent-chat` versionado/wired; SQL 17 contratos, Edge 19/19; falta review/merge, deploy manual da Edge e E2E app.
-- **D / #46 + #51** — memória segura/Silence: código preparado e desligado; faltam renames de migration, integração depois de C e gates de write-back/outbound.
-- **E / #48** — Play: writers/UI preparados, person-bound; falta rename de migration, integrar ao executor C e E2E real.
-
-Detalhe, HEADs e ordem exata: **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
+Detalhe e próximo movimento seguro: **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 
 ## Arquitetura em uma linha
 
