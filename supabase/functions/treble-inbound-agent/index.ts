@@ -1,5 +1,17 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.10.2 — B2B EXIGE EMPRESA + PLURALIDADE. Na venda de ingressos, cargo,
+// empresa, pagamento corporativo ou quantidade isolados não bastam: a compra precisa
+// ser para empresa/equipe e envolver mais de uma pessoa. Compra pessoal continua B2C;
+// intenção corporativa sem quantidade volta ao Router para esclarecimento. Patrocínio
+// permanece B2B como demanda própria.
+//
+// v1.10.1 — VENDA B2C SEM ATRITO. O canal comercial parte de B2C, preserva B2B
+// apenas quando existe intenção corporativa explícita e não usa cargo/empresa como
+// atalho de rota. A rota comercial rápida evita uma chamada ao Router na maioria dos
+// turnos. Cadastro pode enriquecer o CRM, mas nunca bloqueia resposta, condição ou
+// checkout.
+//
 // v1.8.0 — CORE AGÊNTICO COMPARTILHADO + CREDENCIAMENTO. O Treble recebe dados
 // person-bound de participante e ingresso pelo Core e consome o mesmo bundle do Kit,
 // as mesmas ferramentas de Intelligence e a mesma política de raciocínio do App.
@@ -142,6 +154,7 @@ import {
   idEventoCheckout,
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
+import { rotaComercialRapida } from "../_shared/treble-commercial-route.ts";
 import {
   executarChamadas,
   esforcoDeRaciocinio,
@@ -152,7 +165,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.9.0";
+const VERSION = "1.10.2";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -369,61 +382,6 @@ async function sha256(value: string) {
 // Só valida/extrai o valor DEPOIS que a semântica "é o meu e-mail" já foi
 // estabelecida pelo modelo. Nunca para varrer a mensagem atrás de identidade.
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-
-type CampoContato = "nome_completo" | "email" | "whatsapp" | "empresa" | "cargo";
-
-function valorPresente(value: unknown): boolean {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function objeto(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function nomeCompleto(value: unknown): boolean {
-  return typeof value === "string" && value.trim().split(/\s+/).length >= 2;
-}
-
-function camposContatoAusentes(
-  perfilValue: unknown,
-  credenciamentoValue: unknown,
-  turno: {
-    nome: string | null;
-    email: string | null;
-    whatsapp: string | null;
-    empresa: string | null;
-    cargo: string | null;
-  },
-): CampoContato[] {
-  const perfil = objeto(perfilValue);
-  const participante = objeto(objeto(credenciamentoValue).participante);
-  const temNome = (
-    valorPresente(perfil.primeiro_nome) && valorPresente(perfil.sobrenome)
-  ) || nomeCompleto(participante.nome) || nomeCompleto(turno.nome);
-
-  const conhecidos: Record<CampoContato, boolean> = {
-    nome_completo: temNome,
-    email: valorPresente(perfil.email) || valorPresente(participante.email) || valorPresente(turno.email),
-    whatsapp: valorPresente(perfil.whatsapp) || valorPresente(participante.whatsapp) || valorPresente(turno.whatsapp),
-    empresa: valorPresente(perfil.empresa) || valorPresente(turno.empresa),
-    cargo: valorPresente(perfil.cargo) || valorPresente(turno.cargo),
-  };
-  return (["nome_completo", "empresa", "cargo", "email", "whatsapp"] as CampoContato[])
-    .filter((campo) => !conhecidos[campo]);
-}
-
-function perguntaContato(campo: CampoContato): string {
-  const perguntas: Record<CampoContato, string> = {
-    nome_completo: "Qual é o seu nome completo?",
-    empresa: "Em qual empresa você trabalha?",
-    cargo: "Qual é o seu cargo?",
-    email: "Qual é o seu melhor e-mail profissional?",
-    whatsapp: "Qual é o seu número de WhatsApp com DDD?",
-  };
-  return perguntas[campo];
-}
 
 // ROTA — quem decide é a Edge Function `router` (Passo 10), e só ela. Aqui não há
 // heurística, lista de palavra-chave nem fallback que escolha rota: ou o Router
@@ -711,7 +669,13 @@ Deno.serve(async (req: Request) => {
     // emitiu um de ~5,96 s. Medir aqui é o que transforma isso em número em vez de
     // suposição — por isso `router_ms` sai no log de todo turno.
     let routerMs: number | null = null;
-    if (routerToken) {
+    let rotaOrigem = "router";
+    const rotaRapida = rotaComercialRapida(message, conv.historico);
+    if (rotaRapida.rota) {
+      rotaDecidida = rotaRapida.rota;
+      routerMs = 0;
+      rotaOrigem = rotaRapida.motivo;
+    } else if (routerToken) {
       const antes = Date.now();
       const decisao = await decidirRota(
         supabaseUrl, serviceKey, routerToken, String(conv.conversation_id), routerTimeoutMs,
@@ -810,6 +774,7 @@ Deno.serve(async (req: Request) => {
           rota: rotaDecidida, rota_aplicada: null,
           precisa_esclarecer: precisaEsclarecer, candidatas,
           gate_reason: gateReason, rota_falha: motivo, router_ms: routerMs,
+          rota_origem: rotaOrigem,
         },
       });
       if (errSem) {
@@ -830,6 +795,7 @@ Deno.serve(async (req: Request) => {
       rota: rotaDecidida, rota_aplicada: rotaAplicada,
       precisa_esclarecer: precisaEsclarecer, candidatas: candidatas.length,
       gate_reason: gateReason, falha: falhaDaRota, router_ms: routerMs,
+      rota_origem: rotaOrigem,
     }));
 
     const historico = Array.isArray(conv.historico) ? conv.historico : [];
@@ -889,14 +855,16 @@ Deno.serve(async (req: Request) => {
         // playbook dela já está nas instruções — não é para reclassificar.
         rota: rotaAplicada,
         audience: conv.audience,
-        stage: conv.stage,
+        // coleta_cadastro foi criado pela regra removida e não representa estágio
+        // comercial. Não deixe esse estado legado mandar o Agent voltar ao formulário.
+        stage: conv.stage === "coleta_cadastro" ? "escolha_aberta" : conv.stage,
         nome_contato: conv.nome_contato ?? contactName ?? null,
         origem_codigo: conv.origem_codigo ?? origem ?? null,
         utm_de_origem: conv.utm ?? null,
         produto: conv.produto_codigo ?? null,
       },
-      // Identidade e credenciamento chegam resolvidos pelo Core. Nas rotas de venda,
-      // o contato é completado no início sem repetir o que já existe.
+      // Identidade e credenciamento chegam resolvidos pelo Core. Dados espontâneos
+      // podem enriquecer o perfil, mas nunca viram pedágio para vender.
       quem_esta_falando: {
         ja_identificada: idConhecida,
         perfil: idPerfil,
@@ -905,10 +873,10 @@ Deno.serve(async (req: Request) => {
           "USE O QUE JÁ SABEMOS ANTES DE PERGUNTAR: confira perfil e credenciamento e nunca repita um dado conhecido.",
           ...(["summit_b2b", "summit_b2c"].includes(rotaAplicada ?? "")
             ? [
-              "Nesta rota de venda, o contato mínimo obrigatório é: nome completo, e-mail, WhatsApp, empresa e cargo. Um campo só falta quando não aparece nem no perfil nem no credenciamento.",
-              "Comece pelos campos ausentes e SEMPRE colete o próximo. Faça uma pergunta curta por mensagem; nunca despeje uma ficha cadastral.",
-              "O campo WhatsApp só conta como conhecido quando perfil.whatsapp ou credenciamento.participante.whatsapp estiver preenchido. Caso contrário, peça o WhatsApp.",
-              "Você pode responder perguntas objetivas enquanto coleta. Não envie calculadora, proposta ou checkout antes de completar o contato mínimo. Pedido explícito por humano, risco ou suporte urgente não fica bloqueado.",
+              "Venda primeiro. Nunca condicione resposta, recomendação, preço, calculadora, proposta ou checkout ao preenchimento de cadastro.",
+              "Não peça nome completo, e-mail, empresa ou cargo apenas para enriquecer CRM. O WhatsApp do canal já ancora a conversa.",
+              "Se a pessoa oferecer um dado espontaneamente, aproveite sem interromper o movimento comercial.",
+              "Cargo e empresa descrevem a pessoa; não transformam uma compra individual em B2B.",
             ]
             : [
               "Só pergunte um dado se ele for necessário para resolver o que a pessoa quer AGORA.",
@@ -1046,12 +1014,6 @@ Deno.serve(async (req: Request) => {
     const cargoDito = (turn.cargo_informado ?? "").trim() || null;
 
     const rotaDeVenda = ["summit_b2b", "summit_b2c"].includes(rotaAplicada ?? "");
-    const contatoAusente = rotaDeVenda
-      ? camposContatoAusentes(idPerfil, conv.credenciamento, {
-        nome: nomeDito, email: emailDito, whatsapp: whatsappDito,
-        empresa: empresaDita, cargo: cargoDito,
-      })
-      : [];
 
     // A rota manda no `audience`.
     //
@@ -1095,24 +1057,6 @@ Deno.serve(async (req: Request) => {
           { key: "checkout_sent", value: "false" },
         ],
       });
-    }
-
-    // Defesa em profundidade: prompt orienta a coleta inicial, mas o runtime não
-    // libera ativos transacionais se o modelo ignorar a regra. O dado informado
-    // neste próprio turno conta, portanto não se cria uma rodada artificial extra.
-    const tentouAtivoComercial = checkoutOficial !== null ||
-      /https:\/\/calculadora\.mindsummit\.company\/?/i.test(answer) ||
-      /https:\/\/pdf\.mindsummit\.company\/?/i.test(answer);
-    if (rotaDeVenda && contatoAusente.length > 0 && tentouAtivoComercial && !needsHumanFinal) {
-      console.info(JSON.stringify({
-        request_id: requestId,
-        event: "ativo_comercial_aguarda_contato",
-        campos_ausentes: contatoAusente,
-      }));
-      checkoutOficial = null;
-      turn.checkout_sent = false;
-      turn.checkout_url = null;
-      answer = `Antes de te enviar esse acesso, preciso completar seu contato. ${perguntaContato(contatoAusente[0])}`;
     }
 
     // O checkout oficial é resolvido ANTES do guardrail porque ele muda a ação segura:
@@ -1257,6 +1201,7 @@ Deno.serve(async (req: Request) => {
         rota: rotaDecidida, rota_aplicada: rotaAplicada,
         precisa_esclarecer: precisaEsclarecer, candidatas,
         gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
+        rota_origem: rotaOrigem,
         tools_expostas: toolsParaModelo.length,
         rodadas_tool: rodadasTool,
         ferramentas: chamadasFeitas,
