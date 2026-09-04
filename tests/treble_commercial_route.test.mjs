@@ -64,6 +64,20 @@ test("intenção explícita de levar a equipe torna a oportunidade B2B", () => {
   assert.equal(rotaComercialRapida("Quero levar minha equipe", []).rota, "summit_b2b");
 });
 
+test("equipe como destino já representa múltiplos participantes corporativos", () => {
+  assert.equal(
+    rotaComercialRapida("Quero comprar ingressos para minha equipe", []).rota,
+    "summit_b2b",
+  );
+});
+
+test("quantidade de gestores da empresa é B2B", () => {
+  assert.equal(
+    rotaComercialRapida("Quero levar 5 gestores da empresa", []).rota,
+    "summit_b2b",
+  );
+});
+
 test("compra para si e para a equipe continua B2B quando há múltiplos corporativos", () => {
   assert.equal(
     rotaComercialRapida("Quero 5 ingressos para mim e minha equipe", []).rota,

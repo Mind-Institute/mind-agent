@@ -8,9 +8,10 @@ const SUPORTE_OU_OUTRO_PRODUTO = /\b(mind institute|mind dash|ja comprei|meu ing
 const PATROCINIO = /\b(patrocinio|patrocinar|patrocinador)\b/;
 const COMPRA_SINGULAR = /\b(compra individual|ingresso individual|(so|apenas|somente) (um|1) ingresso|um unico ingresso|meu unico ingresso|o meu ingresso|meu ingresso|(so|apenas|somente) para mim|(so|apenas|somente) (um|1) para mim)\b/;
 const DESTINO_PESSOAL = /\b(para mim|pra mim|para (meu|minha|meus|minhas) (marido|esposa|companheiro|companheira|familia|amigo|amiga|amigos|amigas|filho|filha|filhos|filhas))\b/;
-const DESTINO_CORPORATIVO = /\b(compra corporativa|para (a|minha|nossa) empresa|pela empresa|empresa (vai|ira|quer|pretende|precisa) (pagar|comprar|levar|enviar)|levar (a|minha|nossa) equipe|levar (o|meu|nosso) time|enviar (a|minha|nossa) equipe|enviar (o|meu|nosso) time|para (a|minha|nossa) equipe|para (o|meu|nosso) time|delegacao corporativa|delegacao da empresa|colaboradores? da empresa|funcionarios? da empresa|em nome da empresa|no cnpj)\b/;
-const QUANTIDADE_MULTIPLA = /\b(([2-9]|[1-9][0-9]+)|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte)\s*(ingressos?|pessoas?|participantes?|vagas?)\b|\b(varios|varias|multiplos|multiplas|diversos|diversas|mais de um|mais de uma)\s*(ingressos?|pessoas?|participantes?|vagas?)\b/;
+const DESTINO_CORPORATIVO = /\b(compra corporativa|para (a|minha|nossa) empresa|pela empresa|empresa (vai|ira|quer|pretende|precisa) (pagar|comprar|levar|enviar)|levar (a|minha|nossa) equipe|levar (o|meu|nosso) time|enviar (a|minha|nossa) equipe|enviar (o|meu|nosso) time|para (a|minha|nossa) equipe|para (o|meu|nosso) time|delegacao corporativa|delegacao da empresa|(colaboradores?|funcionarios?|gestores?|lideres?|diretores?|executivos?) da empresa|em nome da empresa|no cnpj)\b/;
+const QUANTIDADE_MULTIPLA = /\b(([2-9]|[1-9][0-9]+)|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte)\s*(ingressos?|pessoas?|participantes?|vagas?|colaboradores?|funcionarios?|gestores?|lideres?|diretores?|executivos?)\b|\b(varios|varias|multiplos|multiplas|diversos|diversas|mais de um|mais de uma)\s*(ingressos?|pessoas?|participantes?|vagas?|colaboradores?|funcionarios?|gestores?|lideres?|diretores?|executivos?)\b/;
 const COLETIVO_CORPORATIVO = /\b(levar|enviar|inscrever|convidar)\s+(a |minha |nossa |o |meu |nosso )?(equipe|time|delegacao|colaboradores|funcionarios)\b/;
+const COLETIVO_COMO_DESTINO = /\b(para|pela)\s+(a |o |minha |nossa |meu |nosso |meus |nossos |as |os )?(equipe|time|delegacao|colaboradores|funcionarios|gestores|lideres|diretores|executivos)\b/;
 const EQUIPE_MENCIONADA = /\b(a|minha|nossa|da|nossa) (equipe|delegacao)|\b(o|meu|nosso|do) time\b/;
 
 export function rotaComercialRapida(
@@ -32,9 +33,12 @@ export function rotaComercialRapida(
     return { rota: null, motivo: "router_necessario" };
   }
 
-  const multiploAtual = QUANTIDADE_MULTIPLA.test(atual) || COLETIVO_CORPORATIVO.test(atual);
+  const multiploAtual = QUANTIDADE_MULTIPLA.test(atual) ||
+    COLETIVO_CORPORATIVO.test(atual) ||
+    COLETIVO_COMO_DESTINO.test(atual);
   const corporativoAtual = DESTINO_CORPORATIVO.test(atual) ||
     COLETIVO_CORPORATIVO.test(atual) ||
+    COLETIVO_COMO_DESTINO.test(atual) ||
     (multiploAtual && EQUIPE_MENCIONADA.test(atual));
   const singularAtual = COMPRA_SINGULAR.test(atual) ||
     /\b(nao (e|seria) (uma )?compra corporativa|para eu ir|pra eu ir)\b/.test(atual);
@@ -57,9 +61,11 @@ export function rotaComercialRapida(
   }
 
   const corporativoNoContexto = DESTINO_CORPORATIVO.test(contexto) ||
-    COLETIVO_CORPORATIVO.test(contexto);
+    COLETIVO_CORPORATIVO.test(contexto) ||
+    COLETIVO_COMO_DESTINO.test(contexto);
   const multiploNoContexto = QUANTIDADE_MULTIPLA.test(contexto) ||
-    COLETIVO_CORPORATIVO.test(contexto);
+    COLETIVO_CORPORATIVO.test(contexto) ||
+    COLETIVO_COMO_DESTINO.test(contexto);
 
   if (PATROCINIO.test(contexto)) {
     return { rota: "summit_b2b", motivo: "b2b_patrocinio" };
