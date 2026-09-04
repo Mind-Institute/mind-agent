@@ -27,24 +27,40 @@ como impedimento para vender.
 
 ## Correção publicada
 
-- `treble-inbound-agent` v40, runtime interno `1.10.1`;
+- PR #98 mergeada em `main` no commit
+  `2581f6632339b4606f887d340b6c00821de9a3c5`;
+- `treble-inbound-agent` v41, runtime interno `1.10.2`;
+- `router_universal` ativo na v4;
 - B2C é o padrão do canal comercial;
-- B2B exige intenção explícita de empresa, equipe, delegação, múltiplos ingressos
-  ou compra corporativa;
-- cargo, empresa ou potencial futuro não alteram uma compra individual;
+- para venda de ingressos, B2B exige ao mesmo tempo destino corporativo e mais
+  de uma pessoa;
+- cargo, empresa, pagamento corporativo de um único ingresso, quantidade sem
+  destino corporativo ou potencial futuro não alteram uma compra individual;
+- compras para casal, família ou amigos continuam B2C;
+- destino corporativo sem quantidade volta ao Router para esclarecimento;
+- patrocínio permanece B2B como demanda própria;
 - suporte explícito continua usando o Router universal;
 - checkout, preço, recomendação, proposta e calculadora não são mais bloqueados
   por cadastro;
 - o estado legado `coleta_cadastro` é neutralizado antes de chegar ao modelo;
 - `rota_origem` registra por que o turno foi B2C, B2B ou enviado ao Router.
 
-## Provas
+## Provas da versão final
 
-- 175/175 testes Edge;
+- 185/185 testes Edge;
+- 17/17 casos específicos do classificador comercial;
+- 15/15 verificações estáticas do runtime B2B;
 - 76/76 contratos do guardrail de preço;
-- contrato SQL do playbook passou contra produção;
+- migration do Router passou em `BEGIN/ROLLBACK` contra o prompt vivo e contém
+  uma prova reversível de que somente o bloco B2B/B2C foi substituído;
+- health vivo respondeu `{"ok":true,"service":"treble-inbound-agent","version":"1.10.2"}`;
 - “Sou gestora e quero comprar um ingresso para mim” → `summit_b2c`,
   `router_ms=0`;
+- “Minha empresa vai pagar meu ingresso” → `summit_b2c`;
+- “Quero dois ingressos para mim e meu marido” → `summit_b2c`;
+- “Quero 5 ingressos” → `summit_b2c`;
+- “Quero comprar ingressos para minha empresa” → Router para esclarecer
+  quantidade;
 - “Quero comprar o VIP. Me manda o link agora” → checkout oficial rastreado,
   sem pergunta cadastral, 4,48 s;
 - “Quero levar 5 pessoas da minha equipe” → `summit_b2b`, valores oficiais
