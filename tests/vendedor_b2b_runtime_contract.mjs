@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Contrato estático: B2B usa credenciamento person-bound e o Core compartilhado,
-// completa o contato no início e bloqueia checkout enquanto ele estiver incompleto.
+// enriquece dados sem bloquear a venda e roteia B2B só por intenção corporativa.
 // Não chama modelo, não toca banco e não cria conversa.
 
 import { readFileSync } from "node:fs";
@@ -12,20 +12,18 @@ const fonte = join(aqui, "..", "supabase", "functions", "treble-inbound-agent", 
 const src = readFileSync(fonte, "utf8");
 
 const checks = [
-  ["runtime 1.9.0", src.includes('const VERSION = "1.9.0"')],
+  ["runtime 1.10.1", src.includes('const VERSION = "1.10.1"')],
   ["credenciamento entra no contexto", src.includes("credenciamento: conv.credenciamento ?? null")],
   ["e-mail e WhatsApp usam rótulos", src.includes("[email_1]") && src.includes("[whatsapp_1]")],
   ["formato validado pelo Core", src.includes("mind_identificador_validar") && src.includes("VALIDACAO_IDENTIFICADORES")],
   ["WhatsApp declarado usa writer próprio", src.includes("mind_identificador_declarado_registrar")],
   ["nome coletado hidrata identidade ancorada", src.includes("if (emailDito || nomeDito)")],
   ["dados de comprador não entram no runtime", !/buyer_(name|email|company|cpf|cnpj)/.test(src)],
-  ["regra sensível à rota B2B", src.includes('rotaAplicada === "summit_b2b"')],
-  ["cinco campos mínimos", src.includes("nome completo, e-mail, WhatsApp, empresa e cargo")],
-  ["coleta sempre o próximo ausente", src.includes("SEMPRE colete o próximo")],
-  ["uma pergunta curta por mensagem", src.includes("Faça uma pergunta curta por mensagem")],
-  ["captura vale para B2B e B2C", src.includes('["summit_b2b", "summit_b2c"].includes')],
-  ["checkout espera contato", src.includes("Não envie calculadora, proposta ou checkout antes de completar o contato mínimo")],
-  ["WhatsApp ausente é pedido", src.includes("Caso contrário, peça o WhatsApp")],
+  ["rota comercial rápida", src.includes("rotaComercialRapida(message, conv.historico)")],
+  ["cadastro não bloqueia checkout", src.includes("Nunca condicione resposta, recomendação, preço, calculadora, proposta ou checkout")],
+  ["cargo não define B2B", src.includes("Cargo e empresa descrevem a pessoa")],
+  ["bloqueio cadastral removido", !src.includes("ativo_comercial_aguarda_contato")],
+  ["estado cadastral legado neutralizado", src.includes('conv.stage === "coleta_cadastro" ? "escolha_aberta"')],
   ["usa Kit único", src.includes('instructions = kit.playbook as string')],
   ["usa lupa compartilhada", src.includes('toolsDeIntelligence(toolsDoTurno)')],
   ["usa raciocínio adaptativo", src.includes('esforcoDeRaciocinio(message, toolsParaModelo.length)')],
