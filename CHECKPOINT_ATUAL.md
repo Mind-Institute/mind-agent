@@ -2,9 +2,27 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **03/09/2026**. O estado operacional mais recente está consolidado
+> Atualizado em **04/09/2026**. O estado operacional mais recente está consolidado
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
+
+### Hotfix mais recente — Vendedor Treble / PR #98
+
+- PR #98 mergeada em `main`: `2581f6632339b4606f887d340b6c00821de9a3c5`;
+- `treble-inbound-agent` viva na Supabase v41, runtime `1.10.2`,
+  `ACTIVE`, `verify_jwt=false`;
+- `router_universal` ativo na v4;
+- B2C é o padrão comercial;
+- para ingressos, B2B exige **destino empresa/equipe + mais de uma pessoa**;
+- cargo, empresa, pagamento corporativo de um único ingresso e quantidade sem
+  destino corporativo não bastam;
+- empresa sem quantidade volta ao Router para esclarecer; patrocínio continua
+  B2B como demanda própria;
+- cadastro pode enriquecer o CRM, mas nunca bloqueia resposta, preço,
+  recomendação, calculadora, proposta ou checkout;
+- 185/185 testes Edge, 17/17 casos do classificador e health vivo em `1.10.2`;
+- E2E externo de entrega no aparelho continua pendente porque esta execução não
+  tem um WhatsApp controlado configurado.
 
 ### Hotfix operacional mais recente — PR #91
 
@@ -19,12 +37,14 @@
 - embeddings continuam pendentes: 30 chunks, zero vetores. A busca lexical está
   funcional; o indexador requer invocação administrativa em ambiente confiável.
 
-### Captura comercial e Contact HubSpot — decisão mais recente
+### Captura comercial e Contact HubSpot — decisão de 03/09, parcialmente superada
 
-- nas rotas de venda B2B e B2C, coletar no início nome completo, e-mail, WhatsApp, empresa e cargo;
+> A PR #98 substituiu a parte que transformava cadastro em pedágio de venda.
+> O fluxo ainda aproveita dados conhecidos e espontâneos, mas não pede campo
+> apenas para enriquecer CRM e não retém venda por campo ausente.
+
 - consultar primeiro `pessoas.pessoas`, CRM e credenciamento e nunca reperguntar dado conhecido;
 - persistir cada resposta imediatamente na pessoa canônica;
-- não liberar calculadora, proposta ou checkout enquanto o conjunto mínimo estiver incompleto;
 - o `hubspot-commercial-writeback` passa a localizar o Contact por vínculo/e-mail/telefone, criar quando não existir ou enriquecer apenas campos vazios;
 - divergência de identidade ou perfil bloqueia o write-back, sem merge ou sobrescrita automática;
 - depois do Contact, vincular o `hubspot_id` por `engagement.identidades` e só então criar/atualizar o Lead;
