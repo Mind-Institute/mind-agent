@@ -1,5 +1,11 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.10.2 — B2B EXIGE EMPRESA + PLURALIDADE. Na venda de ingressos, cargo,
+// empresa, pagamento corporativo ou quantidade isolados não bastam: a compra precisa
+// ser para empresa/equipe e envolver mais de uma pessoa. Compra pessoal continua B2C;
+// intenção corporativa sem quantidade volta ao Router para esclarecimento. Patrocínio
+// permanece B2B como demanda própria.
+//
 // v1.10.1 — VENDA B2C SEM ATRITO. O canal comercial parte de B2C, preserva B2B
 // apenas quando existe intenção corporativa explícita e não usa cargo/empresa como
 // atalho de rota. A rota comercial rápida evita uma chamada ao Router na maioria dos
@@ -159,7 +165,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.1";
+const VERSION = "1.10.2";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o

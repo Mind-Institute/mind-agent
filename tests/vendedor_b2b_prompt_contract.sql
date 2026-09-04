@@ -5,6 +5,7 @@ do $test$
 declare
   v_b2b text;
   v_b2c text;
+  v_router text;
   v_bloco jsonb;
   v_kit jsonb;
   v_status jsonb;
@@ -14,6 +15,9 @@ declare
 begin
   select public.treble_agent_prompt('summit_b2b','completo') into v_b2b;
   select public.treble_agent_prompt('summit_b2c','completo') into v_b2c;
+  select conteudo into v_router
+  from agentes.prompts
+  where chave = 'router_universal' and ativo;
   select public.mind_kit_delegacao_corporativa(null::uuid,'{}'::jsonb) into v_bloco;
   select public.mind_b2b_produto_status() into v_status;
 
@@ -59,6 +63,13 @@ begin
   end if;
   if position('CALCULADORA CORPORATIVA' in coalesce(v_b2c,'')) > 0 then
     raise exception 'playbook B2B vazou para B2C';
+  end if;
+
+  if position('destino corporativo e mais de um participante' in coalesce(v_router,'')) = 0
+     or position('empresa pagando o único ingresso' in coalesce(v_router,'')) = 0
+     or position('quantidade de dois ou mais ingressos sem destino corporativo' in coalesce(v_router,'')) = 0
+     or position('- empresa pagando;' in coalesce(v_router,'')) > 0 then
+    raise exception 'router_universal ainda classifica B2B por um único sinal';
   end if;
 
   if v_bloco->'estrutura'->>'nucleo_comum_horas' <> '10' then
