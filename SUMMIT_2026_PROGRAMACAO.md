@@ -1,5 +1,9 @@
 # Mind Summit 2026 — programação e palestrantes
 
+> **SNAPSHOT HISTÓRICO.** A programação viva em 04/09/2026 tem 77 sessões,
+> 81 vínculos sessão–palestrante e 64 palestrantes. Use o banco como fonte
+> operacional; o restante deste documento preserva o contexto da consolidação.
+
 Checkpoint factual e decisões aprovadas em 30/08/2026.
 
 ## Programação

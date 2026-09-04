@@ -1,7 +1,9 @@
 # Estado da implementação — agentes comerciais e Concierge
 
-Atualizado em 03/09/2026. Este documento separa o que está efetivamente em
+Atualizado em 04/09/2026. Este documento separa o que está efetivamente em
 produção do que ainda depende de acesso, decisão comercial ou teste externo.
+
+Snapshot: `main` em `44d831018772b39a764dd311b9cc839a9e2d1c43`.
 
 ## Resultado entregue
 
@@ -95,7 +97,7 @@ PRs mesclados:
 
 ## Testes executados
 
-- 156/156 testes Edge/contrato.
+- 168/168 testes Edge/contrato em 04/09/2026.
 - 76/76 contratos do guardrail de preço.
 - Build completo do app Cloudflare e painel Admin.
 - E2E real do App até o checkout Eduzz com identidade fictícia, sem informar
@@ -122,7 +124,7 @@ Edge Functions ativas após esta entrega:
 
 | Função | Versão | JWT | Papel |
 | --- | ---: | --- | --- |
-| `mindagent-chat` | 37 | sim | App/Concierge/venda |
+| `mindagent-chat` | 39 | sim | App/Concierge/venda |
 | `treble-inbound-agent` | 38 | webhook próprio | WhatsApp B2C/B2B |
 | `mindagent-checkout` | 1 | público controlado | clique e 302 para Eduzz |
 | `mindagent-recovery` | 2 | sim/admin | refresh e rascunhos, sem envio |

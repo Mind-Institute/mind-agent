@@ -1,8 +1,10 @@
 # Customer Intelligence do Mind — Passo 2: Taxonomia canônica de ICP + JTBD
 
-Status: **proposta fechada para aprovação da Adriana — NÃO IMPLEMENTADA**  
+Status: **APROVADO/FROZEN; implementado pelo Passo 4**
 Data: 2026-09-02  
-Escopo: modelagem conceitual e reconciliação de linguagens existentes. **Nenhuma alteração de banco, prompt, HubSpot, site ou runtime foi feita neste passo.**
+Escopo original: modelagem conceitual e reconciliação de linguagens existentes.
+Este arquivo preserva a decisão do Passo 2; a implementação posterior está
+documentada em `CUSTOMER_INTELLIGENCE_STEP4_IMPLEMENTATION.md`.
 
 ---
 

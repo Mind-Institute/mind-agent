@@ -1,5 +1,8 @@
 # Mind Summit 2026 — Runbook de execução do Concierge
 
+> **HISTÓRICO.** Runbook da fase de construção. Para operação atual, use
+> `CHECKPOINT_ATUAL.md` e `MAPA_DO_SISTEMA.md`.
+
 > Documento operacional para ChatGPT/Claude retomarem esta frente sem depender da memória da conversa.
 >
 > **Objetivo:** executar a reorganização/implementação do Concierge Summit com rastreabilidade, menor mudança e sem perder conteúdo das fontes fornecidas pela Adriana.

@@ -1,5 +1,8 @@
 # Mind Summit 2026 — Passo 5 — Adendo de memória após verificação viva
 
+> **HISTÓRICO.** Adendo da etapa de implementação; consulte
+> `CHECKPOINT_ATUAL.md` para o estado atual.
+
 > **Este adendo prevalece sobre trechos conflitantes de `SUMMIT_2026_STEP5_PROMPTS_SPEC.md` relativos à memória.**
 >
 > Investigado no Supabase vivo em 2026-09-02. Não é implementação.

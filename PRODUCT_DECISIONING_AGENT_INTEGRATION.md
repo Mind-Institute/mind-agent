@@ -64,7 +64,9 @@ meta
 
 ### 3. Compatibilidade com o runtime atual do App
 
-A Edge viva `mindagent-chat` v30 / `1.9.1` já usa `kit.playbook` como o bundle de `instructions` enviado à OpenAI.
+Na baseline desta implementação, a `mindagent-chat` v30 / `1.9.1` já usava
+`kit.playbook` como o bundle de `instructions` enviado à OpenAI. A versão
+operacional atual está em `CHECKPOINT_ATUAL.md`.
 
 Para não fazer deploy de Edge apenas para renomear/compor campos, `mind_agent_kit` faz a composição por turno:
 

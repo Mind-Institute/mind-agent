@@ -1,5 +1,9 @@
 # Checkpoint de backlog — palestrantes após rebuild da programação
 
+> **SUPERADO.** Em 04/09/2026 a produção tem 77 sessões, 81 vínculos
+> sessão–palestrante e 64 palestrantes. O conteúdo abaixo preserva o diagnóstico
+> anterior ao backfill.
+
 Este arquivo preserva o delta factual de 30/08/2026 que deve substituir os números antigos da seção 12.6 de `BACKLOG.md` quando o backlog canônico for consolidado.
 
 ## Estado atual verificado

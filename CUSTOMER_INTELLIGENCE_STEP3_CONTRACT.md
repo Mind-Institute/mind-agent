@@ -1,8 +1,10 @@
 # Customer Intelligence do Mind — Passo 3: contrato da pessoa
 
-Status: **PROPOSTA FECHADA PARA APROVAÇÃO — NÃO IMPLEMENTADA**  
+Status: **APROVADO/FROZEN; implementado pelo Passo 4**
 Data: 2026-09-02  
-Escopo: definir o que o sistema aprende sobre uma pessoa, como representa evidência/confiança/recência e quais casas existentes usa. **Nenhuma alteração em banco, HubSpot, prompt, Edge Function ou runtime foi feita neste passo.**
+Escopo original: definir o que o sistema aprende sobre uma pessoa, como representa
+evidência/confiança/recência e quais casas existentes usa. A implementação posterior
+está documentada em `CUSTOMER_INTELLIGENCE_STEP4_IMPLEMENTATION.md`.
 
 ---
 

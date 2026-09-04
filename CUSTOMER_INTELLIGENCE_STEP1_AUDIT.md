@@ -1,5 +1,8 @@
 # Customer Intelligence — Passo 1: auditoria do sistema real
 
+> **SNAPSHOT HISTÓRICO.** Contagens e lacunas refletem a auditoria de 02/09/2026.
+> Não use como estado atual; consulte `CUSTOMER_INTELLIGENCE_STEP4_IMPLEMENTATION.md`.
+
 Status: **AUDITORIA READ-ONLY CONCLUÍDA**  
 Data: 2026-09-02  
 Sistema principal auditado: Supabase `mind-agent` (`ymnmotgglsrxmjmonwjz`) + GitHub `Mind-Institute/mind-agent`  

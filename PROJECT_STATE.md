@@ -3,7 +3,13 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v7 — 03/09/2026.**
+> **Versão do checkpoint arquitetural: v8 — 04/09/2026.**
+>
+> v8 reconcilia o documento com o sistema vivo: o Core agêntico unificado foi
+> integrado e publicado; `mindagent-chat` está na v39, `treble-inbound-agent`
+> na v38 e o go-live em lanes B/C/D/E deixou de ser a fila operacional atual.
+> Os gates restantes são ativação externa e validação controlada, descritos em
+> `CHECKPOINT_ATUAL.md`.
 >
 > v7 congela a correção de produto pedida pela Adriana: o App continua entrando como Concierge e usando momento do evento + contexto da pessoa, mas também pode vender quando houver intenção explícita de compra ou upgrade. O mesmo contrato de checkout atribuído vale no App e no WhatsApp e já nasce extensível para Institute e pré-venda do Summit seguinte quando essas ofertas oficiais entrarem nos Kits.
 >

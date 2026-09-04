@@ -364,7 +364,9 @@ ativo = true
 
 `public.mind_agent_kit` devolve `decisioning` em campo próprio.
 
-A Edge viva `mindagent-chat` v30 / `1.9.1` usa `kit.playbook` como bundle de `instructions`. Para evitar deploy de Edge sem necessidade, o Kit compõe por turno:
+Na baseline desta implementação, a `mindagent-chat` v30 / `1.9.1` passou a
+usar `kit.playbook` como bundle de `instructions`. A versão operacional atual
+deve ser consultada em `CHECKPOINT_ATUAL.md`. O Kit compõe por turno:
 
 ```text
 base + playbook da competência + decisioning registrado
