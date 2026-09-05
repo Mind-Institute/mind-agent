@@ -1,5 +1,13 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.14.2 — A BUSCA DE AGENDA NÃO RODA PARA SAUDAÇÃO. O caminho determinístico de
+// “oi” deixa de esperar uma consulta que não participa da resposta.
+//
+// v1.14.1 — SAUDAÇÃO NÃO ESTOURA A JANELA DA TREBLE. Um “oi” simples recebe resposta
+// determinística, sem Router nem modelo. O orçamento síncrono termina em 4,5 s, abaixo
+// do limite prático observado no canal, e a saída degradada mantém o contrato 200 com
+// `user_session_keys`. Prompt, preços, checkout, UTMs e handoff foram preservados.
+//
 // v1.14.0 — RETORNO SÍNCRONO ABAIXO DO TIMEOUT DA TREBLE. O caminho sem Request
 // Trigger encerra em 7,5 s, perguntas comerciais diretas não abrem uma lupa que repete
 // os fatos do Kit e “condição especial” sem categoria recebe uma pergunta determinística.
@@ -179,6 +187,7 @@ import {
   mensagemComercialDiretaSemLupa,
   pedidoCondicaoSemCategoria,
   rotaComercialRapida,
+  saudacaoCurta,
 } from "../_shared/treble-commercial-route.ts";
 import { decidirHandoff, HANDOFF_REASONS } from "../_shared/treble-handoff.ts";
 import {
@@ -197,13 +206,14 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.14.0";
+const VERSION = "1.14.2";
 const DEFAULT_MODEL = "gpt-5.4";
 
-// O webhook síncrono da Treble é invalidado em 10 s. Este orçamento termina antes,
-// deixando margem para serializar e transportar a resposta de fallback. O Request
-// Trigger continua com o orçamento completo porque a sessão fica pausada na Treble.
-const ORCAMENTO_TREBLE_SINCRONO_MS = 7_500;
+// A documentação da Treble fixa 10 s, mas o canal real já perdeu uma resposta de
+// ~5,96 s. Encerramos em 4,5 s para o fallback ainda atravessar a rede e ser consumido
+// pelo fluxo publicado. O Request Trigger conserva o orçamento completo porque, nesse
+// modo opt-in, a sessão fica pausada na Treble.
+const ORCAMENTO_TREBLE_SINCRONO_MS = 4_500;
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
 // treble-inbound-agent; não há alias.
@@ -233,6 +243,8 @@ const RESPOSTA_HANDOFF =
   "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!";
 const RESPOSTA_ESCOLHA_INGRESSO =
   "Claro. A condição especial depende do ingresso. Você está considerando Mind, VIP ou Prime?";
+const RESPOSTA_SAUDACAO_CURTA =
+  "Oi! Você quer saber sobre ingressos, valores, programação ou alguma condição especial?";
 
 const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind Summit 2026.
 Use somente os dados oficiais recebidos no JSON; nunca invente preço, palestrante ou política.
@@ -345,7 +357,11 @@ function falhaComTransferencia(
   extra: Record<string, unknown> = {},
 ) {
   return json(200, {
-    ok: false,
+    // A Treble precisa consumir `user_session_keys` mesmo quando o processamento
+    // degradou. `error` e `status_origem` preservam o diagnóstico sem sinalizar uma
+    // falha de transporte para o editor de conversas.
+    ok: true,
+    degraded: true,
     error: codigo,
     status_origem: statusOrigem,
     ...extra,
@@ -711,13 +727,14 @@ async function processarTurno(
     // Baratas, independentes da rota e capazes de encerrar o turno: a deduplicação vem
     // antes de qualquer ida ao modelo — inclusive a do Router.
     const mensagemComercialDireta = mensagemComercialDiretaSemLupa(message);
+    const ehSaudacaoCurta = saudacaoCurta(message);
     const [{ data: jaRespondida }, { data: agenda }] = await Promise.all([
       supabase.rpc("treble_agent_resposta_repetida", {
         p_conversation_id: conv.conversation_id,
         p_mensagem: message,
         p_janela_segundos: 90,
       }),
-      cfg.bloco_agenda_busca === "true" && !mensagemComercialDireta
+      cfg.bloco_agenda_busca === "true" && !mensagemComercialDireta && !ehSaudacaoCurta
         ? supabase.rpc("mindagent_chat_search", {
             p_event_slug: "mind-summit-2026",
             p_query: message.slice(0, 300),
@@ -733,6 +750,59 @@ async function processarTurno(
           { key: "resposta_ia", value: jaRespondida },
           { key: "needs_human", value: String(conv.needs_human === true) },
         ],
+      });
+    }
+
+    // A própria mensagem inicial da Treble já pergunta como pode ajudar. Uma saudação
+    // isolada é respondida aqui em poucos milissegundos: não abre Router, Kit ou IA e
+    // não inventa audiência, produto ou necessidade de handoff.
+    if (ehSaudacaoCurta) {
+      const audienceAtual = typeof conv.audience === "string" && conv.audience
+        ? conv.audience
+        : "desconhecido";
+      const state = {
+        audience: audienceAtual,
+        intent: "saudacao",
+        ticket_interest: null,
+        objection: null,
+        needs_human: false,
+        handoff_reason: null,
+        checkout_sent: false,
+        stage: conv.stage ?? "descoberta",
+        desfecho: null,
+        rota_ativa: conv.rota_ativa ?? null,
+      };
+      const { error: saveError } = await supabase.rpc("mind_turno_registrar", {
+        p_conversa_id: conv.conversation_id,
+        p_resposta: RESPOSTA_SAUDACAO_CURTA,
+        p_estado: state,
+        p_meta: {
+          model: null,
+          request_id: requestId,
+          version: VERSION,
+          resposta_deterministica: "saudacao_curta",
+          duration_ms: Date.now() - startedAt,
+        },
+      });
+      if (saveError) throw new Error(`save_saudacao_curta:${saveError.message}`);
+
+      console.info(JSON.stringify({
+        request_id: requestId,
+        event: "saudacao_curta",
+        status: 200,
+        duration_ms: Date.now() - startedAt,
+      }));
+      return json(200, {
+        ok: true,
+        user_session_keys: [
+          { key: "resposta_ia", value: RESPOSTA_SAUDACAO_CURTA },
+          { key: "needs_human", value: "false" },
+          { key: "intent", value: "saudacao" },
+          { key: "audience", value: audienceAtual },
+          { key: "checkout_sent", value: "false" },
+        ],
+        state,
+        request_id: requestId,
       });
     }
 

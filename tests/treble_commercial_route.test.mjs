@@ -4,7 +4,16 @@ import {
   mensagemComercialDiretaSemLupa,
   pedidoCondicaoSemCategoria,
   rotaComercialRapida,
+  saudacaoCurta,
 } from "../supabase/functions/_shared/treble-commercial-route.ts";
+
+test("saudação isolada não abre Router nem modelo", () => {
+  for (const mensagem of ["Oi", "Olá!", "Opa", "Bom dia", "Tudo bem?"]) {
+    assert.equal(saudacaoCurta(mensagem), true, mensagem);
+  }
+  assert.equal(saudacaoCurta("Oi, quero saber o preço do VIP"), false);
+  assert.equal(saudacaoCurta("Bom dia, qual é a condição especial?"), false);
+});
 
 test("cargo de gestora continua B2C", () => {
   assert.deepEqual(rotaComercialRapida("Sou gestora", []), {

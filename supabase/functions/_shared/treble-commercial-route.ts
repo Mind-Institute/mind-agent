@@ -17,6 +17,7 @@ const CATEGORIA_INGRESSO = /\b(mind|vip|prime)\b/;
 const PEDIDO_DE_CONDICAO = /\b(condicao especial|condicoes especiais|oferta especial|promocao|desconto|cupom)\b/;
 const ASSUNTO_COMERCIAL_DIRETO = /\b(ingressos?|mind|vip|prime|preco|valor|oferta|condicao|desconto|cupom|parcelamento|parcelar|checkout|comprar|compra|upgrade)\b/;
 const ASSUNTO_QUE_PEDE_LUPA = /\b(palestrantes?|programacao|agenda|horarios?|localizacao|onde fica|papers?|pesquisas?|estudos?|evidencias?|biografia)\b/;
+const SAUDACAO_CURTA = /^(oi+|ola+|opa|e ai|bom dia|boa tarde|boa noite|tudo bem|tudo bom)[!?.\s]*$/;
 
 function falasDoLead(historicoValue: unknown): string[] {
   return Array.isArray(historicoValue)
@@ -33,6 +34,13 @@ function falasDoLead(historicoValue: unknown): string[] {
 export function mensagemComercialDiretaSemLupa(mensagem: string): boolean {
   const atual = normalizar(mensagem);
   return ASSUNTO_COMERCIAL_DIRETO.test(atual) && !ASSUNTO_QUE_PEDE_LUPA.test(atual);
+}
+
+// A abertura do fluxo da Treble já pergunta como pode ajudar. Quando a pessoa
+// responde apenas com uma saudação, não há fato, intenção ou necessidade humana a
+// classificar. Chamar Router + modelo aqui só consome a janela síncrona do webhook.
+export function saudacaoCurta(mensagem: string): boolean {
+  return SAUDACAO_CURTA.test(normalizar(mensagem).trim());
 }
 
 // "Quero a condição especial" não define para qual dos três ingressos o checkout deve

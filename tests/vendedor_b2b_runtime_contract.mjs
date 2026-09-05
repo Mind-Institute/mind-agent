@@ -12,7 +12,7 @@ const fonte = join(aqui, "..", "supabase", "functions", "treble-inbound-agent", 
 const src = readFileSync(fonte, "utf8");
 
 const checks = [
-  ["runtime 1.14.0", src.includes('const VERSION = "1.14.0"')],
+  ["runtime 1.14.2", src.includes('const VERSION = "1.14.2"')],
   ["credenciamento entra no contexto", src.includes("credenciamento: conv.credenciamento ?? null")],
   ["e-mail e WhatsApp usam rótulos", src.includes("[email_1]") && src.includes("[whatsapp_1]")],
   ["formato validado pelo Core", src.includes("mind_identificador_validar") && src.includes("VALIDACAO_IDENTIFICADORES")],
