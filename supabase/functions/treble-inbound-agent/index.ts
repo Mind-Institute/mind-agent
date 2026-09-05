@@ -1,5 +1,13 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.10.3 — A FALA DO LEAD VEM DE `actual_response`. O webhook de resposta da Treble
+// entrega a mensagem mais recente da pessoa nesse campo; `mensagem` e os demais aliases
+// podem carregar a variável de um passo anterior do fluxo. Medido em produção
+// (05/09, 12:44 a 12:46): oito turnos seguidos chegaram com a mesma fala antiga
+// ("De ingresso"), a deduplicação de 90 s devolveu a mesma resposta e a conversa
+// entrou em loop. `question.text` não entra: é a pergunta do fluxo, não a fala da
+// pessoa. Nada mais muda nesta versão.
+//
 // v1.10.2 — B2B EXIGE EMPRESA + PLURALIDADE. Na venda de ingressos, cargo,
 // empresa, pagamento corporativo ou quantidade isolados não bastam: a compra precisa
 // ser para empresa/equipe e envolver mais de uma pessoa. Compra pessoal continua B2C;
@@ -165,7 +173,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.2";
+const VERSION = "1.10.3";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -479,7 +487,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const sessionId = pick(body, ["session_external_id", "sessionExternalId", "session_id", "sessionId", "conversation_id", "cellphone", "celular"]);
+  // `actual_response` é o campo oficial do webhook de resposta da Treble e carrega a
+  // mensagem mais recente da pessoa. Os aliases seguintes continuam valendo para fluxos
+  // que entregam a fala numa variável própria, mas só depois dele: uma variável de
+  // passo anterior não pode ocupar o lugar da fala atual.
   let message = pick(body, [
+    "actual_response",
     "mensagem", "message", "text", "resposta", "answer", "user_message",
     "user_response", "response", "user_answer", "respuesta",
   ]).slice(0, 1200);
