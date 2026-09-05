@@ -1,5 +1,11 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.10.4 — CUPOM INDIVIDUAL NO GUARDRAIL DE PREÇO. As condições do lote 7 passam a ser
+// cupons de valor fixo digitados no checkout (200OFF no Mind, 300OFF no VIP). O guardrail
+// lê o objeto `desconto` de uma regra com `cupom` como economia sem faixa e reconhece
+// "R$ 200 de desconto" além de "desconto de R$ 200". Sem isso, a fala da condição era
+// barrada como preço inventado e virava handoff. Só `guardrail-preco.ts` muda.
+//
 // v1.10.3 — A FALA DO LEAD VEM DE `actual_response`. O webhook de resposta da Treble
 // entrega a mensagem mais recente da pessoa nesse campo; `mensagem` e os demais aliases
 // podem carregar a variável de um passo anterior do fluxo. Medido em produção
@@ -173,7 +179,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.3";
+const VERSION = "1.10.4";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
