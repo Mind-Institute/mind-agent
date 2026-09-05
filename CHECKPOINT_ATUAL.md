@@ -2,16 +2,35 @@
 
 > **Leia este arquivo primeiro se estiver entrando no projeto sem contexto.**
 >
-> Atualizado em **04/09/2026**. O estado operacional mais recente está consolidado
+> Atualizado em **05/09/2026**. O estado operacional mais recente está consolidado
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
-### Hotfix mais recente — Vendedor Treble / PR #98
+### Hotfix Treble — retorno síncrono restaurado (05/09/2026)
+
+- `treble-inbound-agent` está em produção na **Edge v48**, runtime interno
+  **v1.14.0**, `ACTIVE`, `verify_jwt=false` com autenticação própria do webhook;
+- a URL e o token da Treble permaneceram intactos e o modo ativo continua síncrono,
+  sem `request_trigger=1`;
+- causa confirmada: a v46 executou um turno em 11,421 s, acima do timeout de 10 s da
+  Treble; o cliente de diagnóstico chegou a esperar 26,18 s;
+- o caminho síncrono agora tem orçamento total de 7,5 s e sempre devolve uma resposta
+  válida antes do timeout, inclusive quando a IA não conclui;
+- condição especial sem categoria pede Mind/VIP/Prime de forma determinística;
+- preço/condição/checkout usam o Kit sem abrir Intelligence desnecessária;
+- VIP foi validado em produção com 12x de R$225 antes de R$2.697, checkout direto da
+  Eduzz, UTMs curtas e `needs_human=false` em 4,143 s;
+- a troca VIP → Prime foi validada sem handoff em 3,844 s;
+- timeout forçado foi devolvido em 7,630 s e persistido no histórico com
+  `erro_runtime=timeout` e o mesmo `request_id`;
+- validação local: **211/211** testes Edge, **76/76** contratos de preço e todos os
+  contratos específicos de Treble/B2B/falha sem silêncio;
+- falta somente o teste de entrega em WhatsApp real. O primeiro texto sugerido é
+  “Quero saber da condição especial”.
+
+### Base integrada — Vendedor Treble / PR #98
 
 - PR #98 mergeada em `main`: `2581f6632339b4606f887d340b6c00821de9a3c5`;
-- `treble-inbound-agent` viva na Supabase v41, runtime `1.10.2`,
-  `ACTIVE`, `verify_jwt=false`;
-- `router_universal` ativo na v4;
 - B2C é o padrão comercial;
 - para ingressos, B2B exige **destino empresa/equipe + mais de uma pessoa**;
 - cargo, empresa, pagamento corporativo de um único ingresso e quantidade sem
@@ -20,9 +39,56 @@
   B2B como demanda própria;
 - cadastro pode enriquecer o CRM, mas nunca bloqueia resposta, preço,
   recomendação, calculadora, proposta ou checkout;
-- 185/185 testes Edge, 17/17 casos do classificador e health vivo em `1.10.2`;
-- E2E externo de entrega no aparelho continua pendente porque esta execução não
-  tem um WhatsApp controlado configurado.
+- a base foi validada com 185/185 testes Edge e 17/17 casos do classificador.
+
+### Hotfix Treble — rota comercial persistente (05/09/2026)
+
+- migration `treble_rota_ativa_persistente` aplicada em produção;
+- `mind_conversa_estado` agora devolve `engagement.conversas.variables.rota_ativa` ao
+  adapter do Treble;
+- `mind_turno_registrar` valida `rota_ativa` no Capability Gate e a persiste na mesma
+  transação que grava a resposta;
+- `treble-inbound-agent` publicado em produção na **Edge v46**, runtime interno
+  **v1.13.0**, `ACTIVE`, `verify_jwt=false` com autenticação própria do webhook;
+- B2C/B2B passa a ser estado da conversa: follow-ups reutilizam a rota ativa com
+  `router_ms=0`; sinal explícito de compra corporativa para múltiplas pessoas ou compra
+  individual troca a rota; suporte/outro produto continua indo ao Router universal;
+- empresa ou cargo isolados não mudam B2C para B2B;
+- `needs_human` continua sendo avaliado em todo turno, independente da rota persistida;
+- nenhum prompt, preço, checkout, UTM, regra de handoff ou fluxo visual do Treble foi
+  alterado;
+- validação: **207/207** testes Edge, contrato B2B **18/18**, health vivo em v1.13.0 e
+  writer/read path comprovados juntos em produção dentro de `BEGIN/ROLLBACK`, sem dado
+  de teste persistido;
+- falta apenas E2E em uma conversa real nova: primeiro turno deve registrar a rota e o
+  segundo deve aparecer nos logs com `rota_origem=rota_ativa` e `router_ms=0`.
+
+### Hotfix Treble — Request Trigger assíncrono (05/09/2026)
+
+- `treble-inbound-agent` publicado em produção na **Edge v45**, runtime interno
+  **v1.12.1**, `ACTIVE`, `verify_jwt=false` com autenticação própria do webhook;
+- o modo assíncrono é opt-in por `request_trigger=1`: a URL antiga permanece
+  síncrona até o fluxo da Treble receber o bloco `[REQUEST_TRIGGER]`;
+- o webhook confirma `202` antes de Router/IA e usa `EdgeRuntime.waitUntil` para
+  continuar o mesmo turno em background;
+- ao concluir, chama `POST /session/{session_external_id}/update` e devolve as mesmas
+  `user_session_keys` do contrato síncrono: `resposta_ia`, `needs_human`, `intent`,
+  `audience` e `checkout_sent`;
+- probes sem escrita confirmaram `202` em **147 ms** e **168 ms** nos logs internos da
+  Supabase; a latência de rede do ambiente que executou o curl não refletia a Edge;
+- **201/201** testes principais e todos os contratos específicos de B2B, falha sem
+  silêncio, resposta não truncada e guardrail passaram;
+- nenhum prompt, Router, Kit, preço, checkout, UTM ou regra de handoff foi alterado;
+- compatibilidade com o payload oficial corrigida: a fala do lead é lida de
+  `actual_response`; `question.text` não é usado porque contém a pergunta do fluxo;
+- no primeiro teste pelo Editor, nenhum POST chegou ao `treble-inbound-agent`: o único
+  evento próximo foi o webhook geral `treble-webhook`, que apenas registra eventos de
+  sessão. O gate externo agora é confirmar que a URL do Agent está configurada na linha
+  que **entra** no `[REQUEST_TRIGGER]` e testar em sessão nova;
+- falta apenas o gate externo no Editor da Treble: inserir o bloco não interativo com
+  a opção única `[REQUEST_TRIGGER]`, mover para ele o Alternate Flow de 5 minutos e
+  acrescentar `&request_trigger=1` à URL existente. Depois, validar entrega em WhatsApp
+  real e o evento `treble_request_trigger_concluido` nos logs.
 
 ### Hotfix operacional mais recente — PR #91
 

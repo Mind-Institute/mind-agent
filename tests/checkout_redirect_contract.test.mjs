@@ -19,12 +19,13 @@ test('link curto aceita apenas HTTPS e UUID opaco', () => {
   assert.equal(checkoutCurto(id, 'http://go.mindsummit.com.br/c'), null);
 });
 
-test('App e WhatsApp entregam o redirecionador com fallback funcional', () => {
-  for (const runtime of [app, whatsapp]) {
-    assert.match(runtime, /CHECKOUT_REDIRECT_BASE/);
-    assert.match(runtime, /functions\/v1\/mindagent-checkout/);
-    assert.match(runtime, /checkoutCurto/);
-  }
+test('App mantém o redirecionador; WhatsApp entrega a Eduzz sem expor endpoint interno', () => {
+  assert.match(app, /CHECKOUT_REDIRECT_BASE/);
+  assert.match(app, /functions\/v1\/mindagent-checkout/);
+  assert.match(app, /checkoutCurto/);
+  assert.match(whatsapp, /checkoutDiretoComUtm/);
+  assert.doesNotMatch(whatsapp, /CHECKOUT_REDIRECT_BASE/);
+  assert.doesNotMatch(whatsapp, /functions\/v1\/mindagent-checkout/);
 });
 
 test('redirecionador registra clique antes do 302 e reconstrói UTMs', () => {

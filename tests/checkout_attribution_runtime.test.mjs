@@ -12,11 +12,13 @@ test("os dois runtimes validam e registram o checkout pelo mesmo contrato", () =
     ["whatsapp", WHATSAPP, "whatsapp", "treble-inbound-agent"],
   ]) {
     assert.match(fonte, /escolherCheckoutOficial/);
-    assert.match(fonte, /checkoutRastreado/);
     assert.match(fonte, /mind_checkout_envio_registrar/);
     assert.ok(fonte.includes(`p_canal: "${canal}"`), `${nome}: canal real precisa ir ao ledger`);
     assert.ok(fonte.includes(`p_agente: "${agente}"`), `${nome}: Agent real precisa ir ao ledger`);
   }
+  assert.match(APP, /checkoutRastreado/);
+  assert.match(WHATSAPP, /checkoutDiretoComUtm/);
+  assert.doesNotMatch(WHATSAPP, /CHECKOUT_REDIRECT_BASE/);
 });
 
 test("app mantém concierge como entrada, mas pode trocar para summit_b2c", () => {

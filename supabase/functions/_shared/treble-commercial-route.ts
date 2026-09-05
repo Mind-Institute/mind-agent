@@ -13,19 +13,51 @@ const QUANTIDADE_MULTIPLA = /\b(([2-9]|[1-9][0-9]+)|dois|duas|tres|quatro|cinco|
 const COLETIVO_CORPORATIVO = /\b(levar|enviar|inscrever|convidar)\s+(a |minha |nossa |o |meu |nosso )?(equipe|time|delegacao|colaboradores|funcionarios)\b/;
 const COLETIVO_COMO_DESTINO = /\b(para|pela)\s+(a |o |minha |nossa |meu |nosso |meus |nossos |as |os )?(equipe|time|delegacao|colaboradores|funcionarios|gestores|lideres|diretores|executivos)\b/;
 const EQUIPE_MENCIONADA = /\b(a|minha|nossa|da|nossa) (equipe|delegacao)|\b(o|meu|nosso|do) time\b/;
+const CATEGORIA_INGRESSO = /\b(mind|vip|prime)\b/;
+const PEDIDO_DE_CONDICAO = /\b(condicao especial|condicoes especiais|oferta especial|promocao|desconto|cupom)\b/;
+const ASSUNTO_COMERCIAL_DIRETO = /\b(ingressos?|mind|vip|prime|preco|valor|oferta|condicao|desconto|cupom|parcelamento|parcelar|checkout|comprar|compra|upgrade)\b/;
+const ASSUNTO_QUE_PEDE_LUPA = /\b(palestrantes?|programacao|agenda|horarios?|localizacao|onde fica|papers?|pesquisas?|estudos?|evidencias?|biografia)\b/;
 
-export function rotaComercialRapida(
-  mensagem: string,
-  historicoValue: unknown,
-): { rota: RotaVenda | null; motivo: string } {
-  const atual = normalizar(mensagem);
-  const historico = Array.isArray(historicoValue)
+function falasDoLead(historicoValue: unknown): string[] {
+  return Array.isArray(historicoValue)
     ? historicoValue
       .filter((m: Record<string, unknown>) => m?.papel === "lead" && typeof m?.conteudo === "string")
       .slice(-8)
       .map((m: Record<string, unknown>) => String(m.conteudo))
-      .join(" ")
-    : "";
+    : [];
+}
+
+// Perguntas comerciais simples já têm preço, checkout, inclusões e regras no Kit.
+// Expor a lupa de Intelligence nesses turnos cria uma segunda rodada de modelo sem
+// acrescentar fatos e faz o webhook síncrono ultrapassar o limite da Treble.
+export function mensagemComercialDiretaSemLupa(mensagem: string): boolean {
+  const atual = normalizar(mensagem);
+  return ASSUNTO_COMERCIAL_DIRETO.test(atual) && !ASSUNTO_QUE_PEDE_LUPA.test(atual);
+}
+
+// "Quero a condição especial" não define para qual dos três ingressos o checkout deve
+// ser escolhido. Perguntar a categoria é determinístico, comercialmente útil e evita
+// que o modelo escolha um desconto ou preço sem objeto definido. Se a pessoa já disse
+// Mind/VIP/Prime, o turno volta ao Agent normalmente.
+export function pedidoCondicaoSemCategoria(
+  mensagem: string,
+  historicoValue: unknown,
+): boolean {
+  const atual = normalizar(mensagem);
+  if (!PEDIDO_DE_CONDICAO.test(atual) || CATEGORIA_INGRESSO.test(atual)) return false;
+  return !CATEGORIA_INGRESSO.test(normalizar(falasDoLead(historicoValue).join(" ")));
+}
+
+export function rotaComercialRapida(
+  mensagem: string,
+  historicoValue: unknown,
+  rotaAtivaValue?: unknown,
+): { rota: RotaVenda | null; motivo: string } {
+  const atual = normalizar(mensagem);
+  const rotaAtiva: RotaVenda | null = rotaAtivaValue === "summit_b2c" || rotaAtivaValue === "summit_b2b"
+    ? rotaAtivaValue
+    : null;
+  const historico = falasDoLead(historicoValue).join(" ");
   const contexto = normalizar(`${historico} ${mensagem}`);
 
   // Suporte e outras soluções têm precedência sobre qualquer sinal comercial.
@@ -58,6 +90,15 @@ export function rotaComercialRapida(
   // A necessidade explícita deste turno vence sinais corporativos antigos.
   if (singularAtual || (pessoalAtual && !corporativoAtual)) {
     return { rota: "summit_b2c", motivo: "b2c_explicito" };
+  }
+
+  // A rota comercial e estado da conversa, nao uma classificacao refeita do zero em
+  // cada fala. Depois que B2C/B2B foi decidido, follow-ups como "e o Prime?" ou
+  // "qual o valor?" continuam na mesma competencia sem pagar outra chamada ao Router.
+  // Os sinais explicitos acima continuam vencendo a rota ativa, inclusive para trocar
+  // B2C <-> B2B. Suporte/outro produto continua saindo pelo Router universal.
+  if (rotaAtiva) {
+    return { rota: rotaAtiva, motivo: "rota_ativa" };
   }
 
   const corporativoNoContexto = DESTINO_CORPORATIVO.test(contexto) ||

@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rotaComercialRapida } from "../supabase/functions/_shared/treble-commercial-route.ts";
+import {
+  mensagemComercialDiretaSemLupa,
+  pedidoCondicaoSemCategoria,
+  rotaComercialRapida,
+} from "../supabase/functions/_shared/treble-commercial-route.ts";
 
 test("cargo de gestora continua B2C", () => {
   assert.deepEqual(rotaComercialRapida("Sou gestora", []), {
@@ -109,4 +113,62 @@ test("suporte explícito continua no Router universal", () => {
     rotaComercialRapida("Já comprei 5 ingressos para a empresa e não consigo acessar", []).rota,
     null,
   );
+});
+
+test("follow-up reutiliza rota B2C ativa sem chamar Router", () => {
+  assert.deepEqual(
+    rotaComercialRapida("E o Prime?", [], "summit_b2c"),
+    { rota: "summit_b2c", motivo: "rota_ativa" },
+  );
+});
+
+test("follow-up reutiliza rota B2B ativa sem chamar Router", () => {
+  assert.deepEqual(
+    rotaComercialRapida("Qual é o valor?", [], "summit_b2b"),
+    { rota: "summit_b2b", motivo: "rota_ativa" },
+  );
+});
+
+test("intenção corporativa múltipla troca rota ativa de B2C para B2B", () => {
+  assert.deepEqual(
+    rotaComercialRapida("Agora quero 5 ingressos para minha empresa", [], "summit_b2c"),
+    { rota: "summit_b2b", motivo: "b2b_empresa_multiplos" },
+  );
+});
+
+test("compra individual explícita troca rota ativa de B2B para B2C", () => {
+  assert.deepEqual(
+    rotaComercialRapida("Agora quero somente um para mim", [], "summit_b2b"),
+    { rota: "summit_b2c", motivo: "b2c_explicito" },
+  );
+});
+
+test("cargo ou empresa isolados não tiram a conversa da rota B2C ativa", () => {
+  assert.deepEqual(
+    rotaComercialRapida("Sou diretora da Natura", [], "summit_b2c"),
+    { rota: "summit_b2c", motivo: "rota_ativa" },
+  );
+});
+
+test("suporte explícito vence rota comercial ativa", () => {
+  assert.deepEqual(
+    rotaComercialRapida("Meu pagamento não foi aprovado", [], "summit_b2c"),
+    { rota: null, motivo: "router_necessario" },
+  );
+});
+
+test("condição especial sem categoria pede somente a escolha do ingresso", () => {
+  assert.equal(pedidoCondicaoSemCategoria("Quero saber da condição especial", []), true);
+  assert.equal(pedidoCondicaoSemCategoria("Condição especial por favor", []), true);
+  assert.equal(pedidoCondicaoSemCategoria("Tem condição especial para o VIP?", []), false);
+  assert.equal(pedidoCondicaoSemCategoria("Qual a oferta?", [
+    { papel: "lead", conteudo: "Quero o Prime" },
+  ]), false);
+});
+
+test("turno comercial direto usa o Kit sem abrir lupa de Intelligence", () => {
+  assert.equal(mensagemComercialDiretaSemLupa("Quero saber da condição especial"), true);
+  assert.equal(mensagemComercialDiretaSemLupa("Quanto custa o VIP?"), true);
+  assert.equal(mensagemComercialDiretaSemLupa("Quero o checkout do Prime"), true);
+  assert.equal(mensagemComercialDiretaSemLupa("Qual a programação de palestrantes?"), false);
 });

@@ -1,5 +1,21 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.14.0 — RETORNO SÍNCRONO ABAIXO DO TIMEOUT DA TREBLE. O caminho sem Request
+// Trigger encerra em 7,5 s, perguntas comerciais diretas não abrem uma lupa que repete
+// os fatos do Kit e “condição especial” sem categoria recebe uma pergunta determinística.
+// Falhas posteriores à ingestão devolvem a copy existente e ficam persistidas com o
+// request_id. URL, token, prompts, preços, checkout, UTMs e handoff foram preservados.
+//
+// v1.12.1 — PAYLOAD OFICIAL DA TREBLE. A fala do lead passa a ser lida primeiro de
+// `actual_response`, como define o webhook de resposta da plataforma. `question.text`
+// não é usado porque contém a pergunta do fluxo, não a resposta da pessoa.
+//
+// v1.12.0 — REQUEST TRIGGER SEM TROCAR O CÉREBRO. Quando a URL do webhook recebe
+// `request_trigger=1`, a Edge confirma o recebimento imediatamente, processa o MESMO
+// turno em background e atualiza a MESMA sessão da Treble ao terminar. Sem o parâmetro,
+// o contrato síncrono anterior continua intacto. Prompt, Router, Kit, guardrails,
+// checkout, UTMs e handoff não mudam nesta versão.
+//
 // v1.10.2 — B2B EXIGE EMPRESA + PLURALIDADE. Na venda de ingressos, cargo,
 // empresa, pagamento corporativo ou quantidade isolados não bastam: a compra precisa
 // ser para empresa/equipe e envolver mais de uma pessoa. Compra pessoal continua B2C;
@@ -17,6 +33,12 @@
 // as mesmas ferramentas de Intelligence e a mesma política de raciocínio do App.
 // B2B e B2C ampliam a lupa sob demanda sem receber o catálogo inteiro. Nas duas rotas
 // de venda, o contato mínimo é completado no início e antes de calculadora ou checkout.
+//
+// v1.11.0 — CHECKOUT OFICIAL VOLTA A APARECER COMO EDUZZ no WhatsApp, com quatro
+// UTMs concisas para medir as vendas do Treble. O event_id continua no ledger interno,
+// mas UUID, endpoint Supabase e identificadores da conversa não são expostos ao lead.
+// Handoff pedido pelo modelo agora exige um motivo enumerado; troca entre Mind, VIP e
+// Prime e dúvidas normais de venda não podem virar transferência por inferência livre.
 //
 // v1.6.2 — CHECKOUT OFICIAL SOBREVIVE AO GUARDRAIL DE PREÇO. Se o modelo
 // selecionou um carrinho que veio do Kit, mas escreveu um preço inconsistente,
@@ -148,13 +170,23 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { decidirGuardrailPreco, precosOficiais } from "./guardrail-preco.ts";
 import {
-  checkoutCurto,
-  checkoutRastreado,
+  checkoutDiretoComUtm,
   escolherCheckoutOficial,
   idEventoCheckout,
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
-import { rotaComercialRapida } from "../_shared/treble-commercial-route.ts";
+import {
+  mensagemComercialDiretaSemLupa,
+  pedidoCondicaoSemCategoria,
+  rotaComercialRapida,
+} from "../_shared/treble-commercial-route.ts";
+import { decidirHandoff, HANDOFF_REASONS } from "../_shared/treble-handoff.ts";
+import {
+  atualizarSessaoTreble,
+  chavesSessaoDaResposta,
+  requestTriggerHabilitado,
+  respostaDoLeadTreble,
+} from "../_shared/treble-request-trigger.ts";
 import {
   executarChamadas,
   esforcoDeRaciocinio,
@@ -165,8 +197,13 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.2";
+const VERSION = "1.14.0";
 const DEFAULT_MODEL = "gpt-5.4";
+
+// O webhook síncrono da Treble é invalidado em 10 s. Este orçamento termina antes,
+// deixando margem para serializar e transportar a resposta de fallback. O Request
+// Trigger continua com o orçamento completo porque a sessão fica pausada na Treble.
+const ORCAMENTO_TREBLE_SINCRONO_MS = 7_500;
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
 // treble-inbound-agent; não há alias.
@@ -194,6 +231,8 @@ const ROUTER_TIMEOUT_MS = 6000;
 // canal, a frase certa é de produto e cabe à Adriana escrevê-la.
 const RESPOSTA_HANDOFF =
   "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!";
+const RESPOSTA_ESCOLHA_INGRESSO =
+  "Claro. A condição especial depende do ingresso. Você está considerando Mind, VIP ou Prime?";
 
 const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind Summit 2026.
 Use somente os dados oficiais recebidos no JSON; nunca invente preço, palestrante ou política.
@@ -216,7 +255,15 @@ const RESPONSE_SCHEMA = {
     intent: { type: "string", minLength: 2, maxLength: 40 },
     ticket_interest: { type: ["string", "null"], enum: ["mind", "vip", "prime", null] },
     objection: { type: ["string", "null"] },
-    needs_human: { type: "boolean" },
+    needs_human: {
+      type: "boolean",
+      description: "true somente quando handoff_reason identifica uma necessidade humana permitida. Mudar, comparar ou perguntar sobre Mind, VIP ou Prime nunca e handoff.",
+    },
+    handoff_reason: {
+      type: ["string", "null"],
+      enum: [...HANDOFF_REASONS, null],
+      description: "Motivo operacional exato do handoff. null sempre que needs_human=false.",
+    },
     checkout_sent: { type: "boolean" },
     checkout_url: {
       type: ["string", "null"],
@@ -253,7 +300,7 @@ const RESPONSE_SCHEMA = {
   },
   required: [
     "answer", "audience", "intent", "ticket_interest", "objection",
-    "needs_human", "checkout_sent", "checkout_url", "stage", "desfecho",
+    "needs_human", "handoff_reason", "checkout_sent", "checkout_url", "stage", "desfecho",
     "nome_informado", "email_informado", "whatsapp_informado",
     "empresa_informada", "cargo_informado",
   ],
@@ -438,9 +485,13 @@ async function decidirRota(
   }
 }
 
-Deno.serve(async (req: Request) => {
-  const requestId = crypto.randomUUID();
+async function processarTurno(
+  req: Request,
+  requestId = crypto.randomUUID(),
+  orcamentoTurnoMs = ORCAMENTO_TURNO_MS,
+): Promise<Response> {
   const startedAt = Date.now();
+  const fimDoOrcamento = startedAt + orcamentoTurnoMs;
   const url = new URL(req.url);
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
@@ -479,10 +530,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const sessionId = pick(body, ["session_external_id", "sessionExternalId", "session_id", "sessionId", "conversation_id", "cellphone", "celular"]);
-  let message = pick(body, [
-    "mensagem", "message", "text", "resposta", "answer", "user_message",
-    "user_response", "response", "user_answer", "respuesta",
-  ]).slice(0, 1200);
+  let message = respostaDoLeadTreble(body).slice(0, 1200);
   const fileUrl = pick(body, MIDIA_KEYS).slice(0, 500);
   const idExterno = pick(body, ["message_id", "messageId", "external_message_id", "client_message_id"]).slice(0, 160);
   const contactName = pick(body, ["name", "nome", "user_name", "first_name", "hubspot_firstname"]);
@@ -614,6 +662,45 @@ Deno.serve(async (req: Request) => {
     audio: Boolean(audioUrl),
   }));
 
+  // Falhas depois da ingestão também precisam existir no histórico. A resposta ao
+  // webhook não espera esta escrita: a Treble recebe o fallback dentro do orçamento,
+  // enquanto o registro fica associado à conversa e ao mesmo request_id. Se o writer
+  // canônico falhar, o erro continua visível no log da Edge.
+  const registrarFalhaPersistente = (
+    codigo: string,
+    statusOrigem: number,
+    resposta = RESPOSTA_HANDOFF,
+    meta: Record<string, unknown> = {},
+  ) => {
+    EdgeRuntime.waitUntil((async () => {
+      const { error } = await supabase.rpc("mind_turno_registrar", {
+        p_conversa_id: conv.conversation_id,
+        p_resposta: resposta,
+        p_estado: {
+          audience: conv.audience ?? "desconhecido",
+          needs_human: true,
+          stage: conv.stage ?? null,
+        },
+        p_meta: {
+          request_id: requestId,
+          version: VERSION,
+          erro_runtime: codigo,
+          status_origem: statusOrigem,
+          duration_ms: Date.now() - startedAt,
+          ...meta,
+        },
+      });
+      if (error) {
+        console.error(JSON.stringify({
+          request_id: requestId,
+          event: "falha_persistencia_diagnostico",
+          erro_runtime: codigo,
+          detalhe: error.message,
+        }));
+      }
+    })());
+  };
+
   try {
     let idConhecida = conv.pessoa_encontrada === true;
     let idPessoa: string | null = (conv.participante_id ?? null) as string | null;
@@ -623,13 +710,14 @@ Deno.serve(async (req: Request) => {
 
     // Baratas, independentes da rota e capazes de encerrar o turno: a deduplicação vem
     // antes de qualquer ida ao modelo — inclusive a do Router.
+    const mensagemComercialDireta = mensagemComercialDiretaSemLupa(message);
     const [{ data: jaRespondida }, { data: agenda }] = await Promise.all([
       supabase.rpc("treble_agent_resposta_repetida", {
         p_conversation_id: conv.conversation_id,
         p_mensagem: message,
         p_janela_segundos: 90,
       }),
-      cfg.bloco_agenda_busca === "true"
+      cfg.bloco_agenda_busca === "true" && !mensagemComercialDireta
         ? supabase.rpc("mindagent_chat_search", {
             p_event_slug: "mind-summit-2026",
             p_query: message.slice(0, 300),
@@ -670,15 +758,23 @@ Deno.serve(async (req: Request) => {
     // suposição — por isso `router_ms` sai no log de todo turno.
     let routerMs: number | null = null;
     let rotaOrigem = "router";
-    const rotaRapida = rotaComercialRapida(message, conv.historico);
+    const rotaRapida = rotaComercialRapida(message, conv.historico, conv.rota_ativa);
     if (rotaRapida.rota) {
       rotaDecidida = rotaRapida.rota;
       routerMs = 0;
       rotaOrigem = rotaRapida.motivo;
     } else if (routerToken) {
       const antes = Date.now();
+      const restanteParaRouter = fimDoOrcamento - Date.now();
+      if (restanteParaRouter <= 250) {
+        throw new DOMException("orcamento_do_turno", "AbortError");
+      }
       const decisao = await decidirRota(
-        supabaseUrl, serviceKey, routerToken, String(conv.conversation_id), routerTimeoutMs,
+        supabaseUrl,
+        serviceKey,
+        routerToken,
+        String(conv.conversation_id),
+        Math.min(routerTimeoutMs, restanteParaRouter),
       );
       routerMs = Date.now() - antes;
       rotaDecidida = decisao.rota;
@@ -799,6 +895,65 @@ Deno.serve(async (req: Request) => {
     }));
 
     const historico = Array.isArray(conv.historico) ? conv.historico : [];
+
+    // Sem uma categoria, "condição especial" ainda não identifica qual checkout pode
+    // ser oferecido. Esta pergunta curta não precisa de modelo nem de lupa e impede que
+    // o Agent invente um valor ou escolha um ingresso pela pessoa.
+    if (
+      rotaAplicada === "summit_b2c" &&
+      pedidoCondicaoSemCategoria(message, historico)
+    ) {
+      const state = {
+        audience: "b2c",
+        intent: "condicao_especial",
+        ticket_interest: null,
+        objection: null,
+        needs_human: false,
+        handoff_reason: null,
+        checkout_sent: false,
+        stage: "escolha_ingresso",
+        desfecho: null,
+        rota_ativa: rotaAplicada,
+      };
+      const { error: saveError } = await supabase.rpc("mind_turno_registrar", {
+        p_conversa_id: conv.conversation_id,
+        p_resposta: RESPOSTA_ESCOLHA_INGRESSO,
+        p_estado: state,
+        p_meta: {
+          model: null,
+          request_id: requestId,
+          version: VERSION,
+          rota: rotaDecidida,
+          rota_aplicada: rotaAplicada,
+          gate_reason: gateReason,
+          router_ms: routerMs,
+          rota_origem: rotaOrigem,
+          resposta_deterministica: "condicao_sem_categoria",
+          duration_ms: Date.now() - startedAt,
+        },
+      });
+      if (saveError) throw new Error(`save_condicao_sem_categoria:${saveError.message}`);
+
+      console.info(JSON.stringify({
+        request_id: requestId,
+        event: "condicao_sem_categoria",
+        status: 200,
+        duration_ms: Date.now() - startedAt,
+      }));
+      return json(200, {
+        ok: true,
+        user_session_keys: [
+          { key: "resposta_ia", value: RESPOSTA_ESCOLHA_INGRESSO },
+          { key: "needs_human", value: "false" },
+          { key: "intent", value: "condicao_especial" },
+          { key: "audience", value: "b2c" },
+          { key: "checkout_sent", value: "false" },
+        ],
+        state,
+        request_id: requestId,
+      });
+    }
+
     const agendaSegura = agenda && typeof agenda === "object"
       ? Object.fromEntries(Object.entries(agenda as Record<string, unknown>)
           .filter(([k]) => ["sessions", "speakers", "locations", "exhibitors", "mind"].includes(k)))
@@ -889,7 +1044,13 @@ Deno.serve(async (req: Request) => {
       mensagem_do_lead: mascarado.texto,
     };
 
-    const { tools: toolsParaModelo, semExecutor } = toolsDeIntelligence(toolsDoTurno);
+    const { tools: toolsDoKit, semExecutor } = toolsDeIntelligence(toolsDoTurno);
+    // Preço, condição, ingresso e checkout já chegam completos no Kit. A lupa só
+    // acrescentaria uma rodada de modelo e latência, sem acrescentar fonte oficial.
+    const toolsParaModelo = mensagemComercialDireta ? [] : toolsDoKit;
+    const reasoningEffort = mensagemComercialDireta
+      ? "none" as const
+      : esforcoDeRaciocinio(message, toolsParaModelo.length);
     if (semExecutor > 0) {
       console.warn(JSON.stringify({
         request_id: requestId, event: "tool_sem_executor",
@@ -900,7 +1061,6 @@ Deno.serve(async (req: Request) => {
     const entradaDoModelo: Array<Record<string, unknown>> = [
       { role: "user", content: JSON.stringify(aiInput) },
     ];
-    const fimDoOrcamento = startedAt + ORCAMENTO_TURNO_MS;
     let aiResponse!: Response;
     let aiPayload: Record<string, unknown> = {};
     let outputText = "";
@@ -921,12 +1081,12 @@ Deno.serve(async (req: Request) => {
             model,
             instructions,
             input: entradaDoModelo,
-            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
+            reasoning: { effort: reasoningEffort },
             text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: RESPONSE_SCHEMA } },
             ...(toolsParaModelo.length > 0
               ? { tools: toolsParaModelo, tool_choice: volta >= MAX_RODADAS_TOOL ? "none" : "auto" }
               : {}),
-            max_output_tokens: toolsParaModelo.length > 0 ? 3000 : 1500,
+            max_output_tokens: mensagemComercialDireta ? 700 : toolsParaModelo.length > 0 ? 3000 : 1500,
             store: false,
           }),
           signal: controller.signal,
@@ -978,12 +1138,17 @@ Deno.serve(async (req: Request) => {
 
     if (!aiResponse.ok) {
       console.error(JSON.stringify({ request_id: requestId, event: "openai_error", status: aiResponse.status }));
+      registrarFalhaPersistente("ia_indisponivel", 502, RESPOSTA_HANDOFF, {
+        upstream_status: aiResponse.status,
+        rota: rotaAplicada ?? rotaDecidida,
+      });
       return falhaComTransferencia(502, "ia_indisponivel", { upstream_status: aiResponse.status });
     }
 
     const turn = JSON.parse(outputText || extractOutputText(aiPayload)) as {
       answer: string; audience: string; intent: string; ticket_interest: string | null;
-      objection: string | null; needs_human: boolean; checkout_sent: boolean;
+      objection: string | null; needs_human: boolean; handoff_reason: string | null;
+      checkout_sent: boolean;
       checkout_url: string | null;
       stage: string; desfecho: string | null;
       nome_informado: string | null; email_informado: string | null;
@@ -994,7 +1159,7 @@ Deno.serve(async (req: Request) => {
     // `.slice(0, 700)`, e um turno real chegou ao WhatsApp com exatamente 700
     // caracteres, partido no meio de "Mind". Mensagem completa vale mais que
     // frase mutilada: a brevidade e comportamento do prompt, nao tesoura aqui.
-    let answer = String(turn.answer ?? "").trim();
+    const answer = String(turn.answer ?? "").trim();
     if (!answer) throw new Error("resposta_vazia");
 
     // O que o lead contou sobre si NESTE turno é extraído antes das ações. Assim,
@@ -1034,10 +1199,19 @@ Deno.serve(async (req: Request) => {
       ? audienceDaConversa
       : turn.audience;
 
-    // `needs_human` é NECESSIDADE, e o Gate é quem sabe que a rota decidida não se
-    // conclui sozinha neste runtime — qualquer rota, não só as de venda. Ele soma à
-    // leitura do modelo; nunca a subtrai.
-    const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
+    // Handoff comercial não é uma saída livre do modelo. O Gate continua soberano
+    // quando a rota não pode ser executada; fora disso, `needs_human=true` só vale com
+    // um motivo enumerado. Assim uma troca normal de VIP para Prime não vira humano
+    // por hesitação do modelo ou por uma instrução vaga no histórico.
+    const handoff = decidirHandoff(turn.needs_human, turn.handoff_reason, needsHumanDoGate);
+    const needsHumanFinal = handoff.needsHuman;
+    if (handoff.suppressed) {
+      console.warn(JSON.stringify({
+        request_id: requestId,
+        event: "handoff_sem_motivo_suprimido",
+        motivo_recebido: turn.handoff_reason ?? null,
+      }));
+    }
 
     // CHECKOUT É AÇÃO DO RUNTIME, NÃO TEXTO LIVRE DO MODELO. O modelo pode escolher
     // somente uma URL que veio no Kit; o runtime confere, assina e registra. Como
@@ -1049,10 +1223,15 @@ Deno.serve(async (req: Request) => {
     const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
     if (checkoutSolicitado && !checkoutOficial) {
       console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial" }));
+      const respostaCheckoutInvalido =
+        "Não consegui abrir um checkout oficial agora. Já vou te conectar com alguém do nosso time!";
+      registrarFalhaPersistente("checkout_nao_oficial", 422, respostaCheckoutInvalido, {
+        rota: rotaAplicada ?? rotaDecidida,
+      });
       return json(200, {
         ok: true, guarded: true,
         user_session_keys: [
-          { key: "resposta_ia", value: "Não consegui abrir um checkout oficial agora. Já vou te conectar com alguém do nosso time!" },
+          { key: "resposta_ia", value: respostaCheckoutInvalido },
           { key: "needs_human", value: "true" },
           { key: "checkout_sent", value: "false" },
         ],
@@ -1076,10 +1255,16 @@ Deno.serve(async (req: Request) => {
       }));
     }
     if (decisaoPreco.bloqueia) {
+      const respostaPrecoInseguro =
+        "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌";
+      registrarFalhaPersistente("preco_inventado", 422, respostaPrecoInseguro, {
+        rota: rotaAplicada ?? rotaDecidida,
+        valor_rejeitado: decisaoPreco.valorRejeitado,
+      });
       return json(200, {
         ok: true, guarded: true,
         user_session_keys: [
-          { key: "resposta_ia", value: "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌" },
+          { key: "resposta_ia", value: respostaPrecoInseguro },
           { key: "needs_human", value: "true" },
         ],
       });
@@ -1091,12 +1276,7 @@ Deno.serve(async (req: Request) => {
       checkoutEventoId = await idEventoCheckout(
         String(conv.conversation_id), idExterno || requestId, checkoutOficial.url,
       );
-      const urlRastreada = checkoutRastreado(
-        checkoutOficial, checkoutEventoId, "whatsapp", "treble-inbound-agent",
-      );
-      const redirectBase = Deno.env.get("CHECKOUT_REDIRECT_BASE") ??
-        `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/mindagent-checkout`;
-      const urlEntregue = checkoutCurto(checkoutEventoId, redirectBase) ?? urlRastreada;
+      const urlEntregue = checkoutDiretoComUtm(checkoutOficial, "whatsapp", "ms26", "treble");
       respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlEntregue, checkoutCandidato);
     }
     const checkoutSentFinal = checkoutEventoId !== null;
@@ -1184,9 +1364,13 @@ Deno.serve(async (req: Request) => {
       ticket_interest: turn.ticket_interest,
       objection: turn.objection,
       needs_human: needsHumanFinal,
+      handoff_reason: handoff.reason,
       checkout_sent: checkoutSentFinal,
       stage: turn.stage,
       desfecho: checkoutSentFinal ? "checkout_enviado" : turn.desfecho,
+      // A competencia comercial aplicada vira estado da conversa. O writer valida a
+      // rota no Capability Gate e a grava na mesma transacao da resposta.
+      rota_ativa: rotaAplicada,
     };
     // Só a resposta do agente: a fala do lead já foi persistida na ingestão.
     const { error: saveError } = await supabase.rpc("mind_turno_registrar", {
@@ -1205,7 +1389,9 @@ Deno.serve(async (req: Request) => {
         tools_expostas: toolsParaModelo.length,
         rodadas_tool: rodadasTool,
         ferramentas: chamadasFeitas,
-        reasoning_effort: esforcoDeRaciocinio(message, toolsParaModelo.length),
+        reasoning_effort: reasoningEffort,
+        handoff_reason: handoff.reason,
+        handoff_suppressed: handoff.suppressed,
         checkout_event_id: checkoutEventoId,
         checkout_reason: checkoutOficial?.motivo ?? null,
       },
@@ -1268,6 +1454,96 @@ Deno.serve(async (req: Request) => {
       reason: error instanceof Error ? error.message : "unknown",
       duration_ms: Date.now() - startedAt,
     }));
-    return falhaComTransferencia(isTimeout ? 504 : 500, isTimeout ? "timeout" : "erro_interno");
+    const statusOrigem = isTimeout ? 504 : 500;
+    const codigo = isTimeout ? "timeout" : "erro_interno";
+    registrarFalhaPersistente(codigo, statusOrigem, RESPOSTA_HANDOFF, {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    return falhaComTransferencia(statusOrigem, codigo);
   }
+}
+
+// A Treble encerra o webhook síncrono em cerca de 10 s. No modo Request Trigger,
+// devolver 202 NÃO espera o Router nem a IA: o bloco [REQUEST_TRIGGER] mantém a sessão
+// pausada e esta rotina publica o resultado quando o mesmo processamento terminar.
+//
+// O modo é opt-in para permitir rollout em duas etapas. Enquanto o fluxo da Treble não
+// estiver preparado com [REQUEST_TRIGGER], a URL antiga continua 100% síncrona.
+async function concluirTurnoAssincrono(
+  req: Request,
+  sessionExternalId: string,
+  requestId: string,
+) {
+  try {
+    const response = await processarTurno(req, requestId, ORCAMENTO_TURNO_MS);
+    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+    const userSessionKeys = chavesSessaoDaResposta(payload);
+
+    // Token inválido e payload sem saída pública não podem atualizar uma sessão indicada
+    // por quem chamou. Nos erros de runtime, processarTurno já devolve a saída segura de
+    // handoff dentro de user_session_keys, então eles seguem normalmente para a Treble.
+    if (!response.ok || userSessionKeys.length === 0) {
+      console.warn(JSON.stringify({
+        request_id: requestId,
+        event: "treble_request_trigger_sem_callback",
+        status: response.status,
+        error: payload?.error ?? null,
+      }));
+      return;
+    }
+
+    await atualizarSessaoTreble({
+      sessionExternalId,
+      userSessionKeys,
+      apiKey: Deno.env.get("TREBLE_API_KEY") ?? "",
+      baseUrl: Deno.env.get("TREBLE_API_BASE_URL") ?? undefined,
+    });
+    console.info(JSON.stringify({
+      request_id: requestId,
+      event: "treble_request_trigger_concluido",
+      session: sessionExternalId.slice(0, 8),
+      chaves: userSessionKeys.map((item) => item.key),
+    }));
+  } catch (error) {
+    console.error(JSON.stringify({
+      request_id: requestId,
+      event: "treble_request_trigger_falhou",
+      session: sessionExternalId.slice(0, 8),
+      reason: error instanceof Error ? error.message : "unknown",
+    }));
+  }
+}
+
+Deno.serve(async (req: Request) => {
+  const url = new URL(req.url);
+  if (req.method !== "POST" || !requestTriggerHabilitado(url)) {
+    return processarTurno(req, crypto.randomUUID(), ORCAMENTO_TREBLE_SINCRONO_MS);
+  }
+
+  const requestId = crypto.randomUUID();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.clone().json();
+  } catch {
+    return falhaComTransferencia(400, "invalid_json", { request_id: requestId });
+  }
+
+  const sessionExternalId = pick(body, [
+    "session_external_id", "sessionExternalId", "session_id", "sessionId",
+    "conversation_id", "cellphone", "celular",
+  ]);
+  if (!sessionExternalId) {
+    return falhaComTransferencia(422, "faltam_campos", {
+      detalhe: "esperado identificador de sessão",
+      request_id: requestId,
+    });
+  }
+
+  EdgeRuntime.waitUntil(concluirTurnoAssincrono(req, sessionExternalId, requestId));
+  return json(202, {
+    ok: true,
+    accepted: true,
+    request_trigger: true,
+    request_id: requestId,
+  });
 });

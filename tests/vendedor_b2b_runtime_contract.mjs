@@ -12,14 +12,15 @@ const fonte = join(aqui, "..", "supabase", "functions", "treble-inbound-agent", 
 const src = readFileSync(fonte, "utf8");
 
 const checks = [
-  ["runtime 1.10.2", src.includes('const VERSION = "1.10.2"')],
+  ["runtime 1.14.0", src.includes('const VERSION = "1.14.0"')],
   ["credenciamento entra no contexto", src.includes("credenciamento: conv.credenciamento ?? null")],
   ["e-mail e WhatsApp usam rótulos", src.includes("[email_1]") && src.includes("[whatsapp_1]")],
   ["formato validado pelo Core", src.includes("mind_identificador_validar") && src.includes("VALIDACAO_IDENTIFICADORES")],
   ["WhatsApp declarado usa writer próprio", src.includes("mind_identificador_declarado_registrar")],
   ["nome coletado hidrata identidade ancorada", src.includes("if (emailDito || nomeDito)")],
   ["dados de comprador não entram no runtime", !/buyer_(name|email|company|cpf|cnpj)/.test(src)],
-  ["rota comercial rápida", src.includes("rotaComercialRapida(message, conv.historico)")],
+  ["rota comercial persistida", src.includes("rotaComercialRapida(message, conv.historico, conv.rota_ativa)")],
+  ["rota aplicada vai ao writer", src.includes("rota_ativa: rotaAplicada")],
   ["cadastro não bloqueia checkout", src.includes("Nunca condicione resposta, recomendação, preço, calculadora, proposta ou checkout")],
   ["cargo não define B2B", src.includes("Cargo e empresa descrevem a pessoa")],
   ["bloqueio cadastral removido", !src.includes("ativo_comercial_aguarda_contato")],
@@ -27,6 +28,8 @@ const checks = [
   ["usa Kit único", src.includes('instructions = kit.playbook as string')],
   ["usa lupa compartilhada", src.includes('toolsDeIntelligence(toolsDoTurno)')],
   ["usa raciocínio adaptativo", src.includes('esforcoDeRaciocinio(message, toolsParaModelo.length)')],
+  ["checkout Treble fica na Eduzz", src.includes('checkoutDiretoComUtm(checkoutOficial, "whatsapp", "ms26", "treble")')],
+  ["handoff exige motivo enumerado", src.includes("decidirHandoff(turn.needs_human, turn.handoff_reason")],
 ];
 
 const falhas = checks.filter(([, ok]) => !ok).map(([nome]) => nome);

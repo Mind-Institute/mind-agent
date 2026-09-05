@@ -9,6 +9,8 @@ export type CheckoutOficial = {
 const PARAMETROS_ATRIBUICAO = new Set([
   "gclid",
   "fbclid",
+  "agent_id",
+  "conversation_id",
   "mind_canal",
   "mind_conversa",
   "mind_evento",
@@ -168,6 +170,46 @@ export function checkoutRastreado(
   url.searchParams.set("conversation_id", eventoId);
   url.searchParams.set("mind_canal", canal);
   url.searchParams.set("mind_evento", eventoId);
+  return url.toString();
+}
+
+/**
+ * Link público entregue pelo vendedor do Treble.
+ *
+ * A origem canônica pode trazer UTMs e identificadores internos acrescentados por
+ * `mind_checkout_url`. Eles servem ao backend, mas não devem aparecer no WhatsApp:
+ * além de alongarem a URL, faziam o checkout oficial parecer um link técnico.
+ *
+ * O ledger continua registrando o ENVIO pelo `event_id`; a venda confirmada é
+ * atribuída pelas quatro UTMs concisas que a Eduzz recebe. Clique individual e
+ * abandono continuam sendo uma capacidade separada do redirecionador, usado apenas
+ * por superfícies que escolherem explicitamente essa experiência.
+ */
+export function checkoutDiretoComUtm(
+  checkout: CheckoutOficial,
+  canal: "whatsapp" | "app",
+  campanha = "ms26",
+  prefixoConteudo = canal === "whatsapp" ? "treble" : "app",
+): string {
+  const url = urlEduzz(checkout.url);
+  if (!url) throw new TypeError("checkout_eduzz_invalido");
+
+  for (const chave of [...url.searchParams.keys()]) {
+    const normalizada = chave.toLowerCase();
+    if (normalizada.startsWith("utm_") ||
+      normalizada.startsWith("mind_") ||
+      PARAMETROS_ATRIBUICAO.has(normalizada)) {
+      url.searchParams.delete(chave);
+    }
+  }
+
+  const oferta = codigo(checkout.motivo)
+    .replace(/^checkout_/, "")
+    .replace(/_preco_regular$/, "");
+  url.searchParams.set("utm_source", canal);
+  url.searchParams.set("utm_medium", "ai_agent");
+  url.searchParams.set("utm_campaign", codigo(campanha, "ms26"));
+  url.searchParams.set("utm_content", `${codigo(prefixoConteudo)}_${oferta}`);
   return url.toString();
 }
 

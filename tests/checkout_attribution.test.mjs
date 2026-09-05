@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  checkoutDiretoComUtm,
   checkoutRastreado,
   escolherCheckoutOficial,
   idEventoCheckout,
@@ -70,6 +71,37 @@ test("troca defaults do bot pelo canal real e pelo meio ai_agent", async () => {
   assert.equal(rastreado.searchParams.get("utm_medium"), "ai_agent");
   assert.equal(rastreado.searchParams.get("utm_campaign"), "mind_summit_2026");
   assert.equal(rastreado.searchParams.get("utm_id"), "ms26_ai_sales");
+});
+
+test("Treble entrega Eduzz direto com quatro UTMs concisas e sem identificador interno", () => {
+  const contexto = {
+    ofertas: [{
+      codigo: "vip-lote-7",
+      checkout_url: "https://sun.eduzz.com/40Q3EKPK0B?utm_source=mind&utm_campaign=mind-summit-2026&mind_canal=chatbot&mind_conversa=11111111-1111-4111-8111-111111111111&conversation_id=22222222-2222-4222-8222-222222222222",
+    }],
+  };
+  const checkout = escolherCheckoutOficial(contexto, contexto.ofertas[0].checkout_url);
+  const direto = new URL(checkoutDiretoComUtm(checkout, "whatsapp", "ms26", "treble"));
+
+  assert.equal(direto.origin, "https://sun.eduzz.com");
+  assert.equal(direto.pathname, "/40Q3EKPK0B");
+  assert.deepEqual([...direto.searchParams.entries()], [
+    ["utm_source", "whatsapp"],
+    ["utm_medium", "ai_agent"],
+    ["utm_campaign", "ms26"],
+    ["utm_content", "treble_vip"],
+  ]);
+  assert.doesNotMatch(direto.toString(), /supabase|conversation_id|mind_conversa|[0-9a-f-]{36}/i);
+});
+
+test("checkout direto preserva cupom comercial e remove somente atribuição anterior", () => {
+  const checkout = escolherCheckoutOficial(
+    CONTEXTO,
+    CONTEXTO.regras_comerciais.regras[0].config.niveis[0].ofertas.vip.checkout_url,
+  );
+  const direto = new URL(checkoutDiretoComUtm(checkout, "whatsapp"));
+  assert.equal(direto.searchParams.get("cupom"), "AGORA20");
+  assert.equal(direto.searchParams.get("utm_content"), "treble_vip_desconto_20");
 });
 
 test("id do envio é estável no retry e muda para outro checkout", async () => {
