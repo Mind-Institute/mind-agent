@@ -1531,8 +1531,17 @@ async function responder(pergunta) {
     bolha(resposta.answer, 'mind', passo);
   } catch (erro) {
     digitando.remove();
+    /* Erro de rede (fetch rejeitado antes de qualquer resposta) chega como
+       TypeError com a mensagem que o navegador quiser — "Load failed" no
+       Safari, "Failed to fetch" no Chrome. Isso nunca pode aparecer para a
+       pessoa: vira a mesma fala genérica dos outros erros sem detalhe
+       técnico. Mensagens que ESTE arquivo/`chat-service.js` lança de
+       propósito (validação, erro que o backend já devolveu em português)
+       continuam passando — só o erro de baixo nível é trocado. */
     const mensagem = erro?.name === 'AbortError'
       ? 'A resposta demorou demais. Tente novamente.'
+      : erro instanceof TypeError
+      ? 'Não consegui responder agora. Tente novamente.'
       : (erro?.message || 'Não consegui responder agora. Tente novamente.');
     bolha(mensagem, 'mind');
   } finally {
