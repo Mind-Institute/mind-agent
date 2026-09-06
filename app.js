@@ -2076,14 +2076,13 @@ function cardSessao(s, pct, porque) {
         '<button type="button" class="principal" data-acao="onde">Onde reservar no app</button>' +
       '</div>' +
     '</div>';
-  el.querySelector('[data-acao="onde"]').addEventListener('click', () => {
-    bolha('Onde eu reservo "' + s.titulo + '"?', 'eu');
-    setTimeout(() => bolha(
-      s.vaga_limitada
-        ? DADOS.evento.regra_vagas + ' ' + DADOS.evento.regra_reserva
-        : DADOS.evento.regra_reserva,
-      'mind', 'reservar'), 500);
-  });
+  /* ABRE O TUTORIAL INTEIRO, em tela cheia, como o card da home (pedido da
+     Adriana em 06/09). Antes a resposta ficava dentro da conversa: duas
+     bolhas e um recorte da tela com anel, e só um segundo toque levava ao
+     tutorial — e ainda assim numa tela avulsa, não no roteiro. Quem toca
+     aqui quer aprender a reservar; é o mesmo roteiro do "Ver como", e ele
+     já explica a regra dos 5 minutos na tela da confirmação. */
+  el.querySelector('[data-acao="onde"]').addEventListener('click', () => abrirTourCompleto());
   return el;
 }
 
