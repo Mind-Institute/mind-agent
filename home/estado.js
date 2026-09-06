@@ -362,6 +362,13 @@ export const CONTEUDO = {
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
     decorado: true,
     blocos: [
+      /* Pedido da Adriana em 06/09: quem chega não sabe que reservar é
+         obrigatório para workshop/masterclass, e o atalho "Reserve suas
+         experiências" fica escondido embaixo, na fileira de "Como usar o
+         app". Esta linha mora em cima do quadrado do Concierge — mesma
+         ação do atalho (`tour`, o roteiro "Lugar reservado"), só que
+         visível antes de qualquer pergunta. */
+      { tipo: 'secao', titulo: 'Aprenda a reservar suas experiências', link: 'Ver como', acao: 'tour' },
       /* Este card é a porta da jornada personalizada. O texto diz o que
          acontece do outro lado — "receber recomendações" não dizia. */
       { tipo: 'destaque', marca: true, selo: 'Concierge Mind',

@@ -1759,7 +1759,7 @@ function sessoesPorAfinidade(filtro) {
 function chaveDoIngresso() {
   const normalizado = String(ingressoDoParticipante || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  return ['mind', 'vip', 'prime'].find((chave) =>
+  return ['mind', 'vip', 'prime', 'camarote'].find((chave) =>
     new RegExp('(^|[^a-z])' + chave + '([^a-z]|$)').test(normalizado)) || null;
 }
 
@@ -1918,7 +1918,7 @@ function blocoRegra(texto) {
 
 /* Chips de tema: é assim que o perfil começa a existir. */
 function pedirTemas(depois) {
-  const alvo = painel('Escolha o que está te puxando');
+  const alvo = painel('Quais são seus interesses?');
   const chips = document.createElement('div');
   chips.className = 'chips';
   chips.innerHTML = DADOS.temas.map((t) =>
@@ -1940,8 +1940,7 @@ function pedirTemas(depois) {
   ok.addEventListener('click', () => {
     ok.remove();
     const temas = Object.keys(PERFIL.temas).map(TEMA);
-    if (temas.length) enviarSinalJornada('temas', temas)
-      .catch(() => bolha('Não consegui guardar esses temas no seu perfil agora, mas vou seguir com eles nesta tela.', 'mind'));
+    if (temas.length) enviarSinalJornada('temas', temas).catch(() => {});
     depois();
   });
   alvo.appendChild(chips);
@@ -1951,7 +1950,7 @@ function pedirTemas(depois) {
 
 function comTemas(depois) {
   if (Object.keys(PERFIL.temas).length) return depois();
-  bolha('Antes de eu sugerir qualquer coisa: em que você está mexendo agora? Pode marcar mais de um.', 'mind');
+  bolha('Antes de eu sugerir qualquer coisa: quais são seus interesses? O que você quer aprender no Summit? Pode marcar mais de um.', 'mind');
   setTimeout(() => pedirTemas(depois), 450);
 }
 
@@ -2037,7 +2036,7 @@ const PERGUNTAS_JORNADA = [
   {
     campo: 'temas',
     tipo: 'temas',
-    pergunta: 'Em que você está mexendo agora? Isso é o que mais pesa no que eu vou sugerir.',
+    pergunta: 'Quais são seus interesses? O que você quer aprender no Summit? Isso é o que mais pesa no que eu vou sugerir.',
   },
 
   /* "Em quais dias você vem?" saiu em 03/09 a pedido da Adriana: não se
@@ -2070,16 +2069,21 @@ const PERGUNTAS_JORNADA = [
     campo: 'experiencias',
     tipo: 'multipla',
     opcional: true,
-    pergunta: 'Que tipo de coisa você quer no seu roteiro?',
+    pergunta: 'Você busca mais conhecimento ou prática no Summit?',
     micro: 'Marque quantos quiser, ou pule para eu decidir.',
-    /* Os formatos são os que existem na grade — se a programação mudar,
-       esta pergunta muda junto. */
+    /* A pessoa não sabe (nem precisa saber) a diferença entre painel,
+       masterclass e workshop enquanto formatos da grade — ela sabe se
+       veio para ouvir ou para praticar. Cada opção já carrega os
+       formatos que representa; `valores.flat()` no fim da jornada some
+       com o agrupamento antes de virar filtro. Só aparece a opção que
+       tem conteúdo de verdade por trás. */
     opcoes: () => {
-      const rotulo = { palestra: 'Palestras', painel: 'Painéis', masterclass: 'Masterclasses',
-                       workshop: 'Workshops', experiencia: 'Experiências' };
-      return [...new Set((DADOS.sessoes || []).map((s) => s.formato))]
-        .filter((f) => rotulo[f])
-        .map((f) => ({ valor: f, rotulo: rotulo[f] }));
+      const grupos = [
+        { valor: ['palestra', 'painel', 'masterclass'], rotulo: 'Conhecimento — palestras e conteúdo' },
+        { valor: ['workshop'], rotulo: 'Prática — workshops para aplicar' },
+      ];
+      const formatosNaGrade = new Set((DADOS.sessoes || []).map((s) => s.formato));
+      return grupos.filter((g) => g.valor.some((f) => formatosNaGrade.has(f)));
     },
   },
 ];
@@ -2153,8 +2157,7 @@ function seletorPalestrantesDaJornada(q, indice, alvo) {
     PERFIL.jornada[q.campo] = selecionadas.slice();
     ok.remove();
     if (selecionadas.length) {
-      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice())
-        .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice()).catch(() => {});
     }
     perguntaDaJornada(indice + 1);
   });
@@ -2256,8 +2259,7 @@ function escolhasDaJornada(q, indice) {
       const valor = campo.value.trim() || null;
       PERFIL.jornada[q.campo] = valor;
       ok.remove();
-      if (valor) enviarSinalJornada(q.campo, [valor])
-        .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+      if (valor) enviarSinalJornada(q.campo, [valor]).catch(() => {});
       perguntaDaJornada(indice + 1);
     });
     const caixa = document.createElement('div');
@@ -2286,8 +2288,8 @@ function escolhasDaJornada(q, indice) {
     ok.remove();
     if (valores.length) enviarSinalJornada(
       q.campo === 'palestrantesImperdiveis' ? 'palestrantes_imperdiveis' : q.campo,
-      valores,
-    ).catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+      valores.flat(),
+    ).catch(() => {});
     perguntaDaJornada(indice + 1);
   });
   ok.disabled = !q.opcional;
@@ -2339,7 +2341,11 @@ function fecharJornada() {
     const roteiro = montarRoteiro({
       filtro: dia ? (s) => s.dia === dia : null,
       fixas,
-      formatos: j.experiencias,
+      /* 'conhecimento'/'prática' chegam agrupados (cada opção é um array
+         de formatos); .flat() devolve a lista simples que o filtro por
+         formato espera. Em qualquer outro pergunta 'multipla' os valores
+         já são strings, e .flat() não muda nada. */
+      formatos: Array.isArray(j.experiencias) ? j.experiencias.flat() : j.experiencias,
       porDia: SESSOES_POR_DIA[j.ritmo] || SESSOES_POR_DIA.equilibrado,
     });
 
