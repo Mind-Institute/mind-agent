@@ -622,7 +622,7 @@ const FOLHAS = {
 const TELAS = {
   'agenda': {
     img: 'agenda', aba: 'agenda', rotulo: 'Programação',
-    serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
+    serve: 'Aqui na Programação você vê e escolhe as suas experiências: as arenas, os workshops e as masterclasses dos dias 16 e 17.',
     alvos: [
       { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
       { id: 'card1', x: 49.9, y: 15.5, w: 92.4, h: 12.5, brinde: 'Cada card é uma sessão. Toque para abrir.' },
@@ -633,7 +633,7 @@ const TELAS = {
   },
   'detalhe': {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
-    serve: 'A página da sessão: descrição, horário, local, palestrantes e a reserva, quando a vaga é limitada.',
+    serve: 'A página da experiência, com horário, local e quem fala. Quando a vaga é limitada, é aqui que você reserva o seu lugar.',
     alvos: [
       { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
@@ -647,7 +647,7 @@ const TELAS = {
     img: 'confirmada', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão reservada',
     /* O modal que abre em cima já explica o check-in; repetir aqui a
        mesma frase só fazia a tela dizer duas vezes a mesma coisa. */
-    serve: 'Sua vaga está garantida nesta sessão.',
+    serve: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [
@@ -659,7 +659,7 @@ const TELAS = {
   },
   'minha-agenda': {
     img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
-    serve: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.',
+    serve: 'Tudo o que você reservou fica aqui, em ordem de horário. É onde o seu dia toma forma.',
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
