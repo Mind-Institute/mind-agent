@@ -634,3 +634,24 @@ test('o andaime de momento não manda em produção', () => {
   assert.match(homeJs, /const mostrarSeletor = seletorDisponivel;/,
     'o `home.js` voltou a ter a própria cópia da regra');
 });
+
+test('o campo do Concierge é o amarelo da marca, e nada claro vai em cima dele', () => {
+  /* O campo é a única porta para o Concierge na home, e no escuro sobre
+     escuro passava por moldura. Em creme, tudo o que vai em cima precisa
+     ser escuro — e o risco aqui é silencioso: um placeholder claro que
+     sobra de um tema anterior não quebra nada, só apaga o convite.
+     Medido: texto do placeholder 4,97:1 e botão 16,69:1 sobre o creme. */
+  assert.match(css, /\.doca input \{[^}]*background: var\(--amarelo\)/s,
+    'o campo do Concierge perdeu o amarelo da marca');
+  assert.match(css, /\.doca input \{[^}]*color: var\(--bg\);/s,
+    'o texto digitado deixou de ser escuro — some dentro do próprio campo');
+  assert.match(css, /\.doca input::placeholder \{ color: color-mix\(in srgb, var\(--bg\)/,
+    'o placeholder voltou a ser claro sobre creme: o convite fica ilegível');
+  assert.doesNotMatch(css, /\.doca input::placeholder \{ color: var\(--texto-mudo\)/,
+    'o placeholder voltou ao cinza do tema escuro');
+
+  /* O verde de interface sobre o creme dá 1,34:1: o botão sumia dentro do
+     campo. Escuro sobre creme é o que o faz continuar sendo um botão. */
+  assert.match(css, /\.doca \.enviar \{[^}]*background: var\(--bg\); color: var\(--amarelo\);/s,
+    'o botão de enviar voltou ao verde, que desaparece sobre o creme');
+});

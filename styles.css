@@ -967,12 +967,17 @@ html[data-teclado="aberto"] .doca {
    lugar nenhum do repositório, e foi removida com o teste que a prendia.
    Se um dia esta app ganhar barra própria, a regra volta junto com ela. */
 .doca form { position: relative; display: flex; min-width: 0; }
+/* O CAMPO É O CONVITE. Ele é a única porta para o Concierge nesta tela, e
+   no escuro sobre escuro passava por moldura. No amarelo da marca vira o
+   ponto mais claro da home — o mesmo tratamento do atalho em destaque,
+   para os dois convites falarem a mesma língua. Creme claro, então tudo o
+   que vai em cima dele é escuro. */
 .doca input {
   flex: 1; min-width: 0;
-  background: var(--surface-deep);
-  border: 1px solid var(--hairline);
+  background: var(--amarelo);
+  border: 1px solid color-mix(in srgb, var(--amarelo) 82%, #000);
   border-radius: var(--raio-pill);
-  color: var(--texto);
+  color: var(--bg);
   /* iOS amplia automaticamente a página quando um input focado tem menos de
      16px. Esse zoom era a tela "explodindo" para o lado ao abrir o teclado. */
   font: inherit; font-size: 16px;
@@ -980,18 +985,22 @@ html[data-teclado="aberto"] .doca {
   min-height: 54px;
   outline: none;
 }
-.doca input::placeholder { color: var(--texto-mudo); }
-.doca input:focus { border-color: rgba(104, 238, 149, .5); }
+/* 4,97:1 sobre o creme — o convite precisa ser lido, não adivinhado. */
+.doca input::placeholder { color: color-mix(in srgb, var(--bg) 62%, transparent); }
+.doca input:focus { border-color: var(--bg); }
 .doca .enviar {
   appearance: none; cursor: pointer;
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
 }
+/* O verde de interface sobre o creme dá 1,34:1 — o botão sumia dentro do
+   próprio campo. Invertido dá 16,7:1, e continua sendo a única coisa
+   escura ali, que é o que faz dele um botão. */
 .doca .enviar {
   right: 7px;
   border: 0;
-  background: var(--verde); color: var(--surface-deep);
+  background: var(--bg); color: var(--amarelo);
 }
 .doca input:disabled, .doca .enviar:disabled { opacity: .55; cursor: wait; }
 .doca svg { width: 19px; height: 19px; }
