@@ -261,14 +261,16 @@ test('o aviso de prévia continua onde o erro seria caro', () => {
      que confundir a demonstração com o app custa caro — o QR que alguém
      tentaria apresentar na entrada, a agenda que alguém leria como a sua —
      `NEGA_POR_TELA` continua respondendo. */
+  /* A tela do ingresso é a que sustenta o aviso: é o QR que alguém tentaria
+     apresentar na entrada. As quatro telas do roteiro de reserva ensinam
+     pelo alto e não mostram mais a frase; o selo verde e a moldura verde,
+     que são os outros dois avisos, seguem em todas. */
   assert.match(app, /qrcode:\s*'não é o seu ingresso'/,
     'a tela do ingresso perdeu o aviso de que o QR não é o da pessoa');
-  assert.match(app, /'minha-agenda':\s*'não é a sua agenda'/,
-    'a tela da agenda perdeu o aviso de que não é a agenda da pessoa');
   const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
-  /* As três telas do roteiro de reserva, e só elas: quem ensina pelo alto é
-     decisão de tela a tela, não um padrão que se espalha. */
-  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 3,
+  /* As quatro telas do roteiro de reserva, e só elas: quem ensina pelo alto
+     é decisão de tela a tela, não um padrão que se espalha. */
+  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 4,
     'o número de telas que ensinam pelo alto mudou sem a decisão passar por aqui');
   assert.match(app, /instrucao: 'Ao abrir a página da experiência clique em Reservar lugar'/,
     'a instrução da página da experiência mudou ou saiu');

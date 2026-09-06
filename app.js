@@ -676,6 +676,10 @@ const TELAS = {
   'minha-agenda': {
     img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
     serve: 'Tudo o que você reservou fica aqui, em ordem de horário. É onde o seu dia toma forma.',
+    /* Quarta tela do tour, texto da Adriana (06/09). A segunda frase é a
+       regra que o Concierge também dá em palavras: se não está em Minha
+       Agenda, não está reservado. */
+    instrucao: 'Este menu mostra todas as experiências que você já reservou. Se não está aqui, significa que não foi reservado.',
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
