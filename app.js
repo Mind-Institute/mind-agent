@@ -638,7 +638,7 @@ const TELAS = {
       { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
       { id: 'palestrante', x: 49.9, y: 90.7, w: 88.6, h: 6.9, brinde: 'A bio de quem fala — e o coração salva a pessoa, não a sessão.' },
-      { id: 'reservar', x: 49.9, y: 65.7, w: 88.8, h: 4.9, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
+      { id: 'reservar', x: 49.9, y: 65.7, w: 88.8, h: 4.9, faz: 'reservar', vai: 'confirmada', modo: 'troca',
         folha: 'reservado', obrigatoria: true,
         dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
     ],
@@ -714,7 +714,7 @@ const TELAS = {
     alvos: [
       { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'abas', x: 50, y: 8.4, w: 70, h: 5, brinde: 'Contatos aceitos e convites pendentes.' },
-      { id: 'add1', x: 81.4, y: 27.1, w: 24, h: 6, faz: 'contato', missao: 'm6', folha: 'contato', obrigatoria: true,
+      { id: 'add1', x: 81.4, y: 27.1, w: 24, h: 6, faz: 'contato', folha: 'contato', obrigatoria: true,
         dica: 'Toque em <b>Adicionar</b> para enviar um convite de contato.' },
     ],
   },
@@ -736,6 +736,66 @@ const TELAS = {
       { id: 'conversa', x: 50, y: 43.7, w: 92, h: 8, brinde: 'Abre a conversa com a pessoa.' },
     ],
   },
+
+  /* ---------- AS TELAS DO CAMAROTE ----------
+     Só aparecem no roteiro `reserva_camarote`. O ladrilho "Masterclass
+     Heineken" não existe no Menu de quem não tem Camarote, então estas
+     telas nunca podem ser mostradas às outras experiências: ensinariam um
+     caminho que a pessoa não tem.
+
+     Capturas de 06/09, recortadas do mesmo jeito que as outras — sem a
+     barra de status do iOS e sem a navegação do app, que o tour desenha
+     em HTML. Coordenadas medidas sobre elas. */
+  'hnk-menu': {
+    img: 'hnk-menu', aba: 'menu', rotulo: 'Menu',
+    serve: 'O Menu do app. Para quem tem Camarote, é daqui que sai o acesso às masterclasses da Heineken.',
+    alvos: [
+      { id: 'masterclass', x: 26.0, y: 41.3, w: 44.1, h: 12.2, vai: 'hnk-agenda', modo: 'push',
+        dica: 'Toque em <b>Masterclass Heineken</b>.' },
+      { id: 'mapa', x: 74.0, y: 27.9, w: 44.1, h: 12.2, brinde: 'O mapa do evento fica aqui.' },
+      { id: 'networking', x: 74.0, y: 41.3, w: 44.1, h: 12.2, brinde: 'A Área de Networking fica aqui.' },
+    ],
+  },
+  'hnk-agenda': {
+    img: 'hnk-agenda', aba: 'menu', volta: 'hnk-menu', rotulo: 'Masterclass Heineken',
+    serve: 'Sua agenda de masterclasses, nos dois dias do Summit. Só quem tem Camarote vê esta tela.',
+    alvos: [
+      { id: 'voltar', x: 8.1, y: 3.3, w: 12, h: 4.5, volta: true },
+      { id: 'dia17', x: 34.1, y: 19.7, w: 17.5, h: 10.5, brinde: 'O outro dia do Summit está aqui.' },
+      { id: 'sessao', x: 50.0, y: 47.3, w: 92.2, h: 30.1, vai: 'hnk-masterclass', modo: 'push',
+        dica: 'Toque na <b>masterclass</b> que você quer.' },
+    ],
+  },
+  'hnk-masterclass': {
+    img: 'hnk-masterclass', aba: 'menu', volta: 'hnk-agenda', rotulo: 'Masterclass',
+    serve: 'A página da masterclass — igual à de qualquer sessão. A reserva é a mesma.',
+    alvos: [
+      { id: 'voltar', x: 8.1, y: 3.3, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 34.0, y: 52.9, w: 50, h: 4.5, brinde: 'Exporta a masterclass para o calendário do seu celular.' },
+      { id: 'reservar', x: 50.1, y: 71.2, w: 88.5, h: 5.7, vai: 'hnk-masterclass-ok', modo: 'troca',
+        folha: 'reservado', obrigatoria: true,
+        dica: 'Toque em <b>Reservar lugar</b>, como em qualquer sessão.' },
+    ],
+  },
+  'hnk-masterclass-ok': {
+    img: 'hnk-masterclass-ok', aba: 'menu', volta: 'hnk-agenda', rotulo: 'Masterclass reservada',
+    serve: 'Lugar garantido também na masterclass.',
+    alvos: [
+      { id: 'voltar', x: 8.1, y: 3.3, w: 12, h: 4.5, volta: true },
+      { id: 'confirmacao', x: 50.0, y: 70.0, w: 88.5, h: 8,
+        brinde: 'No dia, o check-in é feito aqui mesmo.' },
+    ],
+  },
+  'hnk-minha-agenda': {
+    img: 'hnk-minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
+    serve: 'Tudo o que você reservou fica junto aqui — venha da Programação ou do menu da Heineken.',
+    alvos: [
+      { id: 'arena', x: 50.0, y: 40.0, w: 92.2, h: 25,
+        brinde: 'A arena que você reservou pela Programação.' },
+      { id: 'masterclass', x: 50.0, y: 82.0, w: 92.2, h: 22,
+        brinde: 'E a masterclass, que veio pelo menu da Heineken.' },
+    ],
+  },
 };
 
 /* Como se chega em cada tela (para calcular a dica) */
@@ -752,6 +812,13 @@ const ROTA = {
   'rede': { de: 'menu', alvo: 'rede' },
   'palestrantes': { de: 'menu', alvo: 'palestrantes' },
   'chat': { de: 'menu', alvo: 'chat' },
+  /* Camarote: o Menu e a agenda da pessoa chegam pela barra de abas; as
+     duas telas da masterclass, por toque na tela anterior. */
+  'hnk-menu': { aba: 'menu' },
+  'hnk-agenda': { de: 'hnk-menu', alvo: 'masterclass' },
+  'hnk-masterclass': { de: 'hnk-agenda', alvo: 'sessao' },
+  'hnk-masterclass-ok': { de: 'hnk-masterclass', alvo: 'reservar' },
+  'hnk-minha-agenda': { aba: 'minha' },
 };
 
 /* ============================================================
@@ -794,6 +861,26 @@ const ROTEIROS = {
       { id: 'i1', txt: 'Abrir o seu ingresso', tela: 'qrcode' },
     ],
     concluido: 'Pronto — o seu ingresso está aí 💚',
+  },
+  /* O ROTEIRO DE QUEM TEM CAMAROTE.
+     Igual ao `reserva` no que é igual: arenas e workshops saem da
+     Programação, e reservar é o mesmo gesto. A diferença é só a PORTA da
+     masterclass, que para o Camarote fica no Menu, no ladrilho da
+     Heineken — e o fecho, que mostra as duas reservas juntas.
+
+     `abas` redireciona a barra do app dentro deste roteiro: Menu leva ao
+     Menu com o ladrilho, e Minha Agenda à agenda com as duas reservas.
+     Sem isto, as abas cairiam nas capturas de quem não tem Camarote. */
+  reserva_camarote: {
+    nome: 'Suas experiências',
+    de: 'agenda',
+    abas: { menu: 'hnk-menu', minha: 'hnk-minha-agenda' },
+    missoes: [
+      { id: 'c1', txt: 'Reservar um workshop ou arena', tela: 'detalhe', alvo: 'reservar' },
+      { id: 'c2', txt: 'Reservar uma masterclass', tela: 'hnk-masterclass', alvo: 'reservar' },
+      { id: 'c3', txt: 'Ver as duas na sua agenda', tela: 'hnk-minha-agenda' },
+    ],
+    concluido: 'Pronto — você já sabe reservar as suas 💚',
   },
 };
 
@@ -853,7 +940,7 @@ ABAS.forEach((aba) => {
     if (aba.folha) { abrirFolha(aba.folha); return; }
     if (TELAS[telaAtual].aba === aba.id && !TELAS[telaAtual].volta) { avisar('Você já está aqui.'); return; }
     pilha = []; refazer = [];
-    irPara(aba.vai, 'troca');
+    irPara(destinoDaAba(aba), 'troca');
   });
   fnav.appendChild(b);
 });
@@ -1288,7 +1375,19 @@ async function tocar(a) {
   /* Missão com modal obrigatório só conclui quando a pessoa confirmar:
      senão a instrução já era da etapa seguinte enquanto o "Lugar
      reservado" ainda nem tinha aparecido. */
-  const concluir = () => { if (a.missao) concluirMissao(a.missao); };
+  /* A MISSÃO QUE FECHA É A ATUAL, não um id escrito dentro do alvo. O
+     mesmo alvo — "Reservar lugar", no detalhe da sessão — serve a
+     roteiros diferentes, e prender o id ao alvo obrigaria a duplicar a
+     tela só para trocar o nome da missão. Quem sabe qual é a missão é o
+     roteiro; o alvo só sabe que foi tocado. */
+  /* A tela é lida AGORA, no toque: `concluir` roda depois de `irPara`, e
+     lá `telaAtual` já é a tela seguinte. O alvo pertence à tela em que foi
+     desenhado, não à que ele abre. */
+  const telaDoToque = telaAtual;
+  const concluir = () => {
+    const m = missaoAtual();
+    if (m && m.tela === telaDoToque && m.alvo === a.id) concluirMissao(m.id);
+  };
 
   if (a.volta) { await voltar(); return; }
 
@@ -1403,7 +1502,29 @@ document.getElementById('sair-tour').addEventListener('click', () => { missoesFu
 /* O tour completo — as telas do app com as sete missões. Deixou de ser o
    primeiro contato: quem chega vê a home, e entra aqui pelo card de como
    reservar ou por `?tutorial=`. */
+/* A barra de abas dentro de um roteiro. `reserva_camarote` redireciona
+   Menu e Minha Agenda para as capturas com o ladrilho da Heineken e com as
+   duas reservas; qualquer outro roteiro usa o destino de sempre. */
+function destinoDaAba(aba) {
+  const r = ROTEIROS[roteiroAtual];
+  return (r && r.abas && r.abas[aba.id]) || aba.vai;
+}
+
+/* QUEM VÊ O ROTEIRO DO CAMAROTE — fail-closed.
+   O ladrilho "Masterclass Heineken" não existe no Menu de quem não tem
+   Camarote, então só entra aqui quem o credenciamento confirmou como
+   Camarote. Sem `?email=` na URL, sem rede ou com tipo que não reconheço,
+   `ingressoDoParticipante` é `null` e a pessoa cai no roteiro de todo
+   mundo. Errar para o outro lado mostraria a um VIP um caminho que ele
+   não tem. */
+function ehCamarote() {
+  return String(ingressoDoParticipante || '').trim().toLowerCase() === 'camarote';
+}
+
 function abrirTourCompleto(qual) {
+  /* Sem roteiro pedido, o card da home escolhe pelo ingresso. Com roteiro
+     pedido — `roteiro:mapa`, por exemplo —, quem manda é o pedido. */
+  qual = qual || (ehCamarote() ? 'reserva_camarote' : 'reserva');
   roteiroAtual = ROTEIROS[qual] ? qual : 'reserva';
   const roteiro = ROTEIROS[roteiroAtual];
   telaAvulsa = null;
