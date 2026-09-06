@@ -385,8 +385,12 @@ export const CONTEUDO = {
           texto: 'Acesse seu QR Code', acao: 'tour:qrcode' },
         { ico: ICO.agendaBloco, titulo: 'Minha Agenda',
           texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
-        { ico: ICO.brilho, titulo: 'Reserve suas experiências',
-          texto: 'Garanta suas escolhas agora', acao: 'tour' },
+        /* EM DESTAQUE, E SOZINHO NA LINHA. É o único dos três que ensina
+           uma tarefa inteira — reservar —, e o título não cabe num tile de
+           trio sem picar palavra. `destaque` tira ele do trio, devolve a
+           descrição que o trio corta e pinta o fundo. */
+        { ico: ICO.brilho, titulo: 'Aprenda como Reservar suas experiências',
+          texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
       ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:

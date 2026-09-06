@@ -277,10 +277,33 @@ function montarHomeV3() {
 let ingressoDoParticipante = null;
 const ingressoEl = document.getElementById('perfil-ingresso');
 
+/* O RÓTULO E A COR SÃO DA TELA, NÃO DO ESPELHO. O credenciamento diz
+   `Camarote`; a marca do produto é `Camarote Heineken`, e é assim que a
+   pessoa o reconhece. A verdade continua sendo a do espelho — é ela que
+   alimenta o Kit e a fala do agente —, e o que mora aqui é só como esse
+   mesmo ingresso aparece.
+
+   A cor separa as experiências: Mind verde, VIP coral, Prime e Camarote
+   roxo. Tipo que não estiver no mapa segue com o nome que veio e a cor
+   neutra de antes, sem exigir mudança aqui para existir. */
+const ROTULO_INGRESSO = {
+  mind:     { nome: 'Mind',              cor: 'mind' },
+  vip:      { nome: 'VIP',               cor: 'vip' },
+  prime:    { nome: 'Prime',             cor: 'prime' },
+  camarote: { nome: 'Camarote Heineken', cor: 'camarote' },
+};
+function rotuloDoIngresso(tipo) {
+  const chave = String(tipo || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return ROTULO_INGRESSO[chave] || { nome: tipo, cor: '' };
+}
+
 carregarIngressoDoParticipante(PARTICIPANTE.email).then((tipo) => {
   if (!tipo || !ingressoEl) return;
   ingressoDoParticipante = tipo;
-  ingressoEl.querySelector('b').textContent = tipo;
+  const r = rotuloDoIngresso(tipo);
+  ingressoEl.querySelector('b').textContent = r.nome;
+  ingressoEl.dataset.cor = r.cor;
   ingressoEl.hidden = false;
   montarHomeV3();
 });

@@ -13,6 +13,9 @@
   --verde: #68ee95;
   --roxo: #9843ff;
   --coral: #ff7057;
+  /* Amarelo: exclusivo do atalho em destaque da home. Não é cor de
+     interface nem de estado — existe para um card só chamar atenção. */
+  --amarelo: #ffd447;
   --texto: #ffffff;
   --texto-suave: #e3e3ed;
   --texto-mudo: #8f8fa3;
@@ -208,8 +211,25 @@ body {
 .h-ingresso[hidden] { display: none; }
 .h-ingresso i {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #fff; opacity: .85;
+  background: currentColor; opacity: .85;
 }
+/* UMA COR POR EXPERIÊNCIA. O roxo era de todos e não dizia nada; agora
+   Mind é verde, VIP é coral, Prime e Camarote são roxos. Sobre verde e
+   coral o texto branco não tem contraste — nos dois o texto é escuro,
+   como o app já faz nos botões dessas cores. */
+.h-ingresso[data-cor="mind"]  { background: var(--verde); color: #10130f; }
+.h-ingresso[data-cor="vip"]   { background: var(--coral); color: #1a0703; }
+.h-ingresso[data-cor="prime"],
+.h-ingresso[data-cor="camarote"] { background: var(--roxo); color: #fff; }
+/* "Camarote Heineken" NÃO CABE EM CAIXA ALTA. Medido num 393px: com
+   maiúscula e `letter-spacing` a pílula dá 174px e passa 6px da borda,
+   empurrando a marca do evento para fora. Sem os dois ela dá 144px e
+   sobram 24px. Só este rótulo muda de tratamento, e o motivo não é só
+   espaço: Heineken é nome próprio, e nome próprio em versalete apertado
+   dentro de um selo pequeno lê pior que em caixa mista. */
+.h-ingresso[data-cor="camarote"] { text-transform: none; letter-spacing: .01em; }
+.h-ingresso { min-width: 0; }
+.h-ingresso b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .h-ajuda {
   appearance: none; cursor: pointer;
@@ -487,6 +507,30 @@ body {
   transition: border-color .18s ease, background .18s ease;
 }
 .v3-atalho:active { border-color: var(--verde); background: rgba(255, 255, 255, .1); }
+
+/* ---- O atalho em destaque ----
+   Ocupa a linha inteira, mesmo dentro do trio: é o único dos três que
+   ensina uma tarefa completa, e o título não caberia num terço da tela.
+   O amarelo é o único lugar do app onde ele aparece, e é isso que o faz
+   destaque — não compete com o verde de interface nem com o coral, que
+   já quer dizer "toque aqui" na demonstração. */
+.v3-atalhos .v3-atalho.destaque {
+  grid-column: 1 / -1;
+  background: var(--amarelo);
+  border-color: color-mix(in srgb, var(--amarelo) 70%, #000);
+  color: #1c1503;
+  min-height: 0;
+}
+.v3-atalhos .v3-atalho.destaque .v3-ico {
+  background: rgba(28, 21, 3, .12);
+  color: #1c1503;
+}
+.v3-atalhos .v3-atalho.destaque .chevron { color: rgba(28, 21, 3, .5); }
+.v3-atalhos .v3-atalho.destaque small { color: rgba(28, 21, 3, .72); }
+.v3-atalhos .v3-atalho.destaque:active {
+  border-color: #1c1503;
+  background: color-mix(in srgb, var(--amarelo) 88%, #000);
+}
 .v3-atalho-topo { display: flex; align-items: flex-start; justify-content: space-between; }
 .v3-atalho .v3-ico {
   width: 38px; height: 38px; border-radius: 12px; flex: none;

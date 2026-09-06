@@ -66,13 +66,52 @@ test('os três atalhos levam a destinos que existem', () => {
 
 test('três atalhos cabem numa linha, e sem descrição', () => {
   /* Em 360px cada tile fica com ~99px. A descrição ali vira palavra
-     picada em quatro linhas; o título sozinho já diz para onde vai. */
-  assert.match(cards, /itens\.length === 3 \? ' trio' : ''/,
+     picada em quatro linhas; o título sozinho já diz para onde vai.
+
+     Quem conta é `naLinha`, não `itens.length`: o item em destaque ocupa
+     a linha inteira, então contá-lo deixava uma coluna vazia ao lado dos
+     outros dois. O contrato é o mesmo — o número de colunas vem da
+     quantidade, nunca de um número escrito no CSS. */
+  assert.match(cards, /naLinha === 3 \? ' trio' : ''/,
     'a grade parou de reconhecer o trio e volta a duas colunas');
-  assert.match(cards, /repeat\(' \+ Math\.min\(itens\.length, 3\)/,
+  assert.match(cards, /repeat\(' \+ Math\.min\(naLinha, 3\)/,
     'o número de colunas voltou a ser fixo no CSS em vez de vir da quantidade');
+  assert.match(cards, /itens\.filter\(\(t\) => !t\.destaque\)\.length/,
+    'a contagem voltou a incluir o item em destaque, que não divide a linha');
   assert.match(css, /\.v3-atalhos\.trio \.v3-atalho\s*\{[^}]*text-align:\s*center/,
     'o tile do trio perdeu a centralização');
+});
+
+test('o atalho em destaque ocupa a linha inteira e mantém a descrição', () => {
+  /* "Aprenda como Reservar suas experiências" não cabe num terço da tela
+     sem picar palavra. Em destaque ele sai do trio, ganha a linha toda e,
+     com largura, recupera a descrição que o trio corta. */
+  assert.match(css, /\.v3-atalhos \.v3-atalho\.destaque\s*\{[^}]*grid-column:\s*1 \/ -1/,
+    'o atalho em destaque voltou a dividir a linha com os outros');
+  assert.match(css, /\.v3-atalhos \.v3-atalho\.destaque\s*\{[^}]*background:\s*var\(--amarelo\)/,
+    'o destaque perdeu o fundo amarelo, que é o que o faz destaque');
+  assert.match(css, /--amarelo:/,
+    'o token do amarelo sumiu da paleta');
+  assert.match(cards, /naLinha === 3 && !t\.destaque/,
+    'o destaque voltou a ser desenhado como tile de trio, sem descrição');
+  assert.match(estado, /titulo: 'Aprenda como Reservar suas experiências'/,
+    'o título do atalho de reserva mudou sem passar por aqui');
+});
+
+test('a pílula do ingresso tem uma cor por experiência', () => {
+  /* O roxo era de todas e não dizia nada. Mind verde, VIP coral, Prime e
+     Camarote roxo — e texto escuro sobre verde e coral, onde branco não
+     teria contraste. */
+  for (const [cor, fundo] of [['mind', '--verde'], ['vip', '--coral'], ['camarote', '--roxo']]) {
+    assert.match(css, new RegExp('\\.h-ingresso\\[data-cor="' + cor + '"\\][^{]*\\{[^}]*var\\(' + fundo + '\\)'),
+      'a pílula de ' + cor + ' perdeu a cor própria');
+  }
+  /* Medido em 393px: em caixa alta a pílula do Camarote dá 174px e passa
+     6px da borda, empurrando a marca do evento para fora. */
+  assert.match(css, /\.h-ingresso\[data-cor="camarote"\]\s*\{[^}]*text-transform:\s*none/,
+    'o rótulo do Camarote voltou à caixa alta e não cabe mais no cabeçalho');
+  assert.match(app, /camarote: \{ nome: 'Camarote Heineken'/,
+    'o rótulo de tela do Camarote mudou sem passar por aqui');
 });
 
 test('nenhum bloco da home encolhe para caber', () => {

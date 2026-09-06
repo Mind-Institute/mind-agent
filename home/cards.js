@@ -135,15 +135,22 @@ export function gradeDeAtalhos(b, aoAgir) {
   /* O número de colunas vem da quantidade, não de um número escrito no
      CSS: com três atalhos eles cabem lado a lado; com quatro, dois a dois.
      Assim tirar ou pôr um item não exige lembrar de mexer na folha. */
-  const el = no('div', 'v3-atalhos' + (itens.length === 3 ? ' trio' : ''));
-  el.style.gridTemplateColumns = 'repeat(' + Math.min(itens.length, 3) + ', minmax(0, 1fr))';
+  /* Quem define as colunas são os itens que DIVIDEM a linha. O item em
+     destaque ocupa a linha inteira, então contá-lo deixava uma coluna
+     vazia à direita dos outros dois. */
+  const naLinha = itens.filter((t) => !t.destaque).length || itens.length;
+  const el = no('div', 'v3-atalhos' + (naLinha === 3 ? ' trio' : ''));
+  el.style.gridTemplateColumns = 'repeat(' + Math.min(naLinha, 3) + ', minmax(0, 1fr))';
   itens.forEach((t) => {
-    const bt = no('button', 'v3-atalho');
+    const bt = no('button', 'v3-atalho' + (t.destaque ? ' destaque' : ''));
     bt.type = 'button';
     /* Em trio o tile fica com ~98px num aparelho de 360: a descrição não
        cabe sem virar quatro linhas de palavra picada, e o título sozinho
-       já diz para onde vai. O chevron sai pelo mesmo motivo. */
-    bt.innerHTML = itens.length === 3
+       já diz para onde vai. O chevron sai pelo mesmo motivo.
+
+       O item em destaque não é trio: ele ocupa a linha inteira, então
+       tem largura para o título completo e para a descrição. */
+    bt.innerHTML = (naLinha === 3 && !t.destaque)
       ? '<span class="v3-ico">' + t.ico + '</span><strong>' + t.titulo + '</strong>'
       : '<span class="v3-atalho-topo"><span class="v3-ico">' + t.ico + '</span>' + CHEVRON + '</span>' +
         '<strong>' + t.titulo + '</strong>' +
