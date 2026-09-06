@@ -640,6 +640,9 @@ const TELAS = {
   'detalhe': {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
     serve: 'A página da experiência, com horário, local e quem fala. Quando a vaga é limitada, é aqui que você reserva o seu lugar.',
+    /* Segunda tela do tour, texto da Adriana (06/09) — mesma decisão da
+       Programação: a instrução sobe para o cabeçalho e o rodapé fica vazio. */
+    instrucao: 'Ao abrir a página da experiência clique em Reservar lugar',
     alvos: [
       { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
