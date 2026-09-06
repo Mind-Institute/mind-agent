@@ -1335,17 +1335,11 @@ html[data-teclado="aberto"] .doca {
   flex: 1; min-width: 0;
   font-size: 15.5px; line-height: 1.45; color: var(--texto);
 }
-.t-rodape button {
-  appearance: none; cursor: pointer; flex: none;
-  min-height: 44px; padding: 0 18px;
-  border-radius: var(--raio-pill);
-  border: 1px solid var(--hairline);
-  background: var(--surface);
-  color: var(--texto);
-  font: inherit; font-size: 14px; font-weight: 700;
-  transition: background .18s ease;
-}
-.t-rodape button:active { background: var(--surface-deep); }
+/* O rodapé não tem mais botão: a saída do tour é o `x`, no alto. Quando o
+   texto também sai (tela que ensina pelo alto), não sobra nada aqui — e um
+   `padding` de rodapé vazio empurrava o quadro para cima sem motivo. */
+.t-rodape:empty,
+.t-rodape:has(> p:empty) { padding-block: 0; }
 
 /* O PALCO RECORTA. Sem isto o quadro, que tem `aspect-ratio` fixa,
    calculava uma altura maior que o espaço disponível e vazava por baixo —

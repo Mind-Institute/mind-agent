@@ -1565,11 +1565,12 @@ function abrirTourCompleto(qual) {
   pintar('troca');
   dicaDeArraste();
 }
+/* SAÍDA ÚNICA, pelo `x` (pedido da Adriana em 06/09). Havia também um botão
+   "Voltar às funções" no rodapé, para quem não arriscasse o `x` sem saber
+   onde ia parar; os dois chamavam exatamente `abrirVista('home')`. Com a
+   instrução no alto, o rodapé da primeira tela ficava só com esse botão
+   solto — e o `x`, que continua no lugar de sempre, faz o mesmo. */
 document.getElementById('fechar-tour').addEventListener('click', () => abrirVista('home'));
-/* Duas saidas para o mesmo lugar, de proposito: o `x` e o reflexo de quem
-   quer fechar, e o botao nomeado e para quem procura o caminho de volta e
-   nao arrisca o `x` sem saber onde vai parar. */
-document.getElementById('voltar-funcoes').addEventListener('click', () => abrirVista('home'));
 
 /* Pré-carrega assim que o módulo sobe: quando alguém abrir o tour, as
    telas já estão decodificadas e nenhuma etapa começa em branco. */
