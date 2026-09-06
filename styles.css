@@ -524,7 +524,22 @@ body {
      chapado endurece o card. */
   color: var(--bg);
   min-height: 0;
+  /* DEITADO, NÃO EMPILHADO. Empilhando ícone, título e descrição o card
+     crescia para baixo sem precisar: ele já tem a linha inteira, e a
+     largura que sobra ao lado do símbolo é justamente onde o texto cabe.
+     `display: contents` no invólucro do topo solta ícone e chevron como
+     itens da grade, sem mexer no HTML dos outros atalhos. */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0 12px;
+  padding: 12px 14px;
 }
+.v3-atalhos .v3-atalho.destaque .v3-atalho-topo { display: contents; }
+.v3-atalhos .v3-atalho.destaque .v3-ico    { grid-area: 1 / 1 / 3 / 2; }
+.v3-atalhos .v3-atalho.destaque .chevron   { grid-area: 1 / 3 / 3 / 4; }
+.v3-atalhos .v3-atalho.destaque strong     { grid-area: 1 / 2 / 2 / 3; }
+.v3-atalhos .v3-atalho.destaque small      { grid-area: 2 / 2 / 3 / 3; margin-top: 1px; }
 .v3-atalhos .v3-atalho.destaque .v3-ico {
   background: color-mix(in srgb, var(--bg) 10%, transparent);
   color: var(--bg);
