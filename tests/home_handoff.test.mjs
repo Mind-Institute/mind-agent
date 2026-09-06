@@ -235,11 +235,39 @@ test('o botão de missões some quando não há missão', () => {
     'o `hidden` do botão de missões voltou a perder para o `display` do botão');
 });
 
-test('o título da demonstração é nome de tela, não instrução', () => {
+test('o título da demonstração é nome de tela, não a missão inteira', () => {
   assert.match(app, /nome: 'Lugar reservado'/,
     'o roteiro de reserva perdeu o nome curto e o título volta a ser a missão inteira');
   assert.match(app, /missaoTexto\.textContent = ROTEIROS\[roteiroAtual\]\.nome/,
     'o cabeçalho voltou a escrever a missão com contador no lugar do nome');
+});
+
+test('a tela que ensina pelo alto mostra a instrução, e só ela', () => {
+  /* Pedido da Adriana em 06/09 para a primeira tela do tour: sai o nome do
+     roteiro ("Lugar reservado") e sai a frase de prévia; entra, no alto, a
+     instrução que antes ficava no rodapé. O rodapé fica vazio na mesma
+     tela — a explicação é uma só, e repeti-la em cima e embaixo era dizer
+     duas vezes. */
+  assert.match(app, /instrucao: 'O menu programação mostra todas as experiências do evento\./,
+    'a instrução da tela de Programação mudou ou saiu');
+  assert.match(app, /explica\.textContent = tela\.instrucao \? '' : \(tela\.serve \|\| ''\)/,
+    'o rodapé voltou a repetir a explicação que já está no alto');
+  assert.match(app, /previa\.hidden = Boolean\(instrucao\)/,
+    'a frase de prévia voltou a aparecer na tela que ensina pelo alto');
+});
+
+test('o aviso de prévia continua onde o erro seria caro', () => {
+  /* A instrução só substitui a prévia na tela que a recebeu. Nas telas em
+     que confundir a demonstração com o app custa caro — o QR que alguém
+     tentaria apresentar na entrada, a agenda que alguém leria como a sua —
+     `NEGA_POR_TELA` continua respondendo. */
+  assert.match(app, /qrcode:\s*'não é o seu ingresso'/,
+    'a tela do ingresso perdeu o aviso de que o QR não é o da pessoa');
+  assert.match(app, /'minha-agenda':\s*'não é a sua agenda'/,
+    'a tela da agenda perdeu o aviso de que não é a agenda da pessoa');
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 1,
+    'mais de uma tela passou a ensinar pelo alto sem a decisão ter sido tomada aqui');
 });
 
 test('a descrição da tela é branca e grande o bastante para ler', () => {

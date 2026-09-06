@@ -623,6 +623,12 @@ const TELAS = {
   'agenda': {
     img: 'agenda', aba: 'agenda', rotulo: 'Programação',
     serve: 'Aqui na Programação você vê e escolhe as suas experiências: as arenas, os workshops e as masterclasses dos dias 16 e 17.',
+    /* INSTRUÇÃO NO ALTO, texto da Adriana (06/09). Onde há `instrucao`, ela
+       ocupa o cabeçalho no lugar do nome do roteiro e da frase de prévia, e
+       o rodapé fica vazio: é a mesma explicação, e repeti-la em cima e
+       embaixo era dizer duas vezes. O `serve` continua aqui porque é ele
+       que responde quando esta tela aparece fora de um roteiro. */
+    instrucao: 'O menu programação mostra todas as experiências do evento. Para agendar uma experiência toque para abrir. Teste clicando na experiência abaixo para entender como funciona',
     alvos: [
       { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
       { id: 'card1', x: 49.9, y: 15.5, w: 92.4, h: 12.5, brinde: 'Cada card é uma sessão. Toque para abrir.' },
@@ -900,6 +906,7 @@ const telaImg = document.getElementById('tela-img');
 const balao = document.getElementById('balao');
 const explica = document.getElementById('t-explica');
 const previa  = document.getElementById('t-previa');
+const cabeca = document.querySelector('.t-cabeca');
 const brinde = document.getElementById('brinde');
 const fnav = document.getElementById('fnav');
 const folhaFundo = document.getElementById('folha-fundo');
@@ -1166,7 +1173,7 @@ function pintar(modo) {
   /* PARA QUE SERVE ESTA TELA — no rodapé, fora do print. Antes era uma
      faixa por cima da própria captura: escurecia o topo da tela que a
      demonstração existe para mostrar. Fora dela, a captura fica inteira. */
-  explica.textContent = tela.serve || '';
+  explica.textContent = tela.instrucao ? '' : (tela.serve || '');
 
   /* balão azul: só a próxima ação */
   const alvoDica = dica && dica.alvo ? (tela.alvos || []).find((a) => a.id === dica.alvo) : null;
@@ -1462,7 +1469,28 @@ function textoDePrevia() {
 }
 
 function atualizarMissao() {
+  /* CABEÇALHO COM INSTRUÇÃO. Quando a tela traz `instrucao`, ela é o que
+     fica no alto — no lugar do nome do roteiro e da frase de prévia. O
+     aviso de "não é o app de verdade" não some do tour: o selo verde e a
+     moldura verde continuam, e a frase de prévia continua nas telas onde
+     ela evita o erro caro (o QR que alguém tentaria apresentar na entrada,
+     a agenda que alguém leria como a sua). */
+  const instrucao = (TELAS[telaAtual] && TELAS[telaAtual].instrucao) || '';
+  cabeca.classList.toggle('instrucao', Boolean(instrucao));
+  previa.hidden = Boolean(instrucao);
   previa.textContent = textoDePrevia();
+  if (instrucao) {
+    missaoTexto.textContent = instrucao;
+    missaoProg.innerHTML = '';
+    document.getElementById('ver-missoes').hidden = telaAvulsa;
+    if (!telaAvulsa) {
+      const m0 = missaoAtual();
+      const i0 = m0 ? MISSOES.indexOf(m0) : MISSOES.length;
+      missaoProg.innerHTML = MISSOES.map((x, j) =>
+        '<i class="' + (feitas.has(x.id) ? 'ok' : (j === i0 ? 'atual' : '')) + '"></i>').join('');
+    }
+    return;
+  }
   if (telaAvulsa) {
     const t = TELAS[telaAtual];
     /* `textContent`: o rótulo é constante nossa, mas a barra aceita HTML

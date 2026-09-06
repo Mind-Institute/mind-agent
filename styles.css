@@ -1283,6 +1283,19 @@ html[data-teclado="aberto"] .doca {
   color: var(--texto);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+/* CABEÇALHO COM INSTRUÇÃO (pedido da Adriana, 06/09). Quando a tela ensina
+   a partir do alto, o que está ali deixa de ser nome de tela e vira frase:
+   `nowrap` com reticências cortaria a instrução na primeira linha. Tamanho
+   e entrelinha são os mesmos do texto que ensinava no rodapé — mudou o
+   lugar, não a legibilidade. */
+.t-cabeca.instrucao {
+  align-items: flex-start;
+}
+.t-cabeca.instrucao strong {
+  white-space: normal; overflow: visible; text-overflow: clip;
+  font-size: 15.5px; font-weight: 600; line-height: 1.45;
+  letter-spacing: 0;
+}
 /* A frase encolhe antes do título: o nome da tela é o que orienta, e a
    frase ainda cabe em duas palavras quando a tela é estreita. */
 .t-cabeca small {
