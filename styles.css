@@ -13,9 +13,11 @@
   --verde: #68ee95;
   --roxo: #9843ff;
   --coral: #ff7057;
-  /* Amarelo: exclusivo do atalho em destaque da home. Não é cor de
-     interface nem de estado — existe para um card só chamar atenção. */
-  --amarelo: #ffd447;
+  /* Amarelo da marca (Secondary, `Cores_Mind`). Exclusivo do atalho em
+     destaque da home: não é cor de interface nem de estado — existe para
+     um card só chamar atenção. Creme claro, então tudo o que vai em cima
+     dele é escuro. */
+  --amarelo: #fbf4d0;
   --texto: #ffffff;
   --texto-suave: #e3e3ed;
   --texto-mudo: #8f8fa3;
@@ -517,19 +519,25 @@ body {
 .v3-atalhos .v3-atalho.destaque {
   grid-column: 1 / -1;
   background: var(--amarelo);
-  border-color: color-mix(in srgb, var(--amarelo) 70%, #000);
-  color: #1c1503;
+  border-color: color-mix(in srgb, var(--amarelo) 82%, #000);
+  /* O escuro da marca, não preto puro: sobre um creme quente o preto
+     chapado endurece o card. */
+  color: var(--bg);
   min-height: 0;
 }
 .v3-atalhos .v3-atalho.destaque .v3-ico {
-  background: rgba(28, 21, 3, .12);
-  color: #1c1503;
+  background: color-mix(in srgb, var(--bg) 10%, transparent);
+  color: var(--bg);
 }
-.v3-atalhos .v3-atalho.destaque .chevron { color: rgba(28, 21, 3, .5); }
-.v3-atalhos .v3-atalho.destaque small { color: rgba(28, 21, 3, .72); }
+.v3-atalhos .v3-atalho.destaque .chevron {
+  color: color-mix(in srgb, var(--bg) 45%, transparent);
+}
+.v3-atalhos .v3-atalho.destaque small {
+  color: color-mix(in srgb, var(--bg) 68%, transparent);
+}
 .v3-atalhos .v3-atalho.destaque:active {
-  border-color: #1c1503;
-  background: color-mix(in srgb, var(--amarelo) 88%, #000);
+  border-color: var(--bg);
+  background: color-mix(in srgb, var(--amarelo) 92%, #000);
 }
 .v3-atalho-topo { display: flex; align-items: flex-start; justify-content: space-between; }
 .v3-atalho .v3-ico {
