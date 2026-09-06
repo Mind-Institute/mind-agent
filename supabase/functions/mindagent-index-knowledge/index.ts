@@ -36,8 +36,16 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = secretKey();
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+  // O gateway do Supabase recusa `Authorization: Bearer <chave sb_secret_*>`
+  // quando `apikey` já carrega uma chave do projeto — "Conflicting API
+  // keys", mesmo com o mesmo valor nos dois. Aceitar a chave também via
+  // `apikey` (sem prefixo `Bearer`) é o caminho que o próprio gateway deixa
+  // passar; a exigência continua sendo a mesma service key exata.
   const bearer = req.headers.get("Authorization") ?? "";
-  if (!serviceKey || bearer !== `Bearer ${serviceKey}`) {
+  const apikeyHeader = req.headers.get("apikey") ?? "";
+  const autorizado = Boolean(serviceKey) &&
+    (bearer === `Bearer ${serviceKey}` || apikeyHeader === serviceKey);
+  if (!autorizado) {
     return resposta(401, { ok: false, error: "unauthorized" });
   }
   if (!supabaseUrl || !openAiKey) return resposta(503, { ok: false, error: "configuration_missing" });
