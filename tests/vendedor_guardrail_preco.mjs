@@ -164,6 +164,34 @@ const KIT = {
   },
 };
 
+// Cupons individuais do lote 7 (regra `desconto_individual`, decisão da Adriana em
+// 05/09/2026): valor fixo, digitado no checkout, sem link com cupom aplicado. O objeto
+// `desconto` é economia sem faixa; `valor` é o preço final com o cupom; a parcela segue
+// a convenção das ofertas de lote (inteiro arredondado).
+const CUPONS_LOTE_7 = {
+  lote: 7,
+  modo: "cupom_digitado_no_checkout",
+  cupons: [
+    { cupom: "200OFF", categoria: "mind", oferta_codigo: "mind-lote-7",
+      desconto: { tipo: "valor_fixo", valor: 200, categoria: "mind" },
+      valor: 1497, condicoes_pagamento: "12x de R$ 125" },
+    { cupom: "300OFF", categoria: "vip", oferta_codigo: "vip-lote-7",
+      desconto: { tipo: "valor_fixo", valor: 300, categoria: "vip" },
+      valor: 2397, condicoes_pagamento: "12x de R$ 200" },
+    { cupom: "300OFF", categoria: "mind", oferta_codigo: "mind-lote-7",
+      desconto: { tipo: "valor_fixo", valor: 300, categoria: "mind" },
+      valor: 1397, condicoes_pagamento: "12x de R$ 116" },
+  ],
+  prime: { cupom: null, disponivel: false },
+};
+const KIT_CUPOM = {
+  ...KIT,
+  regras_comerciais: {
+    bloco: "regras_comerciais",
+    regras: [...KIT.regras_comerciais.regras, { chave: "desconto_individual", config: CUPONS_LOTE_7 }],
+  },
+};
+
 // O piso do caminho legado: `treble_agent_context`, evento + ofertas vigentes, sem
 // categoria e sem faixas.
 const LEGADO = {
@@ -177,6 +205,7 @@ const LEGADO = {
 const AGENDA = { sessions: [{ titulo: "Burnout e liderança", duracao_min: 45, sala: 3 }] };
 
 const KIT_OF = precosOficiais(KIT);
+const KIT_CUPOM_OF = precosOficiais(KIT_CUPOM);
 const LEGADO_OF = precosOficiais(LEGADO);
 const COM_AGENDA_OF = precosOficiais({ ...KIT, __agenda: AGENDA });
 
@@ -281,6 +310,26 @@ const CASOS = [
   ["aceita unitário e total certos na mesma frase", "Para 10 pessoas, R$ 1.318 cada, total de R$ 13.180.", KIT_OF, "aceita"],
   ["'12x' não vira quantidade de ingresso", "São 12x de R$ 1.318.", KIT_OF, "rejeita"],
   ["contexto não vaza entre orações", "A Experiência Mind está R$ 1.647. O VIP está R$ 2.647.", KIT_OF, "aceita"],
+
+  // ── 13. Cupom individual (valor fixo, sem faixa) ───────────────────────────
+  // A condição do lote 7 é cupom digitado no checkout. A fala da condição precisa passar
+  // nas duas formas de anunciar desconto, com o valor final e a parcela do cupom, e só na
+  // experiência do cupom.
+  ["aceita 'R$ 200 de desconto' no Mind com valor final e parcela", "Consigo R$ 200 de desconto pra você no Mind: fica R$ 1.497, 12x de R$ 125. É só digitar o cupom 200OFF no checkout.", KIT_CUPOM_OF, "aceita"],
+  ["aceita 'desconto de R$ 200' no Mind", "É um desconto de R$ 200 no Mind com o cupom 200OFF.", KIT_CUPOM_OF, "aceita"],
+  ["aceita 'consigo R$ 200 pra você' sem a palavra desconto", "No Mind eu consigo R$ 200 pra você hoje.", KIT_CUPOM_OF, "aceita"],
+  ["aceita 'R$ 300 de desconto' no VIP com valor final e parcela", "No VIP consigo R$ 300 de desconto: fica R$ 2.397, 12x de R$ 200, com o cupom 300OFF.", KIT_CUPOM_OF, "aceita"],
+  ["aceita resgate do Mind com 300OFF (R$ 1.397, 12x de R$ 116)", "Consegui aprovar R$ 300 de desconto no Mind: fica R$ 1.397, 12x de R$ 116.", KIT_CUPOM_OF, "aceita"],
+  ["REJEITA R$ 300 de desconto no Prime (Prime não tem cupom)", "No Prime consigo R$ 300 de desconto.", KIT_CUPOM_OF, "rejeita"],
+  ["REJEITA VIP com o valor do 200OFF (R$ 2.497 não existe)", "No VIP com o 200OFF fica R$ 2.497.", KIT_CUPOM_OF, "rejeita"],
+  ["REJEITA R$ 1.527,30 (10% inventado, a 'condição especial' de 04/09)", "O Mind fica R$ 1.527,30 na condição especial.", KIT_CUPOM_OF, "rejeita"],
+  ["REJEITA R$ 250 de desconto (valor que não é de cupom)", "Consigo R$ 250 de desconto no Mind.", KIT_CUPOM_OF, "rejeita"],
+  // "R$ 200 de desconto" sozinho já era economia oficial antes do cupom: é a economia
+  // da faixa de 10+ do Upgrade Mind para VIP. O que a regra de cupom autoriza de novo é
+  // o VALOR FINAL e a PARCELA — sem ela, continuam barrados.
+  ["sem a regra de cupom, o valor final do cupom continua barrado", "Consigo R$ 200 de desconto pra você no Mind: fica R$ 1.497.", KIT_OF, "rejeita"],
+  ["sem a regra de cupom, a parcela do cupom continua barrada", "No Mind fica 12x de R$ 125.", KIT_OF, "rejeita"],
+  ["cupom não autoriza parcela inventada", "No Mind com o 200OFF fica 12x de R$ 120.", KIT_CUPOM_OF, "rejeita"],
 ];
 
 // ------------------------------------------------------------------ run
