@@ -1364,7 +1364,28 @@ html[data-teclado="aberto"] .doca {
    chegavam — o gesto de voltar simplesmente não acontecia. */
 .frame { position: relative; height: 90.5%; overflow: hidden; touch-action: pan-y; }
 .frame img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
-.conteudo { position: absolute; inset: 0; }
+/* O ALVO É DESENHADO EM % DA CAIXA; A FOTO É PINTADA DENTRO DELA. Quando
+   as duas proporções não batem, `cover` amplia a captura e corta o que
+   sobra: a foto desce, o anel fica onde estava, e o desencontro cresce com
+   a profundidade. No botão "Reservar lugar", a 65,7%, o anel caía ~50px
+   acima dele — em cima da linha "Reserva exclusiva por horário".
+
+   `.fone` declara 780/1570, mas não consegue honrar: a barra de abas tem
+   largura mínima própria e impede o quadro de estreitar, então `max-height`
+   apara a altura e a proporção se perde. Medido: 0,646 a 360px, 0,606 a
+   393px, 0,581 a 430px — contra 0,549 da captura. Muda com a largura da
+   tela, então nenhum ajuste de coordenada resolveria.
+
+   Por isso a proporção mora AQUI, onde os alvos moram: a caixa nasce com a
+   proporção da captura e se centra no que sobra. `cover` vira encaixe
+   exato — nada é cortado, e % da caixa passa a ser % da foto. */
+.conteudo {
+  position: absolute;
+  inset: 0; margin: auto;
+  aspect-ratio: 780 / 1421;
+  width: auto; height: auto;
+  max-width: 100%; max-height: 100%;
+}
 .conteudo img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top; }
 
 .conteudo.push  { animation: push .32s cubic-bezier(.2,.7,.3,1); }
