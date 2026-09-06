@@ -623,6 +623,12 @@ const TELAS = {
   'agenda': {
     img: 'agenda', aba: 'agenda', rotulo: 'Programação',
     serve: 'Aqui na Programação você vê e escolhe as suas experiências: as arenas, os workshops e as masterclasses dos dias 16 e 17.',
+    /* INSTRUÇÃO NO ALTO, texto da Adriana (06/09). Onde há `instrucao`, ela
+       ocupa o cabeçalho no lugar do nome do roteiro e da frase de prévia, e
+       o rodapé fica vazio: é a mesma explicação, e repeti-la em cima e
+       embaixo era dizer duas vezes. O `serve` continua aqui porque é ele
+       que responde quando esta tela aparece fora de um roteiro. */
+    instrucao: 'O menu programação mostra todas as experiências do evento. Para agendar uma experiência toque para abrir. Teste clicando na experiência abaixo para entender como funciona',
     alvos: [
       { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
       { id: 'card1', x: 49.9, y: 15.5, w: 92.4, h: 12.5, brinde: 'Cada card é uma sessão. Toque para abrir.' },
@@ -634,6 +640,9 @@ const TELAS = {
   'detalhe': {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
     serve: 'A página da experiência, com horário, local e quem fala. Quando a vaga é limitada, é aqui que você reserva o seu lugar.',
+    /* Segunda tela do tour, texto da Adriana (06/09) — mesma decisão da
+       Programação: a instrução sobe para o cabeçalho e o rodapé fica vazio. */
+    instrucao: 'Ao abrir a página da experiência clique em Reservar lugar',
     alvos: [
       { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
@@ -648,6 +657,13 @@ const TELAS = {
     /* O modal que abre em cima já explica o check-in; repetir aqui a
        mesma frase só fazia a tela dizer duas vezes a mesma coisa. */
     serve: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
+    /* Terceira tela do tour (pedido da Adriana, 06/09): o aviso da reserva
+       sai de cima da captura e sobe para o cabeçalho, com o botão logo
+       abaixo — a captura fica limpa, mostrando a tela do app como ela é.
+       Depois de confirmar, o cabeçalho fica com a instrução da tela, que é
+       a mesma frase que já explicava esta tela no rodapé. */
+    folhaNoAlto: true,
+    instrucao: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [
@@ -660,6 +676,10 @@ const TELAS = {
   'minha-agenda': {
     img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
     serve: 'Tudo o que você reservou fica aqui, em ordem de horário. É onde o seu dia toma forma.',
+    /* Quarta tela do tour, texto da Adriana (06/09). A segunda frase é a
+       regra que o Concierge também dá em palavras: se não está em Minha
+       Agenda, não está reservado. */
+    instrucao: 'Este menu mostra todas as experiências que você já reservou. Se não está aqui, significa que não foi reservado.',
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
@@ -900,6 +920,8 @@ const telaImg = document.getElementById('tela-img');
 const balao = document.getElementById('balao');
 const explica = document.getElementById('t-explica');
 const previa  = document.getElementById('t-previa');
+const cabeca = document.querySelector('.t-cabeca');
+const confirmaEl = document.getElementById('t-confirma');
 const brinde = document.getElementById('brinde');
 const fnav = document.getElementById('fnav');
 const folhaFundo = document.getElementById('folha-fundo');
@@ -957,11 +979,28 @@ function avisar(txt) {
    também prende o foco e devolve para quem o abriu. */
 let focoAntesDaFolha = null;
 let folhaObrigatoria = null;
+/* AVISO FORA DO QUADRO. Em algumas telas o aviso não é um modal por cima
+   da captura: ele sobe para o cabeçalho, com o botão logo abaixo, e o
+   quadro fica com a tela do app limpa. Quem decide é a tela de destino
+   (`folhaNoAlto`), não a folha — a mesma folha `reservado` continua sendo
+   modal no roteiro do Camarote, que não foi revisto. */
+let folhaNoAlto = null;
 
 function abrirFolha(nome, aoConfirmar) {
   const f = FOLHAS[nome];
   if (!f) return;
   folhaObrigatoria = aoConfirmar || null;
+
+  if (TELAS[telaAtual] && TELAS[telaAtual].folhaNoAlto) {
+    folhaNoAlto = f;
+    /* Mesmo motivo do modal: com o aviso pedindo confirmação, a dica não é
+       acionável e só contradiz o botão. */
+    if (folhaObrigatoria) pintar();
+    focoAntesDaFolha = document.activeElement;
+    atualizarMissao();
+    confirmaEl.focus();
+    return;
+  }
   /* A navegação já pintou a dica antes de o modal abrir. Repinta para
      apagá-la: com o modal obrigatório em cima, ela não é acionável e só
      contradiz o botão. `fecharFolha` repinta de novo e ela volta. */
@@ -992,8 +1031,14 @@ function abrirFolha(nome, aoConfirmar) {
 
 function fecharFolha() {
   folhaFundo.classList.remove('aberta');
+  const eraNoAlto = Boolean(folhaNoAlto);
+  folhaNoAlto = null;
   const confirmar = folhaObrigatoria;
   folhaObrigatoria = null;
+  /* O aviso do cabeçalho não some sozinho: quem o desenha é
+     `atualizarMissao`, e ela só roda de novo no `pintar()` abaixo — que só
+     acontece quando havia confirmação. */
+  if (eraNoAlto && !confirmar) atualizarMissao();
   if (confirmar) {
     confirmar();
     /* A missão só avançou agora; sem repintar, o anel azul ficaria no alvo
@@ -1166,7 +1211,7 @@ function pintar(modo) {
   /* PARA QUE SERVE ESTA TELA — no rodapé, fora do print. Antes era uma
      faixa por cima da própria captura: escurecia o topo da tela que a
      demonstração existe para mostrar. Fora dela, a captura fica inteira. */
-  explica.textContent = tela.serve || '';
+  explica.textContent = tela.instrucao ? '' : (tela.serve || '');
 
   /* balão azul: só a próxima ação */
   const alvoDica = dica && dica.alvo ? (tela.alvos || []).find((a) => a.id === dica.alvo) : null;
@@ -1462,7 +1507,35 @@ function textoDePrevia() {
 }
 
 function atualizarMissao() {
+  /* CABEÇALHO COM INSTRUÇÃO. Quando a tela traz `instrucao`, ela é o que
+     fica no alto — no lugar do nome do roteiro e da frase de prévia. O
+     aviso de "não é o app de verdade" não some do tour: o selo verde e a
+     moldura verde continuam, e a frase de prévia continua nas telas onde
+     ela evita o erro caro (o QR que alguém tentaria apresentar na entrada,
+     a agenda que alguém leria como a sua). */
+  /* O aviso fora do quadro vence a instrução fixa da tela enquanto estiver
+     aberto: é ele que precisa ser lido antes do próximo passo. Ao
+     confirmar, o cabeçalho volta para a instrução da tela. */
+  const instrucao = folhaNoAlto
+    ? folhaNoAlto.texto
+    : ((TELAS[telaAtual] && TELAS[telaAtual].instrucao) || '');
+  cabeca.classList.toggle('instrucao', Boolean(instrucao));
+  previa.hidden = Boolean(instrucao);
   previa.textContent = textoDePrevia();
+  confirmaEl.hidden = !folhaNoAlto;
+  if (folhaNoAlto) confirmaEl.textContent = folhaNoAlto.botao;
+  if (instrucao) {
+    missaoTexto.textContent = instrucao;
+    missaoProg.innerHTML = '';
+    document.getElementById('ver-missoes').hidden = telaAvulsa;
+    if (!telaAvulsa) {
+      const m0 = missaoAtual();
+      const i0 = m0 ? MISSOES.indexOf(m0) : MISSOES.length;
+      missaoProg.innerHTML = MISSOES.map((x, j) =>
+        '<i class="' + (feitas.has(x.id) ? 'ok' : (j === i0 ? 'atual' : '')) + '"></i>').join('');
+    }
+    return;
+  }
   if (telaAvulsa) {
     const t = TELAS[telaAtual];
     /* `textContent`: o rótulo é constante nossa, mas a barra aceita HTML
@@ -1537,11 +1610,14 @@ function abrirTourCompleto(qual) {
   pintar('troca');
   dicaDeArraste();
 }
+confirmaEl.addEventListener('click', fecharFolha);
+
+/* SAÍDA ÚNICA, pelo `x` (pedido da Adriana em 06/09). Havia também um botão
+   "Voltar às funções" no rodapé, para quem não arriscasse o `x` sem saber
+   onde ia parar; os dois chamavam exatamente `abrirVista('home')`. Com a
+   instrução no alto, o rodapé da primeira tela ficava só com esse botão
+   solto — e o `x`, que continua no lugar de sempre, faz o mesmo. */
 document.getElementById('fechar-tour').addEventListener('click', () => abrirVista('home'));
-/* Duas saidas para o mesmo lugar, de proposito: o `x` e o reflexo de quem
-   quer fechar, e o botao nomeado e para quem procura o caminho de volta e
-   nao arrisca o `x` sem saber onde vai parar. */
-document.getElementById('voltar-funcoes').addEventListener('click', () => abrirVista('home'));
 
 /* Pré-carrega assim que o módulo sobe: quando alguém abrir o tour, as
    telas já estão decodificadas e nenhuma etapa começa em branco. */
@@ -2000,14 +2076,13 @@ function cardSessao(s, pct, porque) {
         '<button type="button" class="principal" data-acao="onde">Onde reservar no app</button>' +
       '</div>' +
     '</div>';
-  el.querySelector('[data-acao="onde"]').addEventListener('click', () => {
-    bolha('Onde eu reservo "' + s.titulo + '"?', 'eu');
-    setTimeout(() => bolha(
-      s.vaga_limitada
-        ? DADOS.evento.regra_vagas + ' ' + DADOS.evento.regra_reserva
-        : DADOS.evento.regra_reserva,
-      'mind', 'reservar'), 500);
-  });
+  /* ABRE O TUTORIAL INTEIRO, em tela cheia, como o card da home (pedido da
+     Adriana em 06/09). Antes a resposta ficava dentro da conversa: duas
+     bolhas e um recorte da tela com anel, e só um segundo toque levava ao
+     tutorial — e ainda assim numa tela avulsa, não no roteiro. Quem toca
+     aqui quer aprender a reservar; é o mesmo roteiro do "Ver como", e ele
+     já explica a regra dos 5 minutos na tela da confirmação. */
+  el.querySelector('[data-acao="onde"]').addEventListener('click', () => abrirTourCompleto());
   return el;
 }
 

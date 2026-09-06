@@ -235,11 +235,63 @@ test('o botão de missões some quando não há missão', () => {
     'o `hidden` do botão de missões voltou a perder para o `display` do botão');
 });
 
-test('o título da demonstração é nome de tela, não instrução', () => {
+test('o título da demonstração é nome de tela, não a missão inteira', () => {
   assert.match(app, /nome: 'Lugar reservado'/,
     'o roteiro de reserva perdeu o nome curto e o título volta a ser a missão inteira');
   assert.match(app, /missaoTexto\.textContent = ROTEIROS\[roteiroAtual\]\.nome/,
     'o cabeçalho voltou a escrever a missão com contador no lugar do nome');
+});
+
+test('a tela que ensina pelo alto mostra a instrução, e só ela', () => {
+  /* Pedido da Adriana em 06/09 para a primeira tela do tour: sai o nome do
+     roteiro ("Lugar reservado") e sai a frase de prévia; entra, no alto, a
+     instrução que antes ficava no rodapé. O rodapé fica vazio na mesma
+     tela — a explicação é uma só, e repeti-la em cima e embaixo era dizer
+     duas vezes. */
+  assert.match(app, /instrucao: 'O menu programação mostra todas as experiências do evento\./,
+    'a instrução da tela de Programação mudou ou saiu');
+  assert.match(app, /explica\.textContent = tela\.instrucao \? '' : \(tela\.serve \|\| ''\)/,
+    'o rodapé voltou a repetir a explicação que já está no alto');
+  assert.match(app, /previa\.hidden = Boolean\(instrucao\)/,
+    'a frase de prévia voltou a aparecer na tela que ensina pelo alto');
+});
+
+test('o aviso de prévia continua onde o erro seria caro', () => {
+  /* A instrução só substitui a prévia na tela que a recebeu. Nas telas em
+     que confundir a demonstração com o app custa caro — o QR que alguém
+     tentaria apresentar na entrada, a agenda que alguém leria como a sua —
+     `NEGA_POR_TELA` continua respondendo. */
+  /* A tela do ingresso é a que sustenta o aviso: é o QR que alguém tentaria
+     apresentar na entrada. As quatro telas do roteiro de reserva ensinam
+     pelo alto e não mostram mais a frase; o selo verde e a moldura verde,
+     que são os outros dois avisos, seguem em todas. */
+  assert.match(app, /qrcode:\s*'não é o seu ingresso'/,
+    'a tela do ingresso perdeu o aviso de que o QR não é o da pessoa');
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  /* As quatro telas do roteiro de reserva, e só elas: quem ensina pelo alto
+     é decisão de tela a tela, não um padrão que se espalha. */
+  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 4,
+    'o número de telas que ensinam pelo alto mudou sem a decisão passar por aqui');
+  assert.match(app, /instrucao: 'Ao abrir a página da experiência clique em Reservar lugar'/,
+    'a instrução da página da experiência mudou ou saiu');
+});
+
+test('o aviso da reserva sobe para o cabeçalho, e só na tela que pediu', () => {
+  /* Pedido da Adriana em 06/09: na tela da reserva confirmada o aviso sai
+     de cima da captura — que fica limpa — e vira texto no cabeçalho com o
+     botão logo abaixo. Quem decide é a TELA de destino, não a folha: a
+     mesma `reservado` continua modal no roteiro do Camarote. */
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  assert.equal((telas.match(/^\s+folhaNoAlto: true,/gm) || []).length, 1,
+    'mais de uma tela passou a tirar o aviso de dentro do quadro');
+  assert.match(app, /if \(TELAS\[telaAtual\] && TELAS\[telaAtual\]\.folhaNoAlto\) \{/,
+    'o aviso voltou a abrir sempre como modal dentro do quadro');
+  /* A confirmação continua obrigatória: é `folhaObrigatoria` que segura o
+     toque no quadro até a pessoa ler. Sem isso o aviso viraria enfeite. */
+  assert.match(app, /confirmaEl\.addEventListener\('click', fecharFolha\)/,
+    'o botão do cabeçalho parou de confirmar o aviso');
+  assert.match(app, /if \(emTransicao \|\| folhaObrigatoria\) return;/,
+    'o quadro voltou a aceitar toque antes de a pessoa confirmar o aviso');
 });
 
 test('a descrição da tela é branca e grande o bastante para ler', () => {
