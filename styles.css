@@ -13,6 +13,11 @@
   --verde: #68ee95;
   --roxo: #9843ff;
   --coral: #ff7057;
+  /* Amarelo da marca (Secondary, `Cores_Mind`). Exclusivo do atalho em
+     destaque da home: não é cor de interface nem de estado — existe para
+     um card só chamar atenção. Creme claro, então tudo o que vai em cima
+     dele é escuro. */
+  --amarelo: #fbf4d0;
   --texto: #ffffff;
   --texto-suave: #e3e3ed;
   --texto-mudo: #8f8fa3;
@@ -208,8 +213,25 @@ body {
 .h-ingresso[hidden] { display: none; }
 .h-ingresso i {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #fff; opacity: .85;
+  background: currentColor; opacity: .85;
 }
+/* UMA COR POR EXPERIÊNCIA. O roxo era de todos e não dizia nada; agora
+   Mind é verde, VIP é coral, Prime e Camarote são roxos. Sobre verde e
+   coral o texto branco não tem contraste — nos dois o texto é escuro,
+   como o app já faz nos botões dessas cores. */
+.h-ingresso[data-cor="mind"]  { background: var(--verde); color: #10130f; }
+.h-ingresso[data-cor="vip"]   { background: var(--coral); color: #1a0703; }
+.h-ingresso[data-cor="prime"],
+.h-ingresso[data-cor="camarote"] { background: var(--roxo); color: #fff; }
+/* "Camarote Heineken" NÃO CABE EM CAIXA ALTA. Medido num 393px: com
+   maiúscula e `letter-spacing` a pílula dá 174px e passa 6px da borda,
+   empurrando a marca do evento para fora. Sem os dois ela dá 144px e
+   sobram 24px. Só este rótulo muda de tratamento, e o motivo não é só
+   espaço: Heineken é nome próprio, e nome próprio em versalete apertado
+   dentro de um selo pequeno lê pior que em caixa mista. */
+.h-ingresso[data-cor="camarote"] { text-transform: none; letter-spacing: .01em; }
+.h-ingresso { min-width: 0; }
+.h-ingresso b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .h-ajuda {
   appearance: none; cursor: pointer;
@@ -463,30 +485,62 @@ body {
 /* As colunas vêm do JS, pela quantidade de itens. */
 .v3-atalhos { display: grid; gap: 12px; }
 
-/* ---- Trio: três atalhos lado a lado ----
-   Cada tile fica com ~98px num aparelho de 360. Ícone em cima, título
-   embaixo, os dois centrados — e sem descrição nem chevron, que ali não
-   caberiam sem picar palavra. O alvo continua com folga de sobra: 44px é
-   o mínimo e o tile passa de 80. */
-.v3-atalhos.trio .v3-atalho {
-  align-items: center; text-align: center;
-  min-height: 88px; padding: 12px 8px; gap: 8px;
-}
-.v3-atalhos.trio .v3-atalho strong { font-size: 13px; line-height: 1.25; }
-.v3-atalhos.trio .v3-ico { width: 34px; height: 34px; }
-.v3-atalhos.trio .v3-ico svg { width: 20px; height: 20px; }
+/* ---- Atalho: deitado, um por linha ----
+   Foram tiles quadrados lado a lado, e num aparelho de 360 cada um ficava
+   com ~98px: sem espaço para a descrição, que era cortada, nem para um
+   título de mais de duas palavras. Deitado, o símbolo fica à esquerda e o
+   texto ocupa a largura que sobra — e a fileira inteira fica mais BAIXA do
+   que era, porque três linhas de 77px pesam menos que um tile de 96 com
+   texto picado.
+
+   `display: contents` no invólucro do topo solta ícone e chevron como
+   itens da grade: o HTML continua sendo um só para todos os atalhos. */
 .v3-atalho {
   appearance: none; cursor: pointer; text-align: left;
   border: 1px solid color-mix(in srgb, var(--texto-mudo) 32%, transparent);
   background: rgba(255, 255, 255, .07);
   border-radius: 18px;
-  padding: 14px;
+  padding: 12px 14px;
   font: inherit; color: var(--texto);
-  min-height: 96px;
-  display: flex; flex-direction: column; gap: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0 12px;
   transition: border-color .18s ease, background .18s ease;
 }
+.v3-atalho .v3-atalho-topo { display: contents; }
+.v3-atalho .v3-ico  { grid-area: 1 / 1 / 3 / 2; }
+.v3-atalho .chevron { grid-area: 1 / 3 / 3 / 4; }
+.v3-atalho strong   { grid-area: 1 / 2 / 2 / 3; }
+.v3-atalho small    { grid-area: 2 / 2 / 3 / 3; margin-top: 1px; }
 .v3-atalho:active { border-color: var(--verde); background: rgba(255, 255, 255, .1); }
+
+/* ---- O atalho em destaque ----
+   Mesmo layout dos outros: aqui `destaque` diz só que este é o amarelo.
+   O amarelo é o único lugar do app onde ele aparece, e é isso que o faz
+   destaque — não compete com o verde de interface nem com o coral, que
+   já quer dizer "toque aqui" na demonstração. */
+.v3-atalhos .v3-atalho.destaque {
+  background: var(--amarelo);
+  border-color: color-mix(in srgb, var(--amarelo) 82%, #000);
+  /* O escuro da marca, não preto puro: sobre um creme quente o preto
+     chapado endurece o card. */
+  color: var(--bg);
+}
+.v3-atalhos .v3-atalho.destaque .v3-ico {
+  background: color-mix(in srgb, var(--bg) 10%, transparent);
+  color: var(--bg);
+}
+.v3-atalhos .v3-atalho.destaque .chevron {
+  color: color-mix(in srgb, var(--bg) 45%, transparent);
+}
+.v3-atalhos .v3-atalho.destaque small {
+  color: color-mix(in srgb, var(--bg) 68%, transparent);
+}
+.v3-atalhos .v3-atalho.destaque:active {
+  border-color: var(--bg);
+  background: color-mix(in srgb, var(--amarelo) 92%, #000);
+}
 .v3-atalho-topo { display: flex; align-items: flex-start; justify-content: space-between; }
 .v3-atalho .v3-ico {
   width: 38px; height: 38px; border-radius: 12px; flex: none;
@@ -913,12 +967,17 @@ html[data-teclado="aberto"] .doca {
    lugar nenhum do repositório, e foi removida com o teste que a prendia.
    Se um dia esta app ganhar barra própria, a regra volta junto com ela. */
 .doca form { position: relative; display: flex; min-width: 0; }
+/* O CAMPO É O CONVITE. Ele é a única porta para o Concierge nesta tela, e
+   no escuro sobre escuro passava por moldura. No amarelo da marca vira o
+   ponto mais claro da home — o mesmo tratamento do atalho em destaque,
+   para os dois convites falarem a mesma língua. Creme claro, então tudo o
+   que vai em cima dele é escuro. */
 .doca input {
   flex: 1; min-width: 0;
-  background: var(--surface-deep);
-  border: 1px solid var(--hairline);
+  background: var(--amarelo);
+  border: 1px solid color-mix(in srgb, var(--amarelo) 82%, #000);
   border-radius: var(--raio-pill);
-  color: var(--texto);
+  color: var(--bg);
   /* iOS amplia automaticamente a página quando um input focado tem menos de
      16px. Esse zoom era a tela "explodindo" para o lado ao abrir o teclado. */
   font: inherit; font-size: 16px;
@@ -926,18 +985,22 @@ html[data-teclado="aberto"] .doca {
   min-height: 54px;
   outline: none;
 }
-.doca input::placeholder { color: var(--texto-mudo); }
-.doca input:focus { border-color: rgba(104, 238, 149, .5); }
+/* 4,97:1 sobre o creme — o convite precisa ser lido, não adivinhado. */
+.doca input::placeholder { color: color-mix(in srgb, var(--bg) 62%, transparent); }
+.doca input:focus { border-color: var(--bg); }
 .doca .enviar {
   appearance: none; cursor: pointer;
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
 }
+/* O verde de interface sobre o creme dá 1,34:1 — o botão sumia dentro do
+   próprio campo. Invertido dá 16,7:1, e continua sendo a única coisa
+   escura ali, que é o que faz dele um botão. */
 .doca .enviar {
   right: 7px;
   border: 0;
-  background: var(--verde); color: var(--surface-deep);
+  background: var(--bg); color: var(--amarelo);
 }
 .doca input:disabled, .doca .enviar:disabled { opacity: .55; cursor: wait; }
 .doca svg { width: 19px; height: 19px; }
@@ -1310,7 +1373,28 @@ html[data-teclado="aberto"] .doca {
    chegavam — o gesto de voltar simplesmente não acontecia. */
 .frame { position: relative; height: 90.5%; overflow: hidden; touch-action: pan-y; }
 .frame img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
-.conteudo { position: absolute; inset: 0; }
+/* O ALVO É DESENHADO EM % DA CAIXA; A FOTO É PINTADA DENTRO DELA. Quando
+   as duas proporções não batem, `cover` amplia a captura e corta o que
+   sobra: a foto desce, o anel fica onde estava, e o desencontro cresce com
+   a profundidade. No botão "Reservar lugar", a 65,7%, o anel caía ~50px
+   acima dele — em cima da linha "Reserva exclusiva por horário".
+
+   `.fone` declara 780/1570, mas não consegue honrar: a barra de abas tem
+   largura mínima própria e impede o quadro de estreitar, então `max-height`
+   apara a altura e a proporção se perde. Medido: 0,646 a 360px, 0,606 a
+   393px, 0,581 a 430px — contra 0,549 da captura. Muda com a largura da
+   tela, então nenhum ajuste de coordenada resolveria.
+
+   Por isso a proporção mora AQUI, onde os alvos moram: a caixa nasce com a
+   proporção da captura e se centra no que sobra. `cover` vira encaixe
+   exato — nada é cortado, e % da caixa passa a ser % da foto. */
+.conteudo {
+  position: absolute;
+  inset: 0; margin: auto;
+  aspect-ratio: 780 / 1421;
+  width: auto; height: auto;
+  max-width: 100%; max-height: 100%;
+}
 .conteudo img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: top; }
 
 .conteudo.push  { animation: push .32s cubic-bezier(.2,.7,.3,1); }
