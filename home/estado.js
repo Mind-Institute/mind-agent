@@ -385,8 +385,11 @@ export const CONTEUDO = {
           texto: 'Acesse seu QR Code', acao: 'tour:qrcode' },
         { ico: ICO.agendaBloco, titulo: 'Minha Agenda',
           texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
-        { ico: ICO.brilho, titulo: 'Reserve suas experiências',
-          texto: 'Garanta suas escolhas agora', acao: 'tour' },
+        /* EM DESTAQUE: é o único dos três que ensina uma tarefa inteira —
+           reservar —, e é por onde a maioria vai precisar passar. `destaque`
+           só pinta o card de amarelo; o layout é o mesmo dos outros dois. */
+        { ico: ICO.brilho, titulo: 'Aprenda como reservar suas experiências',
+          texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
       ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:
