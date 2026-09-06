@@ -64,37 +64,42 @@ test('os três atalhos levam a destinos que existem', () => {
   }
 });
 
-test('três atalhos cabem numa linha, e sem descrição', () => {
-  /* Em 360px cada tile fica com ~99px. A descrição ali vira palavra
-     picada em quatro linhas; o título sozinho já diz para onde vai.
+test('os atalhos são deitados, um por linha, com descrição', () => {
+  /* Foram tiles quadrados em trio: num aparelho de 360 cada um ficava com
+     ~98px, a descrição era cortada e o título não passava de duas palavras.
+     Deitado, o símbolo fica à esquerda e o texto ocupa a largura que sobra.
 
-     Quem conta é `naLinha`, não `itens.length`: o item em destaque ocupa
-     a linha inteira, então contá-lo deixava uma coluna vazia ao lado dos
-     outros dois. O contrato é o mesmo — o número de colunas vem da
-     quantidade, nunca de um número escrito no CSS. */
-  assert.match(cards, /naLinha === 3 \? ' trio' : ''/,
-    'a grade parou de reconhecer o trio e volta a duas colunas');
-  assert.match(cards, /repeat\(' \+ Math\.min\(naLinha, 3\)/,
-    'o número de colunas voltou a ser fixo no CSS em vez de vir da quantidade');
-  assert.match(cards, /itens\.filter\(\(t\) => !t\.destaque\)\.length/,
-    'a contagem voltou a incluir o item em destaque, que não divide a linha');
-  assert.match(css, /\.v3-atalhos\.trio \.v3-atalho\s*\{[^}]*text-align:\s*center/,
-    'o tile do trio perdeu a centralização');
+     O HTML é UM SÓ para todos: `display: contents` no invólucro do topo
+     solta ícone e chevron como itens da grade. Um segundo formato de
+     `innerHTML` aqui era o que cortava a descrição. */
+  assert.doesNotMatch(cards, /' trio'/,
+    'o trio voltou: os atalhos deixaram de ser deitados');
+  assert.doesNotMatch(css, /\.v3-atalhos\.trio/,
+    'sobrou CSS de trio para um layout que não existe mais');
+  assert.doesNotMatch(cards, /gridTemplateColumns/,
+    'a grade voltou a montar colunas por JS em vez de uma por linha');
+  assert.match(cards, /'<span class="v3-atalho-topo">.*<\/span>' \+\s*'<strong>' \+ t\.titulo/s,
+    'os atalhos voltaram a ter dois formatos de marcação');
+  assert.match(cards, /'<small>' \+ t\.texto \+ '<\/small>'/,
+    'a descrição do atalho sumiu da marcação');
+  assert.match(css, /\.v3-atalho \.v3-atalho-topo \{ display: contents/,
+    'ícone e chevron deixaram de entrar na grade do atalho');
+  assert.match(css, /\.v3-atalho \{[^}]*grid-template-columns:\s*auto 1fr auto/,
+    'o atalho deixou de ser deitado');
 });
 
-test('o atalho em destaque ocupa a linha inteira e mantém a descrição', () => {
-  /* "Aprenda como Reservar suas experiências" não cabe num terço da tela
-     sem picar palavra. Em destaque ele sai do trio, ganha a linha toda e,
-     com largura, recupera a descrição que o trio corta. */
-  assert.match(css, /\.v3-atalhos \.v3-atalho\.destaque\s*\{[^}]*grid-column:\s*1 \/ -1/,
-    'o atalho em destaque voltou a dividir a linha com os outros');
+test('o atalho em destaque é o amarelo da marca, e só isso', () => {
+  /* `destaque` não é mais layout — todos têm o mesmo. Ele diz só qual card
+     é o amarelo, e o amarelo é o da paleta, não um inventado. */
   assert.match(css, /\.v3-atalhos \.v3-atalho\.destaque\s*\{[^}]*background:\s*var\(--amarelo\)/,
     'o destaque perdeu o fundo amarelo, que é o que o faz destaque');
-  assert.match(css, /--amarelo:/,
-    'o token do amarelo sumiu da paleta');
-  assert.match(cards, /naLinha === 3 && !t\.destaque/,
-    'o destaque voltou a ser desenhado como tile de trio, sem descrição');
-  assert.match(estado, /titulo: 'Aprenda como Reservar suas experiências'/,
+  assert.match(css, /--amarelo:\s*#fbf4d0/i,
+    'o amarelo deixou de ser o da marca (#FBF4D0)');
+  assert.doesNotMatch(css, /\.v3-atalho\.destaque\s*\{[^}]*grid-column/,
+    'o destaque voltou a precisar de regra de coluna própria');
+  assert.match(cards, /' destaque' : ''/,
+    'a classe do destaque sumiu da montagem');
+  assert.match(estado, /titulo: 'Aprenda como reservar suas experiências'/,
     'o título do atalho de reserva mudou sem passar por aqui');
 });
 
