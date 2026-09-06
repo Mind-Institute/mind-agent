@@ -97,7 +97,13 @@ function identidade() {
 async function chamar(message, clientMessageId, extra) {
   const auth = await autenticar();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 32000);
+  /* 50s, não 32s: turnos que o backend classifica como pesados (ex.:
+     "recomendações") agora têm orçamento de 45s lá (ORCAMENTO_TURNO_COMPLEXO_MS
+     em agent-intelligence.ts) — um cliente que desiste em 32s cortava a
+     resposta antes do backend, não importa o que ele fizesse do outro lado.
+     Turno simples nem chega perto disso; só quem precisava de mais tempo
+     ganha mais tempo para esperar. */
+  const timeout = setTimeout(() => controller.abort(), 50000);
   try {
     const response = await fetch(
       CONFIG.supabaseUrl + '/functions/v1/' + CONFIG.chatFunction,
