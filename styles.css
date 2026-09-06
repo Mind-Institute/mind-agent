@@ -1296,6 +1296,21 @@ html[data-teclado="aberto"] .doca {
   font-size: 15.5px; font-weight: 600; line-height: 1.45;
   letter-spacing: 0;
 }
+/* AVISO FORA DO QUADRO. Com o botão de confirmar no cabeçalho, texto e
+   botão empilham: lado a lado, a frase (que é longa, é o aviso inteiro)
+   espremeria o botão contra a borda. O botão repete o desenho do que
+   ficava dentro do quadro — é o mesmo gesto, só mudou de lugar. */
+.t-cabeca.instrucao:has(> #t-confirma:not([hidden])) {
+  flex-direction: column; align-items: stretch; gap: 10px;
+}
+#t-confirma {
+  appearance: none; cursor: pointer; border: 0;
+  min-height: 44px; padding: 12px 18px;
+  border-radius: var(--raio-pill);
+  background: var(--verde); color: #10130f;
+  font: inherit; font-size: 15px; font-weight: 800;
+}
+#t-confirma:active { filter: brightness(.92); }
 /* A frase encolhe antes do título: o nome da tela é o que orienta, e a
    frase ainda cabe em duas palavras quando a tela é estreita. */
 .t-cabeca small {

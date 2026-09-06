@@ -266,12 +266,30 @@ test('o aviso de prévia continua onde o erro seria caro', () => {
   assert.match(app, /'minha-agenda':\s*'não é a sua agenda'/,
     'a tela da agenda perdeu o aviso de que não é a agenda da pessoa');
   const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
-  /* As duas primeiras telas do roteiro de reserva, e só elas: quem ensina
-     pelo alto é decisão de tela a tela, não um padrão que se espalha. */
-  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 2,
+  /* As três telas do roteiro de reserva, e só elas: quem ensina pelo alto é
+     decisão de tela a tela, não um padrão que se espalha. */
+  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 3,
     'o número de telas que ensinam pelo alto mudou sem a decisão passar por aqui');
   assert.match(app, /instrucao: 'Ao abrir a página da experiência clique em Reservar lugar'/,
     'a instrução da página da experiência mudou ou saiu');
+});
+
+test('o aviso da reserva sobe para o cabeçalho, e só na tela que pediu', () => {
+  /* Pedido da Adriana em 06/09: na tela da reserva confirmada o aviso sai
+     de cima da captura — que fica limpa — e vira texto no cabeçalho com o
+     botão logo abaixo. Quem decide é a TELA de destino, não a folha: a
+     mesma `reservado` continua modal no roteiro do Camarote. */
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  assert.equal((telas.match(/^\s+folhaNoAlto: true,/gm) || []).length, 1,
+    'mais de uma tela passou a tirar o aviso de dentro do quadro');
+  assert.match(app, /if \(TELAS\[telaAtual\] && TELAS\[telaAtual\]\.folhaNoAlto\) \{/,
+    'o aviso voltou a abrir sempre como modal dentro do quadro');
+  /* A confirmação continua obrigatória: é `folhaObrigatoria` que segura o
+     toque no quadro até a pessoa ler. Sem isso o aviso viraria enfeite. */
+  assert.match(app, /confirmaEl\.addEventListener\('click', fecharFolha\)/,
+    'o botão do cabeçalho parou de confirmar o aviso');
+  assert.match(app, /if \(emTransicao \|\| folhaObrigatoria\) return;/,
+    'o quadro voltou a aceitar toque antes de a pessoa confirmar o aviso');
 });
 
 test('a descrição da tela é branca e grande o bastante para ler', () => {

@@ -657,6 +657,13 @@ const TELAS = {
     /* O modal que abre em cima já explica o check-in; repetir aqui a
        mesma frase só fazia a tela dizer duas vezes a mesma coisa. */
     serve: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
+    /* Terceira tela do tour (pedido da Adriana, 06/09): o aviso da reserva
+       sai de cima da captura e sobe para o cabeçalho, com o botão logo
+       abaixo — a captura fica limpa, mostrando a tela do app como ela é.
+       Depois de confirmar, o cabeçalho fica com a instrução da tela, que é
+       a mesma frase que já explicava esta tela no rodapé. */
+    folhaNoAlto: true,
+    instrucao: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [
@@ -910,6 +917,7 @@ const balao = document.getElementById('balao');
 const explica = document.getElementById('t-explica');
 const previa  = document.getElementById('t-previa');
 const cabeca = document.querySelector('.t-cabeca');
+const confirmaEl = document.getElementById('t-confirma');
 const brinde = document.getElementById('brinde');
 const fnav = document.getElementById('fnav');
 const folhaFundo = document.getElementById('folha-fundo');
@@ -967,11 +975,28 @@ function avisar(txt) {
    também prende o foco e devolve para quem o abriu. */
 let focoAntesDaFolha = null;
 let folhaObrigatoria = null;
+/* AVISO FORA DO QUADRO. Em algumas telas o aviso não é um modal por cima
+   da captura: ele sobe para o cabeçalho, com o botão logo abaixo, e o
+   quadro fica com a tela do app limpa. Quem decide é a tela de destino
+   (`folhaNoAlto`), não a folha — a mesma folha `reservado` continua sendo
+   modal no roteiro do Camarote, que não foi revisto. */
+let folhaNoAlto = null;
 
 function abrirFolha(nome, aoConfirmar) {
   const f = FOLHAS[nome];
   if (!f) return;
   folhaObrigatoria = aoConfirmar || null;
+
+  if (TELAS[telaAtual] && TELAS[telaAtual].folhaNoAlto) {
+    folhaNoAlto = f;
+    /* Mesmo motivo do modal: com o aviso pedindo confirmação, a dica não é
+       acionável e só contradiz o botão. */
+    if (folhaObrigatoria) pintar();
+    focoAntesDaFolha = document.activeElement;
+    atualizarMissao();
+    confirmaEl.focus();
+    return;
+  }
   /* A navegação já pintou a dica antes de o modal abrir. Repinta para
      apagá-la: com o modal obrigatório em cima, ela não é acionável e só
      contradiz o botão. `fecharFolha` repinta de novo e ela volta. */
@@ -1002,8 +1027,14 @@ function abrirFolha(nome, aoConfirmar) {
 
 function fecharFolha() {
   folhaFundo.classList.remove('aberta');
+  const eraNoAlto = Boolean(folhaNoAlto);
+  folhaNoAlto = null;
   const confirmar = folhaObrigatoria;
   folhaObrigatoria = null;
+  /* O aviso do cabeçalho não some sozinho: quem o desenha é
+     `atualizarMissao`, e ela só roda de novo no `pintar()` abaixo — que só
+     acontece quando havia confirmação. */
+  if (eraNoAlto && !confirmar) atualizarMissao();
   if (confirmar) {
     confirmar();
     /* A missão só avançou agora; sem repintar, o anel azul ficaria no alvo
@@ -1478,10 +1509,17 @@ function atualizarMissao() {
      moldura verde continuam, e a frase de prévia continua nas telas onde
      ela evita o erro caro (o QR que alguém tentaria apresentar na entrada,
      a agenda que alguém leria como a sua). */
-  const instrucao = (TELAS[telaAtual] && TELAS[telaAtual].instrucao) || '';
+  /* O aviso fora do quadro vence a instrução fixa da tela enquanto estiver
+     aberto: é ele que precisa ser lido antes do próximo passo. Ao
+     confirmar, o cabeçalho volta para a instrução da tela. */
+  const instrucao = folhaNoAlto
+    ? folhaNoAlto.texto
+    : ((TELAS[telaAtual] && TELAS[telaAtual].instrucao) || '');
   cabeca.classList.toggle('instrucao', Boolean(instrucao));
   previa.hidden = Boolean(instrucao);
   previa.textContent = textoDePrevia();
+  confirmaEl.hidden = !folhaNoAlto;
+  if (folhaNoAlto) confirmaEl.textContent = folhaNoAlto.botao;
   if (instrucao) {
     missaoTexto.textContent = instrucao;
     missaoProg.innerHTML = '';
@@ -1568,6 +1606,8 @@ function abrirTourCompleto(qual) {
   pintar('troca');
   dicaDeArraste();
 }
+confirmaEl.addEventListener('click', fecharFolha);
+
 /* SAÍDA ÚNICA, pelo `x` (pedido da Adriana em 06/09). Havia também um botão
    "Voltar às funções" no rodapé, para quem não arriscasse o `x` sem saber
    onde ia parar; os dois chamavam exatamente `abrirVista('home')`. Com a
