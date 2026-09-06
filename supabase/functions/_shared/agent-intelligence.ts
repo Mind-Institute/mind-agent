@@ -6,6 +6,18 @@
 
 export const MAX_RODADAS_TOOL = 2;
 export const ORCAMENTO_TURNO_MS = 30_000;
+// Turno que já entra sabendo que vai custar mais — modelo completo desde a
+// primeira tentativa (`modeloInicialDoTurno`, keywords como "recomend*") ou
+// raciocínio "medium". Com o orçamento único de 30s, essa é a combinação que
+// mais estourava: o modelo mais lento, pensando mais, sem nenhum turno a
+// menos para caber. Cada nova tentativa (`MAX_TENTATIVAS_MODELO`) reusa o que
+// sobrou do MESMO relógio — não ganha orçamento novo — então dar mais tempo
+// ao turno como um todo, uma vez só, no início, é o que sobra para consertar.
+// 45s, não 55s: aqui tem gente esperando na tela do chat, com indicador de
+// "digitando"; `analisar-conversa` (mesma casa, tarefa em lote sem ninguém
+// olhando) já usa 55s para o mesmo tipo de trabalho, mas essa espera é de
+// quem está sem fazer nada na frente do celular.
+export const ORCAMENTO_TURNO_COMPLEXO_MS = 45_000;
 
 export type IntelligenceContext = {
   rota: string;
