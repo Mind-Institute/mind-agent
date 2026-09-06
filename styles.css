@@ -1233,6 +1233,11 @@ html[data-teclado="aberto"] .doca {
   flex: none;
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px 6px;
+  /* O nome no botão de fechar engordou a fila (selo + bolinhas + `☰` +
+     fechar). Em tela estreita ele estourava a borda; com `wrap` ele desce
+     para a linha de baixo em vez de sumir cortado. A regra abaixo aperta o
+     suficiente para isso não acontecer nos tamanhos comuns. */
+  flex-wrap: wrap; row-gap: 6px;
 }
 .t-selo {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1248,16 +1253,22 @@ html[data-teclado="aberto"] .doca {
 /* O `x` no alto à direita, redondo e sozinho: e um circulo so na barra,
    sem outro do mesmo peso para confundir. O `☰` das missões só aparece
    quando há roteiro, e nunca junto de um segundo círculo cinza. */
+/* PÍLULA COM NOME. Era um círculo de 38px com o `x` sozinho; quem está no
+   meio do tutorial não arrisca um botão que não diz para onde leva. O `x`
+   fica como ícone à esquerda do nome, que é o que se lê. */
 .t-fechar {
   appearance: none; cursor: pointer; flex: none;
-  width: 38px; height: 38px; border-radius: 50%;
-  display: grid; place-items: center;
+  min-height: 38px; padding: 0 14px;
+  border-radius: var(--raio-pill);
+  display: inline-flex; align-items: center; gap: 7px;
   border: 1.5px solid color-mix(in srgb, var(--texto-mudo) 60%, transparent);
   background: rgba(255, 255, 255, .08);
   color: var(--texto);
+  font: inherit; font-size: 13px; font-weight: 700;
+  white-space: nowrap;
   transition: background .18s ease, border-color .18s ease;
 }
-.t-fechar svg { width: 17px; height: 17px; }
+.t-fechar svg { width: 15px; height: 15px; flex: none; }
 .t-fechar:active { background: rgba(255, 255, 255, .16); border-color: var(--texto); }
 /* O ESPAÇO SOBRA ANTES DOS CONTROLES, não entre eles. O `auto` estava no
    próprio `x`, e a regra seguinte — escrita para colar o `☰` nele —
@@ -1272,6 +1283,20 @@ html[data-teclado="aberto"] .doca {
    nada, e o `☰` aparecia na tela avulsa, que não tem missão nenhuma para
    listar. */
 .t-demo .c-voltar[hidden] { display: none; }
+
+/* A BARRA APERTA EM TELA ESTREITA. Com o nome no botão de fechar, a fila
+   (selo + bolinhas + `☰` + fechar) passava de 360px por uma fração e o
+   botão descia de linha. Estes ajustes vêm DEPOIS das regras base de
+   propósito: com a mesma especificidade, quem vem por último vence — a
+   media query escrita antes delas não pegava. */
+@media (max-width: 430px) {
+  .t-demo { gap: 8px; padding-inline: 12px; }
+  .t-demo .t-selo { height: 28px; padding: 0 9px 0 7px; font-size: 11px; letter-spacing: .04em; }
+  .t-demo .t-selo svg { width: 13px; height: 13px; }
+  .t-demo .c-voltar { width: 32px; height: 32px; }
+  .t-demo .t-fechar { min-height: 34px; padding: 0 10px; font-size: 12.5px; gap: 5px; }
+  .t-demo .t-fechar svg { width: 13px; height: 13px; }
+}
 
 .t-cabeca {
   flex: none;

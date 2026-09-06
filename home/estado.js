@@ -369,6 +369,10 @@ export const CONTEUDO = {
          ação do atalho (`tour`, o roteiro "Lugar reservado"), só que
          visível antes de qualquer pergunta. */
       { tipo: 'secao', titulo: 'Aprenda a reservar suas experiências', link: 'Ver como', acao: 'tour' },
+      /* Pedido da Adriana em 06/09, logo abaixo da linha do tour. Veio sem
+         link e sem destino: é título, não atalho. Se depois virar porta
+         para os avisos, ganha `link`/`acao` como a linha de cima. */
+      { tipo: 'secao', titulo: 'O que é importante saber antes do Mind Summit' },
       /* Este card é a porta da jornada personalizada. O texto diz o que
          acontece do outro lado — "receber recomendações" não dizia. */
       { tipo: 'destaque', marca: true, selo: 'Concierge Mind',
