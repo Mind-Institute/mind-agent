@@ -323,10 +323,12 @@ test('a tela da reserva confirmada aponta Minha Agenda, não o check-in', () => 
 });
 
 test('o título de seção com destino abre inteiro, não só o "Ver ..."', () => {
-  /* Pedido da Adriana em 06/09: as duas linhas da home — o tour e o "O que
-     é importante saber" — têm de ser clicáveis. O dedo vai no título, que
-     é o alvo grande; o link da direita é a legenda do destino. Seção sem
-     `acao` continua texto puro: não há para onde ir. */
+  /* Pedido da Adriana em 06/09: título de seção com destino tem de clicar
+     inteiro. O dedo vai no título, que é o alvo grande; o "Ver ..." da
+     direita é a legenda do destino, não o botão. Vale hoje para "Avisos
+     importantes" — os dois recados de véspera, que motivaram o pedido,
+     viraram botão na mesma tarde. Seção sem `acao` continua texto puro:
+     não há para onde ir. */
   assert.match(cards, /const t = no\('button', 'v3-secao-tit', b\.titulo\);/,
     'o título de seção deixou de virar botão');
   assert.match(cards, /t\.addEventListener\('click', \(\) => aoAgir\(b\.acao, b\)\);/,

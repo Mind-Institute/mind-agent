@@ -362,19 +362,18 @@ export const CONTEUDO = {
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
     decorado: true,
     blocos: [
-      /* O BOTÃO AMARELO MORA AQUI EM CIMA, e não mais na fileira de "Como
-         usar o app" (Adriana, 06/09). Quem chega não sabe que reservar é
-         obrigatório para workshop e masterclass, e lá embaixo o atalho
-         ficava escondido. Primeiro isto era um título em texto com "Ver
-         como" ao lado, acima do próprio botão: dois avisos para a mesma
-         coisa. Ficou só o botão, no lugar de cima — o texto saiu. */
-      /* O segundo também é botão, e não título (Adriana, 06/09): os dois
-         recados de véspera são a mesma coisa — algo para tocar antes do
-         evento —, então moram na mesma fileira e têm a mesma forma. O
-         destino é a tela de avisos, a única casa que já existe com o que o
-         evento comunicou; a descrição é a mesma frase que a tela usa, para
-         ninguém tocar sem saber onde vai dar. Amarelo só no de reservar: é
-         o único do app, e é isso que o faz destaque. */
+      /* OS DOIS RECADOS DE VÉSPERA, EM BOTÃO, acima do quadrado do
+         Concierge (Adriana, 06/09). Quem chega não sabe que reservar é
+         obrigatório para workshop e masterclass, e o amarelo vivia lá
+         embaixo, na fileira de "Como usar o app": subiu. Os dois nasceram
+         como título em texto com "Ver ..." ao lado — um deles logo acima
+         do próprio botão que anunciava, dois avisos para a mesma coisa.
+         Viraram botão os dois: é a mesma natureza, algo para tocar antes
+         do evento, e agora têm a mesma forma. O segundo abre a tela de
+         avisos, a única casa que já existe com o que o evento comunicou,
+         e a descrição é a frase que a própria tela usa — ninguém toca sem
+         saber onde vai dar. Amarelo só no de reservar: é o único do app,
+         e é isso que o faz destaque. */
       { tipo: 'atalhos', itens: [
         { ico: ICO.brilho, titulo: 'Aprenda como reservar suas experiências',
           texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
