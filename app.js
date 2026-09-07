@@ -654,16 +654,18 @@ const TELAS = {
   },
   'confirmada': {
     img: 'confirmada', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão reservada',
-    /* O modal que abre em cima já explica o check-in; repetir aqui a
-       mesma frase só fazia a tela dizer duas vezes a mesma coisa. */
-    serve: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
+    /* O aviso que sobe no cabeçalho já fala do horário; esta frase é a que
+       fica depois de a pessoa confirmar, e ela aponta o próximo lugar —
+       Minha Agenda — em vez de repetir o mesmo recado. Texto da Adriana,
+       06/09. */
+    serve: 'Lugar garantido. Veja no menu minha agenda todas as experiências nas quais você está agendado.',
     /* Terceira tela do tour (pedido da Adriana, 06/09): o aviso da reserva
        sai de cima da captura e sobe para o cabeçalho, com o botão logo
        abaixo — a captura fica limpa, mostrando a tela do app como ela é.
        Depois de confirmar, o cabeçalho fica com a instrução da tela, que é
        a mesma frase que já explicava esta tela no rodapé. */
     folhaNoAlto: true,
-    instrucao: 'Lugar garantido. No dia da experiência, o check-in é feito nesta mesma página.',
+    instrucao: 'Lugar garantido. Veja no menu minha agenda todas as experiências nas quais você está agendado.',
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [

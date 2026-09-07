@@ -130,7 +130,7 @@ export const ICO = {
    ela os agrupou em três, e os três são exatamente estes chips. A ordem
    também é a dela: antes, reservas, durante/depois. */
 export const CATEGORIAS_AVISO = [
-  { id: 'antes_de_ir', rotulo: 'Antes de ir ao Summit',     ponto: true },
+  { id: 'antes_de_ir', rotulo: 'Importante Saber Antes do Summit', ponto: true },
   { id: 'reservas',    rotulo: 'Reservas e Agenda',         ponto: true },
   { id: 'no_evento',   rotulo: 'Durante e Depois',          ponto: true },
 ];
@@ -158,9 +158,10 @@ const ICO_POR_NOME = {
 
    MOCK: API: virá da tabela de avisos do Summit. */
 /* A LISTA EMBUTIDA É O QUE APARECE SE A REDE FALHAR, e por isso tem que
-   ser a mesma do banco — não a de ontem. São os dezoito em circulação em
-   03/09, gerados a partir de `concierge.avisos`, com as mesmas categorias
-   e a mesma ordem de disparo. Os seis primeiros são os da home, na ordem
+   ser a mesma do banco — não a de ontem. Nasceu dos dezoito em circulação
+   em 03/09, gerados a partir de `concierge.avisos`, com as mesmas
+   categorias e a mesma ordem de disparo; o do estacionamento entrou em
+   06/09, no banco e aqui, pela migration do mesmo dia. Os seis primeiros são os da home, na ordem
    que a Adriana pediu: reserve, Rhino, documento físico, ingresso,
    credenciamento e autógrafos.
 
@@ -215,6 +216,11 @@ const CRUS = [
     titulo: 'Como chegar ao São Paulo Expo',
     resumo: '',
     mensagem: 'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.\n\nO estacionamento é coberto e tem acesso ao pavilhão por uma passarela.' },
+
+  { id: 'estacionamento', ico: ICO.carro, cat: 'antes_de_ir', em: '2026-09-15T16:10', situacao: 'no-ar',
+    titulo: 'Estacionamento',
+    resumo: 'O São Paulo Expo conta com um amplo estacionamento coberto gerido pela Indigo, com vagas disponíveis e acesso direto aos pavilhões São Paulo Expo.',
+    mensagem: 'O uso do estacionamento é cobrado separadamente do valor de inscrição ou credenciamento para o Mind Summit.' },
 
   { id: 'confira_reserva', ico: ICO.agenda, cat: 'reservas', em: '2026-09-15T15:50', situacao: 'no-ar',
     titulo: 'Confira se a reserva foi concluída',
@@ -353,26 +359,33 @@ export const CONTEUDO = {
        é assim no handoff. Sem nome, `heroSaudacao` maiusculiza a
        primeira letra e a frase segue de pé sozinha. */
     tituloComNome: true,
-    /* A QUEBRA E O PONTO SÃO DECISÃO DE COPY, e vêm escritos assim.
-       "começa agora" fica na própria linha, como a Adriana escreveu; o
-       ponto final saiu, que é como ela escreveu também. A quebra chega
-       como `\n` e não como `<br>`: conteúdo aqui é texto, não marcação —
-       quem honra a linha é `white-space: pre-line` no `.v3-titulo`. */
-    titulo: 'seu Mind Summit\ncomeça agora',
+    /* NUMA LINHA SÓ (Adriana, 06/09): a quebra antes de "começa agora"
+       saiu. O ponto final continua fora, como ela escreveu desde o começo.
+       O `white-space: pre-line` do `.v3-titulo` fica: é ele que faz a
+       quebra ser decisão de conteúdo — se um dia voltar, volta escrita
+       aqui como `\n`, e não como marcação. */
+    titulo: 'seu Mind Summit começa agora',
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
     decorado: true,
     blocos: [
-      /* Pedido da Adriana em 06/09: quem chega não sabe que reservar é
-         obrigatório para workshop/masterclass, e o atalho "Reserve suas
-         experiências" fica escondido embaixo, na fileira de "Como usar o
-         app". Esta linha mora em cima do quadrado do Concierge — mesma
-         ação do atalho (`tour`, o roteiro "Lugar reservado"), só que
-         visível antes de qualquer pergunta. */
-      { tipo: 'secao', titulo: 'Aprenda a reservar suas experiências', link: 'Ver como', acao: 'tour' },
-      /* Pedido da Adriana em 06/09, logo abaixo da linha do tour. Veio sem
-         link e sem destino: é título, não atalho. Se depois virar porta
-         para os avisos, ganha `link`/`acao` como a linha de cima. */
-      { tipo: 'secao', titulo: 'O que é importante saber antes do Mind Summit' },
+      /* OS DOIS RECADOS DE VÉSPERA, EM BOTÃO, acima do quadrado do
+         Concierge (Adriana, 06/09). Quem chega não sabe que reservar é
+         obrigatório para workshop e masterclass, e o amarelo vivia lá
+         embaixo, na fileira de "Como usar o app": subiu. Os dois nasceram
+         como título em texto com "Ver ..." ao lado — um deles logo acima
+         do próprio botão que anunciava, dois avisos para a mesma coisa.
+         Viraram botão os dois: é a mesma natureza, algo para tocar antes
+         do evento, e agora têm a mesma forma. O segundo abre a tela de
+         avisos, a única casa que já existe com o que o evento comunicou,
+         e a descrição é a frase que a própria tela usa — ninguém toca sem
+         saber onde vai dar. Amarelo só no de reservar: é o único do app,
+         e é isso que o faz destaque. */
+      { tipo: 'atalhos', itens: [
+        { ico: ICO.brilho, titulo: 'Aprenda como reservar suas experiências',
+          texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
+        { ico: ICO.alerta, titulo: 'O que é importante saber antes do Mind Summit',
+          texto: 'Tudo que o evento comunicou', acao: 'avisos' },
+      ] },
       /* Este card é a porta da jornada personalizada. O texto diz o que
          acontece do outro lado — "receber recomendações" não dizia. */
       { tipo: 'destaque', marca: true, selo: 'Concierge Mind',
@@ -396,11 +409,9 @@ export const CONTEUDO = {
           texto: 'Acesse seu QR Code', acao: 'tour:qrcode' },
         { ico: ICO.agendaBloco, titulo: 'Minha Agenda',
           texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
-        /* EM DESTAQUE: é o único dos três que ensina uma tarefa inteira —
-           reservar —, e é por onde a maioria vai precisar passar. `destaque`
-           só pinta o card de amarelo; o layout é o mesmo dos outros dois. */
-        { ico: ICO.brilho, titulo: 'Aprenda como reservar suas experiências',
-          texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
+        /* O amarelo de reservar saiu daqui: subiu para cima do quadrado do
+           Concierge, onde é visto antes de qualquer rolagem. Sobram os dois
+           que ensinam onde as coisas ficam. */
       ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:

@@ -670,6 +670,13 @@ body {
 .v3-secao h2 {
   font-size: 17px; font-weight: 900; letter-spacing: -.01em; color: var(--texto);
 }
+/* O título que abre algo. Fica IGUAL ao título que não abre: quem dá o
+   sinal de caminho é o "Ver ..." ao lado, e um segundo verde aqui brigaria
+   com ele. O que muda é só o alvo — o texto inteiro é o botão. */
+.v3-secao-tit {
+  appearance: none; cursor: pointer; border: 0; background: none;
+  font: inherit; color: inherit; padding: 0; text-align: left;
+}
 /* "Ver todos" é caminho, não ação: cinza com chevron, como no handoff.
    Verde aqui competia com a pílula do card de marca, que é A ação. */
 .v3-link {
