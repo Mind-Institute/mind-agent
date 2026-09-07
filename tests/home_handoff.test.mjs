@@ -715,21 +715,11 @@ test('a folha da reserva não repete a mesma frase duas vezes', () => {
 });
 
 test('a abertura do Concierge não promete pergunta que não vem', () => {
-  /* A Adriana mandou o welcome em dois parágrafos. O segundo já existia,
-     palavra por palavra, em `FLUXOS.jornada` — é ele que anuncia as
-     perguntas, logo antes do "Começar →".
-
-     Repetido na saudação, viraria promessa quebrada: duas das entradas
-     do chat (digitar na home, `chat:` de um card) não abrem pergunta
-     nenhuma. Uma ocorrência, e só dentro do fluxo. */
-  const anuncio = 'São algumas perguntas rápidas sobre o que você quer levar destes dois dias.';
-  assert.equal(app.split(anuncio).length - 1, 1,
-    'o anúncio das perguntas aparece mais de uma vez — quem só abriu o chat '
-    + 'para perguntar uma coisa passa a receber a promessa de um questionário');
-  const j = app.indexOf('  jornada(direto) {');
-  assert.ok(j > 0 && app.indexOf(anuncio) > j && app.indexOf(anuncio) < j + 400,
-    'o anúncio das perguntas saiu de dentro de `FLUXOS.jornada`');
-
+  /* O welcome da Adriana continua sendo o primeiro que a pessoa lê. O
+     anúncio de questionário que vinha depois dele ("São algumas perguntas
+     rápidas...") saiu junto com o questionário, em 06/09. */
+  assert.ok(!app.includes('São algumas perguntas rápidas'),
+    'a promessa de questionário voltou para a abertura');
   assert.match(app, /Sou o agente do Mind e serei seu concierge no Mind Summit\./,
     'a abertura do Concierge mudou');
   assert.match(app, /bolha\(saudacao\(\) \+ 'Sou o agente do Mind/,
@@ -739,21 +729,25 @@ test('a abertura do Concierge não promete pergunta que não vem', () => {
 test('depois de se apresentar, o Concierge pergunta — mas não por cima de ninguém', () => {
   /* A conversa começava num vazio para quem abria o Concierge sem pedir
      nada: apresentação e mais nada, esperando que a pessoa soubesse o que
-     pedir. Agora a jornada entra sozinha, e DIRETA — sem o "Começar →",
-     que é passo a mais entre a apresentação e a primeira pergunta.
+     pedir. Quem preenche esse vazio é a pergunta aberta — que era um
+     questionário de chips até a Adriana tirá-lo em 06/09.
 
      Mas só para quem chega SEM ASSUNTO. Quem tocou num card tem o fluxo
      do card; quem digitou uma pergunta na home tem a resposta dela.
      Perguntar por cima disso é falar em cima da pessoa. */
-  assert.match(app, /if \(!opcoes \|\| !opcoes\.comAssunto\) setTimeout\(\(\) => FLUXOS\.jornada\(true\)/,
+  assert.match(app, /if \(!opcoes \|\| !opcoes\.comAssunto\) setTimeout\(\(\) => abrirComPergunta\(\)/,
     'a pergunta inicial sumiu, ou deixou de depender de haver assunto');
   assert.match(app, /abrirVista\('chat', \{ comAssunto: Boolean\(intencao\) \}\)/,
     'a intenção de card parou de contar como assunto — o card vira pergunta em cima do fluxo');
   assert.match(app, /abrirConversa\(Boolean\(v\)\);/,
     'a pergunta digitada na home parou de contar como assunto');
-  assert.match(app, /jornada\(direto\) \{/, 'a jornada perdeu o modo direto');
-  assert.match(app, /if \(direto\) return setTimeout\(\(\) => perguntaDaJornada\(0\)/,
-    'o modo direto parou de ir à primeira pergunta');
+  /* O card "Monte sua jornada" da home entra pela MESMA pergunta: não há
+     mais dois começos de conversa, um por botão e um por texto. */
+  assert.match(app, /jornada\(\) \{\s*\n\s*abrirComPergunta\(\);/,
+    'o card da jornada deixou de abrir a mesma pergunta da conversa');
+  /* E a espera pela resposta é a mesma dos dois lados. */
+  assert.equal((app.match(/esperandoRelato = true;/g) || []).length, 2,
+    'mudou o número de lugares que abrem uma pergunta aberta sem avisar aqui');
 });
 
 test('o andaime de momento não manda em produção', () => {

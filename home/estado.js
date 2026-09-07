@@ -392,7 +392,9 @@ export const CONTEUDO = {
         pergunta: 'Monte sua jornada no Summit',
         texto: 'Conte seus interesses e receba uma programação personalizada de palestras e experiências.',
         cta: 'Montar minha jornada',
-        micro: '~1 min',
+        /* O "~1 min" saiu com o questionário em 06/09: ele media as cinco
+           telas de chips. Do outro lado agora é conversa, e conversa não
+           tem duração para prometer. */
         acao: 'jornada' },
       /* "Como usar o app", e não "Atalhos importantes". Os quatro não
          levam para dentro da função — todos abrem uma demonstração sobre
