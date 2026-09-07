@@ -158,9 +158,10 @@ const ICO_POR_NOME = {
 
    MOCK: API: virá da tabela de avisos do Summit. */
 /* A LISTA EMBUTIDA É O QUE APARECE SE A REDE FALHAR, e por isso tem que
-   ser a mesma do banco — não a de ontem. São os dezoito em circulação em
-   03/09, gerados a partir de `concierge.avisos`, com as mesmas categorias
-   e a mesma ordem de disparo. Os seis primeiros são os da home, na ordem
+   ser a mesma do banco — não a de ontem. Nasceu dos dezoito em circulação
+   em 03/09, gerados a partir de `concierge.avisos`, com as mesmas
+   categorias e a mesma ordem de disparo; o do estacionamento entrou em
+   06/09, no banco e aqui, pela migration do mesmo dia. Os seis primeiros são os da home, na ordem
    que a Adriana pediu: reserve, Rhino, documento físico, ingresso,
    credenciamento e autógrafos.
 
@@ -215,6 +216,11 @@ const CRUS = [
     titulo: 'Como chegar ao São Paulo Expo',
     resumo: '',
     mensagem: 'O São Paulo Expo fica a 900 metros da estação Jabaquara, da Linha 1, Azul, a cerca de 10 minutos do Aeroporto de Congonhas e no km 1,5 da Rodovia dos Imigrantes.\n\nO estacionamento é coberto e tem acesso ao pavilhão por uma passarela.' },
+
+  { id: 'estacionamento', ico: ICO.carro, cat: 'antes_de_ir', em: '2026-09-15T16:10', situacao: 'no-ar',
+    titulo: 'Estacionamento',
+    resumo: 'O São Paulo Expo conta com um amplo estacionamento coberto gerido pela Indigo, com vagas disponíveis e acesso direto aos pavilhões São Paulo Expo.',
+    mensagem: 'O uso do estacionamento é cobrado separadamente do valor de inscrição ou credenciamento para o Mind Summit.' },
 
   { id: 'confira_reserva', ico: ICO.agenda, cat: 'reservas', em: '2026-09-15T15:50', situacao: 'no-ar',
     titulo: 'Confira se a reserva foi concluída',

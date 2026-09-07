@@ -522,7 +522,14 @@ test('a home mostra os seis avisos na ordem que a Adriana pediu', () => {
   /* O espaço antes de `em:` não é enfeite: sem ele o `mensagem:` de cada
      aviso também casa, e a lista de datas vem cheia de texto. */
   const datas = [...bloco.matchAll(/ em: '([^']+)'/g)].map((m) => m[1]);
-  assert.equal(datas.length, 18, 'a lista embutida deixou de ter os 18 avisos em circulação');
+  assert.equal(datas.length, 19, 'a lista embutida deixou de ter os 19 avisos em circulação');
+  /* O do estacionamento entrou em 06/09, no banco e aqui, logo depois de
+     "Como chegar ao São Paulo Expo" — que já fala do estacionamento
+     coberto e da passarela, e a que este responde o que faltava. */
+  assert.match(estado, /id: 'estacionamento', ico: ICO\.carro, cat: 'antes_de_ir', em: '2026-09-15T16:10'/,
+    'o aviso do estacionamento saiu da lista embutida ou mudou de lugar');
+  assert.ok(datas.indexOf('2026-09-15T16:10') === datas.indexOf('2026-09-15T16:20') + 1,
+    'o aviso do estacionamento não vem logo depois do "Como chegar ao São Paulo Expo"');
   const ordenado = [...datas].sort().reverse();
   assert.deepEqual(datas, ordenado,
     'a lista embutida saiu da ordem de disparo, e a home passa a mostrar outros seis');
