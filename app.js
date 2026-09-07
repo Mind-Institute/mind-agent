@@ -1808,15 +1808,13 @@ function perguntar(texto) {
   const limpo = texto.trim();
   jaPerguntou = true;
   bolha(limpo, 'eu');
-  /* Quando o agente pediu o desafio, a próxima frase não é uma pergunta de
-     FAQ — é o problema da pessoa. A leitura vem da IA; os cards vêm depois,
-     para o fluxo não terminar em parágrafo. */
-  if (esperandoDesafio) {
-    esperandoDesafio = false;
-    /* O desafio é sinal de jornada e já era pedido aqui: guardar custa
-       uma linha e evita perguntar de novo lá dentro. */
-    PERFIL.jornada.desafio = limpo;
-    return responder(limpo).then(() => cardsDoDesafio(limpo));
+  /* Depois de uma pergunta aberta — a abertura do Concierge ou o desafio —
+     a próxima frase não é pergunta de FAQ: é a pessoa contando o que quer.
+     A leitura vem da IA; os cards vêm depois, para o fluxo não terminar em
+     parágrafo. */
+  if (esperandoRelato) {
+    esperandoRelato = false;
+    return responder(limpo).then(() => cardsDoRelato(limpo));
   }
   responder(limpo);
 }
@@ -1841,20 +1839,19 @@ function saudacao() {
 
    Sem assunto — o `?` do aviso, a home com o campo vazio — a conversa
    começava num vazio: a apresentação e mais nada, esperando que a pessoa
-   soubesse o que pedir. É aí que a agenda passa a ser montada, e por isso
-   a jornada entra DIRETA, sem o "Começar →": quem não escolheu começar
-   não precisa de um botão para confirmar que quer. */
+   soubesse o que pedir. É aí que entra a pergunta aberta, que era um
+   questionário de chips até 06/09. */
 function iniciarChat(opcoes) {
   if (chatIniciado) return;
   chatIniciado = true;
-  /* A ABERTURA É DA ADRIANA, palavra por palavra. O segundo parágrafo do
-     que ela mandou já existe, em `FLUXOS.jornada` — é ele que anuncia as
-     perguntas, logo antes do "Começar →". Repetido aqui, viraria promessa
-     de perguntas para quem só abriu o chat para perguntar uma coisa. */
+  /* A ABERTURA É DA ADRIANA, palavra por palavra. A pergunta que vem
+     depois dela mora em `PERGUNTA_DE_ABERTURA`, e só é feita para quem
+     chegou sem assunto: quem já veio perguntando não precisa ser
+     entrevistado antes de ser respondido. */
   bolha(saudacao() + 'Sou o agente do Mind e serei seu concierge no Mind Summit. Estou aqui para responder perguntas e para contribuir para que você saia do Mind Summit com algo mais concreto do que boas ideias — agenda montada, gente certa, e o que fazer na segunda-feira.', 'mind');
   /* O convite proativo mora em `oferecerPalestrantes`: ele só aparece
      depois que alguém da grade foi realmente citado na conversa. */
-  if (!opcoes || !opcoes.comAssunto) setTimeout(() => FLUXOS.jornada(true), 500);
+  if (!opcoes || !opcoes.comAssunto) setTimeout(() => abrirComPergunta(), 500);
 }
 
 formChat.addEventListener('submit', (e) => {
@@ -1930,17 +1927,10 @@ async function carregarDados() {
    fica ao lado, como sinal que COMPLEMENTA — nenhuma resposta dela é
    convertida em tema artificialmente. */
 const PERFIL = {
+  /* `jornada` saiu junto com o questionário em 06/09: eram as respostas
+     dos chips, e ninguém as lia fora dele. O que a pessoa conta agora vira
+     peso em `temas` — a mesma casa que o resto do motor consome. */
   temas: {}, sessoes: [], pessoas: [], insights: [], plano: [],
-  jornada: {
-    objetivos: [],
-    desafio: null,
-    perfilProfissional: null,
-    experiencias: [],
-    palestrantesImperdiveis: [],
-    ritmo: 'equilibrado',
-    disponibilidade: null,
-    observacoes: null,
-  },
 };
 
 function pesoTema(codigo, quanto) {
@@ -2226,398 +2216,41 @@ function montarRoteiro(opcoes) {
 }
 
 /* ============================================================
-   JORNADA — perguntas rápidas, roteiro no fim
+   A ABERTURA DO CONCIERGE — pergunta aberta, não clique
    ============================================================
-   A entrada do card "Monte sua jornada no Summit". Não é formulário e
-   não é chat vazio: é escolha em botão, uma pergunta por vez, e no fim
-   o roteiro dos dois dias que `FLUXOS.agenda()` já sabe montar.
+   Aqui morava um questionário: cinco telas de chips — objetivos, temas,
+   ritmo, palestrantes imperdíveis, conhecimento ou prática — e no fim um
+   roteiro montado por filtro. A Adriana tirou em 06/09: quer continuar
+   recomendando, mas sem a pessoa clicando.
 
-   AS PERGUNTAS SÃO DADO. Acrescentar a próxima é acrescentar um item
-   nesta lista — nada no motor muda.
+   Ficou uma pergunta só, com as palavras dela, e o resto é conversa: a
+   resposta em texto vai para a IA, que lê e responde, e os cards vêm
+   depois. É a mesma ordem do fluxo do desafio, que já funcionava assim —
+   entender antes de recomendar continua valendo; o que saiu foi o caminho
+   por botão.
 
-   `tipo` diz a forma da resposta:
-     'multipla' → chips, até `max` escolhas
-     'unica'    → chips, uma só
-     'texto'    → campo livre; usar só quando escolher não resolve
+   `PERGUNTA_DE_ABERTURA` é conteúdo, não motor: trocar a pergunta é
+   trocar esta linha. */
+const PERGUNTA_DE_ABERTURA =
+  'O que te trouxe ao Mind Summit? O que você gostaria de aprender aqui? Qual a sua expectativa? Pode ser conteúdo específico que você quer assistir ou conceitos sobre os quais gostaria de aprender mais.';
 
-   `campo` é onde a resposta fica guardada em `JORNADA`. */
-const PERGUNTAS_JORNADA = [
-  {
-    campo: 'objetivos',
-    tipo: 'multipla',
-    max: 2,
-    pergunta: 'O que faria você sair do Mind pensando “valeu muito a pena”?',
-    micro: 'Escolha até 2.',
-    opcoes: [
-      'Levar ideias práticas para minha equipe',
-      'Repensar minha forma de liderar',
-      'Estruturar melhor saúde mental e bem-estar',
-      'Conhecer pesquisas e tendências',
-      'Fazer conexões relevantes',
-      'Encontrar inspiração para um desafio atual',
-      'Conhecer grandes referências de perto',
-      'Ainda não sei — quero explorar',
-    ],
-  },
-
-  /* O SINAL PRINCIPAL. Reaproveita `pedirTemas()`, que é quem escreve em
-     `PERFIL.temas` — a jornada não cria um segundo caminho para o que o
-     motor já consome. */
-  {
-    campo: 'temas',
-    tipo: 'temas',
-    pergunta: 'Quais são seus interesses? O que você quer aprender no Summit? Isso é o que mais pesa no que eu vou sugerir.',
-  },
-
-  /* "Em quais dias você vem?" saiu em 03/09 a pedido da Adriana: não se
-     pergunta; o roteiro cobre os dois dias. `disponibilidade` ausente já
-     era lido como "todos" por quem monta o roteiro. */
-
-  {
-    campo: 'ritmo',
-    tipo: 'unica',
-    pergunta: 'Que ritmo você quer nesses dias?',
-    /* COPY PROVISÓRIA — o número de sessões por dia de cada ritmo está em
-       `SESSOES_POR_DIA`, logo abaixo, e é chute honesto até você dizer. */
-    opcoes: [
-      { valor: 'leve', rotulo: 'Leve — poucas sessões, tempo para conversar' },
-      { valor: 'equilibrado', rotulo: 'Equilibrado — um meio-termo' },
-      { valor: 'intenso', rotulo: 'Intenso — quero aproveitar cada horário' },
-    ],
-  },
-
-  {
-    campo: 'palestrantesImperdiveis',
-    tipo: 'palestrantes',
-    max: 3,
-    opcional: true,
-    pergunta: 'Tem alguém que você não quer perder?',
-    micro: 'Digite o nome e escolha até 3 pessoas. Se não tiver, pode pular.',
-  },
-
-  {
-    campo: 'experiencias',
-    tipo: 'multipla',
-    opcional: true,
-    pergunta: 'Você busca mais conhecimento ou prática no Summit?',
-    micro: 'Marque quantos quiser, ou pule para eu decidir.',
-    /* A pessoa não sabe (nem precisa saber) a diferença entre painel,
-       masterclass e workshop enquanto formatos da grade — ela sabe se
-       veio para ouvir ou para praticar. Cada opção já carrega os
-       formatos que representa; `valores.flat()` no fim da jornada some
-       com o agrupamento antes de virar filtro. Só aparece a opção que
-       tem conteúdo de verdade por trás. */
-    opcoes: () => {
-      const grupos = [
-        { valor: ['palestra', 'painel', 'masterclass'], rotulo: 'Conhecimento — palestras e conteúdo' },
-        { valor: ['workshop'], rotulo: 'Prática — workshops para aplicar' },
-      ];
-      const formatosNaGrade = new Set((DADOS.sessoes || []).map((s) => s.formato));
-      return grupos.filter((g) => g.valor.some((f) => formatosNaGrade.has(f)));
-    },
-  },
-];
-
-/* Quantas sessões por dia cada ritmo pede. PROVISÓRIO: os números são
-   meus, não seus — trocar aqui muda o roteiro inteiro. */
-const SESSOES_POR_DIA = { leve: 2, equilibrado: 3, intenso: 5 };
-
-
-function botaoAvancar(texto, aoTocar) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'avancar';
-  b.textContent = texto;
-  b.addEventListener('click', aoTocar);
-  return b;
-}
-
-/** Uma pergunta da jornada. Chama a próxima quando é respondida. */
-function perguntaDaJornada(indice) {
-  const q = PERGUNTAS_JORNADA[indice];
-  if (!q) return fecharJornada();
-
-  /* A pergunta é fala da Mind, não rótulo de painel: `painel-tit` é
-     caixa alta, e frase inteira em caixa alta não se lê. O painel fica
-     só com as escolhas. */
-  bolha(q.pergunta, 'mind');
-  /* O tema tem tela própria desde antes da jornada: é a mesma, e ela
-     escreve direto em `PERFIL.temas`. */
-  if (q.tipo === 'temas') {
-    return setTimeout(() => pedirTemas(() => perguntaDaJornada(indice + 1)), 380);
-  }
-  setTimeout(() => escolhasDaJornada(q, indice), 380);
-}
-
-/* Busca aberta sobre a lista canônica inteira. O texto digitado só filtra:
-   o valor guardado continua sendo o nome exato que veio do bootstrap. */
-function normalizarBuscaPalestrante(valor) {
-  return String(valor || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
-function seletorPalestrantesDaJornada(q, indice, alvo) {
-  const nomes = (DADOS.pessoas || [])
-    .filter((p) => p.na_grade && p.nome)
-    .map((p) => p.nome)
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const selecionadas = [];
-
-  const caixa = document.createElement('div');
-  caixa.className = 'ins jornada-palestrantes';
-
-  const campo = document.createElement('input');
-  campo.type = 'search';
-  campo.className = 'busca-palestrante';
-  campo.placeholder = 'Digite o nome do palestrante';
-  campo.autocomplete = 'off';
-  campo.setAttribute('aria-label', 'Buscar palestrante');
-
-  const escolhidas = document.createElement('div');
-  escolhidas.className = 'chips palestrantes-escolhidos';
-  escolhidas.setAttribute('aria-live', 'polite');
-
-  const resultados = document.createElement('div');
-  resultados.className = 'sugestoes-palestrantes';
-  resultados.setAttribute('role', 'listbox');
-  resultados.hidden = true;
-
-  const ok = botaoAvancar('Pular', () => {
-    PERFIL.jornada[q.campo] = selecionadas.slice();
-    ok.remove();
-    if (selecionadas.length) {
-      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice()).catch(() => {});
-    }
-    perguntaDaJornada(indice + 1);
-  });
-
-  function renderEscolhidas() {
-    escolhidas.replaceChildren();
-    selecionadas.forEach((nome) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.setAttribute('aria-pressed', 'true');
-      b.setAttribute('aria-label', 'Remover ' + nome);
-      b.textContent = nome + ' ×';
-      b.addEventListener('click', () => {
-        selecionadas.splice(selecionadas.indexOf(nome), 1);
-        renderEscolhidas();
-        renderResultados();
-      });
-      escolhidas.appendChild(b);
-    });
-    ok.textContent = selecionadas.length ? 'Continuar' : 'Pular';
-  }
-
-  function selecionar(nome) {
-    if (selecionadas.includes(nome) || selecionadas.length >= (q.max || 3)) return;
-    selecionadas.push(nome);
-    campo.value = '';
-    renderEscolhidas();
-    renderResultados();
-    campo.focus();
-  }
-
-  function renderResultados() {
-    resultados.replaceChildren();
-    const busca = normalizarBuscaPalestrante(campo.value);
-    if (busca.length < 2) {
-      resultados.hidden = true;
-      return;
-    }
-    const candidatos = nomes
-      .filter((nome) => !selecionadas.includes(nome) &&
-        normalizarBuscaPalestrante(nome).includes(busca))
-      .sort((a, b) => {
-        const aComeca = normalizarBuscaPalestrante(a).startsWith(busca);
-        const bComeca = normalizarBuscaPalestrante(b).startsWith(busca);
-        return Number(bComeca) - Number(aComeca) || a.localeCompare(b, 'pt-BR');
-      });
-    resultados.hidden = false;
-    if (!candidatos.length) {
-      const vazio = document.createElement('p');
-      vazio.textContent = 'Não encontrei esse nome na grade.';
-      resultados.appendChild(vazio);
-      return;
-    }
-    candidatos.forEach((nome) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.setAttribute('role', 'option');
-      b.textContent = nome;
-      b.addEventListener('click', () => selecionar(nome));
-      resultados.appendChild(b);
-    });
-  }
-
-  campo.addEventListener('input', renderResultados);
-  campo.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    const primeira = resultados.querySelector('button');
-    if (!primeira) return;
-    e.preventDefault();
-    primeira.click();
-  });
-
-  caixa.appendChild(campo);
-  caixa.appendChild(resultados);
-  caixa.appendChild(escolhidas);
-  alvo.appendChild(caixa);
-  alvo.appendChild(ok);
+function abrirComPergunta() {
+  bolha(PERGUNTA_DE_ABERTURA, 'mind');
+  /* O QUE O INGRESSO LIBERA VEM ANTES de a pessoa contar o que quer:
+     recomendar o que ela não pode acessar é pior do que não recomendar. */
+  const ingresso = textoDoIngressoNaRecomendacao();
+  if (ingresso) bolha(ingresso, 'mind');
+  esperandoRelato = true;
+  campoChat.focus();
   mensagens.scrollTop = mensagens.scrollHeight;
-  campo.focus();
-}
-
-function escolhasDaJornada(q, indice) {
-  const alvo = painel('');
-  if (q.micro) {
-    const m = document.createElement('p');
-    m.className = 'ins-dica';
-    m.textContent = q.micro;
-    alvo.appendChild(m);
-  }
-
-  if (q.tipo === 'palestrantes') {
-    return seletorPalestrantesDaJornada(q, indice, alvo);
-  }
-
-  if (q.tipo === 'texto') {
-    const campo = document.createElement('textarea');
-    campo.placeholder = q.placeholder || 'Escreva do seu jeito.';
-    const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
-      const valor = campo.value.trim() || null;
-      PERFIL.jornada[q.campo] = valor;
-      ok.remove();
-      if (valor) enviarSinalJornada(q.campo, [valor]).catch(() => {});
-      perguntaDaJornada(indice + 1);
-    });
-    const caixa = document.createElement('div');
-    caixa.className = 'ins';
-    caixa.appendChild(campo);
-    alvo.appendChild(caixa);
-    alvo.appendChild(ok);
-    mensagens.scrollTop = mensagens.scrollHeight;
-    return;
-  }
-
-  /* As opções podem ser lista fixa ou função da base — palestrante e dia
-     não se escrevem à mão. Cada uma vira {valor, rotulo}. */
-  const opcoes = (typeof q.opcoes === 'function' ? q.opcoes() : q.opcoes)
-    .map((o) => (typeof o === 'string' ? { valor: o, rotulo: o } : o));
-  const teto = q.tipo === 'unica' ? 1 : (q.max || opcoes.length);
-  const escolhidas = [];
-  const chips = document.createElement('div');
-  chips.className = 'chips';
-  chips.innerHTML = opcoes.map((o, i) =>
-    '<button type="button" aria-pressed="false" data-i="' + i + '">' + o.rotulo + '</button>').join('');
-
-  const ok = botaoAvancar(q.opcional ? 'Pular' : 'Continuar', () => {
-    const valores = escolhidas.map((i) => opcoes[i].valor);
-    PERFIL.jornada[q.campo] = q.tipo === 'unica' ? (valores[0] || null) : valores;
-    ok.remove();
-    if (valores.length) enviarSinalJornada(
-      q.campo === 'palestrantesImperdiveis' ? 'palestrantes_imperdiveis' : q.campo,
-      valores.flat(),
-    ).catch(() => {});
-    perguntaDaJornada(indice + 1);
-  });
-  ok.disabled = !q.opcional;
-
-  chips.addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-i]');
-    if (!b) return;
-    const i = Number(b.dataset.i);
-    const pos = escolhidas.indexOf(i);
-    if (pos >= 0) {
-      escolhidas.splice(pos, 1);
-    } else {
-      /* No teto, a mais antiga sai para a nova entrar: o toque sempre
-         responde. Ignorar em silêncio parece tela travada. */
-      while (escolhidas.length >= teto) {
-        const saiu = escolhidas.shift();
-        chips.querySelector('[data-i="' + saiu + '"]').setAttribute('aria-pressed', 'false');
-      }
-      escolhidas.push(i);
-    }
-    b.setAttribute('aria-pressed', escolhidas.includes(i) ? 'true' : 'false');
-    ok.disabled = !q.opcional && !escolhidas.length;
-    /* Pergunta que pode ser pulada troca o rótulo do botão conforme a
-       pessoa marca: "Pular" vira "Continuar" quando há resposta. */
-    if (q.opcional) ok.textContent = escolhidas.length ? 'Continuar' : 'Pular';
-  });
-
-  alvo.appendChild(chips);
-  alvo.appendChild(ok);
-  mensagens.scrollTop = mensagens.scrollHeight;
-}
-
-/* O fim da jornada: o roteiro. A nota de cada sessão continua sendo a
-   afinidade com `PERFIL.temas` — o que a jornada faz é escolher quem
-   entra na conta, quem entra antes de todo mundo e quantas cabem. */
-function fecharJornada() {
-  const j = PERFIL.jornada;
-  bolha('Pronto. Montei a partir do que você me contou.', 'mind');
-  setTimeout(() => {
-    const dia = j.disponibilidade && j.disponibilidade !== 'todos' ? j.disponibilidade : null;
-
-    /* Palestrante imperdível vira sessão pelo nome em `quem` — é o que a
-       base entrega ao app; não há id de pessoa na sessão. */
-    const querVer = j.palestrantesImperdiveis || [];
-    const fixas = !querVer.length ? [] : DADOS.sessoes.filter((s) =>
-      sessaoAcessivelPeloIngresso(s) && (!dia || s.dia === dia) &&
-      querVer.some((nome) => String(s.quem || '').includes(nome)));
-
-    const roteiro = montarRoteiro({
-      filtro: dia ? (s) => s.dia === dia : null,
-      fixas,
-      /* 'conhecimento'/'prática' chegam agrupados (cada opção é um array
-         de formatos); .flat() devolve a lista simples que o filtro por
-         formato espera. Em qualquer outro pergunta 'multipla' os valores
-         já são strings, e .flat() não muda nada. */
-      formatos: Array.isArray(j.experiencias) ? j.experiencias.flat() : j.experiencias,
-      porDia: SESSOES_POR_DIA[j.ritmo] || SESSOES_POR_DIA.equilibrado,
-    });
-
-    if (!roteiro.length) {
-      return bolha(chaveDoIngresso()
-        ? 'Com esses filtros não sobrou nenhuma sessão compatível com o seu ingresso. Me diz o que quer ver que eu procuro de outro jeito.'
-        : 'Ainda não consigo confirmar quais sessões estão liberadas para a categoria do seu ingresso. Não vou montar uma jornada com acesso incerto.', 'mind');
-    }
-
-    const alvo = painel('Sua jornada no Summit', roteiro.length + ' sessões, sem choque de horário');
-    /* Os objetivos voltam para a tela como o PORQUÊ do roteiro. É assim
-       que eles complementam: dizendo a intenção que o roteiro serve, sem
-       virar tema nenhum. */
-    if (j.objetivos && j.objetivos.length) {
-      const p = document.createElement('p');
-      p.className = 'ins-dica';
-      p.textContent = 'Montado para: ' + j.objetivos.join(' · ').toLowerCase() + '.';
-      alvo.appendChild(p);
-    }
-    roteiro.forEach(({ s, a }) => alvo.appendChild(cardSessao(s, a,
-      fixas.includes(s) ? 'Você marcou como imperdível.' : null)));
-    alvo.appendChild(blocoRegra(DADOS.evento.regra_reserva +
-      ' Quem reserva é você, no app — eu só mostro onde fica.'));
-    tocarPerfil();
-  }, 550);
 }
 
 const FLUXOS = {
-  /* `direto` pula o "Começar →". Ele existe para quem tocou num card e
-     merece confirmar antes de entrar; para quem só abriu o Concierge, o
-     botão seria um passo entre a apresentação e a primeira pergunta. */
-  jornada(direto) {
-    bolha('Vou montar uma jornada que faça sentido para você. São algumas perguntas rápidas sobre o que você quer levar destes dois dias.', 'mind');
-    const ingresso = textoDoIngressoNaRecomendacao();
-    if (ingresso) bolha(ingresso, 'mind');
-    if (direto) return setTimeout(() => perguntaDaJornada(0), 450);
-    const alvo = painel('');
-    alvo.appendChild(botaoAvancar('Começar →', function () {
-      this.remove();
-      perguntaDaJornada(0);
-    }));
-    mensagens.scrollTop = mensagens.scrollHeight;
+  /* O card "Monte sua jornada no Summit" da home entra por aqui. Não há
+     mais questionário atrás: é a mesma pergunta aberta com que a conversa
+     começa, e o nome do card continua verdadeiro — a jornada sai daí. */
+  jornada() {
+    abrirComPergunta();
   },
 
   palestras() {
@@ -2658,7 +2291,7 @@ const FLUXOS = {
 
   desafio() {
     bolha('Me conta o desafio com as suas palavras — o que está acontecendo aí que você quer resolver. Eu leio antes de indicar qualquer coisa.', 'mind');
-    esperandoDesafio = true;
+    esperandoRelato = true;
     campoChat.focus();
   },
 
@@ -2755,7 +2388,7 @@ const FLUXOS = {
   },
 };
 
-let esperandoDesafio = false;
+let esperandoRelato = false;
 
 function abrirIntencao(id) {
   const i = INTENCOES.find((x) => x.id === id);
@@ -2766,11 +2399,12 @@ function abrirIntencao(id) {
   setTimeout(() => FLUXOS[id](), i ? 550 : 120);
 }
 
-/* Desafio em texto livre: a leitura passou a vir da IA, que responde antes
-   disto rodar. O que fica aqui é o que o fluxo entrega de visual e é local —
-   casar o texto com os temas da grade, dar peso ao perfil e abrir os cards.
-   Continua sendo "entender antes de recomendar": a recomendação vem depois. */
-function cardsDoDesafio(texto) {
+/* O QUE A PESSOA CONTOU, EM TEXTO LIVRE — a abertura do Concierge e o
+   desafio caem os dois aqui. A leitura vem da IA, que já respondeu antes
+   disto rodar. O que fica aqui é o que é local e visual: casar o texto com
+   os temas da grade, dar peso ao perfil e abrir os cards. Continua sendo
+   "entender antes de recomendar": a recomendação vem depois. */
+function cardsDoRelato(texto) {
   const achados = DADOS.temas.filter((t) =>
     t.rotulo.toLowerCase().split(/[^a-zà-ÿ]+/).some((w) => w.length > 4 &&
       texto.toLowerCase().includes(w)) ||
@@ -2778,11 +2412,18 @@ function cardsDoDesafio(texto) {
       s.titulo.toLowerCase().split(/[^a-zà-ÿ]+/).some((w) => w.length > 5 &&
         texto.toLowerCase().includes(w))));
   const usar = achados.length ? achados : DADOS.temas.filter((t) => PERFIL.temas[t.codigo]);
-  if (!usar.length) {
-    bolha('Para eu te mostrar as sessões, marque o tema que chega mais perto do que você descreveu:', 'mind');
-    return setTimeout(() => pedirTemas(() => FLUXOS.palestras()), 400);
-  }
+  /* SEM CASAR TEMA, NÃO SE PEDE CLIQUE. Aqui se abria a tela de chips,
+     pedindo que a pessoa apontasse o tema mais próximo do que tinha
+     acabado de escrever — exatamente o que a Adriana tirou em 06/09. A
+     resposta da IA já foi dada; um questionário depois dela seria devolver
+     o problema para quem já explicou. */
+  if (!usar.length) return;
   usar.forEach((t) => pesoTema(t.codigo, 3));
+  /* O SINAL CONTINUA SAINDO. Quem mandava `temas` para o Core eram os
+     chips; sem eles, tirar o questionário levaria junto o que o sistema
+     aprende sobre quem está falando. Agora os temas saem do que a pessoa
+     escreveu — mesma casa, mesmo campo, sem clique. */
+  enviarSinalJornada('temas', usar.map((t) => t.rotulo)).catch(() => {});
   setTimeout(() => FLUXOS.palestras(), 500);
 }
 

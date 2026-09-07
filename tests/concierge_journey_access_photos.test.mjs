@@ -9,21 +9,40 @@ const migration = readFileSync(
   'utf8',
 );
 
-test('jornada não pergunta dias e pesquisa toda a base canônica de palestrantes', () => {
-  assert.doesNotMatch(app, /pergunta:\s*'Em quais dias você vem\?'/);
-  assert.match(app, /tipo:\s*'palestrantes'/);
-  assert.match(app, /function seletorPalestrantesDaJornada/);
-  assert.match(app, /normalizarBusca/);
-  assert.match(app, /DADOS\.pessoas/);
-  assert.match(app, /palestrantes_imperdiveis/);
-  assert.doesNotMatch(app, /DADOS\.pessoas\.slice\(0,\s*8\)/);
+/* O QUESTIONÁRIO DA JORNADA NÃO EXISTE MAIS (Adriana, 06/09): ela quer
+   continuar recomendando sem a pessoa clicando. Os dois testes que moravam
+   aqui cobriam o seletor de palestrantes e as chips do questionário — as
+   duas telas que saíram. O que ficou é a garantia de que não voltem por
+   descuido, e de que o que elas entregavam de útil continua saindo. */
+test('o questionário da jornada não voltou', () => {
+  for (const morto of ['PERGUNTAS_JORNADA', 'perguntaDaJornada', 'fecharJornada',
+                       'seletorPalestrantesDaJornada', 'escolhasDaJornada', 'SESSOES_POR_DIA']) {
+    assert.ok(!app.includes(morto), 'o questionário da jornada voltou: ' + morto);
+  }
+  /* Nem a moldura dele: chips de escolha única, "Continuar", "Pular". */
+  assert.ok(!app.includes("tipo: 'palestrantes'"), 'o seletor de palestrantes voltou');
+  assert.ok(!styles.includes('.busca-palestrante'), 'sobrou o CSS do seletor de palestrantes');
 });
 
-test('seletor guarda nomes canônicos, respeita máximo três e evita zoom no iOS', () => {
-  assert.match(app, /q\.campo\]\s*=\s*selecionadas\.slice\(\)/);
-  assert.match(app, /enviarSinalJornada\('palestrantes_imperdiveis',\s*selecionadas\.slice\(\)\)/);
-  assert.match(app, /selecionadas\.length\s*>=\s*\(q\.max\s*\|\|\s*3\)/);
-  assert.match(styles, /\.busca-palestrante\s*\{[^}]*font-size:\s*16px/s);
+test('a abertura pergunta em texto e o sinal de temas continua saindo', () => {
+  /* A pergunta é conteúdo da Adriana e mora numa constante só. */
+  assert.match(app, /const PERGUNTA_DE_ABERTURA =/,
+    'a pergunta de abertura deixou de morar numa casa só');
+  assert.match(app, /O que te trouxe ao Mind Summit\? O que você gostaria de aprender aqui\?/,
+    'a pergunta de abertura mudou');
+  /* O que o ingresso libera é dito antes de a pessoa contar o que quer. */
+  assert.match(app, /function abrirComPergunta\(\)[\s\S]{0,400}textoDoIngressoNaRecomendacao\(\)/,
+    'a abertura parou de avisar o que o ingresso libera');
+  /* Era o botão que mandava `temas` ao Core; agora é o texto da pessoa.
+     Sem isto, tirar o questionário levaria junto a inteligência sobre ela. */
+  assert.match(app, /enviarSinalJornada\('temas', usar\.map\(\(t\) => t\.rotulo\)\)/,
+    'o sinal de temas parou de sair do que a pessoa escreveu');
+  /* E a resposta em texto passa pela IA ANTES de qualquer card. */
+  assert.match(app, /return responder\(limpo\)\.then\(\(\) => cardsDoRelato\(limpo\)\)/,
+    'os cards voltaram a aparecer sem a IA ler o que a pessoa escreveu');
+  /* Nada de chips quando o texto não casa tema: a resposta da IA basta. */
+  assert.ok(!app.includes('marque o tema que chega mais perto'),
+    'o pedido de clique voltou para quando o texto não casa tema');
   assert.match(styles, /\.ins textarea\s*\{[^}]*font-size:\s*16px/s);
 });
 
