@@ -662,6 +662,36 @@ Depois: sincronizar com C, apontar `CONFIG.playActionUrl` para a mesma `mindagen
 
 Não consertar `mindagent_bootstrap` pela metade: hoje o fallback local preserva temas que o banco ainda não consegue devolver sem regressão.
 
+### 02/09 — Customer Intelligence person-bound e limpeza do App
+
+O primeiro lote do pós-turno do App provou que o vínculo a uma mensagem de `papel=lead`
+era necessário, mas não suficiente: perguntas como “qual a programação?” e “me fale sobre
+Amy” ainda viravam interesses, e contexto externo podia ser atribuído a uma fala que não o
+continha. A causa era semântica: `analise_concierge` mandava “extrair tudo que for útil”.
+
+O prompt vivo está na versão 6. A IA continua sendo a autoridade que decide o que gravar;
+o banco continua apenas como guardrail de proveniência, sensibilidade e persistência. Antes
+de emitir memória, o analisador aplica quatro testes: o fato é sobre a pessoa, existe fala do
+lead que o sustenta literalmente, há uso futuro concreto no ecossistema Mind e o dado dura
+além da resposta imediata. Product Intelligence, estado comercial, dúvidas de consulta e
+suporte momentâneo não viram Customer Intelligence. Cada item inclui `evidence_quote` no
+JSON bruto para auditoria.
+
+E2E sintético no Edge vivo:
+
+- “Qual é a programação do dia 17?” → `customer_memory=[]`;
+- ingresso não aparece no App → classificado como atendimento, sem Customer Intelligence;
+- HRBP + desenvolver gestores + conversas difíceis → cargo, ICP
+  `People Leader / Business Partner`, JT04 e JT05, todos com evidência literal.
+
+Como o App ainda não foi lançado, a limpeza removeu toda memória atribuída por
+`analise_conversa → conversa.agente='mindagent-chat'`, além de `session_interests` e
+`participante_contexto` de participantes exclusivos do App. Resultado verificado:
+`memoria_app=0`, `session_interests=0`, `participante_contexto=0`, fixtures sintéticos=0.
+As conversas/análises normais do App foram preservadas como auditoria; memória de WhatsApp
+não foi alvo. Uma memória antiga sem origem App comprovada que havia sido substituída por
+um teste foi restaurada para `ativa`.
+
 ---
 
 ## 4. Ordem de migrations pretendida
