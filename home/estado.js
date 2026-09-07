@@ -130,7 +130,7 @@ export const ICO = {
    ela os agrupou em três, e os três são exatamente estes chips. A ordem
    também é a dela: antes, reservas, durante/depois. */
 export const CATEGORIAS_AVISO = [
-  { id: 'antes_de_ir', rotulo: 'Antes de ir ao Summit',     ponto: true },
+  { id: 'antes_de_ir', rotulo: 'Importante Saber Antes do Summit', ponto: true },
   { id: 'reservas',    rotulo: 'Reservas e Agenda',         ponto: true },
   { id: 'no_evento',   rotulo: 'Durante e Depois',          ponto: true },
 ];
@@ -353,26 +353,34 @@ export const CONTEUDO = {
        é assim no handoff. Sem nome, `heroSaudacao` maiusculiza a
        primeira letra e a frase segue de pé sozinha. */
     tituloComNome: true,
-    /* A QUEBRA E O PONTO SÃO DECISÃO DE COPY, e vêm escritos assim.
-       "começa agora" fica na própria linha, como a Adriana escreveu; o
-       ponto final saiu, que é como ela escreveu também. A quebra chega
-       como `\n` e não como `<br>`: conteúdo aqui é texto, não marcação —
-       quem honra a linha é `white-space: pre-line` no `.v3-titulo`. */
-    titulo: 'seu Mind Summit\ncomeça agora',
+    /* NUMA LINHA SÓ (Adriana, 06/09): a quebra antes de "começa agora"
+       saiu. O ponto final continua fora, como ela escreveu desde o começo.
+       O `white-space: pre-line` do `.v3-titulo` fica: é ele que faz a
+       quebra ser decisão de conteúdo — se um dia voltar, volta escrita
+       aqui como `\n`, e não como marcação. */
+    titulo: 'seu Mind Summit começa agora',
     resumo: 'Conte o que te trouxe aqui e monte uma experiência que faça sentido para você',
     decorado: true,
     blocos: [
-      /* Pedido da Adriana em 06/09: quem chega não sabe que reservar é
-         obrigatório para workshop/masterclass, e o atalho "Reserve suas
-         experiências" fica escondido embaixo, na fileira de "Como usar o
-         app". Esta linha mora em cima do quadrado do Concierge — mesma
-         ação do atalho (`tour`, o roteiro "Lugar reservado"), só que
-         visível antes de qualquer pergunta. */
-      { tipo: 'secao', titulo: 'Aprenda a reservar suas experiências', link: 'Ver como', acao: 'tour' },
-      /* Pedido da Adriana em 06/09, logo abaixo da linha do tour. Veio sem
-         link e sem destino: é título, não atalho. Se depois virar porta
-         para os avisos, ganha `link`/`acao` como a linha de cima. */
-      { tipo: 'secao', titulo: 'O que é importante saber antes do Mind Summit' },
+      /* O BOTÃO AMARELO MORA AQUI EM CIMA, e não mais na fileira de "Como
+         usar o app" (Adriana, 06/09). Quem chega não sabe que reservar é
+         obrigatório para workshop e masterclass, e lá embaixo o atalho
+         ficava escondido. Primeiro isto era um título em texto com "Ver
+         como" ao lado, acima do próprio botão: dois avisos para a mesma
+         coisa. Ficou só o botão, no lugar de cima — o texto saiu. */
+      /* O segundo também é botão, e não título (Adriana, 06/09): os dois
+         recados de véspera são a mesma coisa — algo para tocar antes do
+         evento —, então moram na mesma fileira e têm a mesma forma. O
+         destino é a tela de avisos, a única casa que já existe com o que o
+         evento comunicou; a descrição é a mesma frase que a tela usa, para
+         ninguém tocar sem saber onde vai dar. Amarelo só no de reservar: é
+         o único do app, e é isso que o faz destaque. */
+      { tipo: 'atalhos', itens: [
+        { ico: ICO.brilho, titulo: 'Aprenda como reservar suas experiências',
+          texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
+        { ico: ICO.alerta, titulo: 'O que é importante saber antes do Mind Summit',
+          texto: 'Tudo que o evento comunicou', acao: 'avisos' },
+      ] },
       /* Este card é a porta da jornada personalizada. O texto diz o que
          acontece do outro lado — "receber recomendações" não dizia. */
       { tipo: 'destaque', marca: true, selo: 'Concierge Mind',
@@ -396,11 +404,9 @@ export const CONTEUDO = {
           texto: 'Acesse seu QR Code', acao: 'tour:qrcode' },
         { ico: ICO.agendaBloco, titulo: 'Minha Agenda',
           texto: 'Veja suas reservas', acao: 'tour:minha-agenda' },
-        /* EM DESTAQUE: é o único dos três que ensina uma tarefa inteira —
-           reservar —, e é por onde a maioria vai precisar passar. `destaque`
-           só pinta o card de amarelo; o layout é o mesmo dos outros dois. */
-        { ico: ICO.brilho, titulo: 'Aprenda como reservar suas experiências',
-          texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true },
+        /* O amarelo de reservar saiu daqui: subiu para cima do quadrado do
+           Concierge, onde é visto antes de qualquer rolagem. Sobram os dois
+           que ensinam onde as coisas ficam. */
       ] },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       /* Os mais recentes em circulação, não avisos escolhidos a dedo:

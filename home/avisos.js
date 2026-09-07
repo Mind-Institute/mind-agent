@@ -91,22 +91,28 @@ const CHEVRON =
 /** A lista inteira, com os chips de categoria acima. `aoAbrir(id)` recebe
  *  o aviso escolhido.
  *
- *  O filtro é estado local desta montagem: sair da tela e voltar traz
- *  "Todos" de novo. É o que o handoff descreve, e é o que se espera de um
- *  filtro que não aparece na URL — guardá-lo faria a pessoa voltar dias
- *  depois a uma lista misteriosamente curta. */
+ *  O filtro é estado local desta montagem: sair da tela e voltar traz a
+ *  primeira categoria de novo. É o que se espera de um filtro que não
+ *  aparece na URL — guardá-lo faria a pessoa voltar dias depois a uma
+ *  lista misteriosamente curta. */
 export function listaDeAvisos(aoAbrir) {
   const frag = document.createDocumentFragment();
   const lista = no('div', 'av-lista');
-  let filtro = 'todos';
 
   /* Só entram chips de categoria que EXISTE em circulação. Um chip que
      nunca tem o que mostrar é uma gaveta vazia com etiqueta. */
   const presentes = CATEGORIAS_AVISO.filter((c) => AVISOS.some((a) => a.cat === c.id));
 
+  /* SEM "TODOS" (Adriana, 06/09): a tela abre já dentro do primeiro
+     momento — o que é importante saber antes —, e as três categorias são
+     a navegação inteira. `todos` continua sendo o valor que mostra tudo,
+     e é para ele que caímos se por algum motivo não houver categoria em
+     circulação: lista cheia é melhor do que lista vazia. */
+  let filtro = presentes.length ? presentes[0].id : 'todos';
+
   const chips = no('nav', 'av-chips');
   chips.setAttribute('aria-label', 'Filtrar avisos por categoria');
-  const botoes = [{ id: 'todos', rotulo: 'Todos', ponto: false }, ...presentes];
+  const botoes = presentes;
 
   function pintarChips() {
     chips.querySelectorAll('button').forEach((b) => {

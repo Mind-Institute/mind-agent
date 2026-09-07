@@ -230,10 +230,25 @@ export function cardTour(b, aoAgir) {
   return el;
 }
 
-/* ---------- Título de seção, com atalho à direita ---------- */
+/* ---------- Título de seção, com atalho à direita ----------
+   QUANDO A SEÇÃO TEM DESTINO, O TÍTULO INTEIRO ABRE (pedido da Adriana em
+   06/09). Antes só o "Ver todos" da direita clicava — e o dedo vai no
+   título, que é o alvo grande; o link da direita é a legenda do destino,
+   não o botão. O `<h2>` continua sendo o cabeçalho da seção: quem vira
+   botão é o texto dentro dele, para o toque não custar a estrutura da
+   página. Seção sem `acao` segue texto puro: não há para onde ir. */
 export function tituloSecao(b, aoAgir) {
   const el = no('div', 'v3-secao');
-  el.innerHTML = '<h2>' + b.titulo + '</h2>';
+  const h = no('h2');
+  if (b.acao) {
+    const t = no('button', 'v3-secao-tit', b.titulo);
+    t.type = 'button';
+    t.addEventListener('click', () => aoAgir(b.acao, b));
+    h.appendChild(t);
+  } else {
+    h.innerHTML = b.titulo;
+  }
+  el.appendChild(h);
   if (b.link) {
     const a = no('button', 'v3-link', b.link);
     a.type = 'button';
