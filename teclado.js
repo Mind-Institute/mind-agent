@@ -46,6 +46,20 @@ const vv = window.visualViewport || null;
    menos de 200. 120 separa os dois com folga dos dois lados. */
 const LIMIAR_TECLADO = 120;
 
+/* ABAIXO DISTO NÃO É JANELA, É MEDIDA TORTA.
+   `--app-altura` manda na altura do `body`, que é `position: fixed`: publicar
+   um número errado aqui encolhe o app inteiro e deixa o resto da tela vazio —
+   parece que a página quebrou. E não é hipótese: apareceu em 16/09, com o app
+   reduzido a uma faixa de pouco mais de cem pixels.
+
+   200px separa com folga os dois casos. O menor aparelho que importa, de
+   teclado aberto, ainda sobra mais de 250px de viewport visível; nenhuma
+   janela de verdade tem menos que isso. Então medida abaixo daqui é lixo —
+   aba em segundo plano, janela minimizada, instante intermediário de um
+   redimensionamento — e a resposta certa é ignorar e manter a última boa,
+   nunca obedecer. */
+const ALTURA_MINIMA_PLAUSIVEL = 200;
+
 /* A maior altura já vista com o teclado fechado. É a referência para saber
    quanto caiu — comparar com `innerHeight` não serve, porque em alguns
    Androids o teclado encolhe o viewport de layout também, e aí os dois caem
@@ -88,10 +102,12 @@ function restaurarDistanciaDoFundo(el, distancia) {
 function aoMedir() {
   if (!medidaConfiavel()) return;
 
+  const h = alturaVisivel();
+  if (!(h >= ALTURA_MINIMA_PLAUSIVEL)) return;
+
   const conversa = document.getElementById('mensagens');
   const distancia = conversa ? distanciaDoFundo(conversa) : null;
 
-  const h = alturaVisivel();
   publicarAltura(h);
 
   if (h > alturaBase) alturaBase = h;
@@ -127,8 +143,15 @@ function aoGirar() {
 }
 
 export function ligarTeclado() {
-  publicarAltura(alturaVisivel());
-  alturaBase = alturaVisivel();
+  /* A PRIMEIRA MEDIDA PASSA PELA MESMA PORTEIRA. Uma página que abre em aba
+     de segundo plano pode medir errado logo de cara, e essa medida ficaria de
+     pé até alguém mexer na janela. Não publicando, vale o `100dvh` que o CSS
+     já traz como piso — e a primeira medida boa assume. */
+  const inicial = alturaVisivel();
+  if (inicial >= ALTURA_MINIMA_PLAUSIVEL) {
+    publicarAltura(inicial);
+    alturaBase = inicial;
+  }
   raiz.dataset.teclado = 'fechado';
 
   if (vv) {
@@ -136,9 +159,28 @@ export function ligarTeclado() {
     /* `scroll` do viewport visual é o evento em que o deslocamento do Safari
        aparece; sem ele, o tranco do primeiro toque escaparia. */
     vv.addEventListener('scroll', desfazerRolagemDoNavegador);
-  } else {
-    window.addEventListener('resize', aoMedir);
   }
+
+  /* UMA MEDIDA ERRADA NÃO PODE FICAR DE PÉ.
+     `--app-altura` manda na altura do `body`, que é `position: fixed`. Se ela
+     ficar velha ou vier torta por um instante, o app inteiro fica com o
+     tamanho errado e o resto da janela aparece vazio — a tela parece quebrada
+     e NADA a conserta, porque o único evento que remede pode não voltar a
+     acontecer. Foi o que apareceu em 16/09 no formulário da avaliação.
+
+     Por isso a medição agora tem mais de uma porta, e `window.resize` entra
+     MESMO havendo `visualViewport` (antes era só o `else`): são dois eventos
+     diferentes para o mesmo fato, e basta um chegar. `aoMedir` é idempotente
+     — mede e publica —, então medir demais não custa nada e medir de menos
+     custa a tela. */
+  window.addEventListener('resize', aoMedir);
+
+  /* A janela pode ter mudado de tamanho — ou de monitor — enquanto esta aba
+     estava atrás de outra. Ao voltar, confere antes de a pessoa tocar em
+     qualquer coisa. `pageshow` cobre o mesmo pelo cache de navegação. */
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) aoMedir(); });
+  window.addEventListener('pageshow', aoMedir);
+
   window.addEventListener('orientationchange', aoGirar);
 }
 
