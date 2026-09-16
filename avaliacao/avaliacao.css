@@ -133,9 +133,33 @@
 }
 
 /* O rádio de verdade fica acessível e invisível: o teclado e o leitor de
-   tela continuam funcionando, e quem desenha é o `label`. */
+   tela continuam funcionando, e quem desenha é o `label`.
+
+   O `top`/`left` E O `position: relative` DO PAI NÃO SÃO ENFEITE — sem eles a
+   tela sai voando ao dar uma nota, e o motivo não é óbvio:
+
+   um elemento `absolute` se posiciona dentro do ancestral posicionado mais
+   próximo. Sem `position` nenhum na linha de notas, esse ancestral virava o
+   `body`, que é `fixed` e fica FORA da área que rola. O rádio então não
+   acompanhava o formulário: rolando 500px, o rótulo descia e o rádio ficava
+   parado — os dois a meia tela de distância um do outro.
+
+   Aí bastava tocar numa nota. O clique no rótulo foca o rádio, o navegador
+   rola o que for preciso para trazer o focado à vista, e o que ele rolou foi
+   o `body` — 614px medidos, com o app inteiro saindo da tela. `overflow:
+   hidden` não impede: ele esconde a barra, não proíbe o navegador de rolar.
+
+   Com o pai posicionado, o rádio mora DENTRO da linha e rola junto com ela.
+   `50%`/`50%` deixa isso explícito em vez de depender da posição estática,
+   que cada navegador resolve à sua maneira dentro de grid e de flex. Quem
+   está vendo a nota está vendo o rádio, e não há o que rolar. */
+.av-notas,
+.av-opcoes { position: relative; }
+
 .av-radio {
   position: absolute;
+  top: 50%;
+  left: 50%;
   width: 1px;
   height: 1px;
   opacity: 0;

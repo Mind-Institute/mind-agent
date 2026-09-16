@@ -526,3 +526,27 @@ test('taxa de participação fica de fora enquanto não houver denominador', () 
   assert.ok(!/taxa de participação/i.test(pagina.replace(/\/\*[\s\S]*?\*\//g, '')),
     'nenhum KPI de participação fora dos comentários');
 });
+
+test('o rádio invisível rola junto com o formulário', () => {
+  /* O DEFEITO QUE ISTO TRAVA, medido em 16/09 num Chrome de desktop:
+     rolando o formulário 500px e tocando numa nota, o app inteiro saía da
+     tela. O rádio é `position: absolute`; sem ancestral posicionado, o bloco
+     contenedor dele virava o `body`, que é `fixed` e fica FORA da área que
+     rola. O rádio ficava parado enquanto o rótulo descia — 500px de distância
+     entre os dois. O clique no rótulo foca o rádio, o navegador rola o que
+     for preciso para alcançá-lo, e rolou o `body` em 614px.
+
+     `overflow: hidden` no body não protege: ele esconde a barra, não proíbe o
+     navegador de rolar.
+
+     Depois da correção, a distância caiu para 23px e 18 rótulos visíveis
+     foram clicados em 6 profundidades sem mover nada. */
+  assert.match(estilo, /\.av-notas,\s*\n\.av-opcoes \{ position: relative; \}/,
+    'sem pai posicionado o rádio volta a se ancorar no body e a tela sai voando ao dar uma nota');
+
+  const regra = estilo.slice(estilo.indexOf('.av-radio {'), estilo.indexOf('}', estilo.indexOf('.av-radio {')));
+  assert.match(regra, /position: absolute;/);
+  assert.match(regra, /top: 50%;/,
+    'sem `top` vale a posição estática, que grid e flex resolvem cada um à sua maneira');
+  assert.match(regra, /left: 50%;/);
+});
