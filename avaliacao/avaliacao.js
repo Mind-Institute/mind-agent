@@ -462,10 +462,11 @@ function desenharFormulario() {
     opcoes.appendChild(rotulo);
   });
   b2.appendChild(opcoes);
-  if (estado.experienciaSugerida) {
-    b2.appendChild(no('small', 'av-apoio',
-      'Sugerimos pelo seu ingresso. Se você viveu outra, é só trocar — isto não muda seu ingresso nem seu acesso.'));
-  }
+  /* A sugestão não se explica mais na tela. Os três botões já mostram que
+     dá para trocar, e a frase ocupava quatro linhas para dizer isso. A
+     ressalva que ela carregava continua verdadeira e continua valendo: a
+     resposta é autodeclarada e não toca em ingresso, cadastro nem
+     permissão — quem garante isso é a tabela, não o texto. */
   mostrarErro(b2, 'experiencia');
   raiz.appendChild(b2);
 
