@@ -452,6 +452,11 @@ function desenharFormulario() {
     const rotulo = document.createElement('label');
     rotulo.className = 'av-opcao';
     rotulo.htmlFor = id;
+    /* A MESMA COR QUE O CABEÇALHO JÁ USA para o ingresso: Mind verde,
+       VIP coral, Prime roxo. `data-cor` é o mesmo atributo de
+       `.h-ingresso`, e por isso a regra é uma leitura da paleta que já
+       existe, não uma segunda. */
+    rotulo.dataset.cor = e.id;
     rotulo.textContent = e.rotulo;
     opcoes.appendChild(entrada);
     opcoes.appendChild(rotulo);

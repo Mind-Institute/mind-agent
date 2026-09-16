@@ -160,14 +160,44 @@
   user-select: none;
 }
 
+/* UMA COR POR EXPERIÊNCIA, a mesma da pílula do cabeçalho: Mind verde,
+   VIP coral, Prime roxo. Não é paleta nova — é a que o app já usa para
+   dizer qual é o seu ingresso, e usar outra aqui faria a pessoa duvidar
+   de qual das duas está certa.
+
+   Só o SELECIONADO ganha cor. Três pílulas coloridas lado a lado
+   pareceriam três etiquetas, e não três escolhas — e a pergunta é qual
+   delas você viveu, não quais existem.
+
+   Sobre verde e coral o texto é escuro e sobre roxo é branco: é a mesma
+   decisão de contraste que `.h-ingresso` já tomou. */
 .av-radio:checked + .av-opcao {
   background: var(--verde);
   border-color: var(--verde);
   color: #0b0b0f;
 }
 
+.av-radio:checked + .av-opcao[data-cor="vip"] {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: #1a0703;
+}
+
+.av-radio:checked + .av-opcao[data-cor="prime"] {
+  background: var(--roxo);
+  border-color: var(--roxo);
+  color: #fff;
+}
+
+/* A borda acesa em repouso é a pista de que aquela pílula TEM cor —
+   sem ela, três caixas cinzas não deixam adivinhar que escolher o VIP
+   pinta de coral. Fica discreta: é dica, não seleção. */
+.av-opcao[data-cor="mind"]  { border-color: color-mix(in srgb, var(--verde) 45%, transparent); }
+.av-opcao[data-cor="vip"]   { border-color: color-mix(in srgb, var(--coral) 45%, transparent); }
+.av-opcao[data-cor="prime"] { border-color: color-mix(in srgb, var(--roxo) 55%, transparent); }
+
 .av-radio:focus-visible + .av-opcao {
-  outline: 2px solid var(--verde);
+  outline: 2px solid var(--texto);
   outline-offset: 2px;
 }
 
