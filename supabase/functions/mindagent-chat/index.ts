@@ -749,6 +749,34 @@ Deno.serve(async (req: Request) => {
       p_token_hash: tokenHash,
     });
     if (contextError || !sessionContext) {
+      // SESSÃO INVÁLIDA E SERVIÇO CONGESTIONADO SÃO COISAS DIFERENTES.
+      // Tratá-las igual derrubou o chat em 16/09, no dia do evento: o
+      // banco engasgou em lock (7,1 s de espera, statement timeout), a
+      // função respondeu "expirou", e o app fez o que essa mensagem
+      // manda — jogou a sessão fora e recomeçou. Cada recomeço abria
+      // sessão e dispositivo novos e entrava na MESMA fila que estava
+      // estourando. 961 sessões em oito horas.
+      //
+      // 28000 é o que mindagent_chat_get_context levanta quando a
+      // sessão ou a conversa realmente não valem — aí "expirou" é a
+      // verdade. Qualquer outra falha é infraestrutura, e a resposta
+      // certa é "tente de novo": ela faz o app ESPERAR em vez de
+      // recomeçar, e a fila drena em vez de crescer.
+      const sessaoRealmenteInvalida =
+        contextError?.code === "28000" ||
+        /invalid_chat_(session|conversation)/.test(String(contextError?.message ?? "")) ||
+        (!contextError && !sessionContext);
+
+      if (!sessaoRealmenteInvalida) {
+        console.error(JSON.stringify({
+          request_id: requestId,
+          event: "context_unavailable",
+          code: contextError?.code ?? null,
+          ...telemetry,
+        }));
+        return json(req, 503, { ok: false, error: { code: "servico_ocupado", message: "O agente está congestionado. Tente de novo em instantes." } }, requestId);
+      }
+
       return json(req, 401, { ok: false, error: { code: "session_expired", message: "A conversa expirou. Inicie uma nova sessão." } }, requestId);
     }
     profileLoaded = profileLoaded || Boolean(sessionContext.participant_profile);
