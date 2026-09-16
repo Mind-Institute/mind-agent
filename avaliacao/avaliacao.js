@@ -20,7 +20,10 @@ import { carregarEstado, enviar, lerRascunho, salvarRascunho, limparRascunho } f
 
 const NOTAS = [0, 1, 2, 3, 4, 5];
 
-const ESCALA_EXPECTATIVAS = { 0: 'Não atendeu', 5: 'Atendeu completamente' };
+/* As pontas acompanham a pergunta. "Não atendeu / Atendeu completamente"
+   respondia a expectativa; a pergunta agora é sobre relevância, e a
+   legenda não pode continuar medindo outra coisa. */
+const ESCALA_RELEVANCIA = { 0: 'Nada relevante', 5: 'Muito relevante' };
 const ESCALA_PROGRAMACAO = { 0: 'Muito ruim', 5: 'Excelente' };
 
 const EXPERIENCIAS = [
@@ -82,7 +85,7 @@ function respostaVazia() {
     experiencia: null,
     profissao: '',
     expectativas: '',
-    notaExpectativas: null,
+    notaRelevancia: null,
     notaProgramacao: null,
     maisGostou: '',
     melhorar: '',
@@ -491,15 +494,17 @@ function desenharFormulario() {
   raiz.appendChild(b4);
 
   /* 5 — nota das expectativas */
-  const b5 = bloco(5, 'Em uma escala de 0 a 5, quanto o dia de hoje atendeu às suas expectativas?', true);
+  const b5 = bloco(5,
+    'Quanto o que você vivenciou hoje no Mind foi relevante para sua vida pessoal ou profissional?',
+    true);
   b5.appendChild(escala({
-    nome: 'nota-expectativas', valor: resposta.notaExpectativas, pontas: ESCALA_EXPECTATIVAS,
-    rotuloDoGrupo: 'Quanto o dia atendeu às suas expectativas, de 0 a 5',
+    nome: 'nota-relevancia', valor: resposta.notaRelevancia, pontas: ESCALA_RELEVANCIA,
+    rotuloDoGrupo: 'Quanto o que você vivenciou hoje foi relevante para sua vida pessoal ou profissional, de 0 a 5',
     aoEscolher: (n) => {
-      resposta.notaExpectativas = n; limparErro('notaExpectativas'); guardarRascunho();
+      resposta.notaRelevancia = n; limparErro('notaRelevancia'); guardarRascunho();
     },
   }));
-  mostrarErro(b5, 'notaExpectativas');
+  mostrarErro(b5, 'notaRelevancia');
   raiz.appendChild(b5);
 
   /* 6 — nota da programação */
@@ -557,7 +562,7 @@ function validar() {
     erros.expectativas = 'Use até ' + LIMITES.expectativas + ' caracteres.';
   }
   /* `== null` de propósito: zero é resposta válida e não pode cair aqui. */
-  if (resposta.notaExpectativas == null) erros.notaExpectativas = 'Escolha uma nota de 0 a 5.';
+  if (resposta.notaRelevancia == null) erros.notaRelevancia = 'Escolha uma nota de 0 a 5.';
   if (resposta.notaProgramacao == null) erros.notaProgramacao = 'Escolha uma nota de 0 a 5.';
   avisoGeral = Object.keys(erros).length ? 'Faltam respostas obrigatórias. Elas estão marcadas abaixo.' : null;
   return !Object.keys(erros).length;
@@ -586,7 +591,7 @@ function desenharConferencia() {
   lista.appendChild(linhaDeConferencia('Experiência', nomeExp));
   lista.appendChild(linhaDeConferencia('Profissão', resposta.profissao.trim()));
   lista.appendChild(linhaDeConferencia('Expectativas', resposta.expectativas.trim()));
-  lista.appendChild(linhaDeConferencia('Atendeu às expectativas', resposta.notaExpectativas + ' de 5'));
+  lista.appendChild(linhaDeConferencia('Relevância do que você vivenciou', resposta.notaRelevancia + ' de 5'));
   lista.appendChild(linhaDeConferencia('Programação de hoje', resposta.notaProgramacao + ' de 5'));
 
   const n = quantasAvaliadas();
@@ -632,7 +637,7 @@ async function confirmarEnvio() {
     experiencia: resposta.experiencia,
     profissao: resposta.profissao.trim(),
     expectativas: resposta.expectativas.trim(),
-    notaExpectativas: resposta.notaExpectativas,
+    notaRelevancia: resposta.notaRelevancia,
     notaProgramacao: resposta.notaProgramacao,
     maisGostou: resposta.maisGostou.trim() || null,
     melhorar: resposta.melhorar.trim() || null,
@@ -701,7 +706,7 @@ export function subtituloDaAvaliacao() {
 export function temRascunho() {
   return Boolean(resposta && etapa === 'formulario' && (
     resposta.experiencia || resposta.profissao || resposta.expectativas ||
-    resposta.notaExpectativas != null || resposta.notaProgramacao != null ||
+    resposta.notaRelevancia != null || resposta.notaProgramacao != null ||
     Object.keys(resposta.atividades).length
   ));
 }

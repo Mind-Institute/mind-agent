@@ -21,7 +21,7 @@ const RELATORIO = {
   kpis: {
     respondentes: 3,
     porExperiencia: { mind: 1, vip: 1, prime: 1 },
-    expectativas: {
+    relevancia: {
       amostra: 3, media: 3, percentual45: 66.7,
       distribuicao: { '0': 1, '1': 0, '2': 0, '3': 0, '4': 1, '5': 1 },
     },
@@ -56,7 +56,7 @@ const RESPOSTAS = {
     dia: '2026-09-16', enviadoEm: '2026-09-16T21:10:00-03:00',
     experiencia: 'prime', profissao: 'Gerente de RH',
     expectativas: 'Entender como medir bem-estar.',
-    notaExpectativas: 0, notaProgramacao: 5,
+    notaRelevancia: 0, notaProgramacao: 5,
     maisGostou: 'A masterclass.', melhorar: 'Mais lugares para sentar.',
     comentario: null, atividadesAvaliadas: 2,
   }],
@@ -98,7 +98,7 @@ describe('Avaliação do dia · relatório', () => {
     ligarApi();
     renderizarPainel({ rota: '/avaliacao-do-dia' });
 
-    expect(await screen.findByText('3,00')).toBeVisible();      // média de expectativas
+    expect(await screen.findByText('3,00')).toBeVisible();      // média de relevância
     expect(await screen.findByText('4,00')).toBeVisible();      // média da programação
     /* A amostra aparece junto: uma média sem denominador mente por omissão. */
     expect(await screen.findAllByText(/3 respostas/)).not.toHaveLength(0);

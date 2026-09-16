@@ -68,7 +68,7 @@ create table if not exists engagement.avaliacao_do_dia (
   profissao text not null,
   expectativas text not null,
 
-  nota_expectativas smallint not null,
+  nota_relevancia smallint not null,
   nota_programacao smallint not null,
 
   mais_gostou text,
@@ -87,8 +87,8 @@ create table if not exists engagement.avaliacao_do_dia (
 
   -- Zero É resposta: "não atendeu" é diferente de não responder, e o
   -- `not null` acima é o que garante que a diferença não se perca.
-  constraint avaliacao_do_dia_nota_expectativas_faixa
-    check (nota_expectativas between 0 and 5),
+  constraint avaliacao_do_dia_nota_relevancia_faixa
+    check (nota_relevancia between 0 and 5),
   constraint avaliacao_do_dia_nota_programacao_faixa
     check (nota_programacao between 0 and 5),
 
@@ -112,6 +112,8 @@ comment on column engagement.avaliacao_do_dia.dia is
   'O dia avaliado, fixado na abertura do formulário. Atravessar a meia-noite não muda este valor.';
 comment on column engagement.avaliacao_do_dia.experiencia is
   'Autodeclarada pela pessoa. Não altera ingresso, cadastro nem permissão.';
+comment on column engagement.avaliacao_do_dia.nota_relevancia is
+  'Quanto o que a pessoa vivenciou no dia foi relevante para a vida pessoal ou profissional dela, de 0 a 5. NÃO mede expectativa atendida — a expectativa é a pergunta aberta `expectativas`.';
 
 create index if not exists avaliacao_do_dia_evento_dia_ix
   on engagement.avaliacao_do_dia (event_id, dia);
@@ -332,7 +334,7 @@ declare
   v_experiencia text;
   v_profissao text;
   v_expectativas text;
-  v_nota_exp smallint;
+  v_nota_rel smallint;
   v_nota_prog smallint;
   v_mais_gostou text;
   v_melhorar text;
@@ -391,14 +393,14 @@ begin
   -- `jsonb_typeof` antes do cast: `"3"` e `3` chegam diferentes de
   -- clientes diferentes, e um cast direto de texto vazio explodiria com
   -- erro de banco em vez de erro de validação.
-  if jsonb_typeof(p_payload->'notaExpectativas') <> 'number'
+  if jsonb_typeof(p_payload->'notaRelevancia') <> 'number'
      or jsonb_typeof(p_payload->'notaProgramacao') <> 'number' then
     raise exception using errcode = '22023', message = 'avaliacao_validacao:nota_obrigatoria';
   end if;
-  v_nota_exp  := (p_payload->>'notaExpectativas')::numeric;
+  v_nota_rel  := (p_payload->>'notaRelevancia')::numeric;
   v_nota_prog := (p_payload->>'notaProgramacao')::numeric;
-  if v_nota_exp not between 0 and 5 or v_nota_prog not between 0 and 5
-     or (p_payload->>'notaExpectativas')::numeric <> v_nota_exp
+  if v_nota_rel not between 0 and 5 or v_nota_prog not between 0 and 5
+     or (p_payload->>'notaRelevancia')::numeric <> v_nota_rel
      or (p_payload->>'notaProgramacao')::numeric <> v_nota_prog then
     raise exception using errcode = '22023', message = 'avaliacao_validacao:nota_fora_da_faixa';
   end if;
@@ -454,7 +456,7 @@ begin
       v_existente.experiencia = v_experiencia
       and v_existente.profissao = v_profissao
       and v_existente.expectativas = v_expectativas
-      and v_existente.nota_expectativas = v_nota_exp
+      and v_existente.nota_relevancia = v_nota_rel
       and v_existente.nota_programacao = v_nota_prog
       and v_existente.mais_gostou is not distinct from v_mais_gostou
       and v_existente.melhorar is not distinct from v_melhorar
@@ -484,10 +486,10 @@ begin
 
   insert into engagement.avaliacao_do_dia (
     participante_id, event_id, dia, formulario_versao, experiencia, profissao,
-    expectativas, nota_expectativas, nota_programacao, mais_gostou, melhorar, comentario
+    expectativas, nota_relevancia, nota_programacao, mais_gostou, melhorar, comentario
   ) values (
     v_participante_id, v_evento.id, p_dia, 1, v_experiencia, v_profissao,
-    v_expectativas, v_nota_exp, v_nota_prog, v_mais_gostou, v_melhorar, v_comentario
+    v_expectativas, v_nota_rel, v_nota_prog, v_mais_gostou, v_melhorar, v_comentario
   ) returning id into v_id;
 
   insert into engagement.avaliacao_do_dia_atividade (avaliacao_id, sessao_id, nota)
@@ -586,19 +588,19 @@ begin
         -- Cada média usa só as respostas da própria pergunta. Aqui as
         -- duas são obrigatórias, então o denominador é o mesmo — e sai
         -- explícito assim mesmo, para a tela poder mostrá-lo.
-        'expectativas', jsonb_build_object(
-          'amostra', count(nota_expectativas),
-          'media', avg(nota_expectativas)::numeric(4,2),
+        'relevancia', jsonb_build_object(
+          'amostra', count(nota_relevancia),
+          'media', avg(nota_relevancia)::numeric(4,2),
           'distribuicao', jsonb_build_object(
-            '0', count(*) filter (where nota_expectativas = 0),
-            '1', count(*) filter (where nota_expectativas = 1),
-            '2', count(*) filter (where nota_expectativas = 2),
-            '3', count(*) filter (where nota_expectativas = 3),
-            '4', count(*) filter (where nota_expectativas = 4),
-            '5', count(*) filter (where nota_expectativas = 5)),
-          'percentual45', case when count(nota_expectativas) = 0 then null
-            else round(100.0 * count(*) filter (where nota_expectativas >= 4)
-                       / count(nota_expectativas), 1) end
+            '0', count(*) filter (where nota_relevancia = 0),
+            '1', count(*) filter (where nota_relevancia = 1),
+            '2', count(*) filter (where nota_relevancia = 2),
+            '3', count(*) filter (where nota_relevancia = 3),
+            '4', count(*) filter (where nota_relevancia = 4),
+            '5', count(*) filter (where nota_relevancia = 5)),
+          'percentual45', case when count(nota_relevancia) = 0 then null
+            else round(100.0 * count(*) filter (where nota_relevancia >= 4)
+                       / count(nota_relevancia), 1) end
         ),
         'programacao', jsonb_build_object(
           'amostra', count(nota_programacao),
@@ -693,7 +695,7 @@ begin
       'experiencia', a.experiencia,
       'profissao', a.profissao,
       'expectativas', a.expectativas,
-      'notaExpectativas', a.nota_expectativas,
+      'notaRelevancia', a.nota_relevancia,
       'notaProgramacao', a.nota_programacao,
       'maisGostou', a.mais_gostou,
       'melhorar', a.melhorar,

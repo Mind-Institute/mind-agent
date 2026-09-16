@@ -377,14 +377,14 @@ Deno.serve(async (req: Request) => {
           FORMATO_UUID.test(a.sessaoId) && a.nota !== null)
       : [];
 
-    const notaExpectativas = notaInteira(corpo.notaExpectativas);
+    const notaRelevancia = notaInteira(corpo.notaRelevancia);
     const notaProgramacao = notaInteira(corpo.notaProgramacao);
 
     const payload = {
       experiencia: typeof corpo.experiencia === "string" ? corpo.experiencia.trim().toLowerCase() : "",
       profissao: textoLimitado(corpo.profissao, LIMITES.profissao) ?? "",
       expectativas: textoLimitado(corpo.expectativas, LIMITES.expectativas) ?? "",
-      notaExpectativas,
+      notaRelevancia,
       notaProgramacao,
       maisGostou: textoLimitado(corpo.maisGostou, LIMITES.aberta),
       melhorar: textoLimitado(corpo.melhorar, LIMITES.aberta),
@@ -392,7 +392,7 @@ Deno.serve(async (req: Request) => {
       atividades,
     };
 
-    if (notaExpectativas === null || notaProgramacao === null) {
+    if (notaRelevancia === null || notaProgramacao === null) {
       return json(req, 422, {
         codigo: "validacao", campo: "nota_obrigatoria",
         mensagem: "Responda as duas notas de 0 a 5 antes de enviar.",

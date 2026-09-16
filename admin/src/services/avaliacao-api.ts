@@ -45,7 +45,7 @@ export interface Relatorio {
   kpis: {
     respondentes: number;
     porExperiencia: { mind: number; vip: number; prime: number };
-    expectativas: NotaGeral;
+    relevancia: NotaGeral;
     programacao: NotaGeral;
   };
   avaliacoesDeAtividades: number;
@@ -73,7 +73,7 @@ export interface Resposta {
   experiencia: string;
   profissao: string;
   expectativas: string;
-  notaExpectativas: number;
+  notaRelevancia: number;
   notaProgramacao: number;
   maisGostou: string | null;
   melhorar: string | null;

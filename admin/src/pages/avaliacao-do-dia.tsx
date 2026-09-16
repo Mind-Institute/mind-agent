@@ -149,11 +149,11 @@ export function PaginaAvaliacaoDoDia() {
       `avaliacao-do-dia-respostas${filtro.dia ? '-' + filtro.dia : ''}.csv`,
       montarCsv(
         ['Dia', 'Enviado em', 'Experiência', 'Profissão', 'Expectativas',
-          'Nota expectativas', 'Nota programação', 'Atividades avaliadas',
+          'Nota relevância', 'Nota programação', 'Atividades avaliadas',
           'O que mais gostou', 'O que melhorar', 'Comentário'],
         respostas.itens.map((r) => [
           r.dia, quandoLegivel(r.enviadoEm), r.experiencia, r.profissao, r.expectativas,
-          r.notaExpectativas, r.notaProgramacao, r.atividadesAvaliadas,
+          r.notaRelevancia, r.notaProgramacao, r.atividadesAvaliadas,
           r.maisGostou ?? '', r.melhorar ?? '', r.comentario ?? '',
         ]),
       ),
@@ -264,7 +264,7 @@ export function PaginaAvaliacaoDoDia() {
                 `Prime ${relatorio.kpis.porExperiencia.prime}`
               }
             />
-            <CartaoDeNota titulo="Atendeu às expectativas" nota={relatorio.kpis.expectativas} />
+            <CartaoDeNota titulo="Relevância do que vivenciaram" nota={relatorio.kpis.relevancia} />
             <CartaoDeNota titulo="Programação do dia" nota={relatorio.kpis.programacao} />
             <CartaoSimples
               titulo="Avaliações de atividades"
@@ -377,7 +377,7 @@ export function PaginaAvaliacaoDoDia() {
                           <span>{r.profissao}</span>
                           <span>·</span>
                           <span className="tabular-nums">
-                            expectativas {r.notaExpectativas} · programação {r.notaProgramacao}
+                            relevância {r.notaRelevancia} · programação {r.notaProgramacao}
                           </span>
                           <span>·</span>
                           <span className="tabular-nums">{quandoLegivel(r.enviadoEm)}</span>

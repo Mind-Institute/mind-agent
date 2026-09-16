@@ -93,11 +93,11 @@ test('nota zero atravessa; nota fora da faixa e nota quebrada não', async () =>
   const zero = await chamar({
     metodo: 'POST',
     caminho: '/functions/v1/mindagent-avaliacao/enviar',
-    corpo: respostaValida({ notaExpectativas: 0, notaProgramacao: 0 }),
+    corpo: respostaValida({ notaRelevancia: 0, notaProgramacao: 0 }),
   });
   assert.equal(zero.resposta.status, 201);
   const args = zero.chamadas.find((c) => c.nome === 'mind_avaliacao_do_dia_registrar').args;
-  assert.equal(args.p_payload.notaExpectativas, 0);
+  assert.equal(args.p_payload.notaRelevancia, 0);
   assert.equal(args.p_payload.notaProgramacao, 0);
   /* Zero chega como número, não como ausência. */
   assert.equal(args.p_payload.atividades[0].nota, 0);
@@ -105,7 +105,7 @@ test('nota zero atravessa; nota fora da faixa e nota quebrada não', async () =>
   const quebrada = await chamar({
     metodo: 'POST',
     caminho: '/functions/v1/mindagent-avaliacao/enviar',
-    corpo: respostaValida({ notaExpectativas: 3.5 }),
+    corpo: respostaValida({ notaRelevancia: 3.5 }),
   });
   assert.equal(quebrada.resposta.status, 422);
   assert.equal(quebrada.corpo.campo, 'nota_obrigatoria');
@@ -301,12 +301,12 @@ test('uma resposta por participante, por evento, por dia', () => {
 });
 
 test('zero é nota válida e nota fora de 0–5 não entra', () => {
-  assert.match(migracao, /nota_expectativas between 0 and 5/);
+  assert.match(migracao, /nota_relevancia between 0 and 5/);
   assert.match(migracao, /nota_programacao between 0 and 5/);
   assert.match(migracao, /check \(nota between 0 and 5\)/);
   /* `not null` nas duas notas gerais: sem isso, "não respondi" e "dei
      zero" viram a mesma linha. */
-  assert.match(migracao, /nota_expectativas smallint not null/);
+  assert.match(migracao, /nota_relevancia smallint not null/);
   assert.match(migracao, /nota_programacao smallint not null/);
 });
 
@@ -396,9 +396,9 @@ test('a data é fixada na abertura e não é recalculada do relógio local', () 
 test('zero é valor, e a tela nunca o trata como ausência', () => {
   /* `== null` e não `!`: `!0` é verdadeiro, e seria o bug que apaga a
      nota mais negativa da pesquisa. */
-  assert.match(tela, /resposta\.notaExpectativas == null/);
+  assert.match(tela, /resposta\.notaRelevancia == null/);
   assert.match(tela, /resposta\.notaProgramacao == null/);
-  assert.ok(!/if \(!resposta\.notaExpectativas\)/.test(tela));
+  assert.ok(!/if \(!resposta\.notaRelevancia\)/.test(tela));
   assert.match(tela, /hasOwnProperty\.call\(resposta\.atividades, a\.id\)/);
 });
 

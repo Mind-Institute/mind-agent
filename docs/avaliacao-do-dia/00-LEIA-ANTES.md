@@ -169,7 +169,7 @@ mesmos argumentos, que a `mindagent-chat` usa na primeira mensagem.
 
 ### Zero é nota, ausência não é
 
-`nota_expectativas` e `nota_programacao` são `not null` com `check
+`nota_relevancia` e `nota_programacao` são `not null` com `check
 between 0 and 5`. As notas por atividade existem como **linha**: sem
 linha, não há avaliação. O relatório nunca mostra média zero para
 atividade sem nota — mostra "Sem avaliações".

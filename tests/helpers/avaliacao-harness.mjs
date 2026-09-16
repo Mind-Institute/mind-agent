@@ -155,7 +155,7 @@ export function respostaValida(extra = {}) {
     experiencia: 'prime',
     profissao: 'Gerente de RH',
     expectativas: 'Entender como medir bem-estar.',
-    notaExpectativas: 4,
+    notaRelevancia: 4,
     notaProgramacao: 5,
     maisGostou: null,
     melhorar: null,
