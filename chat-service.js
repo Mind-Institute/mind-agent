@@ -131,21 +131,51 @@ async function chamar(message, clientMessageId, extra) {
   }
 }
 
+/* ============================================================
+   UMA SEGUNDA CHANCE, NUNCA UMA TERCEIRA
+   ============================================================
+   `session_expired` volta com status 401 — o mesmo de um token de
+   autenticação vencido. Tratar os dois igual custou caro em 16/09: a
+   cada falha de congestionamento o app descartava o usuário anônimo,
+   criava outro e repetia a chamada. Cada repetição abria sessão nova,
+   dispositivo novo e entrava na mesma fila de lock que já estava
+   estourando o tempo — o remédio virando a doença.
+
+   Agora os dois casos são separados:
+
+   - token vencido → renova a identidade anônima e tenta de novo. É o
+     caso raro e legítimo.
+   - sessão expirada → descarta só a sessão e tenta de novo. O usuário
+     anônimo continua o mesmo, então não nasce dispositivo a cada erro.
+   - a segunda falha NÃO vira terceira tentativa. Repetir contra um
+     serviço congestionado é empurrar a fila; quem espera é o app. */
+async function reagirAoErro(resultado, repetir) {
+  const codigo = resultado.payload?.error?.code;
+  const expirou = codigo === 'session_expired';
+
+  if (resultado.response.status === 401 && !expirou) {
+    remover(CHAVES.auth);
+    remover(CHAVES.session);
+    await autenticar(true);
+    return repetir();
+  }
+
+  if (expirou) {
+    /* Só a sessão. A identidade anônima sobrevive de propósito. */
+    remover(CHAVES.session);
+    return repetir();
+  }
+
+  return resultado;
+}
+
 export async function enviarMensagem(message) {
   const texto = String(message || '').trim();
   if (!texto) throw new Error('Escreva uma mensagem.');
   const clientMessageId = id();
 
   let resultado = await chamar(texto, clientMessageId);
-  if (resultado.response.status === 401) {
-    remover(CHAVES.auth);
-    remover(CHAVES.session);
-    await autenticar(true);
-    resultado = await chamar(texto, clientMessageId);
-  } else if (resultado.payload?.error?.code === 'session_expired') {
-    remover(CHAVES.session);
-    resultado = await chamar(texto, clientMessageId);
-  }
+  resultado = await reagirAoErro(resultado, () => chamar(texto, clientMessageId));
 
   if (!resultado.response.ok || !resultado.payload?.ok) {
     throw new Error(resultado.payload?.error?.message || 'Não consegui responder agora. Tente novamente.');
@@ -166,15 +196,7 @@ export async function enviarSinalJornada(field, values) {
   const extra = { journey_signal: { field, values: lista }, client_action_id: clientActionId };
 
   let resultado = await chamar('', clientActionId, extra);
-  if (resultado.response.status === 401) {
-    remover(CHAVES.auth);
-    remover(CHAVES.session);
-    await autenticar(true);
-    resultado = await chamar('', clientActionId, extra);
-  } else if (resultado.payload?.error?.code === 'session_expired') {
-    remover(CHAVES.session);
-    resultado = await chamar('', clientActionId, extra);
-  }
+  resultado = await reagirAoErro(resultado, () => chamar('', clientActionId, extra));
   if (!resultado.response.ok || !resultado.payload?.ok) {
     throw new Error(resultado.payload?.error?.message || 'Não consegui guardar esta resposta.');
   }
