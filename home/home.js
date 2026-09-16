@@ -76,6 +76,12 @@ export function montarHome(raiz, aoAgir, contexto) {
     if (b.daSessao && ctx.sessaoDoInsight) {
       return { ...b, selo: ctx.sessaoDoInsight, cta: b.ctaComSessao || b.cta };
     }
+    /* A avaliação só existe quando o servidor diz que existe. `oculto` é
+       o padrão do bloco, então pesquisa desligada, fora do ar ou sem
+       resposta do servidor deixa a home exatamente como ela é hoje. */
+    if (b.daAvaliacao) {
+      return ctx.avaliacao ? { ...b, ...ctx.avaliacao } : { ...b, estado: 'oculto' };
+    }
     return b;
   });
 

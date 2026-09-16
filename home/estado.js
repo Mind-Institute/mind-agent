@@ -443,6 +443,14 @@ export const CONTEUDO = {
         pergunta: 'Registrar um insight',
         cta: 'Anote o que a palestra de agora te trouxe',
         ctaComSessao: 'Anotar mais sobre esta palestra', acao: 'insight' },
+      /* AVALIAÇÃO DO DIA. `daAvaliacao` funciona como `daGrade` e
+         `daSessao`: o bloco só existe quando o `app.js` confirma, pelo
+         servidor, que a pesquisa está no ar. Sem isso ele fica oculto —
+         e é assim que a pesquisa desligada não deixa rastro na home. */
+      { tipo: 'destaque', ico: ICO.estrela, daAvaliacao: true, estado: 'oculto',
+        selo: 'Avaliação do dia',
+        pergunta: 'Como foi seu dia no Mind?',
+        cta: 'Avaliar meu dia', acao: 'avaliacao' },
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       { tipo: 'avisos', quantos: 2 },
     ],

@@ -79,6 +79,28 @@ async function autenticar(forcarNova = false) {
   return authRequest('/auth/v1/signup', {});
 }
 
+/**
+ * A MESMA sessão anônima do chat, para quem mais precisar dela.
+ *
+ * Existe para a Avaliação do dia não abrir uma segunda porta de
+ * autenticação: o ciclo de vida do token continua morando aqui, com as
+ * mesmas regras de renovação e a mesma chave no `localStorage`. Não cria
+ * nada por chamada — reaproveita o que já está guardado e só faz
+ * `signup` quando o aparelho ainda não tem identidade, exatamente como a
+ * primeira mensagem do chat faria.
+ *
+ * Devolve o token, ou `null` se não deu: quem chama decide o que fazer
+ * sem tratar exceção.
+ */
+export async function garantirSessaoDeAcesso() {
+  try {
+    const auth = await autenticar();
+    return auth?.access_token || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 /* A identidade que vai para a NOSSA Edge Function — nunca para a OpenAI.
    É a `mindagent-chat` que procura o e-mail em `mind.people`, amarra o
    `participante_id` e monta o contexto público. O frontend só entrega o

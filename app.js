@@ -13,6 +13,10 @@ import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServi
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem, enviarSinalJornada } from './chat-service.js';
 import { ligarTeclado, tecladoAberto } from './teclado.js';
+/* Avaliação do dia: módulo novo, isolado. Nada do app depende dele, e
+   ele não depende de nada do app além da identidade e da configuração. */
+import { abrirAvaliacao, subtituloDaAvaliacao } from './avaliacao/avaliacao.js';
+import { carregarEstado as carregarEstadoDaAvaliacao, pesquisaConfigurada } from './avaliacao/servico.js';
 
 /* A altura do app passa a vir do viewport VISUAL, antes de qualquer tela
    aparecer: é o que impede o Safari de rolar a página inteira quando o teclado
@@ -106,6 +110,7 @@ const FALA = [
 const vistas = {
   home: document.getElementById('vista-home'),
   avisos: document.getElementById('vista-avisos'),
+  avaliacao: document.getElementById('vista-avaliacao'),
   chat: document.getElementById('vista-chat'),
   summit: document.getElementById('vista-summit'),
   tour: document.getElementById('vista-tour'),
@@ -147,6 +152,7 @@ function acaoDaHome(acao) {
   if (acao === 'insight') return irParaConversa('insight');
   if (acao === 'entrevista') return irParaConversa('plano');
   if (acao === 'insights') return abrirVista('summit');
+  if (acao === 'avaliacao') return abrirTelaDaAvaliacao();
   if (acao === 'avisos') return abrirAvisos();
   if (acao.startsWith('aviso:')) return abrirAvisos(acao.slice(6));
   if (acao.startsWith('em-breve:')) return painelEmBreve(acao.slice(9));
@@ -244,6 +250,8 @@ function contextoDaHome() {
   if (ingressoDoParticipante) ctx.ingresso = ingressoDoParticipante;
   const emCurso = sessaoDoInsight();
   if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
+  const cartaoDaAvaliacao = cardDaAvaliacao();
+  if (cartaoDaAvaliacao) ctx.avaliacao = cartaoDaAvaliacao;
   const p = proximaExperiencia();
   if (!p) return ctx;
   /* Etiqueta curta, não frase: o card logo abaixo já diz a hora, a sala
@@ -502,6 +510,70 @@ function atualizarContadorAvisos() {
     selo.setAttribute('aria-label', n === 1 ? '1 aviso não lido' : n + ' avisos não lidos');
   });
 }
+
+/* ---------- Avaliação do dia ----------
+   Módulo à parte, com tela própria. Este trecho é tudo que o app sabe
+   sobre ele: qual card mostrar na home e como abrir a tela.
+
+   FALHA AQUI NÃO DERRUBA NADA. `estadoDaAvaliacao` fica `null` quando a
+   pesquisa está desligada, quando não há sessão ou quando a rede cai — e
+   `null` quer dizer "a home fica como sempre foi". */
+let estadoDaAvaliacao = null;
+
+async function carregarAvaliacaoDoDia() {
+  if (!pesquisaConfigurada()) return;
+  try {
+    estadoDaAvaliacao = await carregarEstadoDaAvaliacao(null);
+  } catch (e) {
+    estadoDaAvaliacao = null;
+  }
+}
+
+/* O que o card da home mostra, ou `null` para ele não existir. */
+function cardDaAvaliacao() {
+  const e = estadoDaAvaliacao;
+  if (!e || !e.ativo || !e.identificado) return null;
+  if (e.enviado) {
+    /* Enviada: o card fica, desativado, dizendo que está feito. Sem
+       `acao` ele não é botão de verdade — `acaoDaHome` devolve na
+       primeira linha quando a ação é vazia. */
+    return {
+      pergunta: 'Avaliação de hoje enviada ✓',
+      cta: 'Obrigado por avaliar',
+      variante: 'av-enviada',
+      estado: 'concluido',
+      acao: null,
+    };
+  }
+  return { estado: 'disponivel' };
+}
+
+const avaliacaoCorpo = document.getElementById('avaliacao-corpo');
+const avaliacaoSub = document.getElementById('avaliacao-sub');
+
+function abrirTelaDaAvaliacao() {
+  abrirVista('avaliacao');
+  avaliacaoCorpo.scrollTop = 0;
+  abrirAvaliacao(
+    avaliacaoCorpo,
+    voltarDaAvaliacao,
+    (novo) => {
+      /* Só aqui, depois da confirmação do servidor, o card muda. */
+      estadoDaAvaliacao = novo;
+      avaliacaoSub.textContent = subtituloDaAvaliacao();
+    },
+  ).then(() => { avaliacaoSub.textContent = subtituloDaAvaliacao(); })
+   .catch(() => { /* o módulo já desenhou o próprio erro */ });
+}
+
+function voltarDaAvaliacao() {
+  abrirVista('home');
+  /* O card acompanha: quem enviou volta para a home e vê "enviada". */
+  montarHomeV3();
+}
+
+document.getElementById('avaliacao-voltar').addEventListener('click', voltarDaAvaliacao);
+
 document.getElementById('btn-perfil').addEventListener('click', () => abrirVista('summit'));
 
 /* Campo da home → chat */
@@ -1916,6 +1988,11 @@ async function carregarDados() {
     definirAvisos(homeDoEvento.avisos);
     definirMomentoDoServidor(homeDoEvento.home && homeDoEvento.home.momento);
   }
+
+  /* A pesquisa é a última coisa a ser perguntada, e a única que pode
+     falhar sem consequência: `carregarAvaliacaoDoDia` engole o próprio
+     erro e deixa `estadoDaAvaliacao` nulo, que é "a home de sempre". */
+  await carregarAvaliacaoDoDia();
 }
 
 

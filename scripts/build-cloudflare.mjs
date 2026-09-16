@@ -48,6 +48,8 @@ const DO_CHAT = [
   'chat-service.js',
   /* Os componentes da home V3 */
   'home',
+  /* Avaliação do dia: tela, serviço e folha de estilo própria. */
+  'avaliacao',
   'assets',
   'dados',
 ];

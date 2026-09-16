@@ -1,0 +1,523 @@
+/* ============================================================
+   AVALIAÇÃO DO DIA — o estilo do módulo
+   ============================================================
+   TUDO AQUI ESTÁ DENTRO DE `#vista-avaliacao` OU COMEÇA COM `.av-`.
+   Nenhuma regra alcança outra tela: o arquivo pode ser removido inteiro
+   e o resto do app não muda de aparência.
+
+   Os tokens (`--verde`, `--surface`, `--raio-card`…) vêm do `styles.css`
+   e são lidos, nunca redefinidos.
+
+   PRIORIDADE MOBILE. As áreas de toque das notas têm 44px de altura
+   mínima, a lista rola só na vertical e nada estoura a largura da tela.
+*/
+
+#vista-avaliacao .av-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px var(--pad) calc(28px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+
+/* ---------- Blocos de pergunta ---------- */
+
+.av-bloco {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-card);
+  padding: 18px 16px;
+  margin-bottom: 14px;
+}
+
+.av-cabeca {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.av-cabeca h2 {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0;
+  /* Perguntas longas quebram em vez de empurrar a tela para o lado. */
+  overflow-wrap: anywhere;
+}
+
+.av-numero {
+  display: inline-block;
+  min-width: 20px;
+  margin-right: 8px;
+  color: var(--verde);
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.av-obrigatoria {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--texto-mudo);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-pill);
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.av-apoio {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--texto-mudo);
+}
+
+.av-fixo {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-deep);
+  border: 1px solid var(--hairline);
+  color: var(--texto-suave);
+  font-size: 14px;
+  /* E-mail comprido não empurra a tela. */
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Campos de texto ---------- */
+
+.av-campo { margin-top: 12px; }
+
+.av-entrada {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-deep);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  color: var(--texto);
+  font: inherit;
+  font-size: 15px;   /* 16px-ish: abaixo disso o iOS dá zoom ao focar */
+  line-height: 1.5;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.av-entrada:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
+  border-color: transparent;
+}
+
+.av-entrada::placeholder { color: var(--texto-mudo); }
+
+.av-contador {
+  display: block;
+  margin-top: 6px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--texto-mudo);
+}
+
+/* ---------- Escolha única (experiência) ---------- */
+
+.av-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* O rádio de verdade fica acessível e invisível: o teclado e o leitor de
+   tela continuam funcionando, e quem desenha é o `label`. */
+.av-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.av-opcao {
+  flex: 1 1 auto;
+  min-width: 88px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-pill);
+  background: var(--surface-deep);
+  color: var(--texto-suave);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.av-radio:checked + .av-opcao {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: #0b0b0f;
+}
+
+.av-radio:focus-visible + .av-opcao {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
+}
+
+/* ---------- Escala de 0 a 5 ---------- */
+
+.av-escala { margin-top: 14px; }
+
+.av-notas {
+  display: grid;
+  /* Seis colunas iguais em qualquer largura. Num aparelho de 320px cada
+     alvo ainda fica com ~44px, que é o mínimo confortável. */
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.av-nota {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-deep);
+  color: var(--texto-suave);
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* SELECIONADO É ÓBVIO, E O ZERO SELECIONADO TAMBÉM. A diferença entre
+   "0" e "não respondi" é o preenchimento verde, não a ausência dele. */
+.av-radio:checked + .av-nota {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: #0b0b0f;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--verde) 28%, transparent);
+}
+
+.av-radio:focus-visible + .av-nota {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
+}
+
+.av-pontas {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.av-pontas small {
+  font-size: 11px;
+  color: var(--texto-mudo);
+  line-height: 1.35;
+}
+
+.av-pontas small:last-child { text-align: right; }
+
+.av-limpar {
+  margin-top: 10px;
+  min-height: 36px;
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-pill);
+  color: var(--texto-mudo);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.av-limpar:active { border-color: var(--verde); color: var(--texto-suave); }
+
+/* ---------- Filtros e lista de atividades ---------- */
+
+.av-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.av-filtro {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-pill);
+  background: var(--surface-deep);
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.av-filtro.on {
+  background: var(--verde);
+  border-color: var(--verde);
+  color: #0b0b0f;
+}
+
+.av-contagem {
+  margin: 14px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--verde);
+}
+
+.av-atividade {
+  border-top: 1px solid var(--hairline);
+  padding: 16px 0 4px;
+}
+
+.av-at-topo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.av-hora {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--verde);
+  font-variant-numeric: tabular-nums;
+}
+
+.av-espaco {
+  font-size: 12px;
+  color: var(--texto-mudo);
+}
+
+.av-at-titulo {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.av-quem {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--texto-mudo);
+  line-height: 1.4;
+}
+
+/* Bloco de operação: aparece para a grade ficar inteira, e diz por que
+   não tem nota. Fica visivelmente mais apagado que uma atividade. */
+.av-atividade.operacional { opacity: .62; }
+
+.av-informativo {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--texto-mudo);
+}
+
+/* ---------- Erros, avisos e estados ---------- */
+
+.av-erro {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--coral);
+  line-height: 1.4;
+}
+
+.av-faixa {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--coral) 16%, var(--surface-deep));
+  border: 1px solid color-mix(in srgb, var(--coral) 45%, transparent);
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.av-aviso {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--texto-mudo);
+  line-height: 1.5;
+}
+
+.av-vazio {
+  margin-top: 24px;
+  padding: 24px 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-card);
+  text-align: center;
+}
+
+.av-vazio strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.av-vazio p {
+  margin: 10px 0 18px;
+  font-size: 13px;
+  color: var(--texto-mudo);
+  line-height: 1.55;
+}
+
+/* ---------- Conferência ---------- */
+
+.av-confirma {
+  margin-bottom: 14px;
+  padding: 16px;
+  border-radius: var(--raio-card);
+  background: color-mix(in srgb, var(--verde) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
+}
+
+.av-confirma strong {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.av-conferencia {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-card);
+  padding: 6px 16px 14px;
+}
+
+.av-conf-linha {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.av-conf-linha:last-child { border-bottom: none; }
+
+.av-conf-linha dt {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--texto-mudo);
+}
+
+.av-conf-linha dd {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--texto);
+  overflow-wrap: anywhere;
+  /* Texto longo não estica o cartão: ele quebra. */
+  white-space: pre-line;
+}
+
+.av-conf-linha dd.av-vazio-linha { color: var(--texto-mudo); font-style: italic; }
+
+/* ---------- Botões ---------- */
+
+.av-rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0 8px;
+}
+
+.av-botao {
+  min-height: 52px;
+  width: 100%;
+  border: none;
+  border-radius: var(--raio-pill);
+  background: var(--verde);
+  color: #0b0b0f;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.av-botao:active { transform: scale(.99); }
+
+.av-botao[disabled] { opacity: .55; cursor: default; transform: none; }
+
+.av-botao.secundario {
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--texto-suave);
+}
+
+.av-botao:focus-visible { outline: 2px solid var(--texto); outline-offset: 2px; }
+
+/* ---------- Agradecimento ---------- */
+
+.av-obrigado {
+  margin-top: 28px;
+  padding: 28px 20px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
+  border-radius: var(--raio-card);
+  text-align: center;
+}
+
+.av-tique {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--verde);
+  color: #0b0b0f;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.av-obrigado strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.av-obrigado p {
+  margin: 10px 0 20px;
+  font-size: 13px;
+  color: var(--texto-mudo);
+  line-height: 1.55;
+}
+
+/* ---------- O card da home, depois de enviada ----------
+   Uma regra só, e é do módulo: o card da Avaliação do dia em estado
+   concluído. Não redefine `.v3-destaque` — só o modificador que este
+   módulo coloca nele. */
+#home-v3 .v3-destaque.av-enviada {
+  opacity: .62;
+  cursor: default;
+  border-color: color-mix(in srgb, var(--verde) 35%, transparent);
+}
+
+#home-v3 .v3-destaque.av-enviada:active { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .av-botao:active { transform: none; }
+}

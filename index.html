@@ -15,6 +15,9 @@
 <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
 <link rel="apple-touch-icon" href="./assets/simbolo-mind-verde.png" />
 <link rel="stylesheet" href="./styles.css" />
+<!-- Avaliação do dia: folha própria, toda dentro de `#vista-avaliacao` e
+     de `.av-*`. Some inteira sem afetar nenhuma outra tela. -->
+<link rel="stylesheet" href="./avaliacao/avaliacao.css" />
 </head>
 <body>
 
@@ -194,6 +197,20 @@
       </div>
     </div>
     <div class="av-rolagem" id="avisos-corpo"></div>
+  </section>
+
+  <!-- AVALIAÇÃO DO DIA — tela interna, mesma aba, mesma sessão.
+       Vazia até a pessoa abrir: quem preenche é `avaliacao/avaliacao.js`.
+       O topo é o mesmo das outras vistas, com o voltar no mesmo canto. -->
+  <section class="vista" id="vista-avaliacao">
+    <div class="c-topo">
+      <button class="c-voltar" id="avaliacao-voltar" aria-label="Voltar">‹</button>
+      <div>
+        <strong id="avaliacao-titulo">Avaliação do dia</strong>
+        <small id="avaliacao-sub">Sua experiência no Mind</small>
+      </div>
+    </div>
+    <div class="av-corpo" id="avaliacao-corpo"></div>
   </section>
 
   <!-- Painel da home: só o "em breve". -->
