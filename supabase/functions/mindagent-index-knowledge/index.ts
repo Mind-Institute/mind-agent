@@ -19,6 +19,29 @@ function secretKey() {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 }
 
+// TODA service key do projeto vale como credencial, não só a `default`.
+// `SUPABASE_SECRET_KEYS` é um mapa — o projeto pode ter mais de uma chave
+// secreta ativa, e quem chama copia do painel a que estiver à mão. Aceitar
+// só uma delas rejeitava credencial legítima e era indistinguível, para
+// quem chama, de "a chave está errada". O que continua obrigatório é ser
+// uma chave secreta REAL do projeto; nada aqui abre para chave publishable.
+function chavesAceitas(): Set<string> {
+  const aceitas = new Set<string>();
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (raw) {
+    try {
+      for (const value of Object.values(JSON.parse(raw) as Record<string, unknown>)) {
+        if (typeof value === "string" && value) aceitas.add(value);
+      }
+    } catch {
+      // Compatibilidade abaixo.
+    }
+  }
+  const legada = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legada) aceitas.add(legada);
+  return aceitas;
+}
+
 function resposta(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
@@ -36,8 +59,16 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = secretKey();
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  const bearer = req.headers.get("Authorization") ?? "";
-  if (!serviceKey || bearer !== `Bearer ${serviceKey}`) {
+  // O gateway do Supabase recusa `Authorization: Bearer <chave sb_secret_*>`
+  // quando `apikey` já carrega uma chave do projeto — "Conflicting API
+  // keys", mesmo com o mesmo valor nos dois. Aceitar a chave também via
+  // `apikey` (sem prefixo `Bearer`) é o caminho que o próprio gateway deixa
+  // passar; a exigência continua sendo uma service key real do projeto.
+  const aceitas = chavesAceitas();
+  const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const apikeyHeader = req.headers.get("apikey") ?? "";
+  const autorizado = aceitas.has(bearer) || aceitas.has(apikeyHeader);
+  if (!autorizado) {
     return resposta(401, { ok: false, error: "unauthorized" });
   }
   if (!supabaseUrl || !openAiKey) return resposta(503, { ok: false, error: "configuration_missing" });

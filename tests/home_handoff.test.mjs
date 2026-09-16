@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const estado = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8');
 const cards = readFileSync(new URL('../home/cards.js', import.meta.url), 'utf8');
+const avisosJs = readFileSync(new URL('../home/avisos.js', import.meta.url), 'utf8');
 const avisos = readFileSync(new URL('../home/avisos.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -32,15 +33,23 @@ const bootstrap = readFileSync(new URL('../supabase/migrations/20260903151000_bo
 const temasVivos = readFileSync(new URL('../supabase/migrations/20260903152000_temas_grade_viva.sql', import.meta.url), 'utf8');
 const temasHorariosVivos = readFileSync(new URL('../supabase/migrations/20260903153000_temas_grade_horarios_vivos.sql', import.meta.url), 'utf8');
 
-test('os três atalhos levam a destinos que existem', () => {
+test('os atalhos levam a destinos que existem', () => {
   /* Um atalho é uma promessa: "toque e você chega em Meu ingresso". Se o
      destino não existir, `acaoDaHome` cai no `irParaConversa(null)` do
      fim e a pessoa vai parar no chat — sem erro nenhum na tela, que é o
      que torna isto invisível em revisão. */
-  const bloco = estado.slice(estado.indexOf("tipo: 'atalhos'"), estado.indexOf("tipo: 'secao', titulo: 'Avisos"));
+  /* A fatia começa em "Como usar o app": desde 06/09 há uma fileira ANTES
+     desta, a dos dois recados de véspera, e ela tem teste próprio. */
+  const bloco = estado.slice(estado.indexOf("tipo: 'secao', titulo: 'Como usar o app'"), estado.indexOf("tipo: 'secao', titulo: 'Avisos"));
   const destinos = [...bloco.matchAll(/acao: '([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(destinos, ['tour:qrcode', 'tour:minha-agenda', 'tour'],
+  assert.deepEqual(destinos, ['tour:qrcode', 'tour:minha-agenda'],
     'os destinos dos atalhos mudaram');
+  /* E os dois de cima: o amarelo de reservar e a porta dos avisos. */
+  const vespera = estado.slice(estado.indexOf("tipo: 'atalhos'"), estado.indexOf("tipo: 'destaque', marca: true"));
+  assert.deepEqual([...vespera.matchAll(/acao: '([^']+)'/g)].map((m) => m[1]), ['tour', 'avisos'],
+    'os destinos dos recados de véspera mudaram');
+  assert.match(app, /if \(acao === 'avisos'\)/,
+    'o destino dos avisos deixou de ser tratado');
 
   /* O tile do mapa saiu em 02/09 para os três caberem numa linha e sobrar
      altura para mais um aviso. O ROTEIRO `mapa` continua existindo e
@@ -64,15 +73,59 @@ test('os três atalhos levam a destinos que existem', () => {
   }
 });
 
-test('três atalhos cabem numa linha, e sem descrição', () => {
-  /* Em 360px cada tile fica com ~99px. A descrição ali vira palavra
-     picada em quatro linhas; o título sozinho já diz para onde vai. */
-  assert.match(cards, /itens\.length === 3 \? ' trio' : ''/,
-    'a grade parou de reconhecer o trio e volta a duas colunas');
-  assert.match(cards, /repeat\(' \+ Math\.min\(itens\.length, 3\)/,
-    'o número de colunas voltou a ser fixo no CSS em vez de vir da quantidade');
-  assert.match(css, /\.v3-atalhos\.trio \.v3-atalho\s*\{[^}]*text-align:\s*center/,
-    'o tile do trio perdeu a centralização');
+test('os atalhos são deitados, um por linha, com descrição', () => {
+  /* Foram tiles quadrados em trio: num aparelho de 360 cada um ficava com
+     ~98px, a descrição era cortada e o título não passava de duas palavras.
+     Deitado, o símbolo fica à esquerda e o texto ocupa a largura que sobra.
+
+     O HTML é UM SÓ para todos: `display: contents` no invólucro do topo
+     solta ícone e chevron como itens da grade. Um segundo formato de
+     `innerHTML` aqui era o que cortava a descrição. */
+  assert.doesNotMatch(cards, /' trio'/,
+    'o trio voltou: os atalhos deixaram de ser deitados');
+  assert.doesNotMatch(css, /\.v3-atalhos\.trio/,
+    'sobrou CSS de trio para um layout que não existe mais');
+  assert.doesNotMatch(cards, /gridTemplateColumns/,
+    'a grade voltou a montar colunas por JS em vez de uma por linha');
+  assert.match(cards, /'<span class="v3-atalho-topo">.*<\/span>' \+\s*'<strong>' \+ t\.titulo/s,
+    'os atalhos voltaram a ter dois formatos de marcação');
+  assert.match(cards, /'<small>' \+ t\.texto \+ '<\/small>'/,
+    'a descrição do atalho sumiu da marcação');
+  assert.match(css, /\.v3-atalho \.v3-atalho-topo \{ display: contents/,
+    'ícone e chevron deixaram de entrar na grade do atalho');
+  assert.match(css, /\.v3-atalho \{[^}]*grid-template-columns:\s*auto 1fr auto/,
+    'o atalho deixou de ser deitado');
+});
+
+test('o atalho em destaque é o amarelo da marca, e só isso', () => {
+  /* `destaque` não é mais layout — todos têm o mesmo. Ele diz só qual card
+     é o amarelo, e o amarelo é o da paleta, não um inventado. */
+  assert.match(css, /\.v3-atalhos \.v3-atalho\.destaque\s*\{[^}]*background:\s*var\(--amarelo\)/,
+    'o destaque perdeu o fundo amarelo, que é o que o faz destaque');
+  assert.match(css, /--amarelo:\s*#fbf4d0/i,
+    'o amarelo deixou de ser o da marca (#FBF4D0)');
+  assert.doesNotMatch(css, /\.v3-atalho\.destaque\s*\{[^}]*grid-column/,
+    'o destaque voltou a precisar de regra de coluna própria');
+  assert.match(cards, /' destaque' : ''/,
+    'a classe do destaque sumiu da montagem');
+  assert.match(estado, /titulo: 'Aprenda como reservar suas experiências'/,
+    'o título do atalho de reserva mudou sem passar por aqui');
+});
+
+test('a pílula do ingresso tem uma cor por experiência', () => {
+  /* O roxo era de todas e não dizia nada. Mind verde, VIP coral, Prime e
+     Camarote roxo — e texto escuro sobre verde e coral, onde branco não
+     teria contraste. */
+  for (const [cor, fundo] of [['mind', '--verde'], ['vip', '--coral'], ['camarote', '--roxo']]) {
+    assert.match(css, new RegExp('\\.h-ingresso\\[data-cor="' + cor + '"\\][^{]*\\{[^}]*var\\(' + fundo + '\\)'),
+      'a pílula de ' + cor + ' perdeu a cor própria');
+  }
+  /* Medido em 393px: em caixa alta a pílula do Camarote dá 174px e passa
+     6px da borda, empurrando a marca do evento para fora. */
+  assert.match(css, /\.h-ingresso\[data-cor="camarote"\]\s*\{[^}]*text-transform:\s*none/,
+    'o rótulo do Camarote voltou à caixa alta e não cabe mais no cabeçalho');
+  assert.match(app, /camarote: \{ nome: 'Camarote Heineken'/,
+    'o rótulo de tela do Camarote mudou sem passar por aqui');
 });
 
 test('nenhum bloco da home encolhe para caber', () => {
@@ -191,11 +244,118 @@ test('o botão de missões some quando não há missão', () => {
     'o `hidden` do botão de missões voltou a perder para o `display` do botão');
 });
 
-test('o título da demonstração é nome de tela, não instrução', () => {
+test('o título da demonstração é nome de tela, não a missão inteira', () => {
   assert.match(app, /nome: 'Lugar reservado'/,
     'o roteiro de reserva perdeu o nome curto e o título volta a ser a missão inteira');
   assert.match(app, /missaoTexto\.textContent = ROTEIROS\[roteiroAtual\]\.nome/,
     'o cabeçalho voltou a escrever a missão com contador no lugar do nome');
+});
+
+test('a tela que ensina pelo alto mostra a instrução, e só ela', () => {
+  /* Pedido da Adriana em 06/09 para a primeira tela do tour: sai o nome do
+     roteiro ("Lugar reservado") e sai a frase de prévia; entra, no alto, a
+     instrução que antes ficava no rodapé. O rodapé fica vazio na mesma
+     tela — a explicação é uma só, e repeti-la em cima e embaixo era dizer
+     duas vezes. */
+  assert.match(app, /instrucao: 'O menu programação mostra todas as experiências do evento\./,
+    'a instrução da tela de Programação mudou ou saiu');
+  assert.match(app, /explica\.textContent = tela\.instrucao \? '' : \(tela\.serve \|\| ''\)/,
+    'o rodapé voltou a repetir a explicação que já está no alto');
+  assert.match(app, /previa\.hidden = Boolean\(instrucao\)/,
+    'a frase de prévia voltou a aparecer na tela que ensina pelo alto');
+});
+
+test('o aviso de prévia continua onde o erro seria caro', () => {
+  /* A instrução só substitui a prévia na tela que a recebeu. Nas telas em
+     que confundir a demonstração com o app custa caro — o QR que alguém
+     tentaria apresentar na entrada, a agenda que alguém leria como a sua —
+     `NEGA_POR_TELA` continua respondendo. */
+  /* A tela do ingresso é a que sustenta o aviso: é o QR que alguém tentaria
+     apresentar na entrada. As quatro telas do roteiro de reserva ensinam
+     pelo alto e não mostram mais a frase; o selo verde e a moldura verde,
+     que são os outros dois avisos, seguem em todas. */
+  assert.match(app, /qrcode:\s*'não é o seu ingresso'/,
+    'a tela do ingresso perdeu o aviso de que o QR não é o da pessoa');
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  /* As quatro telas do roteiro de reserva, e só elas: quem ensina pelo alto
+     é decisão de tela a tela, não um padrão que se espalha. */
+  assert.equal((telas.match(/^\s+instrucao:/gm) || []).length, 4,
+    'o número de telas que ensinam pelo alto mudou sem a decisão passar por aqui');
+  assert.match(app, /instrucao: 'Ao abrir a página da experiência clique em Reservar lugar'/,
+    'a instrução da página da experiência mudou ou saiu');
+});
+
+test('o aviso da reserva sobe para o cabeçalho, e só na tela que pediu', () => {
+  /* Pedido da Adriana em 06/09: na tela da reserva confirmada o aviso sai
+     de cima da captura — que fica limpa — e vira texto no cabeçalho com o
+     botão logo abaixo. Quem decide é a TELA de destino, não a folha: a
+     mesma `reservado` continua modal no roteiro do Camarote. */
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  assert.equal((telas.match(/^\s+folhaNoAlto: true,/gm) || []).length, 1,
+    'mais de uma tela passou a tirar o aviso de dentro do quadro');
+  assert.match(app, /if \(TELAS\[telaAtual\] && TELAS\[telaAtual\]\.folhaNoAlto\) \{/,
+    'o aviso voltou a abrir sempre como modal dentro do quadro');
+  /* A confirmação continua obrigatória: é `folhaObrigatoria` que segura o
+     toque no quadro até a pessoa ler. Sem isso o aviso viraria enfeite. */
+  assert.match(app, /confirmaEl\.addEventListener\('click', fecharFolha\)/,
+    'o botão do cabeçalho parou de confirmar o aviso');
+  assert.match(app, /if \(emTransicao \|\| folhaObrigatoria\) return;/,
+    'o quadro voltou a aceitar toque antes de a pessoa confirmar o aviso');
+});
+
+test('a tela da reserva confirmada aponta Minha Agenda, não o check-in', () => {
+  /* Texto da Adriana em 06/09, no lugar de "No dia da experiência, o
+     check-in é feito nesta mesma página". Depois de confirmar o aviso, o
+     cabeçalho tem de dizer para onde ir agora — o menu onde as reservas
+     ficam —, não o que fazer daqui a duas semanas. As duas casas mudam
+     juntas: `instrucao` é o que aparece no alto, `serve` é o que responde
+     quando a tela aparece fora de um roteiro. */
+  const frase = 'Lugar garantido. Veja no menu minha agenda todas as experiências nas quais você está agendado.';
+  const telas = app.slice(app.indexOf('const TELAS = {'), app.indexOf('const ROTEIROS = {'));
+  assert.equal(telas.split(frase).length - 1, 2,
+    'a frase da tela de reserva confirmada mudou ou saiu de uma das duas casas');
+  assert.ok(!telas.includes('Lugar garantido. No dia da experiência'),
+    'o texto antigo do check-in voltou para a tela da reserva confirmada');
+  /* O aviso dos 5 minutos é outro texto e continua sendo o da folha: é ele
+     que sobe para o cabeçalho ANTES de a pessoa confirmar. */
+  assert.match(app, /texto: 'Seu lugar está reservado! Mas atenção/,
+    'o aviso dos cinco minutos saiu da folha da reserva');
+});
+
+test('o título de seção com destino abre inteiro, não só o "Ver ..."', () => {
+  /* Pedido da Adriana em 06/09: título de seção com destino tem de clicar
+     inteiro. O dedo vai no título, que é o alvo grande; o "Ver ..." da
+     direita é a legenda do destino, não o botão. Vale hoje para "Avisos
+     importantes" — os dois recados de véspera, que motivaram o pedido,
+     viraram botão na mesma tarde. Seção sem `acao` continua texto puro:
+     não há para onde ir. */
+  assert.match(cards, /const t = no\('button', 'v3-secao-tit', b\.titulo\);/,
+    'o título de seção deixou de virar botão');
+  assert.match(cards, /t\.addEventListener\('click', \(\) => aoAgir\(b\.acao, b\)\);/,
+    'o título de seção virou botão sem levar a lugar nenhum');
+  assert.match(cards, /if \(b\.acao\) \{/,
+    'seção sem destino voltou a virar botão');
+  /* O `<h2>` continua sendo o cabeçalho da seção: o botão mora dentro
+     dele, para o toque não custar a estrutura da página. */
+  assert.match(cards, /const h = no\('h2'\);/,
+    'o cabeçalho da seção deixou de ser um h2');
+});
+
+test('os dois recados de véspera são botões, não títulos em texto', () => {
+  /* Adriana, 06/09: o amarelo de reservar subiu para cima do quadrado do
+     Concierge, no lugar do título em texto que o anunciava — eram dois
+     avisos para a mesma coisa. E o "O que é importante saber", que tinha
+     nascido título, virou botão do lado dele. */
+  assert.match(estado, /titulo: 'Aprenda como reservar suas experiências',\s+texto: 'Garanta suas escolhas agora', acao: 'tour', destaque: true/,
+    'o botão de reservar mudou de texto ou perdeu o destaque');
+  assert.match(estado, /titulo: 'O que é importante saber antes do Mind Summit',\s+texto: 'Tudo que o evento comunicou', acao: 'avisos'/,
+    'o recado de véspera não é mais um botão para os avisos');
+  /* O título em texto que o anunciava não pode voltar: era a duplicata. */
+  assert.ok(!estado.includes("titulo: 'Aprenda a reservar suas experiências'"),
+    'o título em texto do tour voltou junto com o botão');
+  /* E o amarelo é um só na tela — ele é o destaque porque é único. */
+  assert.equal((estado.match(/destaque: true/g) || []).length, 1,
+    'apareceu mais de um card amarelo na home');
 });
 
 test('a descrição da tela é branca e grande o bastante para ler', () => {
@@ -362,7 +522,14 @@ test('a home mostra os seis avisos na ordem que a Adriana pediu', () => {
   /* O espaço antes de `em:` não é enfeite: sem ele o `mensagem:` de cada
      aviso também casa, e a lista de datas vem cheia de texto. */
   const datas = [...bloco.matchAll(/ em: '([^']+)'/g)].map((m) => m[1]);
-  assert.equal(datas.length, 18, 'a lista embutida deixou de ter os 18 avisos em circulação');
+  assert.equal(datas.length, 19, 'a lista embutida deixou de ter os 19 avisos em circulação');
+  /* O do estacionamento entrou em 06/09, no banco e aqui, logo depois de
+     "Como chegar ao São Paulo Expo" — que já fala do estacionamento
+     coberto e da passarela, e a que este responde o que faltava. */
+  assert.match(estado, /id: 'estacionamento', ico: ICO\.carro, cat: 'antes_de_ir', em: '2026-09-15T16:10'/,
+    'o aviso do estacionamento saiu da lista embutida ou mudou de lugar');
+  assert.ok(datas.indexOf('2026-09-15T16:10') === datas.indexOf('2026-09-15T16:20') + 1,
+    'o aviso do estacionamento não vem logo depois do "Como chegar ao São Paulo Expo"');
   const ordenado = [...datas].sort().reverse();
   assert.deepEqual(datas, ordenado,
     'a lista embutida saiu da ordem de disparo, e a home passa a mostrar outros seis');
@@ -376,11 +543,30 @@ test('a home mostra os seis avisos na ordem que a Adriana pediu', () => {
     'Vai aos autógrafos dos Legends? Prefira levar o livro',
   ], 'os seis da home mudaram');
   /* Três toggles, e só três: a Adriana pediu (03/09). "Ingressos" saiu e o
-     aviso do ingresso passou a morar em "Antes de ir ao Summit". */
+     aviso do ingresso passou a morar na primeira categoria — que em 06/09
+     ela renomeou para "Importante Saber Antes do Summit", o mesmo nome do
+     botão que abre esta tela na home. */
   const cats = [...estado.matchAll(/rotulo: '([^']+)',\s+ponto: true/g)].map((m) => m[1]);
-  assert.deepEqual(cats, ['Antes de ir ao Summit', 'Reservas e Agenda', 'Durante e Depois'],
+  assert.deepEqual(cats, ['Importante Saber Antes do Summit', 'Reservas e Agenda', 'Durante e Depois'],
     'a tela de avisos deixou de ter exatamente os três toggles');
   assert.ok(!/id: 'ingressos'/.test(estado), 'a categoria "ingressos" voltou como toggle');
+});
+
+test('a tela de avisos abre numa categoria, sem o chip "Todos"', () => {
+  /* Adriana, 06/09: "tire todos". Os três momentos são a navegação inteira,
+     e a tela abre no primeiro — o que é importante saber antes. O valor
+     `todos` continua existindo como rede: sem categoria em circulação, a
+     lista mostra tudo em vez de abrir vazia. */
+  assert.match(avisosJs, /const botoes = presentes;/,
+    'o chip "Todos" voltou para a tela de avisos');
+  assert.match(avisosJs, /let filtro = presentes\.length \? presentes\[0\]\.id : 'todos';/,
+    'a tela de avisos deixou de abrir na primeira categoria');
+  assert.ok(!avisosJs.includes("rotulo: 'Todos'"),
+    'o rótulo "Todos" voltou para os chips');
+  /* O `todos` do filtro continua servindo de rede — quem o tira precisa
+     resolver o que a lista mostra quando não há categoria nenhuma. */
+  assert.match(avisosJs, /filtro === 'todos' \|\| a\.cat === filtro/,
+    'a rede que mostra tudo sem categoria saiu junto com o chip');
 });
 
 test('aviso no ar sem horário não derruba a home e aparece como Agora', async () => {
@@ -498,11 +684,15 @@ test('a pessoa é chamada pelo primeiro nome, e pelo mesmo nos dois lugares', ()
 });
 
 test('a quebra do título vem do conteúdo, não de marcação', () => {
-  /* "começa agora" fica na própria linha, como a Adriana escreveu. A
-     quebra chega como `\n` — conteúdo aqui é texto — e quem a honra é o
-     `pre-line`. Sem ele o `\n` vira espaço e a linha some sem erro. */
-  assert.match(estado, /titulo: 'seu Mind Summit\\ncomeça agora'/,
-    'a quebra ou o ponto final do título mudaram');
+  /* O título é uma linha só desde 06/09 — a quebra antes de "começa agora"
+     saiu a pedido da Adriana. O `pre-line` continua na regra porque é ele
+     que mantém a quebra sendo decisão de conteúdo: se voltar, volta como
+     `\n` aqui, e não como marcação. Sem ele o `\n` vira espaço e a linha
+     some sem erro nenhum. */
+  assert.match(estado, /titulo: 'seu Mind Summit começa agora'/,
+    'o título do hero mudou ou ganhou ponto final');
+  assert.ok(!estado.includes('seu Mind Summit\\ncomeça'),
+    'a quebra de linha voltou para o título do hero');
   /* Início de linha: `.v3-hero.decorado .v3-titulo {` vem antes e contém
      a mesma substring — sem a âncora o slice pega a regra errada. */
   const i = css.indexOf('\n.v3-titulo {');
@@ -589,4 +779,25 @@ test('o andaime de momento não manda em produção', () => {
   /* Uma regra só: duas cópias divergem, e divergir aqui é tela presa. */
   assert.match(homeJs, /const mostrarSeletor = seletorDisponivel;/,
     'o `home.js` voltou a ter a própria cópia da regra');
+});
+
+test('o campo do Concierge é o amarelo da marca, e nada claro vai em cima dele', () => {
+  /* O campo é a única porta para o Concierge na home, e no escuro sobre
+     escuro passava por moldura. Em creme, tudo o que vai em cima precisa
+     ser escuro — e o risco aqui é silencioso: um placeholder claro que
+     sobra de um tema anterior não quebra nada, só apaga o convite.
+     Medido: texto do placeholder 4,97:1 e botão 16,69:1 sobre o creme. */
+  assert.match(css, /\.doca input \{[^}]*background: var\(--amarelo\)/s,
+    'o campo do Concierge perdeu o amarelo da marca');
+  assert.match(css, /\.doca input \{[^}]*color: var\(--bg\);/s,
+    'o texto digitado deixou de ser escuro — some dentro do próprio campo');
+  assert.match(css, /\.doca input::placeholder \{ color: color-mix\(in srgb, var\(--bg\)/,
+    'o placeholder voltou a ser claro sobre creme: o convite fica ilegível');
+  assert.doesNotMatch(css, /\.doca input::placeholder \{ color: var\(--texto-mudo\)/,
+    'o placeholder voltou ao cinza do tema escuro');
+
+  /* O verde de interface sobre o creme dá 1,34:1: o botão sumia dentro do
+     campo. Escuro sobre creme é o que o faz continuar sendo um botão. */
+  assert.match(css, /\.doca \.enviar \{[^}]*background: var\(--bg\); color: var\(--amarelo\);/s,
+    'o botão de enviar voltou ao verde, que desaparece sobre o creme');
 });

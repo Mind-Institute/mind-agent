@@ -101,7 +101,7 @@ test('validação mínima só aceita JSON com resposta não vazia', () => {
 test('Edge reconcilia lote e usa contadores separados nos fail-safes', () => {
   assert.match(edge, /journey_signals\?: unknown/);
   assert.match(edge, /function journeySignals/);
-  assert.match(edge, /const VERSION = "1\.13\.0"/);
+  assert.match(edge, /const VERSION = "1\.14\.0"/);
   assert.match(edge, /DEFAULT_MODEL_FAST = "gpt-5\.4-mini"/);
   assert.match(edge, /OPENAI_FAST_ROLLOUT_PERCENT/);
   assert.match(edge, /!podeExecutarTool\(rodadasTool, MAX_RODADAS_TOOL\) \|\|/);

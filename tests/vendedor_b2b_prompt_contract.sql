@@ -1,10 +1,11 @@
--- Contrato do vendedor B2B Summit v9, com Core compartilhado B2B/B2C.
+-- Contrato do vendedor B2B Summit, com Core compartilhado e venda sem pedágio cadastral.
 -- Leitura apenas; não cria fixture nem altera dados.
 
 do $test$
 declare
   v_b2b text;
   v_b2c text;
+  v_router text;
   v_bloco jsonb;
   v_kit jsonb;
   v_status jsonb;
@@ -14,6 +15,9 @@ declare
 begin
   select public.treble_agent_prompt('summit_b2b','completo') into v_b2b;
   select public.treble_agent_prompt('summit_b2c','completo') into v_b2c;
+  select conteudo into v_router
+  from agentes.prompts
+  where chave = 'router_universal' and ativo;
   select public.mind_kit_delegacao_corporativa(null::uuid,'{}'::jsonb) into v_bloco;
   select public.mind_b2b_produto_status() into v_status;
 
@@ -29,13 +33,10 @@ begin
   if position('10 ou mais' in coalesce(v_b2b,'')) = 0 then
     raise exception 'regra de handoff por volume ausente';
   end if;
-  if position('CADASTRO B2B OBRIGATÓRIO NO INÍCIO' in coalesce(v_b2b,'')) = 0 then
-    raise exception 'regra de cadastro B2B inicial ausente';
-  end if;
-  if position('NÃO COLETE CADASTRO' in coalesce(v_b2b,'')) > 0
-     or position('Não entregue calculadora, proposta ou checkout até completar o contato mínimo' in coalesce(v_b2b,'')) = 0
-     or position('nome completo, e-mail, WhatsApp, empresa e cargo' in coalesce(v_b2b,'')) = 0 then
-    raise exception 'contrato cadastral B2B vigente não foi preservado';
+  if position('ENRIQUECIMENTO B2B SEM ATRITO' in coalesce(v_b2b,'')) = 0
+     or position('Nome, empresa, cargo, e-mail ou outro campo ausente não bloqueiam' in coalesce(v_b2b,'')) = 0
+     or position('CADASTRO B2B OBRIGATÓRIO NO INÍCIO' in coalesce(v_b2b,'')) > 0 then
+    raise exception 'venda B2B ainda está bloqueada por cadastro';
   end if;
   if position('Classifique quem chegou:' in coalesce(v_b2b,'')) > 0 then
     raise exception 'playbook_router ainda montado no B2B';
@@ -56,12 +57,19 @@ begin
      or position('PRODUCT DECISIONING ENTRE SOLUÇÕES MIND' in coalesce(v_b2c,'')) > 0 then
     raise exception 'B2C não usa exclusivamente o decisioning compartilhado';
   end if;
-  if position('CONTATO COMERCIAL NO INÍCIO' in coalesce(v_b2c,'')) = 0
-     or position('nome completo, e-mail, WhatsApp, empresa e cargo' in coalesce(v_b2c,'')) = 0 then
-    raise exception 'captura inicial de contato não chegou ao B2C';
+  if position('ENRIQUECIMENTO SEM ATRITO' in coalesce(v_b2c,'')) = 0
+     or position('Nunca condicione resposta, recomendação, preço, calculadora, proposta ou checkout' in coalesce(v_b2c,'')) = 0 then
+    raise exception 'venda B2C ainda está bloqueada por cadastro';
   end if;
   if position('CALCULADORA CORPORATIVA' in coalesce(v_b2c,'')) > 0 then
     raise exception 'playbook B2B vazou para B2C';
+  end if;
+
+  if position('destino corporativo e mais de um participante' in coalesce(v_router,'')) = 0
+     or position('empresa pagando o único ingresso' in coalesce(v_router,'')) = 0
+     or position('quantidade de dois ou mais ingressos sem destino corporativo' in coalesce(v_router,'')) = 0
+     or position('- empresa pagando;' in coalesce(v_router,'')) > 0 then
+    raise exception 'router_universal ainda classifica B2B por um único sinal';
   end if;
 
   if v_bloco->'estrutura'->>'nucleo_comum_horas' <> '10' then

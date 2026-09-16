@@ -110,6 +110,10 @@ const EXPERIENCIAS = ["mind", "vip", "prime"];
 const MARCA_PARCELA_ANTES = /\d+\s*x\s*(?:de\s*)?$/i;
 const MARCA_PARCELA_DEPOIS = /^\s*(?:por m[êe]s|mensais|ao m[êe]s)/i;
 const MARCA_ECONOMIA = /(econom|poupa|abatimento|desconto de)\S*\s*(?:de\s*)?$/i;
+// "R$ 200 de desconto" é economia tanto quanto "desconto de R$ 200": a marca pode vir
+// depois do valor. Sem isso, a forma mais natural de anunciar um cupom caía em "oferta"
+// e era barrada como preço inventado.
+const MARCA_ECONOMIA_DEPOIS = /^\s*(?:de\s+)?(?:desconto|economia|abatimento)\b/i;
 const MARCA_UNITARIO = /^\s*[,)]?\s*(por pessoa|por ingresso|por participante|por convite|por cabe[çc]a|cada)/i;
 
 /** "1.318,99" → 1318.99 · "1.647" → 1647 */
@@ -176,6 +180,19 @@ export function precosOficiais(dadosOficiais: unknown): Oficiais {
       return; // os campos desta linha já foram lidos com o papel certo
     }
 
+    // Cupom individual (regra `desconto_individual`): `desconto.valor` é ECONOMIA sem
+    // faixa, na experiência do cupom. O `valor` do mesmo objeto é o preço final com o
+    // cupom e cai na regra de oferta logo abaixo, junto com `condicoes_pagamento`. O
+    // objeto `desconto` continua sendo percorrido pela recursão, então o mesmo número
+    // também vale como oferta — "consigo R$ 200 pra você" não pode virar handoff.
+    const descontoCupom = obj["desconto"] as Record<string, unknown> | undefined;
+    if (
+      typeof obj["cupom"] === "string" && descontoCupom && typeof descontoCupom === "object" &&
+      typeof descontoCupom["valor"] === "number" && (descontoCupom["valor"] as number) > 0
+    ) {
+      fatos.push({ papel: "economia", valor: Math.round(descontoCupom["valor"] as number), experiencia: exp, aPartirDe: null });
+    }
+
     // Oferta: preço base e sua condição de pagamento, fora de qualquer faixa.
     if (typeof obj["valor"] === "number" && Number.isFinite(obj["valor"] as number)) {
       fatos.push({ papel: "oferta", valor: Math.round(obj["valor"] as number), experiencia: exp, aPartirDe: null });
@@ -221,7 +238,7 @@ export function experienciasDitas(texto: string): string[] {
 /** O papel que a vizinhança do valor lhe atribui. */
 function papelDaAfirmacao(antes: string, depois: string, temQuantidade: boolean): Papel | "total" {
   if (MARCA_PARCELA_ANTES.test(antes) || MARCA_PARCELA_DEPOIS.test(depois)) return "parcela";
-  if (MARCA_ECONOMIA.test(antes)) return "economia";
+  if (MARCA_ECONOMIA.test(antes) || MARCA_ECONOMIA_DEPOIS.test(depois)) return "economia";
   if (MARCA_UNITARIO.test(depois)) return "unitario";
   return temQuantidade ? "total" : "oferta";
 }

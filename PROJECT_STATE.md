@@ -3,7 +3,12 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v7 — 03/09/2026.**
+> **Versão do checkpoint arquitetural: v8 — 04/09/2026.**
+>
+> v8 congela o atalho comercial estreito do Treble, criado por causa da latência medida do
+> Router: B2C é padrão; B2B de ingressos exige destino corporativo e mais de uma pessoa;
+> suporte, outra solução e empresa sem quantidade seguem para o Router. O código e o
+> `router_universal` devem carregar exatamente o mesmo contrato.
 >
 > v7 congela a correção de produto pedida pela Adriana: o App continua entrando como Concierge e usando momento do evento + contexto da pessoa, mas também pode vender quando houver intenção explícita de compra ou upgrade. O mesmo contrato de checkout atribuído vale no App e no WhatsApp e já nasce extensível para Institute e pré-venda do Summit seguinte quando essas ofertas oficiais entrarem nos Kits.
 >
@@ -254,6 +259,26 @@ Rotas canônicas, exatamente seis:
 - `concierge_summit`.
 
 `ja_comprou` e `desconhecido` não são rotas.
+
+### Atalho comercial do Treble — congelado em 04/09
+
+Para evitar a latência e as falhas observadas quando o Router era chamado em
+todo turno, o `treble-inbound-agent` usa
+`_shared/treble-commercial-route.ts` antes do Router somente no domínio
+comercial do Summit:
+
+- B2C é o padrão;
+- venda B2B de ingressos exige simultaneamente destino empresa/equipe e mais de
+  uma pessoa;
+- cargo, empresa, pagamento corporativo de um único ingresso ou quantidade sem
+  destino corporativo não bastam;
+- destino corporativo sem quantidade, suporte e outra solução devolvem
+  `rota=null` e seguem para o Router;
+- patrocínio é B2B como demanda própria.
+
+O atalho não cria rota nem taxonomia. Código e
+`agentes.prompts['router_universal']` precisam manter o mesmo contrato e os
+casos de regressão vivem em `tests/treble_commercial_route.test.mjs`.
 
 O Gate `public.mind_rota_capacidade(rota, canal)` lê o playbook e `mind_kit_meta`.
 

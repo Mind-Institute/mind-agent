@@ -12,6 +12,7 @@ import {
   extrairChamadas,
   MAX_RODADAS_TOOL,
   ORCAMENTO_TURNO_MS,
+  ORCAMENTO_TURNO_COMPLEXO_MS,
   produtoDoContexto,
   respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
@@ -56,7 +57,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.13.0";
+const VERSION = "1.14.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -1272,7 +1273,6 @@ Deno.serve(async (req: Request) => {
       ...historico,
       { role: "user", content: `Responda usando este JSON:\n${JSON.stringify(aiContext)}` },
     ];
-    const fimDoOrcamento = startedAt + ORCAMENTO_TURNO_MS;
     const responseSchema = montarResponseSchema(rotasDoCanal);
     // As instruções do turno são as da COMPETÊNCIA, e só. O Kit já entrega o playbook
     // da rota com a camada transversal `base` na frente.
@@ -1293,6 +1293,14 @@ Deno.serve(async (req: Request) => {
       rolloutBucket < modelFastRolloutPercent,
     );
     const modelInicial = modelDecision.model;
+    // O turno que já começa no modelo completo é o turno que a classificação
+    // (`modeloInicialDoTurno`) já sabe ser mais pesado — é ESTE que precisa de
+    // orçamento maior, decidido uma vez, no início, e não recalculado a cada
+    // tentativa: o relógio é o mesmo do começo ao fim do turno inteiro.
+    const orcamentoDoTurno = modelInicial === modelComplex
+      ? ORCAMENTO_TURNO_COMPLEXO_MS
+      : ORCAMENTO_TURNO_MS;
+    const fimDoOrcamento = startedAt + orcamentoDoTurno;
     let model = modelInicial;
     let modelEscalation: string | null = null;
     const modelsUsed = new Set<string>();

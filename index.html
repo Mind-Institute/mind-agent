@@ -134,14 +134,21 @@
       </span>
       <span class="t-prog" id="missao-prog" aria-hidden="true"></span>
       <button class="c-voltar" id="ver-missoes" aria-label="Ver missões">☰</button>
-      <button class="t-fechar" id="fechar-tour" aria-label="Sair da demonstração">
+      <!-- BOTÃO COM NOME, não só o `x`: quem está no meio de um tutorial
+           precisa ler para onde o toque leva antes de arriscar. -->
+      <button class="t-fechar" id="fechar-tour">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        Fechar tutorial
       </button>
     </div>
 
     <div class="t-cabeca">
       <strong id="missao-texto">Meu ingresso</strong>
       <small id="t-previa">Prévia da tela</small>
+      <!-- O aviso que algumas telas dão fora do quadro: o texto vai no
+           `missao-texto` acima, e este é o botão que o confirma. Fica
+           escondido enquanto não há aviso desse tipo na tela. -->
+      <button type="button" id="t-confirma" hidden></button>
     </div>
 
     <div class="t-palco">
@@ -162,7 +169,6 @@
 
     <div class="t-rodape">
       <p id="t-explica"></p>
-      <button type="button" id="voltar-funcoes">Voltar às funções</button>
     </div>
 
     <div class="missoes-fundo" id="missoes-fundo">

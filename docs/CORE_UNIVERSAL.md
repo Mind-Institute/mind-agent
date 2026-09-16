@@ -660,8 +660,12 @@ o que decidir e a chamada é desperdício. **Identidade e contexto vêm antes do
 Router não resolve pessoa, não monta contexto e não lê o banco por conta própria: ele consome o
 `AGENT_CONTEXT` do Passo 8 e mais nada.
 
-O pré-roteamento determinístico — a parte que resolve a rota sem IA a partir da entrada — é do
-**Passo 11**, junto com o Registry. Neste passo ele não existe.
+No Treble comercial existe um pré-roteamento determinístico e estreito em
+`_shared/treble-commercial-route.ts`, publicado em 04/09 para não pagar a latência do Router em
+todo turno. Ele só fecha `summit_b2c` ou `summit_b2b`: B2C é o padrão e B2B de ingressos exige
+destino empresa/equipe mais pluralidade. Suporte, outra solução e empresa sem quantidade continuam
+no Router. Patrocínio segue B2B como demanda própria. O código e o prompt do Router compartilham o
+mesmo contrato e são cobertos pelos mesmos casos de regressão.
 
 ### `router` — Edge Function
 
@@ -702,17 +706,15 @@ ambiguidade. A entrada do modelo é a **última fala do lead** como necessidade 
 Os três contratos de erro do `mind_agent_context` são espelhados tal como são —
 `sem_conversa` · `conversa_nao_encontrada` · `conversa_sem_pessoa` — em HTTP 200 com `ok:false`.
 
-O prompt vive em `agentes.prompts['router_universal']` (ativo, v2), escrito pela Adriana. **Nenhuma
-regra de roteamento está codificada na Edge Function** — a Edge é encanamento; a competência é do
-prompt.
+O prompt vive em `agentes.prompts['router_universal']` (ativo, v4). Fora do atalho comercial
+estreito do Treble descrito acima, a Edge é encanamento e a competência continua sendo do prompt.
 
-### Deliberadamente desconectado do runtime
+### Integração ao runtime
 
-O Router **não está integrado ao Treble**. `treble-inbound-agent`, `treble_agent_prompt` e
-`mind_turno_registrar` não foram tocados; a rota **não é persistida** e `engagement.conversas` não
-mudou. O Router existe, é chamável e está coberto por teste — e nada em produção depende dele.
-Isso é escolha, não pendência: ligar o Router ao turno ao vivo depende do Registry (Passo 11) e do
-contrato de ação (Passo 14).
+O Router está integrado ao `treble-inbound-agent`. O atalho comercial tenta fechar primeiro os
+casos B2C/B2B seguros; quando devolve `rota=null`, o runtime chama o Router. A rota decidida e sua
+origem são persistidas nos blocos da mensagem do agente por `mind_turno_registrar`, incluindo
+`rota`, `rota_aplicada`, `rota_origem`, `precisa_esclarecer` e `candidatas`.
 
 **Capability não altera rota.** Se a competência certa é `dash`, a rota é `dash` mesmo que ainda
 não exista nada capaz de atender — o que se faz com uma rota sem capacidade é o **capability gate

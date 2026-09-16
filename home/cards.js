@@ -132,22 +132,23 @@ export function cardDestaque(b, aoAgir) {
    de um e deixaria o outro oco. */
 export function gradeDeAtalhos(b, aoAgir) {
   const itens = b.itens || [];
-  /* O número de colunas vem da quantidade, não de um número escrito no
-     CSS: com três atalhos eles cabem lado a lado; com quatro, dois a dois.
-     Assim tirar ou pôr um item não exige lembrar de mexer na folha. */
-  const el = no('div', 'v3-atalhos' + (itens.length === 3 ? ' trio' : ''));
-  el.style.gridTemplateColumns = 'repeat(' + Math.min(itens.length, 3) + ', minmax(0, 1fr))';
+  /* TODOS DEITADOS, UM POR LINHA. Antes eles eram tiles quadrados lado a
+     lado, e num aparelho de 360 cada um ficava com ~98px: sem espaço para
+     a descrição, que era cortada, nem para um título de mais de duas
+     palavras. Deitado, o símbolo fica à esquerda e o texto ocupa a largura
+     que sobra — cabe título inteiro e descrição, e o bloco fica MAIS baixo
+     do que a fileira de tiles era.
+
+     `destaque` não é mais layout: todos têm o mesmo. Ele diz só que este
+     é o card amarelo. */
+  const el = no('div', 'v3-atalhos');
   itens.forEach((t) => {
-    const bt = no('button', 'v3-atalho');
+    const bt = no('button', 'v3-atalho' + (t.destaque ? ' destaque' : ''));
     bt.type = 'button';
-    /* Em trio o tile fica com ~98px num aparelho de 360: a descrição não
-       cabe sem virar quatro linhas de palavra picada, e o título sozinho
-       já diz para onde vai. O chevron sai pelo mesmo motivo. */
-    bt.innerHTML = itens.length === 3
-      ? '<span class="v3-ico">' + t.ico + '</span><strong>' + t.titulo + '</strong>'
-      : '<span class="v3-atalho-topo"><span class="v3-ico">' + t.ico + '</span>' + CHEVRON + '</span>' +
-        '<strong>' + t.titulo + '</strong>' +
-        '<small>' + t.texto + '</small>';
+    bt.innerHTML =
+      '<span class="v3-atalho-topo"><span class="v3-ico">' + t.ico + '</span>' + CHEVRON + '</span>' +
+      '<strong>' + t.titulo + '</strong>' +
+      '<small>' + t.texto + '</small>';
     bt.addEventListener('click', () => aoAgir(t.acao, t));
     el.appendChild(bt);
   });
@@ -229,10 +230,25 @@ export function cardTour(b, aoAgir) {
   return el;
 }
 
-/* ---------- Título de seção, com atalho à direita ---------- */
+/* ---------- Título de seção, com atalho à direita ----------
+   QUANDO A SEÇÃO TEM DESTINO, O TÍTULO INTEIRO ABRE (pedido da Adriana em
+   06/09). Antes só o "Ver todos" da direita clicava — e o dedo vai no
+   título, que é o alvo grande; o link da direita é a legenda do destino,
+   não o botão. O `<h2>` continua sendo o cabeçalho da seção: quem vira
+   botão é o texto dentro dele, para o toque não custar a estrutura da
+   página. Seção sem `acao` segue texto puro: não há para onde ir. */
 export function tituloSecao(b, aoAgir) {
   const el = no('div', 'v3-secao');
-  el.innerHTML = '<h2>' + b.titulo + '</h2>';
+  const h = no('h2');
+  if (b.acao) {
+    const t = no('button', 'v3-secao-tit', b.titulo);
+    t.type = 'button';
+    t.addEventListener('click', () => aoAgir(b.acao, b));
+    h.appendChild(t);
+  } else {
+    h.innerHTML = b.titulo;
+  }
+  el.appendChild(h);
   if (b.link) {
     const a = no('button', 'v3-link', b.link);
     a.type = 'button';

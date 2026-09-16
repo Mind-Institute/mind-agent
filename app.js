@@ -277,10 +277,33 @@ function montarHomeV3() {
 let ingressoDoParticipante = null;
 const ingressoEl = document.getElementById('perfil-ingresso');
 
+/* O RÓTULO E A COR SÃO DA TELA, NÃO DO ESPELHO. O credenciamento diz
+   `Camarote`; a marca do produto é `Camarote Heineken`, e é assim que a
+   pessoa o reconhece. A verdade continua sendo a do espelho — é ela que
+   alimenta o Kit e a fala do agente —, e o que mora aqui é só como esse
+   mesmo ingresso aparece.
+
+   A cor separa as experiências: Mind verde, VIP coral, Prime e Camarote
+   roxo. Tipo que não estiver no mapa segue com o nome que veio e a cor
+   neutra de antes, sem exigir mudança aqui para existir. */
+const ROTULO_INGRESSO = {
+  mind:     { nome: 'Mind',              cor: 'mind' },
+  vip:      { nome: 'VIP',               cor: 'vip' },
+  prime:    { nome: 'Prime',             cor: 'prime' },
+  camarote: { nome: 'Camarote Heineken', cor: 'camarote' },
+};
+function rotuloDoIngresso(tipo) {
+  const chave = String(tipo || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return ROTULO_INGRESSO[chave] || { nome: tipo, cor: '' };
+}
+
 carregarIngressoDoParticipante(PARTICIPANTE.email).then((tipo) => {
   if (!tipo || !ingressoEl) return;
   ingressoDoParticipante = tipo;
-  ingressoEl.querySelector('b').textContent = tipo;
+  const r = rotuloDoIngresso(tipo);
+  ingressoEl.querySelector('b').textContent = r.nome;
+  ingressoEl.dataset.cor = r.cor;
   ingressoEl.hidden = false;
   montarHomeV3();
 });
@@ -599,7 +622,13 @@ const FOLHAS = {
 const TELAS = {
   'agenda': {
     img: 'agenda', aba: 'agenda', rotulo: 'Programação',
-    serve: 'Toda a programação dos dias 16 e 17, por horário e arena. É aqui que você escolhe o que assistir.',
+    serve: 'Aqui na Programação você vê e escolhe as suas experiências: as arenas, os workshops e as masterclasses dos dias 16 e 17.',
+    /* INSTRUÇÃO NO ALTO, texto da Adriana (06/09). Onde há `instrucao`, ela
+       ocupa o cabeçalho no lugar do nome do roteiro e da frase de prévia, e
+       o rodapé fica vazio: é a mesma explicação, e repeti-la em cima e
+       embaixo era dizer duas vezes. O `serve` continua aqui porque é ele
+       que responde quando esta tela aparece fora de um roteiro. */
+    instrucao: 'O menu programação mostra todas as experiências do evento. Para agendar uma experiência toque para abrir. Teste clicando na experiência abaixo para entender como funciona',
     alvos: [
       { id: 'topo', x: 92.1, y: 4.6, w: 8, h: 4.5, brinde: 'Filtre por trilha, arena e horário.' },
       { id: 'card1', x: 49.9, y: 15.5, w: 92.4, h: 12.5, brinde: 'Cada card é uma sessão. Toque para abrir.' },
@@ -610,21 +639,33 @@ const TELAS = {
   },
   'detalhe': {
     img: 'detalhe', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão',
-    serve: 'A página da sessão: descrição, horário, local, palestrantes e a reserva, quando a vaga é limitada.',
+    serve: 'A página da experiência, com horário, local e quem fala. Quando a vaga é limitada, é aqui que você reserva o seu lugar.',
+    /* Segunda tela do tour, texto da Adriana (06/09) — mesma decisão da
+       Programação: a instrução sobe para o cabeçalho e o rodapé fica vazio. */
+    instrucao: 'Ao abrir a página da experiência clique em Reservar lugar',
     alvos: [
       { id: 'voltar', x: 7.8, y: 4.6, w: 12, h: 4.5, volta: true },
       { id: 'calendario', x: 29.5, y: 47.9, w: 47, h: 4.5, brinde: 'Exporta a sessão para o calendário do seu celular.' },
       { id: 'palestrante', x: 49.9, y: 90.7, w: 88.6, h: 6.9, brinde: 'A bio de quem fala — e o coração salva a pessoa, não a sessão.' },
-      { id: 'reservar', x: 49.9, y: 65.7, w: 88.8, h: 4.9, faz: 'reservar', missao: 'm2', vai: 'confirmada', modo: 'troca',
+      { id: 'reservar', x: 49.9, y: 65.7, w: 88.8, h: 4.9, faz: 'reservar', vai: 'confirmada', modo: 'troca',
         folha: 'reservado', obrigatoria: true,
         dica: 'Esta sessão tem vaga limitada. Toque em <b>Reservar lugar</b>.' },
     ],
   },
   'confirmada': {
     img: 'confirmada', aba: 'agenda', volta: 'agenda', rotulo: 'Sessão reservada',
-    /* O modal que abre em cima já explica o check-in; repetir aqui a
-       mesma frase só fazia a tela dizer duas vezes a mesma coisa. */
-    serve: 'Sua vaga está garantida nesta sessão.',
+    /* O aviso que sobe no cabeçalho já fala do horário; esta frase é a que
+       fica depois de a pessoa confirmar, e ela aponta o próximo lugar —
+       Minha Agenda — em vez de repetir o mesmo recado. Texto da Adriana,
+       06/09. */
+    serve: 'Lugar garantido. Veja no menu minha agenda todas as experiências nas quais você está agendado.',
+    /* Terceira tela do tour (pedido da Adriana, 06/09): o aviso da reserva
+       sai de cima da captura e sobe para o cabeçalho, com o botão logo
+       abaixo — a captura fica limpa, mostrando a tela do app como ela é.
+       Depois de confirmar, o cabeçalho fica com a instrução da tela, que é
+       a mesma frase que já explicava esta tela no rodapé. */
+    folhaNoAlto: true,
+    instrucao: 'Lugar garantido. Veja no menu minha agenda todas as experiências nas quais você está agendado.',
     /* Mesma página da sessão, agora no estado reservado: a geometria é a
        de `detalhe`, não a da captura antiga. */
     alvos: [
@@ -636,7 +677,11 @@ const TELAS = {
   },
   'minha-agenda': {
     img: 'minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
-    serve: 'As sessões que você reservou, em ordem de horário. É aqui que o seu dia toma forma.',
+    serve: 'Tudo o que você reservou fica aqui, em ordem de horário. É onde o seu dia toma forma.',
+    /* Quarta tela do tour, texto da Adriana (06/09). A segunda frase é a
+       regra que o Concierge também dá em palavras: se não está em Minha
+       Agenda, não está reservado. */
+    instrucao: 'Este menu mostra todas as experiências que você já reservou. Se não está aqui, significa que não foi reservado.',
     alvos: [
       { id: 'nova', x: 82, y: 8, w: 30, h: 5, brinde: 'Dá para montar mais de uma agenda.' },
       { id: 'busca', x: 50, y: 14.3, w: 88, h: 5, brinde: 'Busque pelo nome da sessão.' },
@@ -691,7 +736,7 @@ const TELAS = {
     alvos: [
       { id: 'voltar', x: 7.7, y: 2.2, w: 12, h: 4.5, volta: true, dica: 'Toque em <b>‹</b> para voltar ao Menu.' },
       { id: 'abas', x: 50, y: 8.4, w: 70, h: 5, brinde: 'Contatos aceitos e convites pendentes.' },
-      { id: 'add1', x: 81.4, y: 27.1, w: 24, h: 6, faz: 'contato', missao: 'm6', folha: 'contato', obrigatoria: true,
+      { id: 'add1', x: 81.4, y: 27.1, w: 24, h: 6, faz: 'contato', folha: 'contato', obrigatoria: true,
         dica: 'Toque em <b>Adicionar</b> para enviar um convite de contato.' },
     ],
   },
@@ -713,6 +758,66 @@ const TELAS = {
       { id: 'conversa', x: 50, y: 43.7, w: 92, h: 8, brinde: 'Abre a conversa com a pessoa.' },
     ],
   },
+
+  /* ---------- AS TELAS DO CAMAROTE ----------
+     Só aparecem no roteiro `reserva_camarote`. O ladrilho "Masterclass
+     Heineken" não existe no Menu de quem não tem Camarote, então estas
+     telas nunca podem ser mostradas às outras experiências: ensinariam um
+     caminho que a pessoa não tem.
+
+     Capturas de 06/09, recortadas do mesmo jeito que as outras — sem a
+     barra de status do iOS e sem a navegação do app, que o tour desenha
+     em HTML. Coordenadas medidas sobre elas. */
+  'hnk-menu': {
+    img: 'hnk-menu', aba: 'menu', rotulo: 'Menu',
+    serve: 'O Menu do app. Para quem tem Camarote, é daqui que sai o acesso às masterclasses da Heineken.',
+    alvos: [
+      { id: 'masterclass', x: 26.0, y: 41.3, w: 44.1, h: 12.2, vai: 'hnk-agenda', modo: 'push',
+        dica: 'Toque em <b>Masterclass Heineken</b>.' },
+      { id: 'mapa', x: 74.0, y: 27.9, w: 44.1, h: 12.2, brinde: 'O mapa do evento fica aqui.' },
+      { id: 'networking', x: 74.0, y: 41.3, w: 44.1, h: 12.2, brinde: 'A Área de Networking fica aqui.' },
+    ],
+  },
+  'hnk-agenda': {
+    img: 'hnk-agenda', aba: 'menu', volta: 'hnk-menu', rotulo: 'Masterclass Heineken',
+    serve: 'Sua agenda de masterclasses, nos dois dias do Summit. Só quem tem Camarote vê esta tela.',
+    alvos: [
+      { id: 'voltar', x: 8.1, y: 3.3, w: 12, h: 4.5, volta: true },
+      { id: 'dia17', x: 34.1, y: 19.7, w: 17.5, h: 10.5, brinde: 'O outro dia do Summit está aqui.' },
+      { id: 'sessao', x: 50.0, y: 47.3, w: 92.2, h: 30.1, vai: 'hnk-masterclass', modo: 'push',
+        dica: 'Toque na <b>masterclass</b> que você quer.' },
+    ],
+  },
+  'hnk-masterclass': {
+    img: 'hnk-masterclass', aba: 'menu', volta: 'hnk-agenda', rotulo: 'Masterclass',
+    serve: 'A página da masterclass — igual à de qualquer sessão. A reserva é a mesma.',
+    alvos: [
+      { id: 'voltar', x: 8.1, y: 3.3, w: 12, h: 4.5, volta: true },
+      { id: 'calendario', x: 34.0, y: 52.9, w: 50, h: 4.5, brinde: 'Exporta a masterclass para o calendário do seu celular.' },
+      { id: 'reservar', x: 50.1, y: 71.2, w: 88.5, h: 5.7, vai: 'hnk-masterclass-ok', modo: 'troca',
+        folha: 'reservado', obrigatoria: true,
+        dica: 'Toque em <b>Reservar lugar</b>, como em qualquer sessão.' },
+    ],
+  },
+  'hnk-masterclass-ok': {
+    img: 'hnk-masterclass-ok', aba: 'menu', volta: 'hnk-agenda', rotulo: 'Masterclass reservada',
+    serve: 'Lugar garantido também na masterclass.',
+    alvos: [
+      { id: 'voltar', x: 8.1, y: 3.3, w: 12, h: 4.5, volta: true },
+      { id: 'confirmacao', x: 50.0, y: 70.0, w: 88.5, h: 8,
+        brinde: 'No dia, o check-in é feito aqui mesmo.' },
+    ],
+  },
+  'hnk-minha-agenda': {
+    img: 'hnk-minha-agenda', aba: 'minha', rotulo: 'Minha Agenda',
+    serve: 'Tudo o que você reservou fica junto aqui — venha da Programação ou do menu da Heineken.',
+    alvos: [
+      { id: 'arena', x: 50.0, y: 40.0, w: 92.2, h: 25,
+        brinde: 'A arena que você reservou pela Programação.' },
+      { id: 'masterclass', x: 50.0, y: 82.0, w: 92.2, h: 22,
+        brinde: 'E a masterclass, que veio pelo menu da Heineken.' },
+    ],
+  },
 };
 
 /* Como se chega em cada tela (para calcular a dica) */
@@ -729,6 +834,13 @@ const ROTA = {
   'rede': { de: 'menu', alvo: 'rede' },
   'palestrantes': { de: 'menu', alvo: 'palestrantes' },
   'chat': { de: 'menu', alvo: 'chat' },
+  /* Camarote: o Menu e a agenda da pessoa chegam pela barra de abas; as
+     duas telas da masterclass, por toque na tela anterior. */
+  'hnk-menu': { aba: 'menu' },
+  'hnk-agenda': { de: 'hnk-menu', alvo: 'masterclass' },
+  'hnk-masterclass': { de: 'hnk-agenda', alvo: 'sessao' },
+  'hnk-masterclass-ok': { de: 'hnk-masterclass', alvo: 'reservar' },
+  'hnk-minha-agenda': { aba: 'minha' },
 };
 
 /* ============================================================
@@ -772,6 +884,26 @@ const ROTEIROS = {
     ],
     concluido: 'Pronto — o seu ingresso está aí 💚',
   },
+  /* O ROTEIRO DE QUEM TEM CAMAROTE.
+     Igual ao `reserva` no que é igual: arenas e workshops saem da
+     Programação, e reservar é o mesmo gesto. A diferença é só a PORTA da
+     masterclass, que para o Camarote fica no Menu, no ladrilho da
+     Heineken — e o fecho, que mostra as duas reservas juntas.
+
+     `abas` redireciona a barra do app dentro deste roteiro: Menu leva ao
+     Menu com o ladrilho, e Minha Agenda à agenda com as duas reservas.
+     Sem isto, as abas cairiam nas capturas de quem não tem Camarote. */
+  reserva_camarote: {
+    nome: 'Suas experiências',
+    de: 'agenda',
+    abas: { menu: 'hnk-menu', minha: 'hnk-minha-agenda' },
+    missoes: [
+      { id: 'c1', txt: 'Reservar um workshop ou arena', tela: 'detalhe', alvo: 'reservar' },
+      { id: 'c2', txt: 'Reservar uma masterclass', tela: 'hnk-masterclass', alvo: 'reservar' },
+      { id: 'c3', txt: 'Ver as duas na sua agenda', tela: 'hnk-minha-agenda' },
+    ],
+    concluido: 'Pronto — você já sabe reservar as suas 💚',
+  },
 };
 
 let roteiroAtual = 'reserva';
@@ -790,6 +922,8 @@ const telaImg = document.getElementById('tela-img');
 const balao = document.getElementById('balao');
 const explica = document.getElementById('t-explica');
 const previa  = document.getElementById('t-previa');
+const cabeca = document.querySelector('.t-cabeca');
+const confirmaEl = document.getElementById('t-confirma');
 const brinde = document.getElementById('brinde');
 const fnav = document.getElementById('fnav');
 const folhaFundo = document.getElementById('folha-fundo');
@@ -830,7 +964,7 @@ ABAS.forEach((aba) => {
     if (aba.folha) { abrirFolha(aba.folha); return; }
     if (TELAS[telaAtual].aba === aba.id && !TELAS[telaAtual].volta) { avisar('Você já está aqui.'); return; }
     pilha = []; refazer = [];
-    irPara(aba.vai, 'troca');
+    irPara(destinoDaAba(aba), 'troca');
   });
   fnav.appendChild(b);
 });
@@ -847,11 +981,28 @@ function avisar(txt) {
    também prende o foco e devolve para quem o abriu. */
 let focoAntesDaFolha = null;
 let folhaObrigatoria = null;
+/* AVISO FORA DO QUADRO. Em algumas telas o aviso não é um modal por cima
+   da captura: ele sobe para o cabeçalho, com o botão logo abaixo, e o
+   quadro fica com a tela do app limpa. Quem decide é a tela de destino
+   (`folhaNoAlto`), não a folha — a mesma folha `reservado` continua sendo
+   modal no roteiro do Camarote, que não foi revisto. */
+let folhaNoAlto = null;
 
 function abrirFolha(nome, aoConfirmar) {
   const f = FOLHAS[nome];
   if (!f) return;
   folhaObrigatoria = aoConfirmar || null;
+
+  if (TELAS[telaAtual] && TELAS[telaAtual].folhaNoAlto) {
+    folhaNoAlto = f;
+    /* Mesmo motivo do modal: com o aviso pedindo confirmação, a dica não é
+       acionável e só contradiz o botão. */
+    if (folhaObrigatoria) pintar();
+    focoAntesDaFolha = document.activeElement;
+    atualizarMissao();
+    confirmaEl.focus();
+    return;
+  }
   /* A navegação já pintou a dica antes de o modal abrir. Repinta para
      apagá-la: com o modal obrigatório em cima, ela não é acionável e só
      contradiz o botão. `fecharFolha` repinta de novo e ela volta. */
@@ -882,8 +1033,14 @@ function abrirFolha(nome, aoConfirmar) {
 
 function fecharFolha() {
   folhaFundo.classList.remove('aberta');
+  const eraNoAlto = Boolean(folhaNoAlto);
+  folhaNoAlto = null;
   const confirmar = folhaObrigatoria;
   folhaObrigatoria = null;
+  /* O aviso do cabeçalho não some sozinho: quem o desenha é
+     `atualizarMissao`, e ela só roda de novo no `pintar()` abaixo — que só
+     acontece quando havia confirmação. */
+  if (eraNoAlto && !confirmar) atualizarMissao();
   if (confirmar) {
     confirmar();
     /* A missão só avançou agora; sem repintar, o anel azul ficaria no alvo
@@ -1056,7 +1213,7 @@ function pintar(modo) {
   /* PARA QUE SERVE ESTA TELA — no rodapé, fora do print. Antes era uma
      faixa por cima da própria captura: escurecia o topo da tela que a
      demonstração existe para mostrar. Fora dela, a captura fica inteira. */
-  explica.textContent = tela.serve || '';
+  explica.textContent = tela.instrucao ? '' : (tela.serve || '');
 
   /* balão azul: só a próxima ação */
   const alvoDica = dica && dica.alvo ? (tela.alvos || []).find((a) => a.id === dica.alvo) : null;
@@ -1265,7 +1422,19 @@ async function tocar(a) {
   /* Missão com modal obrigatório só conclui quando a pessoa confirmar:
      senão a instrução já era da etapa seguinte enquanto o "Lugar
      reservado" ainda nem tinha aparecido. */
-  const concluir = () => { if (a.missao) concluirMissao(a.missao); };
+  /* A MISSÃO QUE FECHA É A ATUAL, não um id escrito dentro do alvo. O
+     mesmo alvo — "Reservar lugar", no detalhe da sessão — serve a
+     roteiros diferentes, e prender o id ao alvo obrigaria a duplicar a
+     tela só para trocar o nome da missão. Quem sabe qual é a missão é o
+     roteiro; o alvo só sabe que foi tocado. */
+  /* A tela é lida AGORA, no toque: `concluir` roda depois de `irPara`, e
+     lá `telaAtual` já é a tela seguinte. O alvo pertence à tela em que foi
+     desenhado, não à que ele abre. */
+  const telaDoToque = telaAtual;
+  const concluir = () => {
+    const m = missaoAtual();
+    if (m && m.tela === telaDoToque && m.alvo === a.id) concluirMissao(m.id);
+  };
 
   if (a.volta) { await voltar(); return; }
 
@@ -1340,7 +1509,35 @@ function textoDePrevia() {
 }
 
 function atualizarMissao() {
+  /* CABEÇALHO COM INSTRUÇÃO. Quando a tela traz `instrucao`, ela é o que
+     fica no alto — no lugar do nome do roteiro e da frase de prévia. O
+     aviso de "não é o app de verdade" não some do tour: o selo verde e a
+     moldura verde continuam, e a frase de prévia continua nas telas onde
+     ela evita o erro caro (o QR que alguém tentaria apresentar na entrada,
+     a agenda que alguém leria como a sua). */
+  /* O aviso fora do quadro vence a instrução fixa da tela enquanto estiver
+     aberto: é ele que precisa ser lido antes do próximo passo. Ao
+     confirmar, o cabeçalho volta para a instrução da tela. */
+  const instrucao = folhaNoAlto
+    ? folhaNoAlto.texto
+    : ((TELAS[telaAtual] && TELAS[telaAtual].instrucao) || '');
+  cabeca.classList.toggle('instrucao', Boolean(instrucao));
+  previa.hidden = Boolean(instrucao);
   previa.textContent = textoDePrevia();
+  confirmaEl.hidden = !folhaNoAlto;
+  if (folhaNoAlto) confirmaEl.textContent = folhaNoAlto.botao;
+  if (instrucao) {
+    missaoTexto.textContent = instrucao;
+    missaoProg.innerHTML = '';
+    document.getElementById('ver-missoes').hidden = telaAvulsa;
+    if (!telaAvulsa) {
+      const m0 = missaoAtual();
+      const i0 = m0 ? MISSOES.indexOf(m0) : MISSOES.length;
+      missaoProg.innerHTML = MISSOES.map((x, j) =>
+        '<i class="' + (feitas.has(x.id) ? 'ok' : (j === i0 ? 'atual' : '')) + '"></i>').join('');
+    }
+    return;
+  }
   if (telaAvulsa) {
     const t = TELAS[telaAtual];
     /* `textContent`: o rótulo é constante nossa, mas a barra aceita HTML
@@ -1380,7 +1577,29 @@ document.getElementById('sair-tour').addEventListener('click', () => { missoesFu
 /* O tour completo — as telas do app com as sete missões. Deixou de ser o
    primeiro contato: quem chega vê a home, e entra aqui pelo card de como
    reservar ou por `?tutorial=`. */
+/* A barra de abas dentro de um roteiro. `reserva_camarote` redireciona
+   Menu e Minha Agenda para as capturas com o ladrilho da Heineken e com as
+   duas reservas; qualquer outro roteiro usa o destino de sempre. */
+function destinoDaAba(aba) {
+  const r = ROTEIROS[roteiroAtual];
+  return (r && r.abas && r.abas[aba.id]) || aba.vai;
+}
+
+/* QUEM VÊ O ROTEIRO DO CAMAROTE — fail-closed.
+   O ladrilho "Masterclass Heineken" não existe no Menu de quem não tem
+   Camarote, então só entra aqui quem o credenciamento confirmou como
+   Camarote. Sem `?email=` na URL, sem rede ou com tipo que não reconheço,
+   `ingressoDoParticipante` é `null` e a pessoa cai no roteiro de todo
+   mundo. Errar para o outro lado mostraria a um VIP um caminho que ele
+   não tem. */
+function ehCamarote() {
+  return String(ingressoDoParticipante || '').trim().toLowerCase() === 'camarote';
+}
+
 function abrirTourCompleto(qual) {
+  /* Sem roteiro pedido, o card da home escolhe pelo ingresso. Com roteiro
+     pedido — `roteiro:mapa`, por exemplo —, quem manda é o pedido. */
+  qual = qual || (ehCamarote() ? 'reserva_camarote' : 'reserva');
   roteiroAtual = ROTEIROS[qual] ? qual : 'reserva';
   const roteiro = ROTEIROS[roteiroAtual];
   telaAvulsa = null;
@@ -1393,11 +1612,14 @@ function abrirTourCompleto(qual) {
   pintar('troca');
   dicaDeArraste();
 }
+confirmaEl.addEventListener('click', fecharFolha);
+
+/* SAÍDA ÚNICA, pelo `x` (pedido da Adriana em 06/09). Havia também um botão
+   "Voltar às funções" no rodapé, para quem não arriscasse o `x` sem saber
+   onde ia parar; os dois chamavam exatamente `abrirVista('home')`. Com a
+   instrução no alto, o rodapé da primeira tela ficava só com esse botão
+   solto — e o `x`, que continua no lugar de sempre, faz o mesmo. */
 document.getElementById('fechar-tour').addEventListener('click', () => abrirVista('home'));
-/* Duas saidas para o mesmo lugar, de proposito: o `x` e o reflexo de quem
-   quer fechar, e o botao nomeado e para quem procura o caminho de volta e
-   nao arrisca o `x` sem saber onde vai parar. */
-document.getElementById('voltar-funcoes').addEventListener('click', () => abrirVista('home'));
 
 /* Pré-carrega assim que o módulo sobe: quando alguém abrir o tour, as
    telas já estão decodificadas e nenhuma etapa começa em branco. */
@@ -1531,8 +1753,17 @@ async function responder(pergunta) {
     bolha(resposta.answer, 'mind', passo);
   } catch (erro) {
     digitando.remove();
+    /* Erro de rede (fetch rejeitado antes de qualquer resposta) chega como
+       TypeError com a mensagem que o navegador quiser — "Load failed" no
+       Safari, "Failed to fetch" no Chrome. Isso nunca pode aparecer para a
+       pessoa: vira a mesma fala genérica dos outros erros sem detalhe
+       técnico. Mensagens que ESTE arquivo/`chat-service.js` lança de
+       propósito (validação, erro que o backend já devolveu em português)
+       continuam passando — só o erro de baixo nível é trocado. */
     const mensagem = erro?.name === 'AbortError'
       ? 'A resposta demorou demais. Tente novamente.'
+      : erro instanceof TypeError
+      ? 'Não consegui responder agora. Tente novamente.'
       : (erro?.message || 'Não consegui responder agora. Tente novamente.');
     bolha(mensagem, 'mind');
   } finally {
@@ -1759,7 +1990,7 @@ function sessoesPorAfinidade(filtro) {
 function chaveDoIngresso() {
   const normalizado = String(ingressoDoParticipante || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  return ['mind', 'vip', 'prime'].find((chave) =>
+  return ['mind', 'vip', 'prime', 'camarote'].find((chave) =>
     new RegExp('(^|[^a-z])' + chave + '([^a-z]|$)').test(normalizado)) || null;
 }
 
@@ -1847,14 +2078,13 @@ function cardSessao(s, pct, porque) {
         '<button type="button" class="principal" data-acao="onde">Onde reservar no app</button>' +
       '</div>' +
     '</div>';
-  el.querySelector('[data-acao="onde"]').addEventListener('click', () => {
-    bolha('Onde eu reservo "' + s.titulo + '"?', 'eu');
-    setTimeout(() => bolha(
-      s.vaga_limitada
-        ? DADOS.evento.regra_vagas + ' ' + DADOS.evento.regra_reserva
-        : DADOS.evento.regra_reserva,
-      'mind', 'reservar'), 500);
-  });
+  /* ABRE O TUTORIAL INTEIRO, em tela cheia, como o card da home (pedido da
+     Adriana em 06/09). Antes a resposta ficava dentro da conversa: duas
+     bolhas e um recorte da tela com anel, e só um segundo toque levava ao
+     tutorial — e ainda assim numa tela avulsa, não no roteiro. Quem toca
+     aqui quer aprender a reservar; é o mesmo roteiro do "Ver como", e ele
+     já explica a regra dos 5 minutos na tela da confirmação. */
+  el.querySelector('[data-acao="onde"]').addEventListener('click', () => abrirTourCompleto());
   return el;
 }
 
@@ -1918,7 +2148,7 @@ function blocoRegra(texto) {
 
 /* Chips de tema: é assim que o perfil começa a existir. */
 function pedirTemas(depois) {
-  const alvo = painel('Escolha o que está te puxando');
+  const alvo = painel('Quais são seus interesses?');
   const chips = document.createElement('div');
   chips.className = 'chips';
   chips.innerHTML = DADOS.temas.map((t) =>
@@ -1940,8 +2170,7 @@ function pedirTemas(depois) {
   ok.addEventListener('click', () => {
     ok.remove();
     const temas = Object.keys(PERFIL.temas).map(TEMA);
-    if (temas.length) enviarSinalJornada('temas', temas)
-      .catch(() => bolha('Não consegui guardar esses temas no seu perfil agora, mas vou seguir com eles nesta tela.', 'mind'));
+    if (temas.length) enviarSinalJornada('temas', temas).catch(() => {});
     depois();
   });
   alvo.appendChild(chips);
@@ -1951,7 +2180,7 @@ function pedirTemas(depois) {
 
 function comTemas(depois) {
   if (Object.keys(PERFIL.temas).length) return depois();
-  bolha('Antes de eu sugerir qualquer coisa: em que você está mexendo agora? Pode marcar mais de um.', 'mind');
+  bolha('Antes de eu sugerir qualquer coisa: quais são seus interesses? O que você quer aprender no Summit? Pode marcar mais de um.', 'mind');
   setTimeout(() => pedirTemas(depois), 450);
 }
 
@@ -2037,7 +2266,7 @@ const PERGUNTAS_JORNADA = [
   {
     campo: 'temas',
     tipo: 'temas',
-    pergunta: 'Em que você está mexendo agora? Isso é o que mais pesa no que eu vou sugerir.',
+    pergunta: 'Quais são seus interesses? O que você quer aprender no Summit? Isso é o que mais pesa no que eu vou sugerir.',
   },
 
   /* "Em quais dias você vem?" saiu em 03/09 a pedido da Adriana: não se
@@ -2070,16 +2299,21 @@ const PERGUNTAS_JORNADA = [
     campo: 'experiencias',
     tipo: 'multipla',
     opcional: true,
-    pergunta: 'Que tipo de coisa você quer no seu roteiro?',
+    pergunta: 'Você busca mais conhecimento ou prática no Summit?',
     micro: 'Marque quantos quiser, ou pule para eu decidir.',
-    /* Os formatos são os que existem na grade — se a programação mudar,
-       esta pergunta muda junto. */
+    /* A pessoa não sabe (nem precisa saber) a diferença entre painel,
+       masterclass e workshop enquanto formatos da grade — ela sabe se
+       veio para ouvir ou para praticar. Cada opção já carrega os
+       formatos que representa; `valores.flat()` no fim da jornada some
+       com o agrupamento antes de virar filtro. Só aparece a opção que
+       tem conteúdo de verdade por trás. */
     opcoes: () => {
-      const rotulo = { palestra: 'Palestras', painel: 'Painéis', masterclass: 'Masterclasses',
-                       workshop: 'Workshops', experiencia: 'Experiências' };
-      return [...new Set((DADOS.sessoes || []).map((s) => s.formato))]
-        .filter((f) => rotulo[f])
-        .map((f) => ({ valor: f, rotulo: rotulo[f] }));
+      const grupos = [
+        { valor: ['palestra', 'painel', 'masterclass'], rotulo: 'Conhecimento — palestras e conteúdo' },
+        { valor: ['workshop'], rotulo: 'Prática — workshops para aplicar' },
+      ];
+      const formatosNaGrade = new Set((DADOS.sessoes || []).map((s) => s.formato));
+      return grupos.filter((g) => g.valor.some((f) => formatosNaGrade.has(f)));
     },
   },
 ];
@@ -2153,8 +2387,7 @@ function seletorPalestrantesDaJornada(q, indice, alvo) {
     PERFIL.jornada[q.campo] = selecionadas.slice();
     ok.remove();
     if (selecionadas.length) {
-      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice())
-        .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+      enviarSinalJornada('palestrantes_imperdiveis', selecionadas.slice()).catch(() => {});
     }
     perguntaDaJornada(indice + 1);
   });
@@ -2256,8 +2489,7 @@ function escolhasDaJornada(q, indice) {
       const valor = campo.value.trim() || null;
       PERFIL.jornada[q.campo] = valor;
       ok.remove();
-      if (valor) enviarSinalJornada(q.campo, [valor])
-        .catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+      if (valor) enviarSinalJornada(q.campo, [valor]).catch(() => {});
       perguntaDaJornada(indice + 1);
     });
     const caixa = document.createElement('div');
@@ -2286,8 +2518,8 @@ function escolhasDaJornada(q, indice) {
     ok.remove();
     if (valores.length) enviarSinalJornada(
       q.campo === 'palestrantesImperdiveis' ? 'palestrantes_imperdiveis' : q.campo,
-      valores,
-    ).catch(() => bolha('Não consegui guardar essa resposta no seu perfil agora, mas vou seguir com ela nesta tela.', 'mind'));
+      valores.flat(),
+    ).catch(() => {});
     perguntaDaJornada(indice + 1);
   });
   ok.disabled = !q.opcional;
@@ -2339,7 +2571,11 @@ function fecharJornada() {
     const roteiro = montarRoteiro({
       filtro: dia ? (s) => s.dia === dia : null,
       fixas,
-      formatos: j.experiencias,
+      /* 'conhecimento'/'prática' chegam agrupados (cada opção é um array
+         de formatos); .flat() devolve a lista simples que o filtro por
+         formato espera. Em qualquer outro pergunta 'multipla' os valores
+         já são strings, e .flat() não muda nada. */
+      formatos: Array.isArray(j.experiencias) ? j.experiencias.flat() : j.experiencias,
       porDia: SESSOES_POR_DIA[j.ritmo] || SESSOES_POR_DIA.equilibrado,
     });
 
