@@ -16,9 +16,32 @@
    - nada de `console.log` de token, corpo ou dado pessoal.
 */
 
+/* A Edge Function publicada. Fica NO CÓDIGO, e não só numa variável de
+   build, pelo mesmo motivo que os endereços do app moram em `config.js`:
+   é URL pública, não segredo, e depender do painel da Cloudflare para o
+   relatório abrir é depender de alguém lembrar de um passo manual que
+   não deixa rastro quando esquecido — a tela diria "não foi ligada" sem
+   ninguém saber por quê.
+
+   `VITE_AVALIACAO_API_BASE_URL` continua valendo e tem precedência: é
+   assim que um ambiente local aponta para outro lugar.
+
+   Para DESLIGAR o relatório, o caminho não é aqui — é a chave
+   `avaliacao_do_dia` em `concierge.config`. */
+const PADRAO = 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-avaliacao';
+
 /** A raiz da Edge Function, ou `null` quando a pesquisa não foi configurada. */
 export function baseDaAvaliacao(): string | null {
-  const base = import.meta.env.VITE_AVALIACAO_API_BASE_URL?.trim();
+  /* AUSENTE E VAZIA SÃO COISAS DIFERENTES, e a distinção não é preciosismo:
+     `vite.config.ts` zera as variáveis em modo de teste exatamente para a
+     suíte nunca alcançar o backend real. Um `|| PADRAO` aqui furava essa
+     garantia — a variável vinha vazia, o padrão assumia, e um teste que
+     montasse esta página chamaria a produção de verdade.
+
+     Ausente (ninguém configurou) → o endereço publicado.
+     Vazia (alguém zerou de propósito) → nada, e a tela diz que não foi ligada. */
+  const bruto = import.meta.env.VITE_AVALIACAO_API_BASE_URL;
+  const base = (bruto === undefined ? PADRAO : bruto).trim();
   return base ? base.replace(/\/+$/, '') : null;
 }
 

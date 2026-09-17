@@ -32,9 +32,8 @@ export const CONFIG = {
      `avaliacao_do_dia` em `concierge.config`, no banco, que manda de
      verdade. Ligar aqui sem ligar lá não mostra o card.
 
-     Preencher com:
-     'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-avaliacao' */
-  avaliacaoApiUrl: null,
+     Nula de novo desliga a pesquisa inteira sem tocar em mais nada. */
+  avaliacaoApiUrl: 'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-avaliacao',
 
   /* O projeto Supabase e a chave pública — usados pelo `chat-service.js`
      para abrir a sessão anônima (Auth) e chamar a função do chat. */

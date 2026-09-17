@@ -329,9 +329,24 @@ test('RLS ligada nas duas tabelas e execute só para service_role', () => {
   assert.equal((migracao.match(/^revoke execute[^\n]*/gim) || []).length, 4);
 });
 
-test('a pesquisa nasce desligada', () => {
-  assert.match(migracao, /'avaliacao_do_dia',\s*\n\s*jsonb_build_object\('ativo', false\)/);
-  assert.match(configApp, /avaliacaoApiUrl: null/);
+test('quem liga e desliga a pesquisa é o banco, não o código', () => {
+  /* A chave nasce `false`, e é ela que manda. O app já aponta para a
+     função publicada — foi o que permitiu ligar a pesquisa sem deploy,
+     mexendo numa linha do banco.
+
+     `avaliacaoApiUrl` continua sendo um segundo interruptor, mais forte e
+     mais lento: nulo, o app não chama nada. Serve para arrancar a
+     pesquisa do ar se a função estiver causando dano, não para o
+     liga-desliga do dia. */
+  assert.match(migracao, /'avaliacao_do_dia',\s*\n\s*jsonb_build_object\('ativo', false\)/,
+    'a chave precisa nascer desligada: aplicar a migration não pode abrir a pesquisa sozinha');
+  assert.match(configApp, /avaliacaoApiUrl: 'https:\/\/[a-z0-9]+\.supabase\.co\/functions\/v1\/mindagent-avaliacao'/,
+    'o app precisa de um endereço para a pesquisa existir');
+
+  /* A porta do banco recusa envio com a chave desligada — é o que torna o
+     interruptor real, e não só cosmético na home. */
+  assert.match(migracao, /if coalesce\(v_ativo, false\) is false then\s*\n\s*raise exception[^\n]*pesquisa_desligada/,
+    'sem esta recusa, desligar a pesquisa só esconderia o card');
 });
 
 test('reenvio idêntico reconhece; divergente é recusado', () => {

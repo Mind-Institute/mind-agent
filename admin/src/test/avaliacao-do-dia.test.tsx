@@ -84,7 +84,15 @@ afterEach(() => {
 });
 
 describe('Avaliação do dia · relatório', () => {
-  it('sem a variável de ambiente, diz que a pesquisa não foi ligada e não inventa endereço', async () => {
+  it('com a variável zerada, não abre e NÃO chama rede nenhuma', async () => {
+    /* `vite.config.ts` zera as variáveis em modo de teste para a suíte
+       nunca alcançar o backend real. O endereço da Edge Function mora no
+       código como fallback de quando a variável NÃO EXISTE — mas vazia é
+       diferente de ausente, e vazia desliga o fallback.
+
+       Sem esta distinção, qualquer teste que montasse esta página — e
+       `navegacao.test.tsx` monta todos os módulos — passaria a chamar a
+       produção de verdade. */
     const buscar = vi.fn();
     vi.stubGlobal('fetch', buscar);
     renderizarPainel({ rota: '/avaliacao-do-dia' });
@@ -92,6 +100,16 @@ describe('Avaliação do dia · relatório', () => {
     expect(await screen.findByRole('heading', { name: 'Avaliação do dia', level: 1 })).toBeVisible();
     expect(await screen.findByText(/pesquisa ainda não foi ligada/i)).toBeVisible();
     expect(buscar).not.toHaveBeenCalled();
+  });
+
+  it('a variável de ambiente manda no endereço', async () => {
+    const chamadas = ligarApi();
+    renderizarPainel({ rota: '/avaliacao-do-dia' });
+
+    await vi.waitFor(() => {
+      expect(chamadas.length).toBeGreaterThan(0);
+      expect(chamadas.every((u) => u.startsWith(BASE))).toBe(true);
+    });
   });
 
   it('mostra cada média com o tamanho da amostra ao lado', async () => {
