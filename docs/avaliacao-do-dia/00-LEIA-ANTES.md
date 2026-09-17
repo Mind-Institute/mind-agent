@@ -1,22 +1,32 @@
 # Avaliação do dia — como colocar no ar
 
-Estado em 2026-09-16: **no ar em `main`, e desligada.**
-
-O código está publicado — app e painel. A pesquisa **não funciona ainda**,
-de propósito, e não aparece para ninguém:
+Estado em 2026-09-16, 21h25: **tudo aplicado e ligado.**
 
 | peça | estado |
 |---|---|
 | código na `main`, app publicado pela Cloudflare | **feito** |
-| migration | **não aplicada** — é o passo 1 abaixo |
-| Edge Function `mindagent-avaliacao` | **não publicada** — passo 2 |
-| `avaliacaoApiUrl` no app / `VITE_AVALIACAO_API_BASE_URL` no painel | **nulos** — passo 3 |
-| chave `avaliacao_do_dia` em `concierge.config` | nem existe; nasce `false` |
+| migration | **aplicada** |
+| Edge Function `mindagent-avaliacao` | **publicada**, v1 |
+| `avaliacaoApiUrl` no app / endereço no painel | **preenchidos** |
+| chave `avaliacao_do_dia` | **`{"ativo": true}`** |
 
-Com `avaliacaoApiUrl` nulo o app **não chama nada**: o card não aparece na
-home e nenhuma outra tela muda. Conferido em produção depois do deploy —
-home com os 13 blocos de sempre, campo do chat no lugar, sem card de
-avaliação, sem erro no console; painel abre no login normalmente.
+Conferido contra produção: `/estado` responde `ativo: true`,
+`identificado: true`, `dia: 2026-09-16` e as **39 atividades reais** do
+dia. `/enviar` recusava com "desligada" antes de a chave virar.
+
+## O card ainda não aparece, e o motivo não é a pesquisa
+
+A home de produção está em **`momento: "antes"`**, em `modo: manual` —
+a composição nunca foi trocada, mesmo com o evento acontecendo. O card da
+Avaliação do dia vive na composição **`no-evento`**, ao lado do card de
+insight; enquanto a home estiver em "antes", ele não é desenhado.
+
+Trocar isso **muda a home inteira de todo participante** — sai a contagem
+regressiva, saem os atalhos de véspera, entram a próxima sessão e o
+registro de insight. É decisão de produto, não de implantação, e está em
+**Home V3 › Visualização**, no painel.
+
+Enquanto a home não virar, a pesquisa está pronta e inalcançável.
 
 ## O que é
 
