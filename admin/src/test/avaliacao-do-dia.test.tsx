@@ -54,6 +54,7 @@ const RESPOSTAS = {
   itens: [{
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
     dia: '2026-09-16', enviadoEm: '2026-09-16T21:10:00-03:00',
+    nome: 'Florence Monteiro', email: 'florence@exemplo.com.br',
     experiencia: 'prime', profissao: 'Gerente de RH',
     expectativas: 'Entender como medir bem-estar.',
     notaRelevancia: 0, notaProgramacao: 5,
@@ -180,15 +181,39 @@ describe('Avaliação do dia · relatório', () => {
     });
   });
 
-  it('mostra as respostas abertas e não expõe e-mail de ninguém', async () => {
+  it('mostra as respostas abertas com quem escreveu, e o e-mail clicável', async () => {
+    /* NOME E E-MAIL INTEIROS, ao contrário do resto do painel, que
+       mascara. É a "decisão de backend" que `dado-pessoal.tsx` prevê,
+       tomada para este relatório — que já exige sessão de administrador.
+
+       O motivo é o uso da tela: ela existe para agir sobre o que a pessoa
+       escreveu, e "mais lugares para sentar" sem saber quem escreveu não
+       dá para responder. O `mailto:` é o gesto seguinte. */
     ligarApi();
     renderizarPainel({ rota: '/avaliacao-do-dia' });
 
     expect(await screen.findByText('Mais lugares para sentar.')).toBeVisible();
     expect(await screen.findByText('A masterclass.')).toBeVisible();
-    /* O contrato do relatório não traz e-mail nem nome: quem responde é
-       identificado pelo servidor e a análise não precisa saber quem é. */
-    expect(screen.queryByText(/@/)).toBeNull();
+    expect(await screen.findByText('Florence Monteiro')).toBeVisible();
+
+    const contato = await screen.findByRole('link', { name: 'florence@exemplo.com.br' });
+    expect(contato).toHaveAttribute('href', 'mailto:florence@exemplo.com.br');
+  });
+
+  it('resposta sem e-mail no cadastro continua aparecendo', async () => {
+    /* Sumir com a linha seria pior que mostrá-la sem contato: a nota e o
+       texto valem mesmo sem saber de quem são. */
+    ligarApi({
+      respostas: {
+        ...RESPOSTAS,
+        itens: [{ ...RESPOSTAS.itens[0], nome: null, email: null }],
+      },
+    });
+    renderizarPainel({ rota: '/avaliacao-do-dia' });
+
+    expect(await screen.findByText('Mais lugares para sentar.')).toBeVisible();
+    expect(await screen.findByText('Sem nome no cadastro')).toBeVisible();
+    expect(await screen.findByText('sem e-mail no cadastro')).toBeVisible();
   });
 
   it('erro da API vira aviso na tela, não tela em branco', async () => {

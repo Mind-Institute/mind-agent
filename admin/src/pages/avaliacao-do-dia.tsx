@@ -148,11 +148,12 @@ export function PaginaAvaliacaoDoDia() {
     baixarCsv(
       `avaliacao-do-dia-respostas${filtro.dia ? '-' + filtro.dia : ''}.csv`,
       montarCsv(
-        ['Dia', 'Enviado em', 'Experiência', 'Profissão', 'Expectativas',
+        ['Dia', 'Enviado em', 'Nome', 'E-mail', 'Experiência', 'Profissão', 'Expectativas',
           'Nota relevância', 'Nota programação', 'Atividades avaliadas',
           'O que mais gostou', 'O que melhorar', 'Comentário'],
         respostas.itens.map((r) => [
-          r.dia, quandoLegivel(r.enviadoEm), r.experiencia, r.profissao, r.expectativas,
+          r.dia, quandoLegivel(r.enviadoEm), r.nome ?? '', r.email ?? '',
+          r.experiencia, r.profissao, r.expectativas,
           r.notaRelevancia, r.notaProgramacao, r.atividadesAvaliadas,
           r.maisGostou ?? '', r.melhorar ?? '', r.comentario ?? '',
         ]),
@@ -372,8 +373,27 @@ export function PaginaAvaliacaoDoDia() {
                   <ul className="space-y-3">
                     {respostas.itens.map((r) => (
                       <li key={r.id} className="rounded-lg border p-4">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        {/* QUEM RESPONDEU vem na primeira linha, e o e-mail é
+                            selecionável: o uso desta tela é ler a reclamação e
+                            responder a ela. Nome e e-mail inteiros, contra a
+                            máscara do resto do painel — é a "decisão de backend"
+                            que `dado-pessoal.tsx` prevê, tomada para este
+                            relatório, que já exige sessão de administrador. */}
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                           <Badge variant="neutro">{r.experiencia}</Badge>
+                          <span className="text-sm font-bold">{r.nome ?? 'Sem nome no cadastro'}</span>
+                          {r.email ? (
+                            <a
+                              href={`mailto:${r.email}`}
+                              className="select-all text-xs text-primary underline underline-offset-2"
+                            >
+                              {r.email}
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">sem e-mail no cadastro</span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span>{r.profissao}</span>
                           <span>·</span>
                           <span className="tabular-nums">

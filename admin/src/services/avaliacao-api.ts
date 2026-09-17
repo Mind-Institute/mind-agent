@@ -93,6 +93,15 @@ export interface Resposta {
   id: string;
   dia: string;
   enviadoEm: string;
+  /* NOME E E-MAIL INTEIROS, e não mascarados como no resto do painel.
+     `dado-pessoal.tsx` diz que mostrar o dado completo é decisão de
+     backend — esta é a decisão, tomada para este relatório, que já exige
+     sessão de administrador. O motivo é operacional: o relatório existe
+     para agir sobre o que a pessoa escreveu, e "muita fila para tudo"
+     sem saber quem escreveu não dá para responder.
+     Nulos quando a pessoa ainda não tem o campo no cadastro. */
+  nome: string | null;
+  email: string | null;
   experiencia: string;
   profissao: string;
   expectativas: string;
