@@ -1,8 +1,22 @@
 # Avaliação do dia — como colocar no ar
 
-Estado em 2026-09-16: **implementado, testado, e desligado.** Nada foi
-aplicado em produção — nem migration, nem Edge Function, nem variável de
-build.
+Estado em 2026-09-16: **no ar em `main`, e desligada.**
+
+O código está publicado — app e painel. A pesquisa **não funciona ainda**,
+de propósito, e não aparece para ninguém:
+
+| peça | estado |
+|---|---|
+| código na `main`, app publicado pela Cloudflare | **feito** |
+| migration | **não aplicada** — é o passo 1 abaixo |
+| Edge Function `mindagent-avaliacao` | **não publicada** — passo 2 |
+| `avaliacaoApiUrl` no app / `VITE_AVALIACAO_API_BASE_URL` no painel | **nulos** — passo 3 |
+| chave `avaliacao_do_dia` em `concierge.config` | nem existe; nasce `false` |
+
+Com `avaliacaoApiUrl` nulo o app **não chama nada**: o card não aparece na
+home e nenhuma outra tela muda. Conferido em produção depois do deploy —
+home com os 13 blocos de sempre, campo do chat no lugar, sem card de
+avaliação, sem erro no console; painel abre no login normalmente.
 
 ## O que é
 
@@ -46,9 +60,27 @@ faz a tela aparecer e não funcionar.**
 
 Arquivo: `supabase/migrations/20260916210000_avaliacao_do_dia.sql`.
 
-No SQL Editor do Supabase, ou pela integração Git ao mergear em `main`.
+**À mão, no SQL Editor do Supabase.** Não espere o merge: ao contrário do
+que `supabase/migrations/README.md` diz, a integração Git deste repositório
+**não aplica migrations**. Conferido em 16/09 no ledger
+`supabase_migrations.schema_migrations`: nenhuma das migrations recentes
+deste repo está lá — nem a dos cupons (05/09), nem a dos playbooks, nem a
+do aviso do estacionamento (07/09) —, e todas as três estão vivas em
+produção. Ou seja, foram aplicadas manualmente. O ledger, aliás, tem
+versões de 13 a 15/09 que não existem neste repositório: **outro projeto
+escreve no mesmo banco.**
+
+Merge em `main` publica o app pela Cloudflare. O banco não é tocado.
+
 É `create table if not exists` e `create or replace` — reexecutar é
 seguro e não duplica dado.
+
+**Já validada contra produção**, em transação revertida (16/09): as duas
+tabelas, as quatro funções e a chave de config aplicam sem erro, e
+`mind_avaliacao_do_dia_estado` respondeu com a grade real do dia 16 (39
+atividades), `identificado` correto para um `auth_user` existente e
+`fora_do_evento` para uma data fora. Nada persistiu: `concierge.config`
+seguiu com as mesmas 24 chaves.
 
 Conferência depois de aplicar:
 
