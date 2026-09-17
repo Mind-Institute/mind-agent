@@ -474,6 +474,37 @@ test('o card da home só existe quando o servidor confirma', () => {
   assert.match(estado, /cta: 'Avaliar meu dia'/);
 });
 
+test('o card só aparece depois que o dia aconteceu', () => {
+  /* A RESPOSTA É ÚNICA E DEFINITIVA POR DIA. Oferecer a avaliação às 11h
+     da manhã faria a pessoa avaliar meia manhã e queimar a resposta do dia
+     inteiro, sem poder corrigir. Por isso o card NÃO vive em `no-evento`.
+
+     Vive em `entre-dias` (a noite do dia 1) e em `depois` — que não é
+     repetição: depois do dia 2 o momento vai de `no-evento` direto para
+     `depois`, e sem esse segundo bloco o dia 17 nunca seria avaliado. Ele
+     se apaga sozinho a partir do dia 18, quando o servidor passa a
+     responder `fora_do_evento`.
+
+     Recolocar no meio do dia é um diff de uma linha que ninguém percebe
+     estar errado — daí este teste. */
+  const estado = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8');
+  const composicao = (nome) => {
+    const i = estado.indexOf(nome + ': {');
+    assert.notEqual(i, -1, 'composição ' + nome + ' sumiu de estado.js');
+    /* Até a próxima composição de primeiro nível, que abre na coluna 2. */
+    const resto = estado.slice(i);
+    const fim = resto.search(/\n  [a-z'][\w'-]*: \{/);
+    return fim === -1 ? resto : resto.slice(0, fim);
+  };
+
+  assert.ok(composicao("'entre-dias'").includes('daAvaliacao: true'),
+    'o fechamento do dia 1 perdeu a avaliação');
+  assert.ok(composicao('depois').includes('daAvaliacao: true'),
+    'sem o bloco em `depois`, o dia 2 não tem como ser avaliado');
+  assert.ok(!composicao("'no-evento'").includes('daAvaliacao'),
+    'a avaliação voltou para o meio do dia, onde queima a resposta única da pessoa');
+});
+
 test('falha da pesquisa não derruba a home nem o chat', () => {
   const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   const bloco = app.slice(app.indexOf('async function carregarAvaliacaoDoDia'),

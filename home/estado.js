@@ -443,14 +443,11 @@ export const CONTEUDO = {
         pergunta: 'Registrar um insight',
         cta: 'Anote o que a palestra de agora te trouxe',
         ctaComSessao: 'Anotar mais sobre esta palestra', acao: 'insight' },
-      /* AVALIAÇÃO DO DIA. `daAvaliacao` funciona como `daGrade` e
-         `daSessao`: o bloco só existe quando o `app.js` confirma, pelo
-         servidor, que a pesquisa está no ar. Sem isso ele fica oculto —
-         e é assim que a pesquisa desligada não deixa rastro na home. */
-      { tipo: 'destaque', ico: ICO.estrela, daAvaliacao: true, estado: 'oculto',
-        selo: 'Avaliação do dia',
-        pergunta: 'Como foi seu dia no Mind?',
-        cta: 'Avaliar meu dia', acao: 'avaliacao' },
+      /* A AVALIAÇÃO DO DIA NÃO FICA AQUI, e a razão é o próprio contrato
+         dela: a resposta é ÚNICA e DEFINITIVA por dia. Quem abrisse às
+         11h da manhã avaliaria meia manhã — e queimaria a resposta do dia
+         inteiro, sem poder corrigir depois. Ela mora em `entre-dias` e em
+         `depois`, que é quando o dia já aconteceu. */
       { tipo: 'secao', titulo: 'Avisos importantes', link: 'Ver todos', acao: 'avisos' },
       { tipo: 'avisos', quantos: 2 },
     ],
@@ -461,6 +458,18 @@ export const CONTEUDO = {
     titulo: 'Feche o dia. Prepare o próximo.',
     resumo: 'Registre o que ficou com você e use isso para tornar o segundo dia mais relevante.',
     blocos: [
+      /* AVALIAÇÃO DO DIA, no alto: é o fechamento que o evento pede, e
+         este é o momento em que o dia já aconteceu — a resposta é única e
+         definitiva, então perguntar antes do fim seria colher metade.
+
+         `daAvaliacao` funciona como `daGrade` e `daSessao`: o bloco só
+         existe quando o `app.js` confirma, pelo servidor, que a pesquisa
+         está no ar e que a pessoa foi reconhecida. `estado: 'oculto'` é o
+         padrão, então pesquisa desligada não deixa rastro na home. */
+      { tipo: 'destaque', ico: ICO.estrela, daAvaliacao: true, estado: 'oculto',
+        selo: 'Avaliação do dia',
+        pergunta: 'Como foi seu dia no Mind?',
+        cta: 'Avaliar meu dia', acao: 'avaliacao' },
       { tipo: 'destaque', ico: ICO.ciclo, selo: 'Fechamento rápido',
         pergunta: 'O que ficou com você hoje?',
         cta: 'Anote o que ficou do dia, em 2 min', acao: 'insight' },
@@ -479,6 +488,18 @@ export const CONTEUDO = {
     titulo: 'Transforme ideias em decisões.',
     resumo: 'Em 8 minutos, o Concierge ajuda você a escolher prioridades e construir um plano possível.',
     blocos: [
+      /* AQUI TAMBÉM, e não é repetição: depois do dia 2 o momento vai de
+         `no-evento` direto para `depois` — não existe um segundo
+         "entre dias". Sem este bloco, o dia 17 nunca seria avaliado.
+
+         Ele se apaga sozinho quando deixa de fazer sentido: a partir do
+         dia 18 a data corrente não é mais dia de evento, o servidor
+         responde `fora_do_evento` e o card não é desenhado. Na prática,
+         vale a noite do dia 2 e mais nada. */
+      { tipo: 'destaque', ico: ICO.estrela, daAvaliacao: true, estado: 'oculto',
+        selo: 'Avaliação do dia',
+        pergunta: 'Como foi seu dia no Mind?',
+        cta: 'Avaliar meu dia', acao: 'avaliacao' },
       { tipo: 'destaque', ico: ICO.bussola, selo: 'Plano pós-Summit',
         pergunta: 'O que você quer mudar primeiro?',
         cta: 'Começar entrevista guiada', acao: 'entrevista' },
