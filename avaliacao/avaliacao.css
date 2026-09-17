@@ -77,17 +77,8 @@
   color: var(--texto-mudo);
 }
 
-.av-fixo {
-  margin: 12px 0 0;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--surface-deep);
-  border: 1px solid var(--hairline);
-  color: var(--texto-suave);
-  font-size: 14px;
-  /* E-mail comprido não empurra a tela. */
-  overflow-wrap: anywhere;
-}
+/* `.av-fixo` saiu junto com o campo de e-mail: era o único a usá-la, e
+   regra sem dono vira dúvida na próxima leitura. */
 
 /* ---------- Campos de texto ---------- */
 

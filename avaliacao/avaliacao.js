@@ -15,7 +15,6 @@
    no envio.
 */
 
-import { obterParticipante } from '../config.js';
 import { carregarEstado, enviar, lerRascunho, salvarRascunho, limparRascunho } from './servico.js';
 
 const NOTAS = [0, 1, 2, 3, 4, 5];
@@ -374,7 +373,7 @@ function atualizarContagem() {
 }
 
 function secaoDeAtividades() {
-  const el = bloco(7, 'Avalie as atividades de que você participou hoje', false,
+  const el = bloco(6, 'Avalie as atividades de que você participou hoje', false,
     'Avalie apenas as atividades de que você participou. Todas as notas aqui são opcionais — deixar em branco é não avaliar, e não é nota zero.');
 
   const barra = no('div', 'av-filtros');
@@ -428,14 +427,14 @@ function desenharFormulario() {
     raiz.appendChild(faixa);
   }
 
-  /* 1 — e-mail, sem edição */
-  const b1 = bloco(1, 'E-mail', false, 'É o cadastro com que você entrou no evento.');
-  const email = obterParticipante().email;
-  b1.appendChild(no('p', 'av-fixo', email || 'Identificado pelo app do evento'));
-  raiz.appendChild(b1);
+  /* O E-MAIL SAIU DA TELA, NÃO DO CONTRATO. Ele nunca foi um campo: era um
+     texto fixo confirmando quem estava respondendo. Quem responde continua
+     sendo decidido no servidor, pelo vínculo canônico do token — a tela nunca
+     mandou e-mail junto das respostas e continua não mandando. O que mudou é
+     que a pessoa não precisa mais ler o próprio cadastro para começar. */
 
-  /* 2 — experiência */
-  const b2 = bloco(2, 'Qual experiência você vivenciou hoje?', true);
+  /* 1 — experiência */
+  const b2 = bloco(1, 'Qual experiência você vivenciou hoje?', true);
   const opcoes = no('div', 'av-opcoes');
   opcoes.setAttribute('role', 'radiogroup');
   opcoes.setAttribute('aria-label', 'Experiência vivenciada hoje');
@@ -474,7 +473,7 @@ function desenharFormulario() {
   raiz.appendChild(b2);
 
   /* 3 — profissão */
-  const b3 = bloco(3, 'Qual é a sua profissão?', true);
+  const b3 = bloco(2, 'Qual é a sua profissão?', true);
   b3.appendChild(campoTexto({
     valor: resposta.profissao, limite: LIMITES.profissao, linhas: 1,
     placeholder: 'Ex.: gerente de RH', rotulo: 'Sua profissão',
@@ -484,7 +483,7 @@ function desenharFormulario() {
   raiz.appendChild(b3);
 
   /* 4 — expectativas */
-  const b4 = bloco(4, 'Quais eram suas principais expectativas pessoais e profissionais em relação ao evento?', true);
+  const b4 = bloco(3, 'Quais eram suas principais expectativas pessoais e profissionais em relação ao evento?', true);
   b4.appendChild(campoTexto({
     valor: resposta.expectativas, limite: LIMITES.expectativas, linhas: 4,
     placeholder: 'O que você esperava encontrar aqui', rotulo: 'Suas expectativas',
@@ -494,7 +493,7 @@ function desenharFormulario() {
   raiz.appendChild(b4);
 
   /* 5 — nota das expectativas */
-  const b5 = bloco(5,
+  const b5 = bloco(4,
     'Quanto o que você vivenciou hoje no Mind foi relevante para sua vida pessoal ou profissional?',
     true);
   b5.appendChild(escala({
@@ -508,7 +507,7 @@ function desenharFormulario() {
   raiz.appendChild(b5);
 
   /* 6 — nota da programação */
-  const b6 = bloco(6, 'De 0 a 5, como você avalia a programação de hoje?', true);
+  const b6 = bloco(5, 'De 0 a 5, como você avalia a programação de hoje?', true);
   b6.appendChild(escala({
     nome: 'nota-programacao', valor: resposta.notaProgramacao, pontas: ESCALA_PROGRAMACAO,
     rotuloDoGrupo: 'Sua avaliação da programação de hoje, de 0 a 5',
@@ -524,9 +523,9 @@ function desenharFormulario() {
 
   /* 8, 9, 10 — as abertas */
   [
-    { n: 8, p: 'O que você mais gostou hoje?', c: 'maisGostou' },
-    { n: 9, p: 'O que podemos melhorar?', c: 'melhorar' },
-    { n: 10, p: 'Quer deixar mais algum comentário?', c: 'comentario' },
+    { n: 7, p: 'O que você mais gostou hoje?', c: 'maisGostou' },
+    { n: 8, p: 'O que podemos melhorar?', c: 'melhorar' },
+    { n: 9, p: 'Quer deixar mais algum comentário?', c: 'comentario' },
   ].forEach((q) => {
     const el = bloco(q.n, q.p, false, 'Opcional');
     el.appendChild(campoTexto({
