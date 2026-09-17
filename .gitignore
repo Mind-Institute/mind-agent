@@ -24,3 +24,7 @@ Thumbs.db
 # Snapshots e diários de escrita do `alimentar-banco.mjs`. Retrato do
 # banco num instante, não fonte de verdade — o banco é a fonte.
 /.banco/
+
+# Relatórios com dado pessoal dos participantes: gerados sob demanda,
+# entregues como arquivo, nunca versionados.
+avaliacao-do-dia-*.pdf
