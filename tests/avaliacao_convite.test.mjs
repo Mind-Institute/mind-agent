@@ -13,14 +13,13 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { lerFonte } from './helpers/ler-fonte.mjs';
 import { chamar } from './helpers/avaliacao-harness.mjs';
 
-const migracao = readFileSync(
-  new URL('../supabase/migrations/20260918140000_avaliacao_do_evento_convite.sql', import.meta.url),
-  'utf8');
-const edge = readFileSync(
-  new URL('../supabase/functions/mindagent-avaliacao/index.ts', import.meta.url), 'utf8');
+const migracao = lerFonte(
+  new URL('../supabase/migrations/20260918140000_avaliacao_do_evento_convite.sql', import.meta.url));
+const edge = lerFonte(
+  new URL('../supabase/functions/mindagent-avaliacao/index.ts', import.meta.url));
 
 const ESTADO = '/functions/v1/mindagent-avaliacao/convite/estado';
 const ENVIAR = '/functions/v1/mindagent-avaliacao/convite/enviar';
@@ -329,10 +328,10 @@ test('a Edge sorteia 32 bytes do sistema, e não algo derivado da pessoa', () =>
    A ENTRADA NO APP, LIDA COMO TEXTO
    ============================================================ */
 
-const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-const servico = readFileSync(new URL('../avaliacao/servico.js', import.meta.url), 'utf8');
-const tela = readFileSync(new URL('../avaliacao/evento.js', import.meta.url), 'utf8');
-const estilo = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const app = lerFonte(new URL('../app.js', import.meta.url));
+const servico = lerFonte(new URL('../avaliacao/servico.js', import.meta.url));
+const tela = lerFonte(new URL('../avaliacao/evento.js', import.meta.url));
+const estilo = lerFonte(new URL('../styles.css', import.meta.url));
 
 /* Os comentários do app CITAM o que não se deve fazer — é lá que está
    escrito por quê. A conferência é sobre o código. */

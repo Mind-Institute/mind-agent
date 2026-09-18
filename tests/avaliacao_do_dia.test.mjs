@@ -18,17 +18,17 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { lerFonte } from './helpers/ler-fonte.mjs';
 import { chamar, respostaValida, erroRpc, AUTH_USER_ID, SESSAO_VALIDA } from './helpers/avaliacao-harness.mjs';
 
-const migracao = readFileSync(
-  new URL('../supabase/migrations/20260916210000_avaliacao_do_dia.sql', import.meta.url), 'utf8');
-const tela = readFileSync(new URL('../avaliacao/avaliacao.js', import.meta.url), 'utf8');
-const servico = readFileSync(new URL('../avaliacao/servico.js', import.meta.url), 'utf8');
-const csv = readFileSync(new URL('../admin/src/features/avaliacao-do-dia/csv.ts', import.meta.url), 'utf8');
-const estilo = readFileSync(new URL('../avaliacao/avaliacao.css', import.meta.url), 'utf8');
-const build = readFileSync(new URL('../scripts/build-cloudflare.mjs', import.meta.url), 'utf8');
-const configApp = readFileSync(new URL('../config.js', import.meta.url), 'utf8');
+const migracao = lerFonte(
+  new URL('../supabase/migrations/20260916210000_avaliacao_do_dia.sql', import.meta.url));
+const tela = lerFonte(new URL('../avaliacao/avaliacao.js', import.meta.url));
+const servico = lerFonte(new URL('../avaliacao/servico.js', import.meta.url));
+const csv = lerFonte(new URL('../admin/src/features/avaliacao-do-dia/csv.ts', import.meta.url));
+const estilo = lerFonte(new URL('../avaliacao/avaliacao.css', import.meta.url));
+const build = lerFonte(new URL('../scripts/build-cloudflare.mjs', import.meta.url));
+const configApp = lerFonte(new URL('../config.js', import.meta.url));
 
 /* ============================================================
    A EDGE, RODANDO
@@ -463,12 +463,12 @@ test('a confirmação avisa que não dá para alterar depois', () => {
 });
 
 test('o card da home só existe quando o servidor confirma', () => {
-  const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const app = lerFonte(new URL('../app.js', import.meta.url));
   assert.match(app, /if \(!e \|\| !e\.ativo \|\| !e\.identificado\) return null;/);
   assert.match(app, /Avaliação de hoje enviada ✓/);
-  const homeJs = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8');
+  const homeJs = lerFonte(new URL('../home/home.js', import.meta.url));
   assert.match(homeJs, /ctx\.avaliacao \? \{ \.\.\.b, \.\.\.ctx\.avaliacao \} : \{ \.\.\.b, estado: 'oculto' \}/);
-  const estado = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8');
+  const estado = lerFonte(new URL('../home/estado.js', import.meta.url));
   assert.match(estado, /daAvaliacao: true, estado: 'oculto'/);
   assert.match(estado, /Como foi seu dia no Mind\?/);
   assert.match(estado, /cta: 'Avaliar meu dia'/);
@@ -487,7 +487,7 @@ test('o card só aparece depois que o dia aconteceu', () => {
 
      Recolocar no meio do dia é um diff de uma linha que ninguém percebe
      estar errado — daí este teste. */
-  const estado = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8');
+  const estado = lerFonte(new URL('../home/estado.js', import.meta.url));
   const composicao = (nome) => {
     const i = estado.indexOf(nome + ': {');
     assert.notEqual(i, -1, 'composição ' + nome + ' sumiu de estado.js');
@@ -506,7 +506,7 @@ test('o card só aparece depois que o dia aconteceu', () => {
 });
 
 test('falha da pesquisa não derruba a home nem o chat', () => {
-  const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const app = lerFonte(new URL('../app.js', import.meta.url));
   const bloco = app.slice(app.indexOf('async function carregarAvaliacaoDoDia'),
     app.indexOf('function cardDaAvaliacao'));
   assert.match(bloco, /try \{/);
@@ -521,7 +521,7 @@ test('a pesquisa reaproveita a sessão do chat em vez de abrir outra', () => {
   assert.match(servico, /import \{ garantirSessaoDeAcesso \} from '\.\.\/chat-service\.js'/);
   assert.ok(!/auth\/v1\/signup|auth\/v1\/token/.test(servico),
     'nada de segundo fluxo de autenticação');
-  const chat = readFileSync(new URL('../chat-service.js', import.meta.url), 'utf8');
+  const chat = lerFonte(new URL('../chat-service.js', import.meta.url));
   assert.match(chat, /export async function garantirSessaoDeAcesso/);
 });
 
@@ -558,17 +558,17 @@ test('o CSV protege acento, quebra de linha e fórmula', () => {
 });
 
 test('atividade sem avaliação não vira média zero na planilha', () => {
-  const pagina = readFileSync(new URL('../admin/src/pages/avaliacao-do-dia.tsx', import.meta.url), 'utf8');
+  const pagina = lerFonte(new URL('../admin/src/pages/avaliacao-do-dia.tsx', import.meta.url));
   assert.match(pagina, /a\.media === null \? '' : a\.media/);
   assert.match(pagina, /Sem avaliações/);
   /* Média sem amostra ao lado mente por omissão. */
-  const kpis = readFileSync(new URL('../admin/src/features/avaliacao-do-dia/kpis.tsx', import.meta.url), 'utf8');
+  const kpis = lerFonte(new URL('../admin/src/features/avaliacao-do-dia/kpis.tsx', import.meta.url));
   assert.match(kpis, /nota\.amostra === 0/);
   assert.match(kpis, /respostas/);
 });
 
 test('taxa de participação fica de fora enquanto não houver denominador', () => {
-  const pagina = readFileSync(new URL('../admin/src/pages/avaliacao-do-dia.tsx', import.meta.url), 'utf8');
+  const pagina = lerFonte(new URL('../admin/src/pages/avaliacao-do-dia.tsx', import.meta.url));
   assert.ok(!/taxa de participação/i.test(pagina.replace(/\/\*[\s\S]*?\*\//g, '')),
     'nenhum KPI de participação fora dos comentários');
 });

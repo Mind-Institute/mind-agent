@@ -18,11 +18,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { lerFonte } from './helpers/ler-fonte.mjs';
 import { chamar, erroRpc, AUTH_USER_ID } from './helpers/avaliacao-harness.mjs';
 
-const migracao = readFileSync(
-  new URL('../supabase/migrations/20260918120000_avaliacao_do_evento.sql', import.meta.url), 'utf8');
+const migracao = lerFonte(
+  new URL('../supabase/migrations/20260918120000_avaliacao_do_evento.sql', import.meta.url));
 
 const ESTADO = '/functions/v1/mindagent-avaliacao/evento/estado';
 const ENVIAR = '/functions/v1/mindagent-avaliacao/evento/enviar';
@@ -391,13 +391,13 @@ test('nenhum comando desta migration alcança a pesquisa do dia', () => {
    A TELA E O APP, LIDOS COMO TEXTO
    ============================================================ */
 
-const tela = readFileSync(new URL('../avaliacao/evento.js', import.meta.url), 'utf8');
-const pecas = readFileSync(new URL('../avaliacao/componentes.js', import.meta.url), 'utf8');
-const servico = readFileSync(new URL('../avaliacao/servico.js', import.meta.url), 'utf8');
-const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-const estadoHome = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8');
-const home = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8');
-const telaDoDia = readFileSync(new URL('../avaliacao/avaliacao.js', import.meta.url), 'utf8');
+const tela = lerFonte(new URL('../avaliacao/evento.js', import.meta.url));
+const pecas = lerFonte(new URL('../avaliacao/componentes.js', import.meta.url));
+const servico = lerFonte(new URL('../avaliacao/servico.js', import.meta.url));
+const app = lerFonte(new URL('../app.js', import.meta.url));
+const estadoHome = lerFonte(new URL('../home/estado.js', import.meta.url));
+const home = lerFonte(new URL('../home/home.js', import.meta.url));
+const telaDoDia = lerFonte(new URL('../avaliacao/avaliacao.js', import.meta.url));
 
 test('zero é valor, e a tela nunca o trata como ausência', () => {
   assert.match(tela, /resposta\.notaRelevancia == null/);
@@ -503,7 +503,7 @@ test('as duas telas dividem a mesma vista, e o título acompanha', () => {
 });
 
 test('o módulo novo entra no build', () => {
-  const build = readFileSync(new URL('../scripts/build-cloudflare.mjs', import.meta.url), 'utf8');
+  const build = lerFonte(new URL('../scripts/build-cloudflare.mjs', import.meta.url));
   assert.match(build, /'avaliacao',/);
   assert.match(build, /conferirImports/);
 });
