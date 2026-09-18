@@ -147,6 +147,71 @@ cartao(M + (larg + 8) * 2, yCartoes, larg, 'Programação', vg(media('programaca
 doc.y = yCartoes + 86;
 doc.x = M;
 
+/* ---------------- os mesmos números, por dia ----------------
+   O total esconde o que separa os dois dias, e é justamente aí que a
+   leitura muda: a média geral sobe ou desce conforme o dia de maior
+   volume, e quem decide precisa ver os dois lado a lado.
+
+   Cada linha carrega a própria amostra. Um dia com 24 respostas e outro
+   com 15 não são comparáveis sem isso — e a diferença entre 4,50 e 4,33
+   cabe inteira dentro dessa distância. */
+if (d.porDia && d.porDia.length) {
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text('Dia a dia');
+  doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
+    .text('Os mesmos três números, separados. A amostra vem em cada linha porque é ela que diz o quanto a diferença entre os dias significa.');
+  doc.moveDown(0.8);
+
+  /* Cabeçalho da tabelinha. Colunas fixas: número alinhado embaixo de
+     número é o que deixa comparar sem contar casas. */
+  const col = [0, 132, 208, 268, 344, 404, 470];
+  const cabeca = (t, i, alinha) =>
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(MUDO)
+      .text(t.toUpperCase(), M + col[i], doc.y, {
+        width: col[i + 1] - col[i] - 8, align: alinha || 'left', characterSpacing: 0.5,
+        lineBreak: false,
+      });
+
+  const yCab = doc.y;
+  ['Dia', 'Respostas', 'Relevância', '4 ou 5', 'Programação', '4 ou 5']
+    .forEach((t, i) => { doc.y = yCab; cabeca(t, i, i >= 2 ? 'right' : (i === 1 ? 'right' : 'left')); });
+  doc.x = M;
+  doc.y = yCab + 12;
+  regua(doc.y);
+  doc.moveDown(0.5);
+
+  for (const l of d.porDia) {
+    espaco(26);
+    const y = doc.y;
+    const cel = (t, i, forte) => {
+      doc.y = y;
+      doc.font(forte ? 'Helvetica-Bold' : 'Helvetica').fontSize(forte ? 11 : 9.5)
+        .fillColor(forte ? TINTA : SUAVE)
+        .text(t, M + col[i], y, {
+          width: col[i + 1] - col[i] - 8, align: i >= 1 ? 'right' : 'left', lineBreak: false,
+        });
+    };
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(TINTA)
+      .text(l.rotulo, M + col[0], y, { width: col[1] - col[0] - 8, lineBreak: false });
+    cel(String(l.n), 1, false);
+    cel(vg(l.relevancia), 2, true);
+    cel(l.p45relevancia + '%', 3, false);
+    cel(vg(l.programacao), 4, true);
+    cel(l.p45programacao + '%', 5, false);
+
+    doc.x = M;
+    doc.y = y + 15;
+    if (l.apoio) {
+      doc.font('Helvetica').fontSize(8).fillColor(MUDO)
+        .text(l.apoio, M + col[0], doc.y, { width: L, lineBreak: false });
+      doc.y += 11;
+    }
+    doc.x = M;
+    regua(doc.y);
+    doc.moveDown(0.5);
+  }
+  doc.moveDown(0.8);
+}
+
 /* ---------------- por atividade ---------------- */
 doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text('Por atividade');
 doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
