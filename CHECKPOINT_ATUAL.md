@@ -12,15 +12,15 @@ A segunda pesquisa: o Summit inteiro, respondido depois que ele acaba. As mesmas
 oito perguntas da Avaliação do dia com "hoje" trocado por "o evento", e SEM nota
 por atividade — as duas pesquisas do dia já colheram 273 notas com a memória fresca.
 
-**LIGADA. Migration aplicada, Edge publicada na versão 2 (runtime 1.2.0) e app
-na  em . Janela aberta: 18/09 a 02/10, fuso do evento.**
+**LIGADA. Migration aplicada, Edge publicada na versão 2 (runtime `1.2.0`) e app
+na `main` em `67ab260`. Janela aberta: 18/09 a 02/10, no fuso do evento.**
 
 O que NÃO está ligado: o convite por link. A migration dele está no repo e não
 foi aplicada — é gate da Adriana.
 
-Conferido no ar:  responde 1.2.0; ,  e
- pedem sessão;  responde
- em vez de , provando que ele roda antes da
+Conferido no ar: `/health` responde `1.2.0`; `/estado`, `/evento/estado` e
+`/admin/evento/relatorio` pedem sessão; `/convite/estado` responde
+`convite_invalido` em vez de `sem_sessao`, provando que ele roda antes da
 exigência de sessão; o app abre sem erro de console e a home continua a mesma.
 
 | commit | o que é | estado |
