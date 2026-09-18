@@ -83,6 +83,20 @@ function respostasPadrao() {
     mind_identidade_resolver: { pessoa_id: '22222222-2222-4222-8222-222222222222' },
     mind_avaliacao_do_dia_relatorio: { kpis: { respondentes: 0 }, porAtividade: [] },
     mind_avaliacao_do_dia_respostas: { total: 0, pagina: 1, porPagina: 50, itens: [] },
+
+    /* A pesquisa do evento inteiro: sem dia, sem atividades, e com a
+       janela no lugar da grade. */
+    mind_avaliacao_do_evento_estado: {
+      ativo: true, motivo: null, identificado: true,
+      evento: { slug: 'mind-summit-2026', nome: 'Mind Summit 2026', fuso: 'America/Sao_Paulo',
+                dias: ['2026-09-16', '2026-09-17'] },
+      janela: { abre: '2026-09-18', fecha: '2026-09-30' },
+      formularioVersao: 1, enviado: false, enviadoEm: null, experienciaSugerida: 'prime',
+    },
+    mind_avaliacao_do_evento_registrar: { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                                          jaRegistrado: false },
+    mind_avaliacao_do_evento_relatorio: { kpis: { respondentes: 0 } },
+    mind_avaliacao_do_evento_respostas: { total: 0, pagina: 1, porPagina: 50, itens: [] },
   };
 }
 

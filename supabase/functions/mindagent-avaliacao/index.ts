@@ -38,8 +38,17 @@
    argumentos. Não existe segunda identidade, segundo cadastro de pessoas
    nem sessão paralela.
 
+   DUAS PESQUISAS, UMA FUNÇÃO. A do dia responde em `/estado` e
+   `/enviar`; a do evento inteiro, nas mesmas palavras com `evento` na
+   frente — `/evento/estado`, `/evento/enviar`, `/admin/evento/...`.
+   Publicar uma segunda função só para isso duplicaria identidade, CORS
+   e o token de operador, que é justamente o que não se quer ter em dois
+   lugares.
+
    DEPENDE de `supabase/migrations/20260916210000_avaliacao_do_dia.sql`
-   aplicada. Sem ela, as rotas respondem 503.
+   aplicada. Sem ela, as rotas do dia respondem 503. As rotas do evento
+   dependem de `20260918120000_avaliacao_do_evento.sql`, e respondem 503
+   enquanto ela não for aplicada — sem derrubar as do dia.
 
    PRIVACIDADE
    Nenhuma resposta aberta, e-mail ou nome vai para log — nem no caminho
@@ -51,7 +60,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 type AdminRole = "administrador" | "editor" | "aprovador" | "atendimento" | "analista";
 type AccessRecord = { display_name: string | null; role: AdminRole; active: boolean };
 
-const VERSAO = "1.0.0";
+const VERSAO = "1.1.0";
 const EVENTO_PADRAO = "mind-summit-2026";
 
 /* O painel em desenvolvimento e o app, nas portas de sempre. */
@@ -172,8 +181,14 @@ function erroDeRpc(req: Request, erro: { message?: string; code?: string }, requ
    `Number("")`, `Number(false)` e `Number([])` são todos `0`. Usar `Number`
    direto transformaria "não respondi" na pior nota possível — e a pesquisa
    inteira mediria errado justamente onde dói. Só número de verdade passa. */
+/* A FAIXA TAMBÉM É AQUI, e não só no banco. Sem ela, `-1` e `6` eram os
+   únicos valores inválidos que atravessavam a Edge inteira para morrer lá
+   no fundo: `4.5` e `"5"` já paravam na porta, e os dois vizinhos passavam.
+   O banco continua sendo quem garante — mas uma validação que recusa meio
+   conjunto e deixa o resto passar é pior que não ter, porque parece ter. */
 function notaInteira(valor: unknown): number | null {
-  return typeof valor === "number" && Number.isInteger(valor) ? valor : null;
+  if (typeof valor !== "number" || !Number.isInteger(valor)) return null;
+  return valor >= 0 && valor <= 5 ? valor : null;
 }
 
 function textoLimitado(valor: unknown, limite: number): string | null {
@@ -194,6 +209,38 @@ function diaDaUrl(url: URL) {
   return FORMATO_DIA.test(dia) ? dia : "invalido";
 }
 
+/* AS OITO PERGUNTAS QUE AS DUAS PESQUISAS DIVIDEM, lidas num lugar só.
+   A do dia acrescenta as notas por atividade; a do evento não tem nada a
+   mais. Se a lista de perguntas mudar, muda aqui — e não em dois blocos
+   que se parecem até o dia em que param de se parecer.
+
+   Só o que a pesquisa conhece atravessa: o que o cliente mandar além
+   disso — inclusive `participanteId` — morre aqui e nunca vê o banco. */
+function camposComuns(corpo: Record<string, unknown>) {
+  return {
+    experiencia: typeof corpo.experiencia === "string" ? corpo.experiencia.trim().toLowerCase() : "",
+    profissao: textoLimitado(corpo.profissao, LIMITES.profissao) ?? "",
+    expectativas: textoLimitado(corpo.expectativas, LIMITES.expectativas) ?? "",
+    notaRelevancia: notaInteira(corpo.notaRelevancia),
+    notaProgramacao: notaInteira(corpo.notaProgramacao),
+    maisGostou: textoLimitado(corpo.maisGostou, LIMITES.aberta),
+    melhorar: textoLimitado(corpo.melhorar, LIMITES.aberta),
+    comentario: textoLimitado(corpo.comentario, LIMITES.aberta),
+  };
+}
+
+/* Corpo de envio: lido uma vez, com o mesmo teto das duas pesquisas. */
+async function lerCorpo(req: Request) {
+  if (Number(req.headers.get("content-length") ?? 0) > 100_000) return "grande" as const;
+  try {
+    const lido = await req.json();
+    if (!lido || Array.isArray(lido) || typeof lido !== "object") return "invalido" as const;
+    return lido as Record<string, unknown>;
+  } catch {
+    return "invalido" as const;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const url = new URL(req.url);
@@ -202,6 +249,13 @@ Deno.serve(async (req: Request) => {
   const ehAdmin = iAdmin >= 0;
   const rota = partes.at(-1) ?? "";
   const doApp = !ehAdmin;
+
+  /* `rota` é o ÚLTIMO segmento, então sem este marcador `/evento/estado`
+     cairia no estado da pesquisa do dia e responderia a pergunta errada.
+     `evento` só conta quando é o penúltimo segmento — `/evento` sozinho
+     não é rota. */
+  const iEvento = partes.indexOf("evento");
+  const doEventoInteiro = iEvento >= 0 && iEvento === partes.length - 2;
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cabecalhosCors(req, doApp) });
@@ -264,7 +318,30 @@ Deno.serve(async (req: Request) => {
     if (dia === "invalido") return json(req, 400, { codigo: "validacao", mensagem: "Dia inválido." }, requestId);
     const experiencia = url.searchParams.get("experiencia");
 
-    const alvo = partes[iAdmin + 1];
+    const alvo = doEventoInteiro ? partes[iAdmin + 2] : partes[iAdmin + 1];
+
+    /* A pesquisa do evento não tem dia nem atividade, então o painel dela
+       só recorta por experiência. Passar `dia` aqui seria aceitar um
+       filtro que não filtra nada. */
+    if (doEventoInteiro) {
+      if (alvo === "relatorio") {
+        const { data, error } = await comSegredo.rpc("mind_avaliacao_do_evento_relatorio", {
+          p_event_slug: slug, p_experiencia: experiencia,
+        });
+        if (error) return erroDeRpc(req, error, requestId, false);
+        return json(req, 200, data, requestId);
+      }
+      if (alvo === "respostas") {
+        const { data, error } = await comSegredo.rpc("mind_avaliacao_do_evento_respostas", {
+          p_event_slug: slug, p_experiencia: experiencia,
+          p_pagina: Number(url.searchParams.get("pagina") ?? 1) || 1,
+          p_por_pagina: Number(url.searchParams.get("porPagina") ?? 50) || 50,
+        });
+        if (error) return erroDeRpc(req, error, requestId, false);
+        return json(req, 200, data, requestId);
+      }
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
+    }
 
     if (alvo === "relatorio") {
       const { data, error } = await comSegredo.rpc("mind_avaliacao_do_dia_relatorio", {
@@ -319,6 +396,66 @@ Deno.serve(async (req: Request) => {
     });
   };
 
+  /* ------------------------------------------------------------
+     A pesquisa do evento inteiro
+     ------------------------------------------------------------
+     Mesmo desenho da do dia, sem o dia e sem as atividades. A ligação
+     de identidade é a mesma chamada: quem abriu o app e nunca conversou
+     precisa poder responder aqui também. */
+
+  if (doEventoInteiro && req.method === "GET" && rota === "estado") {
+    const slug = eventoDaUrl(url);
+    if (!slug) return json(req, 400, { codigo: "validacao", mensagem: "Evento inválido." }, requestId, true);
+
+    const ler = () => comSegredo.rpc("mind_avaliacao_do_evento_estado", {
+      p_auth_user_id: authUserId, p_event_slug: slug,
+    });
+
+    let { data, error } = await ler();
+    if (error) return erroDeRpc(req, error, requestId, true);
+
+    if (data && (data as Record<string, unknown>).identificado === false) {
+      const email = textoLimitado(req.headers.get("X-Identidade-Email"), 254)?.toLowerCase() ?? null;
+      if (email) {
+        await ligarIdentidade(email, textoLimitado(req.headers.get("X-Identidade-Nome"), 160));
+        ({ data, error } = await ler());
+        if (error) return erroDeRpc(req, error, requestId, true);
+      }
+    }
+
+    return json(req, 200, data, requestId, true);
+  }
+
+  if (doEventoInteiro && req.method === "POST" && rota === "enviar") {
+    const corpo = await lerCorpo(req);
+    if (corpo === "grande") {
+      return json(req, 413, { codigo: "validacao", mensagem: "Resposta grande demais." }, requestId, true);
+    }
+    if (corpo === "invalido") {
+      return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId, true);
+    }
+
+    const slug = typeof corpo.eventSlug === "string" && FORMATO_SLUG.test(corpo.eventSlug)
+      ? corpo.eventSlug : EVENTO_PADRAO;
+
+    const email = textoLimitado(req.headers.get("X-Identidade-Email"), 254)?.toLowerCase() ?? null;
+    if (email) await ligarIdentidade(email, textoLimitado(req.headers.get("X-Identidade-Nome"), 160));
+
+    const payload = camposComuns(corpo);
+    if (payload.notaRelevancia === null || payload.notaProgramacao === null) {
+      return json(req, 422, {
+        codigo: "validacao", campo: "nota_obrigatoria",
+        mensagem: "Responda as duas notas de 0 a 5 antes de enviar.",
+      }, requestId, true);
+    }
+
+    const { data, error } = await comSegredo.rpc("mind_avaliacao_do_evento_registrar", {
+      p_auth_user_id: authUserId, p_event_slug: slug, p_payload: payload,
+    });
+    if (error) return erroDeRpc(req, error, requestId, true);
+    return json(req, 201, data, requestId, true);
+  }
+
   if (req.method === "GET" && rota === "estado") {
     const slug = eventoDaUrl(url);
     if (!slug) return json(req, 400, { codigo: "validacao", mensagem: "Evento inválido." }, requestId, true);
@@ -344,15 +481,11 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method === "POST" && rota === "enviar") {
-    if (Number(req.headers.get("content-length") ?? 0) > 100_000) {
+    const corpo = await lerCorpo(req);
+    if (corpo === "grande") {
       return json(req, 413, { codigo: "validacao", mensagem: "Resposta grande demais." }, requestId, true);
     }
-    let corpo: Record<string, unknown>;
-    try {
-      const lido = await req.json();
-      if (!lido || Array.isArray(lido) || typeof lido !== "object") throw new Error("corpo");
-      corpo = lido as Record<string, unknown>;
-    } catch {
+    if (corpo === "invalido") {
       return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId, true);
     }
 
@@ -366,9 +499,6 @@ Deno.serve(async (req: Request) => {
     const email = textoLimitado(req.headers.get("X-Identidade-Email"), 254)?.toLowerCase() ?? null;
     if (email) await ligarIdentidade(email, textoLimitado(req.headers.get("X-Identidade-Nome"), 160));
 
-    /* Só os campos que a pesquisa conhece atravessam. O que o cliente
-       mandar além disso — inclusive `participanteId` — é descartado aqui
-       e nunca chega ao banco. */
     const atividades = Array.isArray(corpo.atividades)
       ? (corpo.atividades as unknown[]).slice(0, 200).map((item) => {
           const a = (item ?? {}) as Record<string, unknown>;
@@ -377,22 +507,9 @@ Deno.serve(async (req: Request) => {
           FORMATO_UUID.test(a.sessaoId) && a.nota !== null)
       : [];
 
-    const notaRelevancia = notaInteira(corpo.notaRelevancia);
-    const notaProgramacao = notaInteira(corpo.notaProgramacao);
+    const payload = { ...camposComuns(corpo), atividades };
 
-    const payload = {
-      experiencia: typeof corpo.experiencia === "string" ? corpo.experiencia.trim().toLowerCase() : "",
-      profissao: textoLimitado(corpo.profissao, LIMITES.profissao) ?? "",
-      expectativas: textoLimitado(corpo.expectativas, LIMITES.expectativas) ?? "",
-      notaRelevancia,
-      notaProgramacao,
-      maisGostou: textoLimitado(corpo.maisGostou, LIMITES.aberta),
-      melhorar: textoLimitado(corpo.melhorar, LIMITES.aberta),
-      comentario: textoLimitado(corpo.comentario, LIMITES.aberta),
-      atividades,
-    };
-
-    if (notaRelevancia === null || notaProgramacao === null) {
+    if (payload.notaRelevancia === null || payload.notaProgramacao === null) {
       return json(req, 422, {
         codigo: "validacao", campo: "nota_obrigatoria",
         mensagem: "Responda as duas notas de 0 a 5 antes de enviar.",
