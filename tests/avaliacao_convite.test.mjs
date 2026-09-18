@@ -13,7 +13,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lerFonte } from './helpers/ler-fonte.mjs';
+import { lerFonte, semComentarios } from './helpers/ler-fonte.mjs';
 import { chamar } from './helpers/avaliacao-harness.mjs';
 
 const migracao = lerFonte(
@@ -332,11 +332,6 @@ const app = lerFonte(new URL('../app.js', import.meta.url));
 const servico = lerFonte(new URL('../avaliacao/servico.js', import.meta.url));
 const tela = lerFonte(new URL('../avaliacao/evento.js', import.meta.url));
 const estilo = lerFonte(new URL('../styles.css', import.meta.url));
-
-/* Os comentários do app CITAM o que não se deve fazer — é lá que está
-   escrito por quê. A conferência é sobre o código. */
-const semComentarios = (fonte) =>
-  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 test('o token é lido do fragmento e apagado da barra de endereço', () => {
   const codigo = semComentarios(app);

@@ -14,14 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   baseDaAvaliacao,
   lerRelatorioDoEvento,
   lerRespostasDoEvento,
+  type LinhaDeAtividade,
   type PaginaDeRespostasDoEvento,
   type RelatorioDoEvento,
 } from '@/services/avaliacao-api';
-import { CartaoDeNota, CartaoSimples } from '@/features/avaliacao-do-dia/kpis';
+import {
+  BarrasDeDistribuicao, CartaoDeNota, CartaoSimples, Numero,
+} from '@/features/avaliacao-do-dia/kpis';
 import { baixarCsv, montarCsv } from '@/features/avaliacao-do-dia/csv';
 
 /* ============================================================
@@ -30,9 +34,15 @@ import { baixarCsv, montarCsv } from '@/features/avaliacao-do-dia/csv';
    Somente leitura, como a do dia: uma resposta enviada é definitiva
    também para quem administra.
 
-   NÃO TEM TABELA POR ATIVIDADE, e a ausência é o desenho: esta pesquisa
-   não pergunta por atividade. As notas por atividade estão na Avaliação
-   do dia, colhidas quando a memória estava fresca — e é lá que se lê.
+   A TABELA POR ATIVIDADE É DOS DOIS DIAS, e é essa a diferença para a
+   pesquisa do dia: lá a grade era de um dia, aqui é o evento inteiro.
+   Atividade sem avaliação mostra "Sem avaliações", nunca média zero —
+   zero é uma nota que alguém deu.
+
+   RESPOSTA DA VERSÃO 1 aparece marcada: quem respondeu antes de a grade
+   entrar no formulário não tinha como dar nota de atividade, e ler as
+   duas juntas sem saber disso faria parecer que essas pessoas não
+   avaliaram nada.
 
    A média nunca aparece sem o tamanho da amostra ao lado; quem cuida
    disso é `CartaoDeNota`, o mesmo componente da outra tela.
@@ -42,11 +52,18 @@ import { baixarCsv, montarCsv } from '@/features/avaliacao-do-dia/csv';
    foi alcançado por fora. Ler as duas juntas sem saber a proporção é ler
    uma média de duas populações diferentes. */
 
+type Ordem = 'grade' | 'media' | 'avaliacoes';
+
 const EXPERIENCIAS = [
   { valor: 'mind', rotulo: 'Mind' },
   { valor: 'vip', rotulo: 'VIP' },
   { valor: 'prime', rotulo: 'Prime' },
 ];
+
+function diaCurto(iso: string) {
+  const p = iso.split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
+}
 
 function quandoLegivel(iso: string) {
   const d = new Date(iso);
@@ -61,6 +78,7 @@ export function PaginaAvaliacaoDoEvento() {
   const configurada = Boolean(baseDaAvaliacao());
 
   const [experiencia, setExperiencia] = useState<string>('todos');
+  const [ordem, setOrdem] = useState<Ordem>('grade');
   const [pagina, setPagina] = useState(1);
 
   const [relatorio, setRelatorio] = useState<RelatorioDoEvento | null>(null);
@@ -105,18 +123,54 @@ export function PaginaAvaliacaoDoEvento() {
     setPagina(1);
   };
 
+  const atividades = useMemo<LinhaDeAtividade[]>(() => {
+    const copia = [...(relatorio?.porAtividade ?? [])];
+    if (ordem === 'media') {
+      /* Sem avaliação vai para o FIM, sempre — e não para o topo como
+         "menor média", que é o que aconteceria tratando null como 0. */
+      copia.sort((a, b) => {
+        if (a.media === null && b.media === null) return 0;
+        if (a.media === null) return 1;
+        if (b.media === null) return -1;
+        return b.media - a.media;
+      });
+    } else if (ordem === 'avaliacoes') {
+      copia.sort((a, b) => b.avaliacoes - a.avaliacoes);
+    }
+    return copia;
+  }, [relatorio, ordem]);
+
+  const exportarAtividades = () => {
+    if (!relatorio) return;
+    baixarCsv(
+      'avaliacao-do-evento-atividades.csv',
+      montarCsv(
+        ['Dia', 'Horário', 'Atividade', 'Espaço', 'Acesso', 'Avaliações', 'Média',
+          'Nota 0', 'Nota 1', 'Nota 2', 'Nota 3', 'Nota 4', 'Nota 5'],
+        atividades.map((a) => [
+          a.dia, a.inicio, a.titulo, a.espaco ?? '', (a.ingressos ?? []).join(', '),
+          a.avaliacoes,
+          /* Sem avaliação não vira 0 nem na planilha. */
+          a.media === null ? '' : a.media,
+          a.distribuicao['0'], a.distribuicao['1'], a.distribuicao['2'],
+          a.distribuicao['3'], a.distribuicao['4'], a.distribuicao['5'],
+        ]),
+      ),
+    );
+  };
+
   const exportarRespostas = () => {
     if (!respostas) return;
     baixarCsv(
       'avaliacao-do-evento-respostas.csv',
       montarCsv(
-        ['Enviado em', 'Origem', 'Nome', 'E-mail', 'Experiência', 'Profissão', 'Expectativas',
-          'Nota relevância', 'Nota programação',
+        ['Enviado em', 'Origem', 'Versão', 'Nome', 'E-mail', 'Experiência', 'Profissão',
+          'Expectativas', 'Nota relevância', 'Nota programação', 'Atividades avaliadas',
           'O que mais gostou', 'O que melhorar', 'Comentário'],
         respostas.itens.map((r) => [
-          quandoLegivel(r.enviadoEm), r.origem, r.nome ?? '', r.email ?? '',
+          quandoLegivel(r.enviadoEm), r.origem, r.formularioVersao, r.nome ?? '', r.email ?? '',
           r.experiencia, r.profissao, r.expectativas,
-          r.notaRelevancia, r.notaProgramacao,
+          r.notaRelevancia, r.notaProgramacao, r.atividadesAvaliadas,
           r.maisGostou ?? '', r.melhorar ?? '', r.comentario ?? '',
         ]),
       ),
@@ -167,6 +221,9 @@ export function PaginaAvaliacaoDoEvento() {
         <Button variant="outline" onClick={exportarRespostas} disabled={!respostas?.itens.length}>
           <Download className="size-4" /> CSV das respostas
         </Button>
+        <Button variant="outline" onClick={exportarAtividades} disabled={!atividades.length}>
+          <Download className="size-4" /> CSV por atividade
+        </Button>
       </div>
 
       {erro ? (
@@ -193,11 +250,11 @@ export function PaginaAvaliacaoDoEvento() {
             <CartaoDeNota titulo="Relevância do que vivenciaram" nota={relatorio.kpis.relevancia} />
             <CartaoDeNota titulo="Programação do evento" nota={relatorio.kpis.programacao} />
             <CartaoSimples
-              titulo="Por onde responderam"
-              valor={relatorio.kpis.porOrigem.app + relatorio.kpis.porOrigem.convite}
+              titulo="Avaliações de atividades"
+              valor={relatorio.avaliacoesDeAtividades}
               apoio={
-                `App ${relatorio.kpis.porOrigem.app} · ` +
-                `Convite ${relatorio.kpis.porOrigem.convite}`
+                `Notas individuais · app ${relatorio.kpis.porOrigem.app}, ` +
+                `convite ${relatorio.kpis.porOrigem.convite}`
               }
             />
           </div>
@@ -208,6 +265,71 @@ export function PaginaAvaliacaoDoEvento() {
               descricao="Troque a experiência para ver outro recorte, ou confira se a pesquisa já está aberta."
             />
           ) : null}
+
+          <Card>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base">Por atividade · os dois dias</CardTitle>
+              <Select value={ordem} onValueChange={(v) => setOrdem(v as Ordem)}>
+                <SelectTrigger className="w-auto min-w-48" aria-label="Ordenar atividades">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grade">Ordem da grade</SelectItem>
+                  <SelectItem value="media">Maior média</SelectItem>
+                  <SelectItem value="avaliacoes">Mais avaliadas</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              {atividades.length === 0 ? (
+                <EstadoVazio titulo="Sem atividades neste recorte" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Atividade</TableHead>
+                        <TableHead className="w-28">Horário</TableHead>
+                        <TableHead className="w-44">Espaço</TableHead>
+                        <TableHead className="w-28 text-right">Avaliações</TableHead>
+                        <TableHead className="w-24 text-right">Média</TableHead>
+                        <TableHead className="w-48">Distribuição</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {atividades.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell className="font-medium">{a.titulo}</TableCell>
+                          <TableCell className="tabular-nums text-muted-foreground">
+                            {diaCurto(a.dia)} {a.inicio}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{a.espaco ?? '—'}</TableCell>
+                          <TableCell className="text-right tabular-nums">{a.avaliacoes}</TableCell>
+                          <TableCell className="text-right font-bold tabular-nums">
+                            {a.avaliacoes === 0 ? (
+                              <Badge variant="neutro">Sem avaliações</Badge>
+                            ) : (
+                              <Numero valor={a.media} />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {a.avaliacoes === 0 ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              <BarrasDeDistribuicao
+                                distribuicao={a.distribuicao}
+                                total={a.avaliacoes}
+                              />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -251,6 +373,16 @@ export function PaginaAvaliacaoDoEvento() {
                           <span className="tabular-nums">{quandoLegivel(r.enviadoEm)}</span>
                           <span>·</span>
                           <span>{r.origem === 'convite' ? 'veio por convite' : 'pelo app'}</span>
+                          <span>·</span>
+                          <span className="tabular-nums">
+                            {r.atividadesAvaliadas}{' '}
+                            {r.atividadesAvaliadas === 1 ? 'atividade' : 'atividades'}
+                          </span>
+                          {/* A versão 1 não tinha grade no formulário. Sem este
+                              aviso, "0 atividades" pareceria desinteresse. */}
+                          {r.formularioVersao < 2 ? (
+                            <Badge variant="neutro">formulário sem a grade</Badge>
+                          ) : null}
                         </div>
                         <dl className="mt-3 space-y-2 text-sm">
                           <Aberta rotulo="Expectativas" texto={r.expectativas} />

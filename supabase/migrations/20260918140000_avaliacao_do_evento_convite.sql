@@ -45,7 +45,11 @@
 --                           garantir que eles divirjam.
 --   modificado ............ nada de terceiros
 --
--- DEPENDE de `20260918120000_avaliacao_do_evento.sql` aplicada.
+-- DEPENDE de `20260918120000_avaliacao_do_evento.sql` e de
+-- `20260918180000_avaliacao_do_evento_atividades.sql` aplicadas. A
+-- segunda trouxe as notas por atividade DEPOIS desta ser escrita, e o
+-- corpo comum daqui foi atualizado para tratá-las: sem isso, aplicar
+-- esta migration apagaria as notas de atividade sem erro nenhum.
 --
 -- DESFAZER
 --   drop function if exists public.mind_avaliacao_do_evento_registrar_por_convite(text,jsonb);
@@ -146,6 +150,8 @@ declare
   v_mais_gostou text;
   v_melhorar text;
   v_comentario text;
+  v_atividades jsonb;
+  v_invalidas int;
   v_iguais boolean;
 begin
   v_experiencia  := lower(btrim(coalesce(p_payload->>'experiencia', '')));
@@ -185,6 +191,38 @@ begin
     raise exception using errcode = '22023', message = 'avaliacao_validacao:nota_fora_da_faixa';
   end if;
 
+  /* AS NOTAS POR ATIVIDADE ATRAVESSAM AS DUAS PORTAS. Elas entraram na
+     pesquisa depois desta migration ser escrita (20260918180000), e
+     precisam ser tratadas AQUI: esta função é o corpo único, e a porta
+     do app delega para ela. Sem isto, aplicar esta migration depois
+     daquela apagaria as notas de atividade sem erro nenhum. */
+  v_atividades := coalesce(p_payload->'atividades', '[]'::jsonb);
+  if jsonb_typeof(v_atividades) <> 'array' then
+    raise exception using errcode = '22023', message = 'avaliacao_validacao:atividades';
+  end if;
+
+  select count(*) into v_invalidas
+  from jsonb_array_elements(v_atividades) a
+  where jsonb_typeof(a->'nota') <> 'number'
+     or (a->>'nota')::numeric not between 0 and 5
+     or (a->>'nota')::numeric <> floor((a->>'nota')::numeric)
+     or not exists (
+       select 1 from summit_2026.sessions s
+       where s.id = nullif(a->>'sessaoId', '')::uuid
+         and s.event_id = p_event_id
+         and s.tipo is distinct from 'credenciamento'
+         and s.tipo is distinct from 'intervalo'
+         and s.tipo is distinct from 'almoco'
+     );
+  if v_invalidas > 0 then
+    raise exception using errcode = '22023', message = 'avaliacao_validacao:sessao_invalida';
+  end if;
+
+  if (select count(*) from jsonb_array_elements(v_atividades) a)
+     <> (select count(distinct a->>'sessaoId') from jsonb_array_elements(v_atividades) a) then
+    raise exception using errcode = '22023', message = 'avaliacao_validacao:sessao_repetida';
+  end if;
+
   -- A MESMA TRAVA PARA AS DUAS PORTAS. Ela é sobre a pessoa e o evento,
   -- e não sobre por onde a pessoa entrou: abrir o app numa aba e o
   -- convite noutra não pode virar duas respostas.
@@ -205,7 +243,18 @@ begin
       and v_existente.nota_programacao = v_nota_prog
       and v_existente.mais_gostou is not distinct from v_mais_gostou
       and v_existente.melhorar is not distinct from v_melhorar
-      and v_existente.comentario is not distinct from v_comentario;
+      and v_existente.comentario is not distinct from v_comentario
+      and (
+        select coalesce(jsonb_object_agg(at.sessao_id::text, at.nota), '{}'::jsonb)
+        from engagement.avaliacao_do_evento_atividade at
+        where at.avaliacao_id = v_existente.id
+      ) = (
+        select coalesce(jsonb_object_agg(novo.sid::text, novo.nota), '{}'::jsonb)
+        from (
+          select nullif(a->>'sessaoId', '')::uuid as sid, (a->>'nota')::smallint as nota
+          from jsonb_array_elements(v_atividades) a
+        ) novo
+      );
 
     if v_iguais then
       return jsonb_build_object('id', v_existente.id, 'jaRegistrado', true,
@@ -219,10 +268,15 @@ begin
     expectativas, nota_relevancia, nota_programacao, mais_gostou, melhorar,
     comentario, origem
   ) values (
-    p_participante_id, p_event_id, 1, v_experiencia, v_profissao,
+    p_participante_id, p_event_id, 2, v_experiencia, v_profissao,
     v_expectativas, v_nota_rel, v_nota_prog, v_mais_gostou, v_melhorar,
     v_comentario, p_origem
   ) returning id into v_id;
+
+  insert into engagement.avaliacao_do_evento_atividade (avaliacao_id, sessao_id, nota)
+  select v_id, nullif(a->>'sessaoId','')::uuid, (a->>'nota')::smallint
+  from jsonb_array_elements(v_atividades) a
+  on conflict (avaliacao_id, sessao_id) do nothing;
 
   return jsonb_build_object('id', v_id, 'jaRegistrado', false,
     'enviadoEm', (select enviado_em from engagement.avaliacao_do_evento where id = v_id));

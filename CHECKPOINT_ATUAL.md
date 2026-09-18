@@ -15,6 +15,15 @@ por atividade — as duas pesquisas do dia já colheram 273 notas com a memória
 **LIGADA. Migration aplicada, Edge publicada na versão 2 (runtime `1.2.0`) e app
 na `main` em `67ab260`. Janela aberta: 18/09 a 02/10, no fuso do evento.**
 
+**Dois canais, desde 18/09.** No app a Yazo manda nome e e-mail na URL e a pessoa
+não digita nada. Fora do app, `#avaliacao` abre a pesquisa direto e o formulário
+pergunta quem está respondendo. Quem decide qual dos dois é a camada de
+identidade, e NÃO a barra de endereço — a URL é limpa na partida, de propósito.
+
+É identidade autodeclarada no segundo canal: quem digita o e-mail de outra pessoa
+responde no lugar dela. Já valia para a URL, que qualquer um escreve à mão; o
+campo torna fácil. Decisão de produto de 18/09.
+
 O que NÃO está ligado: o convite por link. A migration dele está no repo e não
 foi aplicada — é gate da Adriana.
 

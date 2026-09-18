@@ -232,6 +232,10 @@ export interface RelatorioDoEvento {
     relevancia: NotaGeral;
     programacao: NotaGeral;
   };
+  /** Notas individuais de atividade, contadas à parte das respostas. */
+  avaliacoesDeAtividades: number;
+  /** A grade dos DOIS dias. Mesma forma da pesquisa do dia, de propósito. */
+  porAtividade: LinhaDeAtividade[];
 }
 
 export interface RespostaDoEvento {
@@ -250,6 +254,10 @@ export interface RespostaDoEvento {
   maisGostou: string | null;
   melhorar: string | null;
   comentario: string | null;
+  /** Quantas atividades esta resposta avaliou. */
+  atividadesAvaliadas: number;
+  /** 1 = respondeu antes de a grade entrar no formulário. */
+  formularioVersao: number;
 }
 
 export interface PaginaDeRespostasDoEvento {

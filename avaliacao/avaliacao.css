@@ -324,6 +324,22 @@
   color: var(--verde);
 }
 
+/* O DIA, na Avaliação do evento. A grade dela tem os dois dias, e sem
+   isto "11:30" aparece duas vezes na mesma lista sem dizer de qual dia
+   é. Fica grudado ao que vem embaixo, não ao que vem em cima: cabeçalho
+   que se solta do próprio grupo vira decoração. */
+.av-dia {
+  margin: 22px 0 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+.av-dia:first-of-type { margin-top: 14px; }
+
 .av-atividade {
   border-top: 1px solid var(--hairline);
   padding: 16px 0 4px;

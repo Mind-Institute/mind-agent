@@ -35,6 +35,27 @@ const EXPERIENCIAS = [
   { id: 'prime', rotulo: 'Prime' },
 ];
 
+/* Os filtros pedidos, na ordem pedida. `todos` não filtra nada; os
+   outros três casam com a CATEGORIA DE ACESSO da sessão (`ingressos`),
+   que é o que separa quem pode entrar onde. */
+const FILTROS = [
+  { id: 'todos', rotulo: 'Todos' },
+  { id: 'mind', rotulo: 'Mind' },
+  { id: 'vip', rotulo: 'VIP' },
+  { id: 'prime', rotulo: 'Prime' },
+];
+
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** "2026-09-16" → "16 de setembro". Sem `new Date`: o ISO já é o dia
+    certo, e construir Date a partir dele reintroduz fuso onde não há. */
+function diaPorExtenso(iso) {
+  const p = String(iso || '').split('-');
+  if (p.length !== 3) return '';
+  return Number(p[2]) + ' de ' + (MESES[Number(p[1]) - 1] || '');
+}
+
 const LIMITES = { nome: 160, email: 254, profissao: 120, expectativas: 1000, aberta: 1000 };
 
 /* O mesmo formato que a Edge exige antes de tentar ligar a identidade.
@@ -62,11 +83,15 @@ let avisoGeral = null;
    manda na URL; por convite o token já resolve. Fora disso, a pessoa
    escreve. */
 let pedirIdentidade = false;
+let filtro = 'todos';
 
 function respostaVazia() {
   return {
     nome: '',
     email: '',
+    /* Mapa `sessão → nota`. Chave ausente é atividade NÃO avaliada, e
+       isso é diferente de nota zero — por isso mapa, e não lista. */
+    atividades: {},
     experiencia: '',
     profissao: '',
     expectativas: '',
@@ -178,6 +203,8 @@ export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada, nomear) 
      `respostaVazia` garante que os dois campos existam como texto, e não
      como `undefined`, para o `.trim()` da validação não explodir. */
   resposta = { ...respostaVazia(), ...lerRascunho(ESCOPO_DO_EVENTO, estado.formularioVersao) };
+  resposta.atividades = resposta.atividades && typeof resposta.atividades === 'object'
+    ? resposta.atividades : {};
   if (!resposta.experiencia && estado.experienciaSugerida) {
     /* Sugestão, não decisão: já vem marcada e a pessoa confirma ou troca.
        Trocar aqui não mexe em ingresso, cadastro nem permissão. */
@@ -232,6 +259,124 @@ function limparErro(campo) {
     const faixa = raiz && raiz.querySelector('.av-faixa');
     if (faixa) faixa.remove();
   }
+}
+
+/* ============================================================
+   A GRADE DOS DOIS DIAS
+   ============================================================
+   A pesquisa do dia listava um dia. Esta lista o evento inteiro, e por
+   isso agrupa: "11:30" aparece duas vezes numa lista de dois dias e não
+   quer dizer a mesma coisa. */
+
+function atividadesVisiveis() {
+  const todas = Array.isArray(estado.atividades) ? estado.atividades : [];
+  if (filtro === 'todos') return todas;
+  /* Filtrar ESCONDE linhas, não apaga notas: `resposta.atividades` não é
+     tocado aqui, e uma nota dada com o filtro em "VIP" continua lá
+     quando o filtro volta para "Todos". */
+  return todas.filter((a) => Array.isArray(a.ingressos) && a.ingressos.includes(filtro));
+}
+
+function quantasAvaliadas() {
+  return Object.keys(resposta.atividades).length;
+}
+
+function montarEscalaDaAtividade(a, aoMudar) {
+  const atual = Object.prototype.hasOwnProperty.call(resposta.atividades, a.id)
+    ? resposta.atividades[a.id] : null;
+  return escala({
+    nome: 'ev-at-' + a.id,
+    valor: atual,
+    rotuloDoGrupo: 'Nota de 0 a 5 para ' + a.titulo,
+    aoEscolher: (n) => { resposta.atividades[a.id] = n; guardarRascunho(); aoMudar(); },
+    aoLimpar: () => { delete resposta.atividades[a.id]; guardarRascunho(); aoMudar(); },
+  });
+}
+
+function linhaDeAtividade(a) {
+  const el = no('article', 'av-atividade' + (a.operacional ? ' operacional' : ''));
+
+  const topo = no('div', 'av-at-topo');
+  topo.appendChild(no('span', 'av-hora', a.fim ? a.inicio + '–' + a.fim : a.inicio));
+  if (a.espaco) topo.appendChild(no('span', 'av-espaco', a.espaco));
+  el.appendChild(topo);
+
+  el.appendChild(no('strong', 'av-at-titulo', a.titulo));
+
+  if (Array.isArray(a.palestrantes) && a.palestrantes.length) {
+    el.appendChild(no('small', 'av-quem', a.palestrantes.join(' · ')));
+  }
+
+  if (a.operacional) {
+    el.appendChild(no('p', 'av-informativo', 'Bloco da operação do evento — sem avaliação.'));
+    return el;
+  }
+
+  /* A LINHA SE ATUALIZA SOZINHA. Redesenhar o formulário inteiro a cada
+     nota faria a tela saltar no meio de uma lista de 77 atividades e
+     tiraria o foco do dedo que acabou de tocar — e são 77, não 35: aqui
+     dói o dobro. */
+  const trocarEscala = () => {
+    const antiga = el.querySelector('.av-escala');
+    const nova = montarEscalaDaAtividade(a, trocarEscala);
+    if (antiga) el.replaceChild(nova, antiga); else el.appendChild(nova);
+    atualizarContagem();
+  };
+  el.appendChild(montarEscalaDaAtividade(a, trocarEscala));
+
+  return el;
+}
+
+/* O contador de avaliadas vive fora das linhas e é atualizado por elas. */
+let contagemEl = null;
+
+function textoDaContagem() {
+  const n = quantasAvaliadas();
+  return n === 0 ? 'Nenhuma atividade avaliada até agora'
+    : n === 1 ? '1 atividade avaliada' : n + ' atividades avaliadas';
+}
+
+function atualizarContagem() {
+  if (contagemEl && contagemEl.isConnected) contagemEl.textContent = textoDaContagem();
+}
+
+function secaoDeAtividades() {
+  const el = bloco(6, 'Avalie as atividades de que você participou', false,
+    'Os dois dias do Summit. Avalie apenas as atividades de que você participou — todas as notas aqui são opcionais, e deixar em branco é não avaliar, não é nota zero.');
+
+  const barra = no('div', 'av-filtros');
+  barra.setAttribute('role', 'group');
+  barra.setAttribute('aria-label', 'Filtrar atividades por experiência');
+  FILTROS.forEach((f) => {
+    const b = no('button', 'av-filtro' + (filtro === f.id ? ' on' : ''), f.rotulo);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(filtro === f.id));
+    b.addEventListener('click', () => { filtro = f.id; desenhar(); });
+    barra.appendChild(b);
+  });
+  el.appendChild(barra);
+
+  contagemEl = no('p', 'av-contagem', textoDaContagem());
+  contagemEl.setAttribute('aria-live', 'polite');
+  el.appendChild(contagemEl);
+
+  const lista = atividadesVisiveis();
+  if (!lista.length) {
+    el.appendChild(no('p', 'av-aviso', 'Nenhuma atividade desta experiência na programação.'));
+    return el;
+  }
+
+  /* O DIA VIRA CABEÇALHO, e não filtro: os dois dias são um evento só, e
+     esconder metade da grade faria a pessoa achar que avaliou tudo. */
+  let diaCorrente = null;
+  lista.forEach((a) => {
+    if (a.dia && a.dia !== diaCorrente) {
+      diaCorrente = a.dia;
+      el.appendChild(no('h3', 'av-dia', diaPorExtenso(a.dia)));
+    }
+    el.appendChild(linhaDeAtividade(a));
+  });
+  return el;
 }
 
 /* ============================================================
@@ -359,11 +504,14 @@ function desenharFormulario() {
   mostrarErro(b5, 'notaProgramacao');
   raiz.appendChild(b5);
 
-  /* 6, 7, 8 — as abertas */
+  /* 6 — as atividades */
+  raiz.appendChild(secaoDeAtividades());
+
+  /* 7, 8, 9 — as abertas */
   [
-    { n: 6, p: 'O que você mais gostou no Mind Summit?', c: 'maisGostou' },
-    { n: 7, p: 'O que podemos melhorar?', c: 'melhorar' },
-    { n: 8, p: 'Quer deixar mais algum comentário?', c: 'comentario' },
+    { n: 7, p: 'O que você mais gostou no Mind Summit?', c: 'maisGostou' },
+    { n: 8, p: 'O que podemos melhorar?', c: 'melhorar' },
+    { n: 9, p: 'Quer deixar mais algum comentário?', c: 'comentario' },
   ].forEach((q) => {
     const el = bloco(q.n, q.p, false, 'Opcional');
     el.appendChild(campoTexto({
@@ -445,6 +593,7 @@ function desenharConferencia() {
   lista.appendChild(linhaDeConferencia('Expectativas', resposta.expectativas.trim()));
   lista.appendChild(linhaDeConferencia('Relevância', resposta.notaRelevancia + ' de 5'));
   lista.appendChild(linhaDeConferencia('Programação', resposta.notaProgramacao + ' de 5'));
+  lista.appendChild(linhaDeConferencia('Atividades avaliadas', textoDaContagem()));
   if (resposta.maisGostou.trim()) lista.appendChild(linhaDeConferencia('O que mais gostou', resposta.maisGostou.trim()));
   if (resposta.melhorar.trim()) lista.appendChild(linhaDeConferencia('O que melhorar', resposta.melhorar.trim()));
   if (resposta.comentario.trim()) lista.appendChild(linhaDeConferencia('Comentário', resposta.comentario.trim()));
@@ -489,6 +638,11 @@ async function confirmarEnvio() {
     maisGostou: resposta.maisGostou.trim() || null,
     melhorar: resposta.melhorar.trim() || null,
     comentario: resposta.comentario.trim() || null,
+    /* O mapa vira lista só aqui, na saída: dentro da tela ele é mapa
+       porque chave ausente é o que distingue "não avaliei" de "dei
+       zero". */
+    atividades: Object.keys(resposta.atividades)
+      .map((id) => ({ sessaoId: id, nota: resposta.atividades[id] })),
   };
 
   try {
@@ -555,6 +709,7 @@ export function temRascunhoDoEvento() {
   return Boolean(resposta && etapa === 'formulario' && (
     resposta.nome || resposta.email ||
     resposta.experiencia || resposta.profissao || resposta.expectativas ||
-    resposta.notaRelevancia != null || resposta.notaProgramacao != null
+    resposta.notaRelevancia != null || resposta.notaProgramacao != null ||
+    Object.keys(resposta.atividades).length
   ));
 }

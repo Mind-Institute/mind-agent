@@ -19,3 +19,17 @@ import { readFileSync } from 'node:fs';
 export function lerFonte(url) {
   return readFileSync(url, 'utf8').replace(/\r\n/g, '\n');
 }
+
+/* ============================================================
+   SEM COMENTÁRIOS
+   ============================================================
+   Os comentários do código CITAM o que não se deve fazer — é neles que
+   está escrito por quê. Um teste que procura `location.hash = ''` ou
+   `resposta.atividades` no arquivo inteiro acha a frase que explica a
+   regra e acusa exatamente o código que a cumpre.
+
+   Aconteceu três vezes nesta lane antes de virar função. A afirmação é
+   sobre o que o código FAZ; então é o código que ela lê. */
+export function semComentarios(fonte) {
+  return fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
