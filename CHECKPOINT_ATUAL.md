@@ -6,14 +6,22 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
-### Avaliação do evento — lane aberta em 18/09/2026, PRONTA E DESLIGADA
+### Avaliação do evento — NO AR desde 18/09/2026
 
 A segunda pesquisa: o Summit inteiro, respondido depois que ele acaba. As mesmas
 oito perguntas da Avaliação do dia com "hoje" trocado por "o evento", e SEM nota
 por atividade — as duas pesquisas do dia já colheram 273 notas com a memória fresca.
 
-**HEAD da lane: `24bcd2c` na `dev`. `main` intocada. Nada aplicado, nada publicado,
-nada ligado.**
+**LIGADA. Migration aplicada, Edge publicada na versão 2 (runtime 1.2.0) e app
+na  em . Janela aberta: 18/09 a 02/10, fuso do evento.**
+
+O que NÃO está ligado: o convite por link. A migration dele está no repo e não
+foi aplicada — é gate da Adriana.
+
+Conferido no ar:  responde 1.2.0; ,  e
+ pedem sessão;  responde
+ em vez de , provando que ele roda antes da
+exigência de sessão; o app abre sem erro de console e a home continua a mesma.
 
 | commit | o que é | estado |
 |---|---|---|
