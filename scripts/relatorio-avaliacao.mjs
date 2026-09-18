@@ -250,6 +250,79 @@ for (const r of d.respostas) {
   doc.moveDown(0.8);
 }
 
+/* ---------------- a outra pesquisa ----------------
+   A Avaliação do EVENTO, quando o arquivo a traz. Ela entra como seção
+   própria, e não misturada: são perguntas diferentes sobre recortes
+   diferentes — uma sobre o dia, outra sobre o Summit inteiro — e somar
+   as duas médias daria um número que não responde a pergunta nenhuma. */
+if (d.pesquisaDoEvento && Array.isArray(d.pesquisaDoEvento.respostas)) {
+  const ev = d.pesquisaDoEvento.respostas.filter((r) => !r.teste);
+  const ne = ev.length;
+  const mediaEv = (f) => (ne ? ev.reduce((s, r) => s + r[f], 0) / ne : null);
+
+  doc.addPage();
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text('Avaliação do evento');
+  doc.font('Helvetica').fontSize(8.5).fillColor(MUDO).text(
+    'Outra pesquisa, sobre o Summit inteiro, aberta depois que ele acabou. ' +
+    'As notas abaixo NÃO se somam às de cima: são perguntas diferentes sobre ' +
+    'recortes diferentes.', { width: L * 0.95 });
+  doc.moveDown(0.9);
+
+  if (!ne) {
+    doc.font('Helvetica-Oblique').fontSize(10).fillColor(MUDO)
+      .text('Ainda sem respostas de participantes.');
+  } else {
+    const y = doc.y;
+    const larg2 = (L - 16) / 3;
+    cartao(M, y, larg2, 'Respondentes', String(ne),
+      d.pesquisaDoEvento.apoio || 'desde que a pesquisa abriu');
+    cartao(M + larg2 + 8, y, larg2, 'Relevância', vg(mediaEv('relevancia')) + ' / 5',
+      `${ne} ${ne === 1 ? 'resposta' : 'respostas'}`);
+    cartao(M + (larg2 + 8) * 2, y, larg2, 'Programação', vg(mediaEv('programacao')) + ' / 5',
+      `${ne} ${ne === 1 ? 'resposta' : 'respostas'}`);
+    doc.y = y + 86;
+    doc.x = M;
+
+    /* AMOSTRA PEQUENA SE ANUNCIA. Uma média de duas respostas tem o mesmo
+       tamanho de fonte que uma de duzentas, e é isso que engana. */
+    if (ne < 10) {
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(CORAL).text(
+        `Amostra de ${ne}: leia as respostas, não a média.`, M, doc.y);
+      doc.moveDown(0.8);
+    }
+
+    for (const r of ev) {
+      espaco(115);
+      const yTopo = doc.y;
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor(TINTA)
+        .text(r.nome || 'Sem nome no cadastro', M + 12, yTopo, { width: L - 150 });
+      doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
+        .text([r.email || 'sem e-mail no cadastro', r.profissao].filter(Boolean).join(' · '),
+          M + 12, doc.y, { width: L - 150 });
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(VERDE)
+        .text(`${String(r.experiencia || '').toUpperCase()} · relevância ${r.relevancia} · programação ${r.programacao}`,
+          M + L - 200, yTopo, { width: 200, align: 'right' });
+      doc.font('Helvetica').fontSize(8).fillColor(MUDO)
+        .text(r.quando + (r.origem ? ' · ' + r.origem : ''),
+          M + L - 200, yTopo + 12, { width: 200, align: 'right' });
+
+      doc.x = M;
+      doc.y = Math.max(doc.y, yTopo + 28);
+      doc.moveDown(0.3);
+      aberta('Expectativas', r.expectativas);
+      aberta('O que mais gostou', r.maisGostou);
+      aberta('O que podemos melhorar', r.melhorar);
+      aberta('Comentário', r.comentario);
+
+      doc.moveTo(M + 2, yTopo - 2).lineTo(M + 2, doc.y - 2).lineWidth(2).strokeColor(VERDE).stroke();
+      doc.x = M;
+      doc.moveDown(0.5);
+      regua(doc.y);
+      doc.moveDown(0.8);
+    }
+  }
+}
+
 /* ---------------- rodapé ----------------
    `margins.bottom = 0` ANTES de escrever, e não é firula: o rodapé fica
    abaixo da margem inferior, e o pdfkit responde a isso criando uma
