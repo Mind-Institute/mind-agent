@@ -43,6 +43,7 @@ const LIMITES = { profissao: 120, expectativas: 1000, aberta: 1000 };
 let raiz = null;
 let aoVoltar = null;
 let aoEnviar = null;
+let aoNomear = null;
 
 let estado = null;          /* o que o servidor respondeu */
 let resposta = null;        /* o que a pessoa preencheu */
@@ -73,10 +74,11 @@ function guardarRascunho() {
    ABRIR
    ============================================================ */
 
-export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada) {
+export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada, nomear) {
   raiz = elemento;
   aoVoltar = voltar;
   aoEnviar = enviada;
+  aoNomear = nomear || null;
   erros = {};
   avisoGeral = null;
   enviando = false;
@@ -90,17 +92,30 @@ export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada) {
   const novo = await carregarEstadoDoEvento();
   if (!novo) {
     estado = null;
+    /* QUEM CHEGOU POR LINK NÃO TEM HOME PARA ONDE VOLTAR, e mandá-la
+       voltar para lá é mandá-la para uma tela que não é dela e que pede
+       login. A instrução muda com o lugar de onde a pessoa veio. */
     return desenharIndisponivel(
       'Não consegui abrir a avaliação agora.',
-      'Pode ser a conexão. Volte para a home e tente de novo em instantes.',
+      aoVoltar
+        ? 'Pode ser a conexão. Volte para a home e tente de novo em instantes.'
+        : 'Pode ser a conexão. Recarregue esta página em instantes.',
     );
   }
   estado = novo;
 
   if (!estado.identificado) {
+    /* Por convite, "não reconhecemos você" quer dizer que o link não
+       vale — e o motivo vem do servidor. Mandar essa pessoa "abrir pelo
+       app" seria mandá-la para onde ela não consegue entrar. */
     return desenharIndisponivel(
-      'Não reconhecemos quem você é.',
-      'Abra a avaliação pelo app do evento, com o link que você recebeu, para que a sua resposta fique ligada ao seu cadastro.',
+      aoVoltar ? 'Não reconhecemos quem você é.' : 'Este link não é mais válido.',
+      aoVoltar
+        ? 'Abra a avaliação pelo app do evento, com o link que você recebeu, para que a sua resposta fique ligada ao seu cadastro.'
+        : {
+            expirado: 'O prazo deste link terminou. Peça um novo para a organização.',
+            ja_respondida: 'Esta avaliação já foi respondida. Obrigado!',
+          }[estado.motivo] || 'Peça um novo link para a organização do evento.',
     );
   }
   if (!estado.ativo) {
@@ -126,6 +141,8 @@ export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada) {
 
   /* Rascunho da MESMA pessoa e da MESMA versão do formulário. O escopo
      é `evento`, e não uma data: esta pesquisa não tem dia. */
+  if (aoNomear) aoNomear(subtituloDaAvaliacaoDoEvento());
+
   resposta = lerRascunho(ESCOPO_DO_EVENTO, estado.formularioVersao) || respostaVazia();
   if (!resposta.experiencia && estado.experienciaSugerida) {
     /* Sugestão, não decisão: já vem marcada e a pessoa confirma ou troca.
@@ -146,10 +163,15 @@ function desenharIndisponivel(titulo, texto) {
   const caixa = no('div', 'av-vazio');
   caixa.appendChild(no('strong', null, titulo));
   caixa.appendChild(no('p', null, texto));
-  const b = no('button', 'av-botao secundario', 'Voltar para a home');
-  b.type = 'button';
-  b.addEventListener('click', () => aoVoltar && aoVoltar());
-  caixa.appendChild(b);
+  /* QUEM CHEGA POR LINK NÃO TEM PARA ONDE VOLTAR. O botão só existe
+     quando existe home atrás dele; oferecê-lo sem destino é um botão
+     que não faz nada. */
+  if (aoVoltar) {
+    const b = no('button', 'av-botao secundario', 'Voltar para a home');
+    b.type = 'button';
+    b.addEventListener('click', () => aoVoltar());
+    caixa.appendChild(b);
+  }
   raiz.appendChild(caixa);
 }
 
@@ -437,16 +459,21 @@ function desenharObrigado() {
   caixa.appendChild(no('strong', null, 'Avaliação enviada. Obrigado!'));
   caixa.appendChild(no('p', null,
     'Sua avaliação do Mind Summit foi registrada e não pode mais ser alterada.'));
-  const b = no('button', 'av-botao', 'Voltar para a home');
-  b.type = 'button';
-  b.addEventListener('click', () => aoVoltar && aoVoltar());
-  caixa.appendChild(b);
+  if (aoVoltar) {
+    const b = no('button', 'av-botao', 'Voltar para a home');
+    b.type = 'button';
+    b.addEventListener('click', () => aoVoltar());
+    caixa.appendChild(b);
+  }
   raiz.appendChild(caixa);
 }
 
-/** O subtítulo da tela. */
+/** O subtítulo da tela. Por convite ele diz o nome de quem o link é —
+    é como a pessoa reconhece que o link é dela, e não de outra. */
 export function subtituloDaAvaliacaoDoEvento() {
-  return 'Sua experiência no Mind Summit';
+  const nome = estado && estado.primeiroNome;
+  return nome ? 'Olá, ' + nome + ' · sua experiência no Mind Summit'
+              : 'Sua experiência no Mind Summit';
 }
 
 /** Existe rascunho ou envio em andamento? O `app.js` usa para decidir se

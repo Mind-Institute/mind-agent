@@ -21,6 +21,7 @@ import { abrirAvaliacaoDoEvento, subtituloDaAvaliacaoDoEvento } from './avaliaca
 import {
   carregarEstado as carregarEstadoDaAvaliacao,
   carregarEstadoDoEvento as carregarEstadoDaAvaliacaoDoEvento,
+  definirConvite,
   pesquisaConfigurada,
 } from './avaliacao/servico.js';
 
@@ -3002,6 +3003,57 @@ function desenharSummit() {
     '<h3>' + t + '</h3><p>' + txt + (sub ? '<em>' + sub + '</em>' : '') + '</p>').join('');
 }
 
+/* ---------- Quem chega por convite ----------
+   O link da pesquisa traz o token no FRAGMENTO (`#c=…`), que o navegador
+   não manda ao servidor. Ele é lido uma vez, guardado só na memória do
+   serviço e APAGADO DA BARRA DE ENDEREÇO no mesmo instante: a partir daí
+   a pessoa não copia o próprio link por engano, o token não vai parar num
+   print e não sobra no histórico da aba.
+
+   `replaceState` e não `location.hash = ''`: o segundo deixa o `#` na
+   barra e empilha uma entrada no histórico.
+
+   Quem entra assim NÃO vê a home nem o chat: o link é para responder uma
+   pesquisa, e mais nada. */
+function conviteDaUrl() {
+  const achado = /^#c=([0-9a-f]{64})$/.exec(location.hash || '');
+  if (!achado) return false;
+  const aceito = definirConvite(achado[1]);
+  history.replaceState(null, '', location.pathname + location.search);
+  return aceito;
+}
+
+/* COLAR O LINK NUMA ABA QUE JÁ TEM O APP ABERTO trocava só o fragmento, e
+   trocar fragmento não recarrega a página: o código acima não rodava e
+   não acontecia nada — falha silenciosa, e a pessoa conclui que o link
+   está quebrado. Recarregar devolve o caso ao mesmo caminho de partida,
+   em vez de abrir uma segunda porta de entrada para manter. */
+addEventListener('hashchange', () => {
+  if (/^#c=[0-9a-f]{64}$/.test(location.hash || '')) location.reload();
+});
+
+if (conviteDaUrl()) {
+  document.body.dataset.porConvite = 'sim';
+  abrirVista('avaliacao');
+  avaliacaoTitulo.textContent = 'Avaliação do evento';
+  /* O subtítulo já vale antes de o servidor responder: a tela de erro
+     também é a tela desta pesquisa, e não da do dia. */
+  avaliacaoSub.textContent = subtituloDaAvaliacaoDoEvento();
+  /* O VOLTAR DO CABEÇALHO SAI JUNTO. Ele leva para a home, e por convite
+     não existe home atrás: a pessoa cairia numa tela que não é dela e
+     que pede login. Esconder é o certo — desabilitar deixaria um botão
+     morto no canto. */
+  document.getElementById('avaliacao-voltar').hidden = true;
+  avaliacaoCorpo.scrollTop = 0;
+  abrirAvaliacaoDoEvento(
+    avaliacaoCorpo,
+    /* Sem home atrás: não há para onde voltar, e a tela não oferece. */
+    null,
+    null,
+    (subtitulo) => { avaliacaoSub.textContent = subtitulo; },
+  ).catch(() => { /* o módulo já desenhou o próprio erro */ });
+} else {
+
 /* ---------- Partida ---------- */
 /* A home V3 não depende da programação para existir: ela sobe primeiro,
    e os dados chegam para quem precisa deles (o chat, o tour). */
@@ -3015,3 +3067,5 @@ carregarDados().then(montarHomeV3).catch((e) => {
     'e a leitura falhou (' + e.message + '). Recarregue em um instante.';
   document.getElementById('home-v3').prepend(aviso);
 });
+
+}

@@ -59,8 +59,14 @@ function cabecalhosDaIdentidade() {
 async function chamar(caminho, opcoes) {
   const base = raiz();
   if (!base) return null;
-  const acesso = await token();
-  if (!acesso) return null;
+
+  /* POR CONVITE NÃO HÁ SESSÃO, e é assim que tem de ser: pedir uma aqui
+     abriria uma sessão anônima para quem só veio responder um
+     formulário. Quem prova quem é, nesse caminho, é o token — e ele vai
+     em cabeçalho, nunca na URL. */
+  const porConvite = caminho.startsWith('/convite/');
+  const acesso = porConvite ? null : await token();
+  if (!porConvite && !acesso) return null;
 
   const controlador = new AbortController();
   const relogio = setTimeout(() => controlador.abort(), TEMPO_LIMITE_MS);
@@ -69,9 +75,13 @@ async function chamar(caminho, opcoes) {
       ...opcoes,
       headers: {
         apikey: CONFIG.supabasePublishableKey,
-        Authorization: 'Bearer ' + acesso,
+        ...(acesso ? { Authorization: 'Bearer ' + acesso } : {}),
+        ...(porConvite && convite ? { 'X-Convite': convite } : {}),
         ...(opcoes && opcoes.body ? { 'Content-Type': 'application/json' } : {}),
-        ...cabecalhosDaIdentidade(),
+        /* O e-mail da Yazo não vai junto do convite: ali a identidade já
+           está resolvida pelo token, e mandar e-mail seria oferecer um
+           segundo jeito de dizer quem é a pessoa numa porta sem login. */
+        ...(porConvite ? {} : cabecalhosDaIdentidade()),
       },
       cache: 'no-store',
       signal: controlador.signal,
@@ -130,12 +140,42 @@ export async function enviar(resposta) {
 
 export const ESCOPO_DO_EVENTO = 'evento';
 
+/* ============================================================
+   O CONVITE
+   ============================================================
+   Quem chega por link não tem sessão — é o motivo de o link existir. O
+   token vem do FRAGMENTO da URL, que o navegador nunca manda ao
+   servidor, e vive só nesta variável: não vai para `localStorage`, não
+   vai para a barra de endereço depois da primeira leitura e não entra
+   em nenhuma URL que esta camada monte.
+
+   Guardar no armazenamento local seria transformar um link de uma
+   resposta numa credencial que fica no aparelho — inclusive num aparelho
+   emprestado. */
+let convite = null;
+
+const FORMATO_CONVITE = /^[0-9a-f]{64}$/;
+
+/** Devolve `true` quando o token tem a cara certa e foi aceito. */
+export function definirConvite(token) {
+  convite = typeof token === 'string' && FORMATO_CONVITE.test(token) ? token : null;
+  return Boolean(convite);
+}
+
+export function temConvite() {
+  return Boolean(convite);
+}
+
+/* AS DUAS PORTAS ATENDEM PELA MESMA FUNÇÃO. Quem chama não escolhe o
+   caminho: o caminho é consequência de haver ou não convite. Assim a
+   tela é uma só, e não existe a chance de ela chamar a porta errada. */
 export async function carregarEstadoDoEvento() {
+  if (convite) return lerEstadoEm('/convite/estado?event_slug=' + encodeURIComponent(CONFIG.eventSlug));
   return lerEstadoEm('/evento/estado?event_slug=' + encodeURIComponent(CONFIG.eventSlug));
 }
 
 export async function enviarDoEvento(resposta) {
-  return enviarEm('/evento/enviar', resposta);
+  return enviarEm(convite ? '/convite/enviar' : '/evento/enviar', resposta);
 }
 
 async function enviarEm(caminho, resposta) {

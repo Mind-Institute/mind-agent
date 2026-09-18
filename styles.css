@@ -1291,6 +1291,13 @@ html[data-teclado="aberto"] .doca {
    listar. */
 .t-demo .c-voltar[hidden] { display: none; }
 
+/* A MESMA ARMADILHA, fora da demo: a tela da Avaliação do evento aberta
+   por convite esconde o voltar, porque não existe home atrás dela. A
+   regra vale para qualquer `.c-voltar`, e é ela que faz `hidden` valer —
+   a de cima continua onde está por ser mais específica e não custar
+   nada. */
+.c-voltar[hidden] { display: none; }
+
 /* A BARRA APERTA EM TELA ESTREITA. Com o nome no botão de fechar, a fila
    (selo + bolinhas + `☰` + fechar) passava de 360px por uma fração e o
    botão descia de linha. Estes ajustes vêm DEPOIS das regras base de

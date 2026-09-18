@@ -324,3 +324,75 @@ test('a Edge sorteia 32 bytes do sistema, e não algo derivado da pessoa', () =>
   assert.match(edge, /crypto\.getRandomValues\(new Uint8Array\(32\)\)/);
   assert.match(edge, /crypto\.subtle\.digest\("SHA-256"/);
 });
+
+/* ============================================================
+   A ENTRADA NO APP, LIDA COMO TEXTO
+   ============================================================ */
+
+const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const servico = readFileSync(new URL('../avaliacao/servico.js', import.meta.url), 'utf8');
+const tela = readFileSync(new URL('../avaliacao/evento.js', import.meta.url), 'utf8');
+const estilo = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+
+/* Os comentários do app CITAM o que não se deve fazer — é lá que está
+   escrito por quê. A conferência é sobre o código. */
+const semComentarios = (fonte) =>
+  fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+test('o token é lido do fragmento e apagado da barra de endereço', () => {
+  const codigo = semComentarios(app);
+  assert.match(codigo, /location\.hash/);
+  assert.match(codigo, /history\.replaceState\(null, '', location\.pathname \+ location\.search\)/);
+  /* `location.hash = ''` deixaria o `#` na barra e empilharia histórico. */
+  assert.ok(!/location\.hash\s*=[^=]/.test(codigo));
+});
+
+test('o token nunca vai para o armazenamento local', () => {
+  const bloco = servico.slice(servico.indexOf('let convite = null'),
+    servico.indexOf('export async function carregarEstadoDoEvento'));
+  assert.ok(!/localStorage|sessionStorage/.test(bloco));
+  assert.match(servico, /^let convite = null;$/m);
+});
+
+test('por convite não se abre sessão nenhuma', () => {
+  const chamar = servico.slice(servico.indexOf('async function chamar('),
+    servico.indexOf('export async function carregarEstado('));
+  assert.match(chamar, /const porConvite = caminho\.startsWith\('\/convite\/'\)/);
+  assert.match(chamar, /porConvite \? null : await token\(\)/);
+});
+
+test('o e-mail da Yazo não vai junto do convite', () => {
+  const chamar = servico.slice(servico.indexOf('async function chamar('),
+    servico.indexOf('export async function carregarEstado('));
+  assert.match(chamar, /porConvite \? \{\} : cabecalhosDaIdentidade\(\)/);
+});
+
+test('o token viaja em cabeçalho, e não na URL montada aqui', () => {
+  assert.match(servico, /'X-Convite': convite/);
+  assert.ok(!/[?&]c=/.test(servico), 'nada nesta camada põe o token numa URL');
+});
+
+test('quem chega por convite não vê home nem chat', () => {
+  const entrada = app.slice(app.indexOf('if (conviteDaUrl())'), app.indexOf('/* ---------- Partida'));
+  assert.match(entrada, /abrirVista\('avaliacao'\)/);
+  assert.ok(!/montarHomeV3|iniciarChat/.test(entrada));
+});
+
+test('o voltar some quando não há para onde voltar', () => {
+  assert.match(app, /getElementById\('avaliacao-voltar'\)\.hidden = true/);
+  /* `hidden` sozinho não esconde: `.c-voltar` define `display`, e a
+     regra do navegador tem especificidade zero. */
+  assert.match(estilo, /\.c-voltar\[hidden\] \{ display: none; \}/);
+  assert.match(tela, /if \(aoVoltar\) \{/);
+});
+
+test('a instrução de erro muda quando não existe home atrás', () => {
+  assert.match(tela, /Recarregue esta página em instantes/);
+  assert.match(tela, /Este link não é mais válido/);
+  assert.match(tela, /Peça um novo link para a organização/);
+});
+
+test('colar o link numa aba já aberta não falha em silêncio', () => {
+  assert.match(app, /addEventListener\('hashchange'/);
+  assert.match(app, /location\.reload\(\)/);
+});
