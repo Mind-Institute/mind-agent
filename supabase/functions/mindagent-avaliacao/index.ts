@@ -60,7 +60,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 type AdminRole = "administrador" | "editor" | "aprovador" | "atendimento" | "analista";
 type AccessRecord = { display_name: string | null; role: AdminRole; active: boolean };
 
-const VERSAO = "1.2.0";
+const VERSAO = "1.3.0";
 const EVENTO_PADRAO = "mind-summit-2026";
 
 /* O painel em desenvolvimento e o app, nas portas de sempre. */
@@ -245,6 +245,21 @@ async function hashDoConvite(token: string | null): Promise<string | null> {
   return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/* AS NOTAS POR ATIVIDADE, lidas do mesmo jeito nas duas pesquisas e na
+   porta do convite. Só o que tem id de sessão e nota inteira de 0 a 5
+   atravessa; o resto morre aqui e nunca vê o banco.
+
+   O TETO DE 200 não é enfeite: a grade do evento inteiro tem 77 sessões,
+   e um cliente que mandasse mil linhas faria o banco validar mil. */
+function atividadesDoCorpo(corpo: Record<string, unknown>) {
+  if (!Array.isArray(corpo.atividades)) return [];
+  return (corpo.atividades as unknown[]).slice(0, 200).map((item) => {
+    const a = (item ?? {}) as Record<string, unknown>;
+    return { sessaoId: String(a.sessaoId ?? ""), nota: notaInteira(a.nota) };
+  }).filter((a): a is { sessaoId: string; nota: number } =>
+    FORMATO_UUID.test(a.sessaoId) && a.nota !== null);
+}
+
 /* Corpo de envio: lido uma vez, com o mesmo teto das duas pesquisas. */
 async function lerCorpo(req: Request) {
   if (Number(req.headers.get("content-length") ?? 0) > 100_000) return "grande" as const;
@@ -344,7 +359,7 @@ Deno.serve(async (req: Request) => {
         return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId, true);
       }
 
-      const payload = camposComuns(corpo);
+      const payload = { ...camposComuns(corpo), atividades: atividadesDoCorpo(corpo) };
       if (payload.notaRelevancia === null || payload.notaProgramacao === null) {
         return json(req, 422, {
           codigo: "validacao", campo: "nota_obrigatoria",
@@ -597,7 +612,7 @@ Deno.serve(async (req: Request) => {
     const email = textoLimitado(req.headers.get("X-Identidade-Email"), 254)?.toLowerCase() ?? null;
     if (email) await ligarIdentidade(email, textoLimitado(req.headers.get("X-Identidade-Nome"), 160));
 
-    const payload = camposComuns(corpo);
+    const payload = { ...camposComuns(corpo), atividades: atividadesDoCorpo(corpo) };
     if (payload.notaRelevancia === null || payload.notaProgramacao === null) {
       return json(req, 422, {
         codigo: "validacao", campo: "nota_obrigatoria",
@@ -655,15 +670,7 @@ Deno.serve(async (req: Request) => {
     const email = textoLimitado(req.headers.get("X-Identidade-Email"), 254)?.toLowerCase() ?? null;
     if (email) await ligarIdentidade(email, textoLimitado(req.headers.get("X-Identidade-Nome"), 160));
 
-    const atividades = Array.isArray(corpo.atividades)
-      ? (corpo.atividades as unknown[]).slice(0, 200).map((item) => {
-          const a = (item ?? {}) as Record<string, unknown>;
-          return { sessaoId: String(a.sessaoId ?? ""), nota: notaInteira(a.nota) };
-        }).filter((a): a is { sessaoId: string; nota: number } =>
-          FORMATO_UUID.test(a.sessaoId) && a.nota !== null)
-      : [];
-
-    const payload = { ...camposComuns(corpo), atividades };
+    const payload = { ...camposComuns(corpo), atividades: atividadesDoCorpo(corpo) };
 
     if (payload.notaRelevancia === null || payload.notaProgramacao === null) {
       return json(req, 422, {

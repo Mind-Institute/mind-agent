@@ -18,7 +18,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lerFonte } from './helpers/ler-fonte.mjs';
+import { lerFonte, semComentarios } from './helpers/ler-fonte.mjs';
 import { chamar, erroRpc, AUTH_USER_ID } from './helpers/avaliacao-harness.mjs';
 
 const migracao = lerFonte(
@@ -77,7 +77,7 @@ test('a palavra "evento" solta no fim do caminho não é rota', async () => {
    O ENVIO
    ============================================================ */
 
-test('o envio do evento não leva dia nem atividades ao banco', async () => {
+test('o envio do evento não leva dia, mas leva as atividades', async () => {
   const { resposta, chamadas } = await chamar({
     metodo: 'POST', caminho: ENVIAR,
     corpo: respostaDoEvento({ dia: '2026-09-16', atividades: [{ sessaoId: 'x', nota: 5 }] }),
@@ -87,8 +87,9 @@ test('o envio do evento não leva dia nem atividades ao banco', async () => {
   const registro = chamadas.find((c) => c.nome === 'mind_avaliacao_do_evento_registrar');
   assert.ok(registro, 'o envio do evento tem de chamar a função do evento');
   assert.ok(!('p_dia' in registro.args), 'a pesquisa do evento não tem dia');
-  assert.ok(!('atividades' in registro.args.p_payload),
-    'a pesquisa do evento não tem nota por atividade');
+  /* A grade dos dois dias entrou em 18/09: a resposta do evento passou a
+     carregar nota por atividade, como a do dia sempre carregou. */
+  assert.ok(Array.isArray(registro.args.p_payload.atividades));
 });
 
 test('quem responde é o dono do token — nunca um id mandado pelo cliente', async () => {
@@ -406,13 +407,42 @@ test('zero é valor, e a tela nunca o trata como ausência', () => {
   assert.ok(!/if \(!resposta\.notaProgramacao\)/.test(tela));
 });
 
-test('a tela do evento não pergunta por atividade nenhuma', () => {
-  /* O comentário do topo CITA as atividades — é onde está escrito por que
-     elas não existem aqui. O que não pode é código que as pergunte. */
-  const codigo = tela.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  for (const palavra of ['atividades', 'sessaoId', 'secaoDeAtividades', 'filtro']) {
-    assert.ok(!codigo.includes(palavra), `a pesquisa do evento não tem ${palavra}`);
-  }
+test('a grade é a do evento inteiro, e agrupada por dia', () => {
+  /* A pesquisa do dia listava um dia. Esta lista os dois, e por isso
+     agrupa: "11:30" aparece duas vezes numa lista de dois dias e não
+     quer dizer a mesma coisa. */
+  assert.match(tela, /function secaoDeAtividades\(\)/);
+  assert.ok(tela.includes("no('h3', 'av-dia'"));
+  assert.match(tela, /let diaCorrente = null;/);
+  /* E o dia é CABEÇALHO, não filtro: esconder metade da grade faria a
+     pessoa achar que avaliou tudo. */
+  assert.ok(!/filtroDeDia/.test(tela));
+});
+
+test('os filtros são os quatro pedidos, na ordem pedida', () => {
+  const f = tela.slice(tela.indexOf('const FILTROS = ['), tela.indexOf('const MESES'));
+  for (const id of ['todos', 'mind', 'vip', 'prime']) assert.ok(f.includes("'" + id + "'"));
+  /* Filtrar ESCONDE linhas, não apaga notas. O comentário da função diz
+     isso em palavras; a conferência é sobre o código. */
+  const visiveis = semComentarios(
+    tela.slice(tela.indexOf('function atividadesVisiveis'),
+      tela.indexOf('function quantasAvaliadas')));
+  assert.ok(visiveis.includes('a.ingressos.includes(filtro)'));
+  assert.ok(!visiveis.includes('resposta.atividades'), 'filtrar não pode tocar nas notas');
+});
+
+test('nota de atividade ausente não é nota zero', () => {
+  assert.ok(tela.includes('hasOwnProperty.call(resposta.atividades, a.id)'));
+  /* Mapa, e não lista: chave ausente é o que distingue os dois casos. */
+  assert.ok(tela.includes('atividades: {}'));
+  assert.ok(tela.includes('delete resposta.atividades[a.id]'));
+});
+
+test('a linha se atualiza no lugar — a tela não salta a cada nota', () => {
+  const linha = tela.slice(tela.indexOf('function linhaDeAtividade'),
+    tela.indexOf('let contagemEl'));
+  assert.ok(linha.includes('el.replaceChild(nova, antiga)'));
+  assert.ok(!linha.includes('desenhar()'), 'redesenhar tudo tiraria o foco do dedo');
 });
 
 test('o rascunho é do evento, não de um dia, e não guarda e-mail', () => {
