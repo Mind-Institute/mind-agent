@@ -60,7 +60,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 type AdminRole = "administrador" | "editor" | "aprovador" | "atendimento" | "analista";
 type AccessRecord = { display_name: string | null; role: AdminRole; active: boolean };
 
-const VERSAO = "1.1.0";
+const VERSAO = "1.2.0";
 const EVENTO_PADRAO = "mind-summit-2026";
 
 /* O painel em desenvolvimento e o app, nas portas de sempre. */
@@ -229,6 +229,22 @@ function camposComuns(corpo: Record<string, unknown>) {
   };
 }
 
+/* O TOKEN DO CONVITE VIRA HASH AQUI, e o banco só conhece o hash. Se a
+   troca acontecesse lá dentro, o token cru apareceria no log de consulta
+   do Postgres — e um log de consulta com credencial dentro é a mesma
+   falha que guardar senha em texto puro.
+
+   Formato fixo, conferido antes: 64 hex é o que a Edge sorteia, e
+   qualquer outra coisa é chute. Recusar aqui evita uma ida ao banco por
+   tentativa. */
+const FORMATO_CONVITE = /^[0-9a-f]{64}$/;
+
+async function hashDoConvite(token: string | null): Promise<string | null> {
+  if (!token || !FORMATO_CONVITE.test(token)) return null;
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /* Corpo de envio: lido uma vez, com o mesmo teto das duas pesquisas. */
 async function lerCorpo(req: Request) {
   if (Number(req.headers.get("content-length") ?? 0) > 100_000) return "grande" as const;
@@ -257,6 +273,11 @@ Deno.serve(async (req: Request) => {
   const iEvento = partes.indexOf("evento");
   const doEventoInteiro = iEvento >= 0 && iEvento === partes.length - 2;
 
+  /* `/convite/estado` e `/convite/enviar`: a pesquisa do evento sem
+     login, para quem chega por link. Mesmo marcador, mesmo motivo. */
+  const iConvite = partes.indexOf("convite");
+  const doConvite = iConvite >= 0 && iConvite === partes.length - 2;
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cabecalhosCors(req, doApp) });
   }
@@ -277,7 +298,71 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  /* Todas as rotas exigem um token — o do participante ou o do admin. */
+  /* ============================================================
+     O CONVITE — a única porta sem login
+     ============================================================
+     Ela vem ANTES da exigência de sessão porque a sessão é exatamente o
+     que ela não tem: quem chega por convite parou de abrir o app, e é
+     por isso que o convite existe. Quem prova a identidade aqui é o
+     token, e o token vem em CABEÇALHO — na URL ele viveria no histórico
+     do navegador e em qualquer Referer que a página gerasse.
+
+     A tela lê o token do fragmento (`#c=...`), que o navegador nunca
+     manda ao servidor, e o repassa neste cabeçalho.
+
+     ⚠ Estas rotas dependem de `20260918140000_avaliacao_do_evento_convite.sql`,
+     que é GATE — sem ela aplicada respondem 503, e nada mais nesta
+     função muda por isso. */
+  if (doConvite) {
+    const slug = eventoDaUrl(url);
+    if (!slug) return json(req, 400, { codigo: "validacao", mensagem: "Evento inválido." }, requestId, true);
+
+    const hash = await hashDoConvite(req.headers.get("X-Convite"));
+    if (!hash) {
+      /* Token ausente e token malformado dizem a mesma coisa que token
+         desconhecido diz lá no banco: o erro não conta o que existe. */
+      return json(req, 401, {
+        codigo: "convite_invalido",
+        mensagem: "Este link não é válido. Peça um novo para a organização.",
+      }, requestId, true);
+    }
+
+    if (req.method === "GET" && rota === "estado") {
+      const { data, error } = await comSegredo.rpc("mind_avaliacao_do_evento_estado_por_convite", {
+        p_token_hash: hash, p_event_slug: slug,
+      });
+      if (error) return erroDeRpc(req, error, requestId, true);
+      return json(req, 200, data, requestId, true);
+    }
+
+    if (req.method === "POST" && rota === "enviar") {
+      const corpo = await lerCorpo(req);
+      if (corpo === "grande") {
+        return json(req, 413, { codigo: "validacao", mensagem: "Resposta grande demais." }, requestId, true);
+      }
+      if (corpo === "invalido") {
+        return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId, true);
+      }
+
+      const payload = camposComuns(corpo);
+      if (payload.notaRelevancia === null || payload.notaProgramacao === null) {
+        return json(req, 422, {
+          codigo: "validacao", campo: "nota_obrigatoria",
+          mensagem: "Responda as duas notas de 0 a 5 antes de enviar.",
+        }, requestId, true);
+      }
+
+      const { data, error } = await comSegredo.rpc("mind_avaliacao_do_evento_registrar_por_convite", {
+        p_token_hash: hash, p_payload: payload, p_event_slug: slug,
+      });
+      if (error) return erroDeRpc(req, error, requestId, true);
+      return json(req, 201, data, requestId, true);
+    }
+
+    return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId, true);
+  }
+
+  /* Todas as outras rotas exigem um token — o do participante ou o do admin. */
   const token = (req.headers.get("Authorization") ?? "").match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) {
     return json(req, 401, {
@@ -298,7 +383,12 @@ Deno.serve(async (req: Request) => {
     if (!origemPermitida(req.headers.get("Origin"))) {
       return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
     }
-    if (req.method !== "GET") {
+    /* O painel LÊ, com uma exceção: emitir convite é escrita, e não tem
+       como não ser. Ela é nomeada aqui para que "o painel é somente
+       leitura" continue verdadeiro em todo o resto. */
+    const emitindoConvites = req.method === "POST" && doEventoInteiro
+      && partes[iAdmin + 2] === "convites";
+    if (req.method !== "GET" && !emitindoConvites) {
       return json(req, 405, { codigo: "validacao", mensagem: "Método não permitido." }, requestId);
     }
 
@@ -324,6 +414,72 @@ Deno.serve(async (req: Request) => {
        só recorta por experiência. Passar `dia` aqui seria aceitar um
        filtro que não filtra nada. */
     if (doEventoInteiro) {
+      /* EMITIR CONVITE. O token cru nasce aqui, vai para a resposta UMA
+         vez e some: o banco fica só com o hash, e nem ele nem o painel
+         conseguem reconstruir um link já emitido. Perdeu, emite outro —
+         e o de antes deixa de valer no mesmo instante.
+
+         ⚠ O link identifica uma pessoa sem login. Quem chama esta rota
+         está criando credencial, e é por isso que ela exige sessão de
+         operador mesmo estando atrás do gate. */
+      if (alvo === "convites") {
+        const base = (Deno.env.get("MINDAGENT_APP_URL") ?? "").trim().replace(/\/+$/, "");
+        if (!base) {
+          /* Sem endereço configurado não se inventa um: um link montado
+             com o domínio errado é um convite que não abre, mandado para
+             a lista inteira antes de alguém perceber. */
+          return json(req, 503, {
+            codigo: "indisponivel",
+            mensagem: "MINDAGENT_APP_URL não está definida. Sem ela não há link para montar.",
+          }, requestId);
+        }
+
+        const corpo = await lerCorpo(req);
+        if (corpo === "grande" || corpo === "invalido") {
+          return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId);
+        }
+
+        const pessoas = Array.isArray(corpo.participantes)
+          ? (corpo.participantes as unknown[]).slice(0, 500)
+              .filter((v): v is string => typeof v === "string" && FORMATO_UUID.test(v))
+          : [];
+        if (!pessoas.length) {
+          return json(req, 422, {
+            codigo: "validacao", campo: "participantes",
+            mensagem: "Mande ao menos um participante, por id.",
+          }, requestId);
+        }
+
+        const dias = Math.min(90, Math.max(1, Number(corpo.dias ?? 14) || 14));
+        const expiraEm = new Date(Date.now() + dias * 86_400_000).toISOString();
+
+        const emitidos: Array<Record<string, unknown>> = [];
+        for (const participanteId of pessoas) {
+          /* 32 bytes de aleatoriedade do sistema. Um token curto ou
+             derivado de dado da pessoa seria adivinhável, e adivinhar
+             aqui é responder no lugar dela. */
+          const bruto = crypto.getRandomValues(new Uint8Array(32));
+          const cru = Array.from(bruto, (b) => b.toString(16).padStart(2, "0")).join("");
+          const hash = await hashDoConvite(cru);
+
+          const { error } = await comSegredo.rpc("mind_avaliacao_do_evento_convite_criar", {
+            p_event_slug: slug, p_participante_id: participanteId,
+            p_token_hash: hash, p_expira_em: expiraEm,
+          });
+          if (error) {
+            /* Um que falha não derruba a leva: quem já respondeu aparece
+               marcado, e o resto sai. Só o CÓDIGO vai na resposta — a
+               mensagem do banco não é para o operador ler. */
+            emitidos.push({ participanteId, emitido: false, codigo: error.code ?? "erro" });
+            continue;
+          }
+          emitidos.push({ participanteId, emitido: true, url: `${base}/#c=${cru}` });
+        }
+
+        /* NADA DISTO VAI PARA LOG. A resposta carrega credencial viva. */
+        return json(req, 201, { expiraEm, itens: emitidos }, requestId);
+      }
+
       if (alvo === "relatorio") {
         const { data, error } = await comSegredo.rpc("mind_avaliacao_do_evento_relatorio", {
           p_event_slug: slug, p_experiencia: experiencia,
