@@ -6,6 +6,76 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### Avaliação do evento — lane aberta em 18/09/2026, PRONTA E DESLIGADA
+
+A segunda pesquisa: o Summit inteiro, respondido depois que ele acaba. As mesmas
+oito perguntas da Avaliação do dia com "hoje" trocado por "o evento", e SEM nota
+por atividade — as duas pesquisas do dia já colheram 273 notas com a memória fresca.
+
+**HEAD da lane: `24bcd2c` na `dev`. `main` intocada. Nada aplicado, nada publicado,
+nada ligado.**
+
+| commit | o que é | estado |
+|---|---|---|
+| `14f6e15` | migration `20260918120000_avaliacao_do_evento.sql` | escrita, provada, **não aplicada** |
+| `46b318f` | rotas `/evento/*` na Edge `mindagent-avaliacao` | escritas, **não publicadas** |
+| `7862dd9` | tela `avaliacao/evento.js` e card no momento `depois` | na `dev` |
+| `529b91d` | página do painel `/avaliacao-do-evento` | na `dev` |
+| `92a7599` | migration do convite `20260918140000` | **GATE ADRIANA**, não aplicada |
+| `cfa002e` | rotas `/convite/*` e emissão de convites | escritas, não publicadas |
+| `24bcd2c` | entrada do app pelo link (`#c=…`) | na `dev` |
+
+**Para ligar a pesquisa pelo app, nesta ordem:**
+
+1. aplicar `20260918120000_avaliacao_do_evento.sql`;
+2. publicar `mindagent-avaliacao` — a viva é a `1.0.0`, o repo está na `1.2.0` —
+   comparando com a versão anterior antes de trocar, como manda o boundary de
+   deploy deste repo;
+3. definir a janela em `concierge.config`, chave `avaliacao_do_evento`:
+   `{"ativo": true, "abre": "AAAA-MM-DD", "fecha": "AAAA-MM-DD"}` — **as datas ainda
+   não foram decididas**;
+4. mergear `dev` em `main` para o app subir.
+
+Os passos 1 e 2 não quebram nada se forem feitos antes do 3: a pesquisa nasce
+desligada, e o card só aparece quando o servidor confirma que ela está aberta.
+
+**O que está atrás de gate da Adriana, e por quê:** o convite por link faz um token
+valer como identidade sem login. Isso é auth. O disparo por WhatsApp ou e-mail é
+gate separado. A migration do convite não pode ser aplicada junto com a primeira
+sem essa decisão. Falta também decidir limite de tentativa nas rotas `/convite/*`,
+que são as únicas da função que respondem sem sessão.
+
+**Decisões congeladas desta lane:**
+
+- tabela própria, e não a do dia: lá o `dia` é parte da chave, e o relatório, o
+  painel e o PDF agrupam por ele. Uma resposta sobre o evento inteiro não tem dia;
+- `engagement.evento_feedback`, `engagement.feedbacks` e `engagement.nps` não
+  servem — a primeira é ledger de reclamação escrito pelo agente, a segunda é
+  chave/valor sem contrato, a terceira é NPS, que não se mistura com isto;
+- sem nota por atividade, de propósito;
+- a janela é dado em `concierge.config`, lida no fuso do evento e conferida no
+  envio, não só na abertura da tela;
+- o token do convite nunca é gravado: o banco guarda só o SHA-256, e quem calcula
+  é a Edge — se a troca fosse no banco, o token cru apareceria no log de consulta;
+- token desconhecido e token revogado devolvem o mesmo motivo, para a função não
+  virar oráculo de adivinhação;
+- as duas portas (app e convite) validam pelo mesmo corpo e disputam a mesma trava.
+
+**Defeito encontrado e corrigido de passagem:** a Edge recusava nota `4.5` e `"5"`
+na porta e deixava `-1` e `6` atravessarem até o banco. Valia para as duas
+pesquisas. O banco sempre recusou, mas validação que pega metade parece garantia e
+não é.
+
+**Ressalva de leitura da pesquisa do dia, que vale para qualquer número dela:**
+cinco pessoas responderam entre 00h15 e 07h47 do dia 17 falando do dia 1, e o
+formulário gravou como dia 2 — com 47 notas para sessões que ainda não tinham
+começado. No total dos dois dias não muda nada (4,44 de relevância e 4,33 de
+programação sobre 39 respostas de participantes); no dia 2 sozinho muda de 4,33
+para 4,60. A pesquisa vira o dia à meia-noite e o app só trocou a tela pela manhã.
+A correção seria virar num horário de corte, e **não foi feita** — o evento acabou
+e não há nada vivo para consertar.
+
+
 ### Hotfix mais recente — Vendedor Treble / PR #98
 
 - PR #98 mergeada em `main`: `2581f6632339b4606f887d340b6c00821de9a3c5`;

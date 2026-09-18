@@ -16,8 +16,8 @@
 */
 
 import { carregarEstado, enviar, lerRascunho, salvarRascunho, limparRascunho } from './servico.js';
+import { NOTAS, no, bloco, escala, campoTexto } from './componentes.js';
 
-const NOTAS = [0, 1, 2, 3, 4, 5];
 
 /* As pontas acompanham a pergunta. "Não atendeu / Atendeu completamente"
    respondia a expectativa; a pergunta agora é sobre relevância, e a
@@ -56,12 +56,6 @@ function diaPorExtenso(iso) {
   return Number(p[2]) + ' de ' + (MESES[Number(p[1]) - 1] || '');
 }
 
-function no(tag, classe, texto) {
-  const el = document.createElement(tag);
-  if (classe) el.className = classe;
-  if (texto != null) el.textContent = texto;
-  return el;
-}
 
 /* ============================================================
    O ESTADO DA TELA
@@ -189,20 +183,6 @@ function desenharIndisponivel(titulo, texto) {
    PEÇAS DO FORMULÁRIO
    ============================================================ */
 
-function bloco(numero, pergunta, obrigatoria, apoio) {
-  const el = no('section', 'av-bloco');
-  const cabeca = no('div', 'av-cabeca');
-  const h = no('h2', null, pergunta);
-  if (numero) h.prepend(no('span', 'av-numero', String(numero)));
-  cabeca.appendChild(h);
-  if (obrigatoria) {
-    const selo = no('span', 'av-obrigatoria', 'obrigatória');
-    cabeca.appendChild(selo);
-  }
-  el.appendChild(cabeca);
-  if (apoio) el.appendChild(no('p', 'av-apoio', apoio));
-  return el;
-}
 
 function mostrarErro(el, campo) {
   if (!erros[campo]) return;
@@ -229,69 +209,7 @@ function limparErro(campo) {
 /* Escala de 0 a 5 com rádios de verdade: leitor de tela e teclado saem
    de graça, e "0" é uma opção como qualquer outra — nunca o estado de
    quem não respondeu. */
-function escala({ nome, valor, pontas, aoEscolher, aoLimpar, rotuloDoGrupo }) {
-  const el = no('div', 'av-escala');
-  const grupo = no('div', 'av-notas');
-  grupo.setAttribute('role', 'radiogroup');
-  grupo.setAttribute('aria-label', rotuloDoGrupo || 'Nota de 0 a 5');
 
-  NOTAS.forEach((n) => {
-    const id = nome + '-' + n;
-    const entrada = document.createElement('input');
-    entrada.type = 'radio';
-    entrada.name = nome;
-    entrada.id = id;
-    entrada.value = String(n);
-    entrada.className = 'av-radio';
-    entrada.checked = valor === n;
-    entrada.addEventListener('change', () => aoEscolher(n));
-
-    const rotulo = document.createElement('label');
-    rotulo.className = 'av-nota';
-    rotulo.htmlFor = id;
-    rotulo.textContent = String(n);
-    /* O número sozinho não diz o que significa para quem ouve a tela. */
-    rotulo.setAttribute('aria-label', pontas && pontas[n] ? n + ' — ' + pontas[n] : 'Nota ' + n);
-
-    grupo.appendChild(entrada);
-    grupo.appendChild(rotulo);
-  });
-  el.appendChild(grupo);
-
-  if (pontas) {
-    const legenda = no('div', 'av-pontas');
-    legenda.appendChild(no('small', null, '0 · ' + pontas[0]));
-    legenda.appendChild(no('small', null, '5 · ' + pontas[5]));
-    el.appendChild(legenda);
-  }
-
-  if (aoLimpar && valor != null) {
-    const limpar = no('button', 'av-limpar', 'Limpar nota');
-    limpar.type = 'button';
-    limpar.addEventListener('click', aoLimpar);
-    el.appendChild(limpar);
-  }
-  return el;
-}
-
-function campoTexto({ valor, limite, linhas, placeholder, aoDigitar, rotulo }) {
-  const el = no('div', 'av-campo');
-  const entrada = document.createElement(linhas > 1 ? 'textarea' : 'input');
-  if (linhas > 1) entrada.rows = linhas; else entrada.type = 'text';
-  entrada.className = 'av-entrada';
-  entrada.value = valor || '';
-  entrada.maxLength = limite;
-  entrada.placeholder = placeholder || '';
-  if (rotulo) entrada.setAttribute('aria-label', rotulo);
-  const contador = no('small', 'av-contador', (valor || '').length + '/' + limite);
-  entrada.addEventListener('input', () => {
-    contador.textContent = entrada.value.length + '/' + limite;
-    aoDigitar(entrada.value);
-  });
-  el.appendChild(entrada);
-  el.appendChild(contador);
-  return el;
-}
 
 /* ============================================================
    A LISTA DE ATIVIDADES

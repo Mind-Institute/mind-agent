@@ -82,6 +82,12 @@ export function montarHome(raiz, aoAgir, contexto) {
     if (b.daAvaliacao) {
       return ctx.avaliacao ? { ...b, ...ctx.avaliacao } : { ...b, estado: 'oculto' };
     }
+    /* A pesquisa do evento inteiro segue a mesma regra, com o próprio
+       estado: são duas pesquisas, e uma não fala pela outra. */
+    if (b.daAvaliacaoDoEvento) {
+      return ctx.avaliacaoEvento
+        ? { ...b, ...ctx.avaliacaoEvento } : { ...b, estado: 'oculto' };
+    }
     return b;
   });
 

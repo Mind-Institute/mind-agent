@@ -5,13 +5,17 @@ import { renderizarPainel } from './utils';
 import { ITENS_NAVEGACAO } from '@/routes/navegacao';
 
 describe('navegação', () => {
-  it('mostra os dezoito módulos do menu lateral', async () => {
+  it('mostra os dezenove módulos do menu lateral', async () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO).toHaveLength(18);
+    expect(ITENS_NAVEGACAO).toHaveLength(19);
     for (const item of ITENS_NAVEGACAO) {
-      expect(within(menu).getByRole('link', { name: new RegExp(item.rotulo, 'i') })).toBeVisible();
+      /* NOME INTEIRO, e não pedaço: "Evento" e "Avaliação do evento" são
+         dois itens do menu, e um regex solto casa com os dois. */
+      expect(
+        within(menu).getByRole('link', { name: (nome) => nome.trim() === item.rotulo }),
+      ).toBeVisible();
     }
   });
 
@@ -34,6 +38,11 @@ describe('navegação', () => {
     expect(await screen.findByRole('heading', { name: 'Programação', level: 1 })).toBeVisible();
   });
 
+  /* O TEMPO DESTE TESTE CRESCE COM O MENU: ele monta e desmonta o painel
+     uma vez por módulo, e cada módulo novo o deixa mais lento. Com o
+     limite padrão de 5 s ele passou a estourar em rodada cheia ao chegar
+     ao décimo nono — não por lentidão de um módulo, mas por ser O(n). O
+     limite acompanha o que o teste faz. */
   it('cada módulo abre sem quebrar', async () => {
     for (const item of ITENS_NAVEGACAO) {
       const { unmount } = renderizarPainel({ rota: item.caminho });
@@ -43,7 +52,7 @@ describe('navegação', () => {
       ).toBeVisible();
       unmount();
     }
-  });
+  }, 20_000);
 
   it('endereço desconhecido cai na página de não encontrada', async () => {
     renderizarPainel({ rota: '/rota-que-nao-existe' });
