@@ -91,10 +91,14 @@ async function chamar(caminho, opcoes) {
  * de jeitos diferentes na tela.
  */
 export async function carregarEstado(dia) {
+  const busca = '?event_slug=' + encodeURIComponent(CONFIG.eventSlug) +
+    (dia ? '&dia=' + encodeURIComponent(dia) : '');
+  return lerEstadoEm('/estado' + busca);
+}
+
+async function lerEstadoEm(caminho) {
   try {
-    const busca = '?event_slug=' + encodeURIComponent(CONFIG.eventSlug) +
-      (dia ? '&dia=' + encodeURIComponent(dia) : '');
-    const r = await chamar('/estado' + busca, { method: 'GET' });
+    const r = await chamar(caminho, { method: 'GET' });
     if (!r || !r.ok) return null;
     return r.corpo && typeof r.corpo === 'object' ? r.corpo : null;
   } catch (e) {
@@ -110,9 +114,34 @@ export async function carregarEstado(dia) {
  * decidir pelo código. O formulário nunca é limpo por esta função.
  */
 export async function enviar(resposta) {
+  return enviarEm('/enviar', resposta);
+}
+
+/* ============================================================
+   A PESQUISA DO EVENTO INTEIRO
+   ============================================================
+   Mesma porta, mesma sessão, mesmo rascunho, mesmo tratamento de erro —
+   muda o caminho e o escopo da chave local. Um segundo arquivo de
+   serviço duplicaria token, timeout e cabeçalho de identidade, que é
+   justamente onde os dois iam divergir primeiro e em silêncio.
+
+   O RASCUNHO usa `'evento'` onde a pesquisa do dia usa a data. Não
+   colide com data nenhuma, e continua sem guardar e-mail. */
+
+export const ESCOPO_DO_EVENTO = 'evento';
+
+export async function carregarEstadoDoEvento() {
+  return lerEstadoEm('/evento/estado?event_slug=' + encodeURIComponent(CONFIG.eventSlug));
+}
+
+export async function enviarDoEvento(resposta) {
+  return enviarEm('/evento/enviar', resposta);
+}
+
+async function enviarEm(caminho, resposta) {
   let r;
   try {
-    r = await chamar('/enviar', { method: 'POST', body: JSON.stringify(resposta) });
+    r = await chamar(caminho, { method: 'POST', body: JSON.stringify(resposta) });
   } catch (e) {
     /* Timeout e queda de rede caem aqui. NÃO sabemos se gravou: quem
        chama precisa perguntar ao servidor antes de concluir qualquer

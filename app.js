@@ -13,10 +13,16 @@ import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServi
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem, enviarSinalJornada } from './chat-service.js';
 import { ligarTeclado, tecladoAberto } from './teclado.js';
-/* Avaliação do dia: módulo novo, isolado. Nada do app depende dele, e
-   ele não depende de nada do app além da identidade e da configuração. */
+/* As duas pesquisas: módulos à parte, isolados. Nada do app depende
+   deles, e eles não dependem de nada do app além da identidade e da
+   configuração. */
 import { abrirAvaliacao, subtituloDaAvaliacao } from './avaliacao/avaliacao.js';
-import { carregarEstado as carregarEstadoDaAvaliacao, pesquisaConfigurada } from './avaliacao/servico.js';
+import { abrirAvaliacaoDoEvento, subtituloDaAvaliacaoDoEvento } from './avaliacao/evento.js';
+import {
+  carregarEstado as carregarEstadoDaAvaliacao,
+  carregarEstadoDoEvento as carregarEstadoDaAvaliacaoDoEvento,
+  pesquisaConfigurada,
+} from './avaliacao/servico.js';
 
 /* A altura do app passa a vir do viewport VISUAL, antes de qualquer tela
    aparecer: é o que impede o Safari de rolar a página inteira quando o teclado
@@ -153,6 +159,7 @@ function acaoDaHome(acao) {
   if (acao === 'entrevista') return irParaConversa('plano');
   if (acao === 'insights') return abrirVista('summit');
   if (acao === 'avaliacao') return abrirTelaDaAvaliacao();
+  if (acao === 'avaliacao-evento') return abrirTelaDaAvaliacaoDoEvento();
   if (acao === 'avisos') return abrirAvisos();
   if (acao.startsWith('aviso:')) return abrirAvisos(acao.slice(6));
   if (acao.startsWith('em-breve:')) return painelEmBreve(acao.slice(9));
@@ -252,6 +259,8 @@ function contextoDaHome() {
   if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
   const cartaoDaAvaliacao = cardDaAvaliacao();
   if (cartaoDaAvaliacao) ctx.avaliacao = cartaoDaAvaliacao;
+  const cartaoDoEvento = cardDaAvaliacaoDoEvento();
+  if (cartaoDoEvento) ctx.avaliacaoEvento = cartaoDoEvento;
   const p = proximaExperiencia();
   if (!p) return ctx;
   /* Etiqueta curta, não frase: o card logo abaixo já diz a hora, a sala
@@ -548,12 +557,45 @@ function cardDaAvaliacao() {
   return { estado: 'disponivel' };
 }
 
+/* ---------- Avaliação do evento ----------
+   Mesma regra da do dia, com estado próprio: são duas pesquisas, e uma
+   não responde pela outra. `null` continua querendo dizer "a home de
+   sempre". */
+let estadoDaAvaliacaoDoEvento = null;
+
+async function carregarAvaliacaoDoEvento() {
+  if (!pesquisaConfigurada()) return;
+  try {
+    estadoDaAvaliacaoDoEvento = await carregarEstadoDaAvaliacaoDoEvento();
+  } catch (e) {
+    estadoDaAvaliacaoDoEvento = null;
+  }
+}
+
+/* O que o card da home mostra, ou `null` para ele não existir. */
+function cardDaAvaliacaoDoEvento() {
+  const e = estadoDaAvaliacaoDoEvento;
+  if (!e || !e.ativo || !e.identificado) return null;
+  if (e.enviado) {
+    return {
+      pergunta: 'Avaliação do evento enviada ✓',
+      cta: 'Obrigado por avaliar',
+      variante: 'av-enviada',
+      estado: 'concluido',
+      acao: null,
+    };
+  }
+  return { estado: 'disponivel' };
+}
+
 const avaliacaoCorpo = document.getElementById('avaliacao-corpo');
 const avaliacaoSub = document.getElementById('avaliacao-sub');
+const avaliacaoTitulo = document.getElementById('avaliacao-titulo');
 
 function abrirTelaDaAvaliacao() {
   abrirVista('avaliacao');
   avaliacaoCorpo.scrollTop = 0;
+  avaliacaoTitulo.textContent = 'Avaliação do dia';
   abrirAvaliacao(
     avaliacaoCorpo,
     voltarDaAvaliacao,
@@ -564,6 +606,24 @@ function abrirTelaDaAvaliacao() {
     },
   ).then(() => { avaliacaoSub.textContent = subtituloDaAvaliacao(); })
    .catch(() => { /* o módulo já desenhou o próprio erro */ });
+}
+
+/* A MESMA VISTA serve as duas telas: o que muda é o título e qual
+   módulo desenha dentro. Uma segunda `<section>` no HTML seria uma
+   segunda casca idêntica para manter em dobro. */
+function abrirTelaDaAvaliacaoDoEvento() {
+  abrirVista('avaliacao');
+  avaliacaoCorpo.scrollTop = 0;
+  avaliacaoTitulo.textContent = 'Avaliação do evento';
+  avaliacaoSub.textContent = subtituloDaAvaliacaoDoEvento();
+  abrirAvaliacaoDoEvento(
+    avaliacaoCorpo,
+    voltarDaAvaliacao,
+    (novo) => {
+      /* Só aqui, depois da confirmação do servidor, o card muda. */
+      estadoDaAvaliacaoDoEvento = novo;
+    },
+  ).catch(() => { /* o módulo já desenhou o próprio erro */ });
 }
 
 function voltarDaAvaliacao() {
@@ -1993,6 +2053,7 @@ async function carregarDados() {
      falhar sem consequência: `carregarAvaliacaoDoDia` engole o próprio
      erro e deixa `estadoDaAvaliacao` nulo, que é "a home de sempre". */
   await carregarAvaliacaoDoDia();
+  await carregarAvaliacaoDoEvento();
 }
 
 

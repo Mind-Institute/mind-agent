@@ -500,6 +500,17 @@ export const CONTEUDO = {
         selo: 'Avaliação do dia',
         pergunta: 'Como foi seu dia no Mind?',
         cta: 'Avaliar meu dia', acao: 'avaliacao' },
+      /* A PESQUISA DO EVENTO INTEIRO, e por isso só aqui: ela pergunta
+         sobre o Summit fechado, e no `entre-dias` ainda falta um dia.
+         Fica acima do plano pós-Summit porque é o que tem prazo — a
+         janela dela fecha, o plano não.
+
+         Some sozinha do mesmo jeito que a outra: fora da janela o
+         servidor responde `ativo: false` e o card não é desenhado. */
+      { tipo: 'destaque', ico: ICO.estrela, daAvaliacaoDoEvento: true, estado: 'oculto',
+        selo: 'Avaliação do evento',
+        pergunta: 'Como foi o Mind Summit para você?',
+        cta: 'Avaliar o evento', acao: 'avaliacao-evento' },
       { tipo: 'destaque', ico: ICO.bussola, selo: 'Plano pós-Summit',
         pergunta: 'O que você quer mudar primeiro?',
         cta: 'Começar entrevista guiada', acao: 'entrevista' },

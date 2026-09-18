@@ -386,3 +386,124 @@ test('nenhum comando desta migration alcança a pesquisa do dia', () => {
   assert.ok(!/avaliacao_do_dia/.test(executavel),
     'fora de comentário, a migration do evento não pode citar a tabela do dia');
 });
+
+/* ============================================================
+   A TELA E O APP, LIDOS COMO TEXTO
+   ============================================================ */
+
+const tela = readFileSync(new URL('../avaliacao/evento.js', import.meta.url), 'utf8');
+const pecas = readFileSync(new URL('../avaliacao/componentes.js', import.meta.url), 'utf8');
+const servico = readFileSync(new URL('../avaliacao/servico.js', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const estadoHome = readFileSync(new URL('../home/estado.js', import.meta.url), 'utf8');
+const home = readFileSync(new URL('../home/home.js', import.meta.url), 'utf8');
+const telaDoDia = readFileSync(new URL('../avaliacao/avaliacao.js', import.meta.url), 'utf8');
+
+test('zero é valor, e a tela nunca o trata como ausência', () => {
+  assert.match(tela, /resposta\.notaRelevancia == null/);
+  assert.match(tela, /resposta\.notaProgramacao == null/);
+  assert.ok(!/if \(!resposta\.notaRelevancia\)/.test(tela));
+  assert.ok(!/if \(!resposta\.notaProgramacao\)/.test(tela));
+});
+
+test('a tela do evento não pergunta por atividade nenhuma', () => {
+  /* O comentário do topo CITA as atividades — é onde está escrito por que
+     elas não existem aqui. O que não pode é código que as pergunte. */
+  const codigo = tela.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  for (const palavra of ['atividades', 'sessaoId', 'secaoDeAtividades', 'filtro']) {
+    assert.ok(!codigo.includes(palavra), `a pesquisa do evento não tem ${palavra}`);
+  }
+});
+
+test('o rascunho é do evento, não de um dia, e não guarda e-mail', () => {
+  assert.match(tela, /lerRascunho\(ESCOPO_DO_EVENTO, estado\.formularioVersao\)/);
+  assert.match(tela, /salvarRascunho\(ESCOPO_DO_EVENTO, estado\.formularioVersao/);
+  assert.match(servico, /export const ESCOPO_DO_EVENTO = 'evento'/);
+  assert.ok(!/localStorage[^\n]*email/i.test(servico));
+  assert.match(servico, /function impressaoDaIdentidade/);
+});
+
+test('o rascunho só some depois da confirmação do servidor', () => {
+  const concluir = tela.slice(tela.indexOf('function concluir'), tela.indexOf('function desenharObrigado'));
+  assert.match(concluir, /limparRascunho\(ESCOPO_DO_EVENTO/);
+  const envio = tela.slice(tela.indexOf('async function confirmarEnvio'), tela.indexOf('function concluir'));
+  assert.ok(!/limparRascunho/.test(envio), 'nada some antes de o servidor confirmar');
+});
+
+test('timeout consulta o servidor antes de concluir ou deixar reenviar', () => {
+  const envio = tela.slice(tela.indexOf('async function confirmarEnvio'), tela.indexOf('function concluir'));
+  assert.match(envio, /codigo === 'indeterminado'/);
+  assert.match(envio, /await carregarEstadoDoEvento\(\)/);
+  assert.match(envio, /conferido && conferido\.enviado/);
+});
+
+test('clique duplo não vira envio duplo', () => {
+  assert.match(tela, /if \(enviando\) return;/);
+  assert.match(tela, /enviarBotao\.disabled = enviando;/);
+});
+
+test('a confirmação avisa que não dá para alterar depois', () => {
+  assert.match(tela, /Confira suas respostas\. Após enviar, você não poderá alterá-las\./);
+  assert.match(tela, /'Enviar avaliação'/);
+});
+
+test('fora da janela, a tela diz qual das duas coisas aconteceu', () => {
+  assert.match(tela, /ja_fechou/);
+  assert.match(tela, /ainda_nao_abriu/);
+  assert.match(tela, /A avaliação já foi encerrada\./);
+});
+
+test('as peças são as mesmas das duas telas, e vêm de um lugar só', () => {
+  for (const peca of ['no', 'bloco', 'escala', 'campoTexto']) {
+    assert.ok(pecas.includes('export function ' + peca + '('),
+      `${peca} tem de morar em componentes.js`);
+    assert.ok(!tela.includes('\nfunction ' + peca + '('),
+      `${peca} não pode ter segunda cópia em evento.js`);
+    assert.ok(!telaDoDia.includes('\nfunction ' + peca + '('),
+      `${peca} não pode ter segunda cópia em avaliacao.js`);
+  }
+  assert.match(tela, /from '\.\/componentes\.js'/);
+  assert.match(telaDoDia, /from '\.\/componentes\.js'/);
+});
+
+test('as duas pesquisas não dividem estado', () => {
+  assert.ok(!/from '\.\/avaliacao\.js'/.test(tela),
+    'a tela do evento não pode importar a do dia');
+  assert.match(app, /let estadoDaAvaliacao = null;/);
+  assert.match(app, /let estadoDaAvaliacaoDoEvento = null;/);
+});
+
+test('o card do evento só existe quando o servidor confirma', () => {
+  const card = app.slice(app.indexOf('function cardDaAvaliacaoDoEvento'),
+    app.indexOf("const avaliacaoCorpo = document.getElementById"));
+  assert.match(card, /if \(!e \|\| !e\.ativo \|\| !e\.identificado\) return null;/);
+  assert.match(home, /ctx\.avaliacaoEvento\s*$/m);
+  assert.match(home, /\{ \.\.\.b, estado: 'oculto' \}/);
+});
+
+test('o card do evento só aparece depois do evento', () => {
+  const depois = estadoHome.slice(estadoHome.indexOf('depois: {'));
+  assert.match(depois, /daAvaliacaoDoEvento: true/);
+  const antes = estadoHome.slice(0, estadoHome.indexOf('depois: {'));
+  assert.ok(!/daAvaliacaoDoEvento/.test(antes),
+    'a pesquisa do evento não pode aparecer antes de o evento acabar');
+});
+
+test('falha da pesquisa do evento não derruba a home nem o chat', () => {
+  const carregar = app.slice(app.indexOf('async function carregarAvaliacaoDoEvento'),
+    app.indexOf('function cardDaAvaliacaoDoEvento'));
+  assert.match(carregar, /try \{/);
+  assert.match(carregar, /estadoDaAvaliacaoDoEvento = null;/);
+  assert.match(tela, /catch \(e\) \{/);
+});
+
+test('as duas telas dividem a mesma vista, e o título acompanha', () => {
+  assert.match(app, /avaliacaoTitulo\.textContent = 'Avaliação do dia';/);
+  assert.match(app, /avaliacaoTitulo\.textContent = 'Avaliação do evento';/);
+});
+
+test('o módulo novo entra no build', () => {
+  const build = readFileSync(new URL('../scripts/build-cloudflare.mjs', import.meta.url), 'utf8');
+  assert.match(build, /'avaliacao',/);
+  assert.match(build, /conferirImports/);
+});
