@@ -48,11 +48,37 @@ function token() {
 /* A identidade que a Yazo informou, em cabeçalho — nunca na URL. O
    servidor a usa só para ligar quem nunca conversou à pessoa canônica;
    ela não é autorização, e sozinha não vale nada. */
+/* QUEM É A PESSOA, QUANDO A URL NÃO DISSE.
+   No app, a Yazo manda nome e e-mail na URL e a pessoa não digita nada.
+   Fora do app — um link mandado por fora — não há URL para dizer isso, e
+   a própria pessoa escreve. O que ela escreve vale só para esta pesquisa:
+   não vira a identidade do app nem do chat, e não é gravado no aparelho.
+
+   É IDENTIDADE AUTODECLARADA, e isso tem consequência: quem digita o
+   e-mail de outra pessoa responde no lugar dela. Vale hoje também para a
+   URL, que qualquer um pode escrever à mão — a diferença é que o campo
+   torna isso fácil. Foi decisão de produto, tomada em 18/09. */
+let identidadeDigitada = null;
+
+export function definirIdentidadeDigitada(nome, email) {
+  const e = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  identidadeDigitada = e ? { nome: (nome || '').trim() || null, email: e } : null;
+}
+
+/** A URL disse quem é a pessoa? É isto que decide se o formulário
+    pergunta ou não. NÃO se olha a barra de endereço: ela é limpa na
+    partida, de propósito, e recarregar a página faria os campos
+    aparecerem do nada. Quem sabe é a camada de identidade. */
+export function identidadeVeioDaUrl() {
+  return Boolean(obterParticipante().email);
+}
+
 function cabecalhosDaIdentidade() {
   const p = obterParticipante();
-  if (!p.email) return {};
-  const h = { 'X-Identidade-Email': p.email };
-  if (p.nome) h['X-Identidade-Nome'] = p.nome;
+  const fonte = p.email ? p : identidadeDigitada;
+  if (!fonte || !fonte.email) return {};
+  const h = { 'X-Identidade-Email': fonte.email };
+  if (fonte.nome) h['X-Identidade-Nome'] = fonte.nome;
   return h;
 }
 

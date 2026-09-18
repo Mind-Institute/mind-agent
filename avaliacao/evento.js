@@ -21,6 +21,7 @@
 
 import {
   carregarEstadoDoEvento, enviarDoEvento, ESCOPO_DO_EVENTO,
+  definirIdentidadeDigitada, identidadeVeioDaUrl,
   lerRascunho, salvarRascunho, limparRascunho,
 } from './servico.js';
 import { no, bloco, escala, campoTexto } from './componentes.js';
@@ -34,7 +35,12 @@ const EXPERIENCIAS = [
   { id: 'prime', rotulo: 'Prime' },
 ];
 
-const LIMITES = { profissao: 120, expectativas: 1000, aberta: 1000 };
+const LIMITES = { nome: 160, email: 254, profissao: 120, expectativas: 1000, aberta: 1000 };
+
+/* O mesmo formato que a Edge exige antes de tentar ligar a identidade.
+   Frouxo de propósito: e-mail de verdade é validado por chegar, não por
+   regex, e recusar um endereço estranho e válido perde a resposta. */
+const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /* ============================================================
    O ESTADO DA TELA
@@ -52,8 +58,15 @@ let enviando = false;
 let erros = {};
 let avisoGeral = null;
 
+/* A TELA PERGUNTA QUEM É VOCÊ? Só quando ninguém já disse. No app a Yazo
+   manda na URL; por convite o token já resolve. Fora disso, a pessoa
+   escreve. */
+let pedirIdentidade = false;
+
 function respostaVazia() {
   return {
+    nome: '',
+    email: '',
     experiencia: '',
     profissao: '',
     expectativas: '',
@@ -67,7 +80,15 @@ function respostaVazia() {
 
 function guardarRascunho() {
   if (!estado) return;
-  salvarRascunho(ESCOPO_DO_EVENTO, estado.formularioVersao, resposta);
+  /* NOME E E-MAIL FICAM FORA DO RASCUNHO. O rascunho vive no aparelho, e
+     a chave dele não distingue duas pessoas quando ninguém se
+     identificou — que é justamente o caso em que estes dois campos
+     existem. Guardá-los faria o e-mail de quem respondeu antes reaparecer
+     escrito para o próximo que abrir a pesquisa no mesmo aparelho.
+
+     O custo é retomar o formulário e redigitar duas linhas. */
+  const { nome, email, ...semIdentidade } = resposta;
+  salvarRascunho(ESCOPO_DO_EVENTO, estado.formularioVersao, semIdentidade);
 }
 
 /* ============================================================
@@ -104,18 +125,28 @@ export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada, nomear) 
   }
   estado = novo;
 
-  if (!estado.identificado) {
-    /* Por convite, "não reconhecemos você" quer dizer que o link não
-       vale — e o motivo vem do servidor. Mandar essa pessoa "abrir pelo
-       app" seria mandá-la para onde ela não consegue entrar. */
+  /* POR CONVITE, "não reconhecemos você" é o link não valer, e o motivo
+     vem do servidor. Esta checagem vem antes da janela: um link vencido
+     precisa dizer que venceu, e não que a pesquisa fechou. */
+  if (estado.porConvite && !estado.identificado) {
     return desenharIndisponivel(
-      aoVoltar ? 'Não reconhecemos quem você é.' : 'Este link não é mais válido.',
-      aoVoltar
-        ? 'Abra a avaliação pelo app do evento, com o link que você recebeu, para que a sua resposta fique ligada ao seu cadastro.'
-        : {
-            expirado: 'O prazo deste link terminou. Peça um novo para a organização.',
-            ja_respondida: 'Esta avaliação já foi respondida. Obrigado!',
-          }[estado.motivo] || 'Peça um novo link para a organização do evento.',
+      'Este link não é mais válido.',
+      {
+        expirado: 'O prazo deste link terminou. Peça um novo para a organização.',
+        ja_respondida: 'Esta avaliação já foi respondida. Obrigado!',
+      }[estado.motivo] || 'Peça um novo link para a organização do evento.',
+    );
+  }
+
+  /* Ninguém disse quem é a pessoa: o formulário pergunta, em vez de
+     barrar. É o caso de quem recebeu o link por fora do app. Por
+     convite nunca se pergunta — lá quem responde sai do token. */
+  pedirIdentidade = !estado.porConvite && !identidadeVeioDaUrl();
+
+  if (!estado.identificado && !pedirIdentidade) {
+    return desenharIndisponivel(
+      'Não reconhecemos quem você é.',
+      'Abra a avaliação pelo app do evento, com o link que você recebeu, para que a sua resposta fique ligada ao seu cadastro.',
     );
   }
   if (!estado.ativo) {
@@ -143,7 +174,10 @@ export async function abrirAvaliacaoDoEvento(elemento, voltar, enviada, nomear) 
      é `evento`, e não uma data: esta pesquisa não tem dia. */
   if (aoNomear) aoNomear(subtituloDaAvaliacaoDoEvento());
 
-  resposta = lerRascunho(ESCOPO_DO_EVENTO, estado.formularioVersao) || respostaVazia();
+  /* O rascunho volta sem nome e sem e-mail — eles nunca foram gravados.
+     `respostaVazia` garante que os dois campos existam como texto, e não
+     como `undefined`, para o `.trim()` da validação não explodir. */
+  resposta = { ...respostaVazia(), ...lerRascunho(ESCOPO_DO_EVENTO, estado.formularioVersao) };
   if (!resposta.experiencia && estado.experienciaSugerida) {
     /* Sugestão, não decisão: já vem marcada e a pessoa confirma ou troca.
        Trocar aqui não mexe em ingresso, cadastro nem permissão. */
@@ -221,6 +255,30 @@ function desenharFormulario() {
     const faixa = no('p', 'av-faixa', avisoGeral);
     faixa.setAttribute('role', 'alert');
     raiz.appendChild(faixa);
+  }
+
+  /* QUEM ESTÁ RESPONDENDO — sem número, de propósito. As oito perguntas
+     mantêm a mesma numeração nos dois canais, e as duas respostas ficam
+     comparáveis lado a lado no relatório. */
+  if (pedirIdentidade) {
+    const bi = bloco(null, 'Quem está respondendo?', true,
+      'Precisamos disso para ligar sua resposta ao seu cadastro do evento.');
+
+    bi.appendChild(campoTexto({
+      valor: resposta.nome, limite: LIMITES.nome, linhas: 1,
+      placeholder: 'Seu nome', rotulo: 'Seu nome',
+      aoDigitar: (v) => { resposta.nome = v; limparErro('nome'); guardarRascunho(); },
+    }));
+    mostrarErro(bi, 'nome');
+
+    bi.appendChild(campoTexto({
+      valor: resposta.email, limite: LIMITES.email, linhas: 1,
+      placeholder: 'seu@email.com', rotulo: 'Seu e-mail',
+      aoDigitar: (v) => { resposta.email = v; limparErro('email'); guardarRascunho(); },
+    }));
+    mostrarErro(bi, 'email');
+
+    raiz.appendChild(bi);
   }
 
   /* 1 — experiência */
@@ -334,6 +392,12 @@ function desenharFormulario() {
 
 function validar() {
   erros = {};
+  if (pedirIdentidade) {
+    if (!resposta.nome.trim()) erros.nome = 'Escreva seu nome.';
+    const email = resposta.email.trim().toLowerCase();
+    if (!email) erros.email = 'Escreva seu e-mail.';
+    else if (!FORMATO_EMAIL.test(email)) erros.email = 'Confira o e-mail: parece faltar algo.';
+  }
   if (!resposta.experiencia) erros.experiencia = 'Escolha a experiência que você vivenciou.';
   if (!resposta.profissao.trim()) erros.profissao = 'Conte qual é a sua profissão.';
   if (!resposta.expectativas.trim()) erros.expectativas = 'Conte o que você esperava do evento.';
@@ -371,6 +435,10 @@ function desenharConferencia() {
   raiz.appendChild(topo);
 
   const lista = no('dl', 'av-lista');
+  if (pedirIdentidade) {
+    lista.appendChild(linhaDeConferencia('Nome', resposta.nome.trim()));
+    lista.appendChild(linhaDeConferencia('E-mail', resposta.email.trim()));
+  }
   const nomeExp = (EXPERIENCIAS.find((e) => e.id === resposta.experiencia) || {}).rotulo;
   lista.appendChild(linhaDeConferencia('Experiência', nomeExp || '—'));
   lista.appendChild(linhaDeConferencia('Profissão', resposta.profissao.trim()));
@@ -405,6 +473,11 @@ async function confirmarEnvio() {
   enviando = true;
   avisoGeral = null;
   desenhar();
+
+  /* O QUE A PESSOA DIGITOU VAI POR CABEÇALHO, pelo mesmo caminho do que
+     vem da URL — e não no corpo. O corpo carrega respostas; quem é a
+     pessoa é resolvido no servidor, e o cliente nunca manda participante. */
+  if (pedirIdentidade) definirIdentidadeDigitada(resposta.nome, resposta.email);
 
   const corpo = {
     eventSlug: estado.evento && estado.evento.slug,
@@ -480,6 +553,7 @@ export function subtituloDaAvaliacaoDoEvento() {
     vale avisar antes de sair. */
 export function temRascunhoDoEvento() {
   return Boolean(resposta && etapa === 'formulario' && (
+    resposta.nome || resposta.email ||
     resposta.experiencia || resposta.profissao || resposta.expectativas ||
     resposta.notaRelevancia != null || resposta.notaProgramacao != null
   ));

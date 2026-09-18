@@ -507,3 +507,84 @@ test('o módulo novo entra no build', () => {
   assert.match(build, /'avaliacao',/);
   assert.match(build, /conferirImports/);
 });
+
+/* ============================================================
+   QUEM ESTÁ RESPONDENDO — o campo que só existe às vezes
+   ============================================================
+   A pesquisa sai por dois caminhos. No app a Yazo manda nome e e-mail na
+   URL; fora do app, ninguém manda, e a pessoa escreve. O que não pode é
+   perguntar a quem já foi identificado, nem deixar de perguntar a quem
+   não foi — nos dois casos a resposta fica sem dono ou com o dono errado.
+*/
+
+test('a tela pergunta pela identidade quando a URL não disse', () => {
+  assert.match(tela, /pedirIdentidade = !estado\.porConvite && !identidadeVeioDaUrl\(\)/);
+  assert.match(tela, /if \(pedirIdentidade\) \{/);
+  assert.match(tela, /'Quem está respondendo\?'/);
+});
+
+test('por convite nunca se pergunta — lá quem responde sai do token', () => {
+  const decide = tela.slice(tela.indexOf('pedirIdentidade = '), tela.indexOf('if (!estado.identificado'));
+  assert.match(decide, /!estado\.porConvite/);
+});
+
+test('quem decide é a camada de identidade, não a barra de endereço', () => {
+  /* A URL é limpa na partida, de propósito. Olhar `location.search` faria
+     os campos aparecerem do nada ao recarregar. */
+  assert.ok(!/location\.search|searchParams/.test(tela));
+  assert.match(servico, /export function identidadeVeioDaUrl/);
+  assert.match(servico, /return Boolean\(obterParticipante\(\)\.email\)/);
+});
+
+test('sem identidade e podendo perguntar, a tela não barra ninguém', () => {
+  assert.match(tela, /if \(!estado\.identificado && !pedirIdentidade\) \{/);
+});
+
+test('nome e e-mail são obrigatórios só quando são perguntados', () => {
+  const validar = tela.slice(tela.indexOf('function validar()'), tela.indexOf('function linhaDeConferencia'));
+  assert.match(validar, /if \(pedirIdentidade\) \{/);
+  assert.match(validar, /erros\.nome = /);
+  assert.match(validar, /erros\.email = /);
+  assert.match(validar, /FORMATO_EMAIL\.test\(email\)/);
+});
+
+test('o que a pessoa digita vai por cabeçalho, nunca no corpo', () => {
+  const envio = tela.slice(tela.indexOf('async function confirmarEnvio'), tela.indexOf('function concluir'));
+  assert.match(envio, /definirIdentidadeDigitada\(resposta\.nome, resposta\.email\)/);
+  /* O corpo carrega respostas. Quem é a pessoa o servidor resolve. */
+  const corpo = envio.slice(envio.indexOf('const corpo = {'), envio.indexOf('};'));
+  assert.ok(!/nome|email/.test(corpo), 'identidade não entra no corpo do envio');
+});
+
+test('o e-mail digitado não fica no aparelho', () => {
+  const guardar = tela.slice(tela.indexOf('function guardarRascunho'),
+    tela.indexOf('export async function abrirAvaliacaoDoEvento'));
+  assert.match(guardar, /const \{ nome, email, \.\.\.semIdentidade \} = resposta;/);
+  assert.match(guardar, /salvarRascunho\(ESCOPO_DO_EVENTO, estado\.formularioVersao, semIdentidade\)/);
+  /* E a identidade digitada vive em memória, não em storage. */
+  const bloco = servico.slice(servico.indexOf('let identidadeDigitada'),
+    servico.indexOf('function cabecalhosDaIdentidade'));
+  assert.ok(!/localStorage|sessionStorage/.test(bloco));
+});
+
+test('a URL continua tendo precedência sobre o que foi digitado', () => {
+  const cab = servico.slice(servico.indexOf('function cabecalhosDaIdentidade'),
+    servico.indexOf('async function chamar('));
+  assert.match(cab, /const fonte = p\.email \? p : identidadeDigitada;/);
+});
+
+test('a conferência mostra para quem a resposta vai ficar', () => {
+  const conf = tela.slice(tela.indexOf('function desenharConferencia'), tela.indexOf('async function confirmarEnvio'));
+  assert.match(conf, /if \(pedirIdentidade\) \{/);
+  assert.match(conf, /linhaDeConferencia\('E-mail'/);
+});
+
+test('as oito perguntas mantêm a numeração nos dois caminhos', () => {
+  /* O bloco de identidade não tem número: se tivesse, a pergunta 1 de um
+     canal seria a 3 do outro, e as duas respostas parariam de ser
+     comparáveis lado a lado. */
+  assert.match(tela, /bloco\(null, 'Quem está respondendo\?'/);
+  for (const n of [1, 2, 3, 4, 5]) {
+    assert.ok(tela.includes('bloco(' + n + ','), `a pergunta ${n} perdeu o número`);
+  }
+});
