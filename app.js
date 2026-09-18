@@ -3023,16 +3023,39 @@ function conviteDaUrl() {
   return aceito;
 }
 
+/* A OUTRA ENTRADA DIRETA: `#avaliacao`, sem token.
+   É o link que vai por fora do app — e-mail, WhatsApp, o que for. Ele
+   abre a pesquisa na cara, em vez de largar a pessoa na home para
+   procurar o card. Quem é ela: o que vier na URL da Yazo, e se não vier
+   nada, o próprio formulário pergunta.
+
+   Diferente do convite, aqui EXISTE home atrás: é o mesmo app, e a
+   sessão anônima nasce sozinha. Então o voltar continua valendo.
+
+   O fragmento sai da barra pelo mesmo motivo de sempre: ele não faz
+   parte do endereço que a pessoa deveria guardar ou repassar. */
+function avaliacaoDaUrl() {
+  if (!/^#avaliacao$/.test(location.hash || '')) return false;
+  history.replaceState(null, '', location.pathname + location.search);
+  return true;
+}
+
 /* COLAR O LINK NUMA ABA QUE JÁ TEM O APP ABERTO trocava só o fragmento, e
    trocar fragmento não recarrega a página: o código acima não rodava e
    não acontecia nada — falha silenciosa, e a pessoa conclui que o link
    está quebrado. Recarregar devolve o caso ao mesmo caminho de partida,
    em vez de abrir uma segunda porta de entrada para manter. */
 addEventListener('hashchange', () => {
-  if (/^#c=[0-9a-f]{64}$/.test(location.hash || '')) location.reload();
+  if (/^(#c=[0-9a-f]{64}|#avaliacao)$/.test(location.hash || '')) location.reload();
 });
 
-if (conviteDaUrl()) {
+if (avaliacaoDaUrl()) {
+  /* A home sobe do mesmo jeito, por baixo: quem fechar a pesquisa cai
+     nela pronta, em vez de numa tela vazia. */
+  montarHomeV3();
+  carregarDados().then(montarHomeV3).catch(() => { /* a home cuida do próprio aviso */ });
+  abrirTelaDaAvaliacaoDoEvento();
+} else if (conviteDaUrl()) {
   document.body.dataset.porConvite = 'sim';
   abrirVista('avaliacao');
   avaliacaoTitulo.textContent = 'Avaliação do evento';

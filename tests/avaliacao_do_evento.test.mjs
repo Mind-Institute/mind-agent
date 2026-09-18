@@ -588,3 +588,27 @@ test('as oito perguntas mantêm a numeração nos dois caminhos', () => {
     assert.ok(tela.includes('bloco(' + n + ','), `a pergunta ${n} perdeu o número`);
   }
 });
+
+test('#avaliacao abre a pesquisa direto, e o fragmento sai da barra', () => {
+  assert.match(app, /function avaliacaoDaUrl\(\)/);
+  assert.match(app, /\^#avaliacao\$/);
+  assert.match(app, /if \(avaliacaoDaUrl\(\)\) \{/);
+  /* O fragmento sai da barra nas duas entradas, pelo mesmo motivo. */
+  const entrada = app.slice(app.indexOf('function avaliacaoDaUrl'), app.indexOf('addEventListener(\'hashchange\''));
+  assert.match(entrada, /history\.replaceState\(null, '', location\.pathname \+ location\.search\)/);
+});
+
+test('a entrada direta continua tendo home atrás, e o convite não', () => {
+  const direta = app.slice(app.indexOf('if (avaliacaoDaUrl())'), app.indexOf('} else if (conviteDaUrl())'));
+  assert.match(direta, /montarHomeV3\(\)/);
+  assert.ok(!/avaliacao-voltar'\)\.hidden = true/.test(direta),
+    'quem entra por #avaliacao pode voltar para a home');
+
+  const convite = app.slice(app.indexOf('} else if (conviteDaUrl())'), app.indexOf('/* ---------- Partida'));
+  assert.match(convite, /avaliacao-voltar'\)\.hidden = true/);
+  assert.ok(!/montarHomeV3/.test(convite), 'por convite não há home para montar');
+});
+
+test('as duas entradas diretas sobrevivem a colar o link na aba aberta', () => {
+  assert.match(app, /\^\(#c=\[0-9a-f\]\{64\}\|#avaliacao\)\$/);
+});
