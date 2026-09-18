@@ -107,6 +107,19 @@ doc.moveDown(0.6);
 doc.fontSize(8.5).fillColor(CORAL).text(
   'CONTÉM DADO PESSOAL: e-mail, profissão e o que cada pessoa escreveu. Uso interno.',
   { width: L * 0.9 });
+
+/* RESSALVA DE LEITURA, quando existe. Um relatório que não consegue dizer
+   "estes números têm um problema conhecido" mente por omissão — e quem
+   recebe age sobre a média sem saber o que ela esconde. */
+if (d.ressalva) {
+  doc.moveDown(0.8);
+  const y = doc.y;
+  doc.font('Helvetica').fontSize(9).fillColor(TINTA)
+    .text(d.ressalva, M + 12, y, { width: L - 24, lineGap: 2.5 });
+  doc.moveTo(M + 2, y - 2).lineTo(M + 2, doc.y).lineWidth(2).strokeColor(CORAL).stroke();
+  doc.x = M;
+}
+
 doc.moveDown(1.2);
 regua(doc.y);
 doc.moveDown(1.2);
@@ -140,7 +153,20 @@ doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
   .text('A média vem sempre com o número de avaliações ao lado. Atividade que ninguém avaliou aparece como "Sem avaliações", nunca como zero.');
 doc.moveDown(0.7);
 
+/* Num relatório de mais de um dia, "11:30" aparece duas vezes e não quer
+   dizer a mesma coisa. O dia entra como cabeçalho de grupo quando a
+   consulta o traz; num relatório de um dia só, nada muda. */
+let diaCorrente = null;
+
 for (const a of d.porAtividade) {
+  if (a.dia && a.dia !== diaCorrente) {
+    diaCorrente = a.dia;
+    espaco(34);
+    doc.moveDown(0.6);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(SUAVE)
+      .text(a.dia, M, doc.y, { characterSpacing: 0.8 });
+    doc.moveDown(0.3);
+  }
   espaco(28);
   const y = doc.y;
   doc.font('Helvetica-Bold').fontSize(8.5).fillColor(VERDE).text(a.inicio || '', M, y, { width: 34 });
@@ -191,6 +217,14 @@ for (const r of d.respostas) {
   doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
     .text([r.email || 'sem e-mail no cadastro', r.profissao].filter(Boolean).join(' · '),
       M + 12, doc.y, { width: L - 150 });
+
+  /* Ressalva desta resposta em particular — por que ela merece leitura
+     diferente das outras. Fica colada nela, e não numa nota de rodapé
+     que ninguém liga à linha certa. */
+  if (r.alerta) {
+    doc.font('Helvetica-Oblique').fontSize(8).fillColor(CORAL)
+      .text(r.alerta, M + 12, doc.y + 1, { width: L - 150, lineGap: 1 });
+  }
 
   doc.font('Helvetica-Bold').fontSize(8.5).fillColor(r.teste ? MUDO : VERDE)
     .text(`${String(r.experiencia || '').toUpperCase()} · relevância ${r.relevancia} · programação ${r.programacao}`,
