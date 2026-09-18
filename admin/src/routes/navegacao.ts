@@ -179,6 +179,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         icone: Star,
         descricao: 'O que os participantes responderam sobre cada dia, de 0 a 5.',
       },
+      {
+        id: 'avaliacao-do-evento',
+        rotulo: 'Avaliação do evento',
+        caminho: '/avaliacao-do-evento',
+        icone: Star,
+        descricao: 'O que eles responderam sobre o Summit inteiro, depois que ele acabou.',
+      },
     ],
   },
   {

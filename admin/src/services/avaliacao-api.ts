@@ -210,3 +210,92 @@ export function lerRespostas(
     obterToken,
   );
 }
+
+/* ============================================================
+   A PESQUISA DO EVENTO INTEIRO
+   ============================================================
+   Mesma função, mesmas chaves, mesma conferência de contrato — o que
+   muda é que não há dia nem atividade, e há de onde a resposta veio.
+   As rotas ficam sob `admin/evento/`, então `pedir` serve sem mudança.
+
+   Os NOMES DOS CAMPOS são os mesmos da pesquisa do dia de propósito:
+   `kpis.tsx` e `csv.ts` servem as duas telas sem tradução no meio. */
+
+export interface RelatorioDoEvento {
+  evento: { slug: string; nome: string; dias: string[]; fuso: string };
+  filtro: { experiencia: string | null };
+  kpis: {
+    respondentes: number;
+    porExperiencia: { mind: number; vip: number; prime: number };
+    /** Por onde entrou: pelo app logado ou por convite com token. */
+    porOrigem: { app: number; convite: number };
+    relevancia: NotaGeral;
+    programacao: NotaGeral;
+  };
+}
+
+export interface RespostaDoEvento {
+  id: string;
+  enviadoEm: string;
+  origem: 'app' | 'convite';
+  /* NOME E E-MAIL INTEIROS, pelo mesmo motivo da pesquisa do dia: o
+     relatório existe para agir sobre o que a pessoa escreveu. */
+  nome: string | null;
+  email: string | null;
+  experiencia: string;
+  profissao: string;
+  expectativas: string;
+  notaRelevancia: number;
+  notaProgramacao: number;
+  maisGostou: string | null;
+  melhorar: string | null;
+  comentario: string | null;
+}
+
+export interface PaginaDeRespostasDoEvento {
+  total: number;
+  pagina: number;
+  porPagina: number;
+  itens: RespostaDoEvento[];
+}
+
+/* A MESMA CONFERÊNCIA, e pelo mesmo motivo: um relatório que renderiza
+   vazio porque o formato mudou é pior que uma tela de erro — ele parece
+   que funcionou. Aqui não há `porAtividade` para conferir, então o que
+   prova que a resposta é desta pesquisa é `kpis.porOrigem`. */
+function conferirRelatorioDoEvento(dado: unknown): RelatorioDoEvento {
+  const r = dado as Partial<RelatorioDoEvento> | null;
+  if (!r || typeof r !== 'object' || !r.kpis || !r.kpis.porOrigem) {
+    throw new ErroDaAvaliacao(
+      'desconhecido',
+      'A resposta do relatório do evento não segue o contrato do painel.',
+    );
+  }
+  return r as RelatorioDoEvento;
+}
+
+export function lerRelatorioDoEvento(
+  filtro: { experiencia?: string | null },
+  obterToken: () => Promise<string | null>,
+) {
+  return pedir<unknown>(
+    'evento/relatorio',
+    { experiencia: filtro.experiencia },
+    obterToken,
+  ).then(conferirRelatorioDoEvento);
+}
+
+export function lerRespostasDoEvento(
+  filtro: { experiencia?: string | null; pagina?: number; porPagina?: number },
+  obterToken: () => Promise<string | null>,
+) {
+  return pedir<PaginaDeRespostasDoEvento>(
+    'evento/respostas',
+    {
+      experiencia: filtro.experiencia,
+      pagina: filtro.pagina ?? 1,
+      porPagina: filtro.porPagina ?? 50,
+    },
+    obterToken,
+  );
+}
