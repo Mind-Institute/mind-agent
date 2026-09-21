@@ -61,9 +61,28 @@ export default {
         /* A URL do navegador NÃO muda: a pessoa continua vendo o
            endereço que recebeu, e não um `/avaliacao.html` que ela não
            pediu. Por isso busca-se a página e devolve-se o conteúdo, em
-           vez de redirecionar. */
+           vez de redirecionar.
+
+           E É PRECISO SEGUIR UM REDIRECIONAMENTO AQUI DENTRO. O pipeline
+           de assets serve `avaliacao.html` em `/avaliacao` e responde
+           307 para o caminho com extensão (`html_handling`). Repassar
+           esse 307 mandava o navegador para `/avaliacao`, que voltava
+           por este mesmo caminho e recebia outro 307 — laço, e a página
+           nunca aparecia. Foi o que aconteceu no primeiro deploy. */
         const pagina = new URL(PAGINA_DA_PESQUISA, url.origin);
-        const resposta = await env.ASSETS.fetch(new Request(pagina, request));
+        let resposta = await env.ASSETS.fetch(new Request(pagina, request));
+
+        const destino = resposta.headers.get('Location');
+        if (resposta.status >= 300 && resposta.status < 400 && destino) {
+          /* Uma vez só, e sempre na nossa origem: seguir cegamente o que
+             vier no cabeçalho seria deixar o destino ser escolhido por
+             outro. */
+          const seguinte = new URL(destino, url.origin);
+          seguinte.protocol = url.protocol;
+          seguinte.host = url.host;
+          resposta = await env.ASSETS.fetch(new Request(seguinte, request));
+        }
+
         return new Response(resposta.body, {
           status: resposta.status,
           headers: resposta.headers,
