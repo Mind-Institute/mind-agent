@@ -109,7 +109,13 @@ test('o fallback de SPA continua sendo SÓ do painel', () => {
 });
 
 test('o Worker atende todos os caminhos, e o wrangler diz por quê', () => {
-  assert.match(wrangler, /"run_worker_first": \["\/", "\/\*"\]/);
+  assert.match(wrangler, /"run_worker_first": \["\/\*"\]/);
+  /* `"/"` JUNTO DE `"/*"` FAZ O WRANGLER RECUSAR O DEPLOY — "rule '/*'
+     makes it redundant". E ele recusa lá, no build da Cloudflare, não
+     aqui: ficou cinco minutos falhando em silêncio até eu rodar o
+     `--dry-run`. Por isso a asserção é negativa também. */
+  assert.ok(!/"run_worker_first": \["\/",/.test(wrangler),
+    'a raiz junto do curinga derruba o deploy');
   assert.match(wrangler, /avaliacao\.mindsummit\.com\.br/);
   assert.match(wrangler, /ehDoPainel/);
 });

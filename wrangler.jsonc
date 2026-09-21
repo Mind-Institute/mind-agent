@@ -54,7 +54,10 @@
     // a home. Com o Worker atendendo tudo, essa garantia deixou de ser
     // efeito colateral da configuração e passou a estar escrita no
     // código, com teste: ele confere ehDoPainel antes do fallback.
-    "run_worker_first": ["/", "/*"],
+    // "/*" sozinho: o wrangler RECUSA a lista com "/" junto, porque "/*" já
+        // cobre a raiz — e recusa no deploy, não aqui. O build ficou falhando em
+        // silêncio por cinco minutos até eu rodar o dry-run.
+        "run_worker_first": ["/*"],
 
     // Fora do Worker, arquivo inexistente é 404 — nunca a home.
     "not_found_handling": "none"
