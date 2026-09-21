@@ -1159,6 +1159,18 @@ Encanamento único: `public.espelho_estado` + `espelho_config` / `espelho_gravar
   `crm.empenho_summit_2026` e revertido.)
 - **`crm.buscar_pessoa`** não é a interface canônica do novo Core.
 - **`crm.pessoa_produtos`** está vazia e **não é fonte independente** da verdade comercial.
+  > **Em conflito com D1 desde 21/09/2026 — não resolvido aqui.** Esta linha foi escrita
+  > quando o HubSpot era a origem: nesse mundo, uma tabela local consolidada só podia ser
+  > cópia, nunca fonte. **D1 inverte a direção**, e com ela a premissa da linha.
+  >
+  > Os fatos, sem conclusão: a tabela tem FK para `pessoas.pessoas` e `catalogo.produtos`,
+  > UNIQUE `(pessoa, produto)`, RLS ligada e **0 linhas**; `crm.contexto_comercial` **já a
+  > lê**, junto com `crm.pessoa_nps`. Ou seja, o leitor do consolidado local já existe.
+  >
+  > **Proposta, não decisão:** é ela a casa do histórico consolidado que D1 pede. Quem
+  > decide é a Adriana (**D2**), e a pergunta entra como pendência no `registry` — é o
+  > primeiro caso real que a Inbox vai carregar. Até lá, **valem as duas coisas**: a tabela
+  > continua não sendo lida como fonte, e ninguém cria uma tabela nova para o mesmo fim.
 - **Documentação target antiga**, removida nesta faxina, não deve reaparecer como requisito.
   Entidades como `people.people`, `catalog.products` ou `commercial.orders` **não existem** e
   não são alvo.

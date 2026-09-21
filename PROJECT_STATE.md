@@ -293,6 +293,14 @@ não mandar no fato.
 >
 > Isso muda o tamanho de D1: não é redesenho, é **carga**. E confirma a regra de
 > `CLAUDE.md` — antes de criar tabela, prove que falta uma casa. Aqui não falta.
+>
+> **Mas há um conflito aberto, e ele não se resolve por dedução.** `docs/CORE_UNIVERSAL.md`
+> §13 lista `crm.pessoa_produtos` como legado — *"não é fonte independente da verdade
+> comercial"*. A linha estava certa no mundo em que o HubSpot era a origem; D1 derruba essa
+> premissa, não a linha. Que essa passe a ser a casa do consolidado é **proposta**, e
+> proposta não decide: vai à Adriana como pendência (**D2**), e é o primeiro caso real do
+> `registry`. Enquanto não houver decisão, valem as duas coisas — a tabela não é lida como
+> fonte, e ninguém cria outra para o mesmo fim.
 
 **Esta tabela é o resumo, não o registro.** A classificação viva, fonte por fonte, mora em
 `registry.fontes` (§12.11 do `BACKLOG.md`). Quando as duas divergirem, o banco está certo e
