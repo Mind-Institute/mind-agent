@@ -503,12 +503,27 @@ test('as duas pesquisas não dividem estado', () => {
   assert.match(app, /let estadoDaAvaliacaoDoEvento = null;/);
 });
 
-test('o card do evento só existe quando o servidor confirma', () => {
+test('o card do evento só existe quando o servidor confirma que ela está aberta', () => {
   const card = app.slice(app.indexOf('function cardDaAvaliacaoDoEvento'),
     app.indexOf("const avaliacaoCorpo = document.getElementById"));
-  assert.match(card, /if \(!e \|\| !e\.ativo \|\| !e\.identificado\) return null;/);
+  assert.match(card, /if \(!e \|\| !e\.ativo\) return null;/);
   assert.match(home, /ctx\.avaliacaoEvento\s*$/m);
   assert.match(home, /\{ \.\.\.b, estado: 'oculto' \}/);
+});
+
+test('o card do evento NÃO exige identidade — o formulário pergunta', () => {
+  /* Quem abre o app sem o link da Yazo ganha sessão anônima nova, e o
+     servidor responde `identificado: false`. Depois do evento isso é
+     quase todo mundo; exigir identidade escondia a pesquisa justamente
+     de quem ela precisa alcançar. */
+  const card = semComentarios(app.slice(app.indexOf('function cardDaAvaliacaoDoEvento'),
+    app.indexOf("const avaliacaoCorpo = document.getElementById")));
+  assert.ok(!card.includes('identificado'), 'o card do evento não olha identidade');
+
+  /* A pesquisa do DIA continua exigindo: ela não tem como perguntar. */
+  const cardDoDia = semComentarios(app.slice(app.indexOf('function cardDaAvaliacao()'),
+    app.indexOf('function cardDaAvaliacaoDoEvento')));
+  assert.ok(cardDoDia.includes('!e.identificado'), 'a pesquisa do dia não pergunta quem é');
 });
 
 test('o card do evento só aparece depois do evento', () => {

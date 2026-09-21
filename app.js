@@ -576,7 +576,16 @@ async function carregarAvaliacaoDoEvento() {
 /* O que o card da home mostra, ou `null` para ele não existir. */
 function cardDaAvaliacaoDoEvento() {
   const e = estadoDaAvaliacaoDoEvento;
-  if (!e || !e.ativo || !e.identificado) return null;
+  /* NÃO EXIGE IDENTIDADE, e essa é a diferença para o card da pesquisa
+     do dia. Quem abre o app sem o link da Yazo ganha uma sessão anônima
+     nova, e o servidor responde `identificado: false` — depois do evento
+     isso é quase todo mundo. Exigir identidade aqui escondia a pesquisa
+     exatamente de quem ela precisa alcançar.
+
+     O card pode aparecer porque o formulário SABE perguntar quem é a
+     pessoa: sem identidade, ele abre pedindo nome e e-mail. A pesquisa
+     do dia não tem esse caminho e por isso continua exigindo. */
+  if (!e || !e.ativo) return null;
   if (e.enviado) {
     return {
       pergunta: 'Avaliação do evento enviada ✓',
