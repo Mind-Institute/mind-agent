@@ -22,6 +22,73 @@ export const PREFIXO_PAINEL = '/admin';
 export const DIRETORIO_ASSETS = '/admin/assets/';
 export const INDICE_PAINEL = '/admin/index.html';
 
+/* ============================================================
+   O DOMÍNIO DA PESQUISA
+   ============================================================
+   `avaliacao.mindsummit.com.br` aponta para ESTE mesmo Worker, mas ali
+   não existe app do evento nem agente: quem chega veio por um link
+   mandado de fora para responder uma pesquisa, e mais nada.
+
+   A REGRA É LISTA DE PERMISSÃO, E NÃO DE BLOQUEIO. Uma lista de bloqueio
+   esquece o arquivo que alguém acrescentar amanhã, e o vazamento é
+   silencioso — a home apareceria num domínio que não deveria tê-la.
+   Aqui, o que não está na lista é 404, inclusive `/admin`.
+
+   O que a página precisa e por quê:
+     avaliacao.html ...... a própria página
+     avaliacao/ .......... tela, serviço, peças e o CSS dela
+     config.js ........... endereços e a identidade vinda da URL
+     chat-service.js ..... a sessão anônima, que a pesquisa reaproveita
+     teclado.js .......... a medida do viewport; a tela é toda campo
+     styles.css .......... tokens da marca e a casca de `.vista`
+     assets/ ............. ícone e símbolo usados pelo CSS e pelo topo */
+export const HOST_DA_PESQUISA = 'avaliacao.mindsummit.com.br';
+
+export const PAGINA_DA_PESQUISA = '/avaliacao.html';
+
+const PERMITIDOS_NA_PESQUISA = [
+  '/avaliacao.html',
+  '/config.js',
+  '/chat-service.js',
+  '/teclado.js',
+  '/styles.css',
+];
+
+const PREFIXOS_PERMITIDOS_NA_PESQUISA = ['/avaliacao/', '/assets/'];
+
+/**
+ * O pedido chegou pelo domínio da pesquisa?
+ *
+ * @param {string | null | undefined} hostname
+ * @returns {boolean}
+ */
+export function ehDaPesquisa(hostname) {
+  return String(hostname || '').toLowerCase() === HOST_DA_PESQUISA;
+}
+
+/**
+ * Decide o que o domínio da pesquisa entrega.
+ *
+ * `/` e qualquer navegação caem na própria pesquisa, em vez de 404: um
+ * link com barra a mais, ou alguém que apaga o fim da URL, continua
+ * chegando onde devia. O que NÃO cai são os arquivos — pedir `/app.js`
+ * ali é pedir o que este domínio não serve, e responder a página em vez
+ * do arquivo faria o navegador tentar executar `<!doctype`.
+ *
+ * @param {string} pathname
+ * @returns {{ tipo: 'pesquisa' } | { tipo: 'asset' } | { tipo: 'recusado' }}
+ */
+export function decidirNaPesquisa(pathname) {
+  if (pathname === '/' || pathname === PAGINA_DA_PESQUISA) return { tipo: 'pesquisa' };
+  if (PERMITIDOS_NA_PESQUISA.includes(pathname)) return { tipo: 'asset' };
+  if (PREFIXOS_PERMITIDOS_NA_PESQUISA.some((p) => pathname.startsWith(p))) {
+    return { tipo: 'asset' };
+  }
+  /* Navegação desconhecida volta para a pesquisa; arquivo desconhecido
+     é recusado. `pedeArquivo` já sabe distinguir os dois. */
+  return pedeArquivo(pathname) ? { tipo: 'recusado' } : { tipo: 'pesquisa' };
+}
+
 /**
  * O caminho pede um ARQUIVO (e não navegação)?
  *
