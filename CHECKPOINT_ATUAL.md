@@ -878,7 +878,8 @@ Já fechado e não precisa ser rediscutido:
 - completar toda Intelligence do Summit;
 - taxonomy/conceitos novos;
 - RAG/vector sem necessidade real;
-- Intelligence Inbox/autodiscovery;
+- ~~Intelligence Inbox/autodiscovery~~ — **liberado em 21/09/2026**: esta linha protegia o
+  prazo do Summit, que já aconteceu. Ver a revogação em `BACKLOG.md` §12.11;
 - limpeza de legado por estética;
 - segunda identidade/backend/session lifecycle para Play;
 - `mind_lead_capturar`;

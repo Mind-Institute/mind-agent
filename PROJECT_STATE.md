@@ -425,7 +425,8 @@ Trabalho independente pode ocorrer em paralelo. Integração respeita dependênc
 Não abrir agora sem bloqueio real:
 
 - completar toda a Intelligence;
-- Intelligence Inbox/autodiscovery completo;
+- ~~Intelligence Inbox/autodiscovery completo~~ — **liberado em 21/09/2026**: esta linha
+  protegia o prazo do Summit, que já aconteceu. Ver a revogação em `BACKLOG.md` §12.11;
 - taxonomia de conceitos sem consumidor;
 - RAG/vector por elegância;
 - limpeza ampla de legado;
