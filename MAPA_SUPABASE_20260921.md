@@ -45,6 +45,10 @@ objetivo veio, e a diferença importa:
 | **declarado** | 71 | o objetivo está escrito como `COMMENT ON TABLE` na própria tabela, dentro do banco |
 | **derivado** | 89 | não há comentário; o objetivo foi lido das colunas, das chaves e da migration que criou a tabela |
 
+> **Ressalva de leitura.** O texto das 71 declaradas foi condensado para caber na
+> tabela. O comentário dentro do banco costuma ser mais longo e às vezes carrega a
+> razão da decisão; quando a diferença importar, `\d+` na tabela mostra o original.
+
 As 89 derivadas são leitura, não declaração — podem estar certas e mesmo assim não
 serem oficiais. O `COMMENT ON TABLE` é o único lugar onde a documentação não consegue se
 separar do banco, e é por isso que fechar essas 89 é o primeiro passo da governança.
@@ -85,7 +89,7 @@ casa foi criada e o dado real acabou morando em outro lugar.
 
 | tabela | objetivo | linhas | estado | último | fonte |
 |---|---|---:|---|---|---|
-| `mensagens` | Cada fala, de pessoa ou de agente. | 48.815 | **vivo** | 2026-09-21 | derivado |
+| `mensagens` | Cada fala, de pessoa ou de agente, persistida antes de qualquer etapa que possa falhar. | 48.815 | **vivo** | 2026-09-21 | derivado |
 | `treble_eventos` | Eventos crus do webhook da Treble. É a fonte da janela de 24h do WhatsApp. | 42.958 | **vivo** | 2026-09-21 | declarado |
 | `conversas` | Uma linha por conversa, em qualquer canal. Carrega rota, audiência, origem e UTM. | 38.255 | **vivo** | 2026-09-21 | derivado |
 | `identidades` | Resolve telefone, id do Treble, e-mail do HubSpot, id da Eduzz e dispositivo para UMA pessoa. | 18.386 | **vivo** | 2026-09-21 | declarado |
@@ -208,7 +212,7 @@ casa foi criada e o dado real acabou morando em outro lugar.
 
 | tabela | objetivo | linhas | estado | último | fonte |
 |---|---|---:|---|---|---|
-| `session_speakers` | Quem fala em cada sessão, com papel. — *81/81 vínculos canônicos* | 81 | populada | — | derivado |
+| `session_speakers` | Quem fala em cada sessão do Summit e com que papel — o vínculo canônico entre sessão e palestrante. — *81/81 vínculos canônicos* | 81 | populada | — | derivado |
 | `sessions` | A grade: título, dia, horário, espaço, trilha, vagas e quais ingressos entram. | 77 | populada | 2026-09-06 | derivado |
 | `knowledge_chunks` | Os pedaços pesquisáveis dessa base, com embedding e índice lexical. — *29 de 29 com embedding gerado* | 29 | populada | — | derivado |
 | `knowledge_documents` | A base de conhecimento do Summit, com hash para detectar mudança. | 29 | populada | 2026-09-03 | derivado |
@@ -240,8 +244,8 @@ casa foi criada e o dado real acabou morando em outro lugar.
 | `programas` | Um registro por programa: tipo, carga horária, duração, modalidade e janela. | 6 | populada | 2026-09-13 | derivado |
 | `bump_regras` | Se o programa X está no carrinho, ofereça a oferta Y. Uma linha por par. | 5 | populada | 2026-09-11 | declarado |
 | `programa_composicao` | A Certificação contém as três formações; incluso=false permite exibir item não incluído. | 3 | populada | — | declarado |
-| `knowledge_chunks` | Os pedaços pesquisáveis dessa base. — *1 chunk, sem embedding — a busca vetorial do Institute não existe* | 1 | populada | — | derivado |
-| `knowledge_documents` | Base de conhecimento do Institute. | 1 | populada | 2026-09-02 | derivado |
+| `knowledge_chunks` | Os pedaços pesquisáveis dos documentos do Institute, com embedding e índice lexical. — *1 chunk, sem embedding — a busca vetorial do Institute não existe* | 1 | populada | — | derivado |
+| `knowledge_documents` | Os documentos de conhecimento do Institute, com hash para detectar mudança na origem. | 1 | populada | 2026-09-02 | derivado |
 | `programa_material` | Documentos públicos de cada programa. Guarda a URL, nunca o arquivo. | 0 | vazia | — | declarado |
 
 ### `concierge` — config, flags, avisos e ferramentas do agente do app
