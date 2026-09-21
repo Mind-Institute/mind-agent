@@ -29,7 +29,8 @@ Não transformar espera de CI, preview ou review em motivo para encerrar a lane.
 
 ## Papéis vigentes
 
-- **Adriana**: produto/negócio e gates sensíveis.
+- **Adriana**: produto/negócio e gates sensíveis. Por **D2**, também a **única aprovadora** de mudança estrutural de banco.
+- **Vinicius**: **dono da execução do banco** — migration, coluna, índice, constraint, backfill. Dentro de casa existente, executa direto; tabela nova, schema novo ou troca de autoridade vão à Adriana antes. Ele executa, ela aprova.
 - **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, fecha a menor mudança, coordena lanes, revisa PRs, decide integração e registra o checkpoint.
 - **Claude Code**: investiga e implementa o escopo delegado em branch `claude/...`; traz evidência independente; não amplia escopo e não mergeia por conta própria.
 - **GitHub**: memória compartilhada e barramento entre lanes.
@@ -46,7 +47,7 @@ Se houver outro supervisor técnico no repositório, ele deve reconstruir o mesm
 
 Por isso revisão/teste vêm antes do merge.
 
-Gate explícito da Adriana antes de execução perigosa quando houver: dado destrutivo/irreversível, identidade, auth/RLS/security/secrets, preço/desconto/regra comercial, source of truth, outbound/disparo, write-back operacional material ou mudança de produto não congelada.
+Gate explícito da Adriana antes de execução perigosa quando houver: dado destrutivo/irreversível, identidade, auth/RLS/security/secrets, preço/desconto/regra comercial, source of truth, outbound/disparo, write-back operacional material, **mudança estrutural de banco (tabela nova, schema novo, mudança de proveniência — D2)** ou mudança de produto não congelada.
 
 ## Arquitetura — uma linguagem só
 

@@ -3,7 +3,33 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v8 — 04/09/2026.**
+> **Versão do checkpoint arquitetural: v9 — 21/09/2026.**
+>
+> v9 congela quatro decisões da Adriana, tomadas depois que o Summit 2026 acabou e o
+> inventário do banco ficou pronto (`MAPA_SUPABASE_20260921.md`):
+>
+> **D1 — o Supabase passa a ser a fonte da verdade do histórico do cliente, e passa a
+> alimentar o HubSpot.** Nas palavras dela: *"o HubSpot estava com essa informação primária
+> antes da gente. Só que agora a gente já tem o espelho da Eduzz. A gente recebe a informação
+> da Eduzz ou de quem é o checkout, e a gente também é quem recebe a informação da Yazo sobre
+> quem foi. É a gente que precisa organizar nossa inteligência para entender, inclusive, como
+> alimentar o HubSpot."* Isto **inverte** a §5 de `docs/CORE_UNIVERSAL.md` e substitui o
+> parágrafo que dizia "não inventar uma". Ver §8 abaixo para a tabela de quem manda em cada
+> fato. O HubSpot deixa de ser origem e vira destino; **ligar a escrita continua atrás do
+> gate existente** — D1 decide a direção do fluxo, não autoriza o disparo.
+>
+> **D2 — um único aprovador: a Adriana. O Vinicius é o dono da execução do banco.** Ver §3.
+>
+> **D3 — escopo do histórico do cliente:** Summit completo, Institute parcial, **Dash
+> declarado fora** enquanto não houver dado de cliente ali (hoje são 2 linhas no schema
+> inteiro, nenhuma de pessoa). Prometer as três verticais hoje seria ficção de dado.
+>
+> **D4 — ligar NPS de verdade**, separado das notas 0–5 das avaliações do Summit, que
+> continuam não sendo NPS. **A escala 0–10 já está no banco**, com `CHECK` em duas casas de
+> grão diferente e ambas vazias: `engagement.nps` (por participante do evento) e
+> `crm.pessoa_nps` (por pessoa e produto). O que falta não é tabela nem constraint — é o
+> **escritor** e a **decisão de produto** de onde perguntar, quando e com que frequência.
+> Sem ela, escritor pronto e tabela vazia. Ver §8.
 >
 > v8 congela o atalho comercial estreito do Treble, criado por causa da latência medida do
 > Router: B2C é padrão; B2B de ingressos exige destino corporativo e mais de uma pessoa;
@@ -63,12 +89,15 @@ Mudança pequena não vira revalidação ampla. Testar o que mudou e regressões
 
 ---
 
-## 3. Modo operacional vigente — v6
+## 3. Modo operacional vigente — v9
 
-- **Adriana** = dona de produto/negócio e dos gates sensíveis.
+- **Adriana** = dona de produto/negócio e dos gates sensíveis. Por **D2**, é também a **única aprovadora** de mudança estrutural de banco: fonte nova, casa nova, mudança de proveniência e o gate de `AGENTS.md:234`.
+- **Vinicius** = **dono da execução do banco**. Escreve migration, coluna, índice, constraint e backfill no dia a dia. Dentro de casa existente e comentada, executa sem passar pela aprovação; o que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai para a Adriana antes. Ele executa, ela aprova.
 - **ChatGPT arquiteto/supervisor** = mantém o modelo mental, verifica GitHub/Supabase, fecha a menor mudança, coordena lanes, revisa PRs/testes, decide ordem de integração, mergeia quando permitido e registra checkpoints.
 - **Claude Code** = investigador/executor escopado em branch `claude/...`; implementa o chunk fechado, testa o afetado, reporta evidência; não amplia escopo e não mergeia sozinho.
 - **GitHub** = memória compartilhada e barramento entre lanes. Coordenação deve ir direto às issues/PRs, evitando Adriana como transporte humano.
+
+> **Por que D2 é sustentável.** Descontada a carga histórica de agosto (120 tabelas em 3 migrations, o stub que criou o banco), setembro/2026 teve **9 tabelas novas em 7 migrations** — menos de uma por semana. A fila de aprovação da Adriana recebe de um a três itens por semana. Se esse volume subir de forma persistente, a decisão de aprovador único é que precisa ser revista — não a régua.
 
 Workflow:
 
@@ -227,6 +256,48 @@ Proveniência canônica:
 - `UNKNOWN`.
 
 Antes de declarar lacuna, procurar fontes acessíveis relevantes. “Não está no mind-agent” não significa “não existe no ecossistema Mind”.
+
+### Quem manda em cada fato — D1, 21/09/2026
+
+A regra acima não muda: **o fato bruto continua pertencendo a quem o observou.** O que D1
+decide é o andar de cima — quem responde pela **síntese**, a leitura consolidada do cliente
+que atravessa várias origens. Essa é do Mind.
+
+| fato | autoridade | onde mora aqui | nota |
+|---|---|---|---|
+| transação, fatura, refund, cupom | `eduzz` | espelho `eduzz.*` | quem processa o pagamento é quem sabe se ele aconteceu |
+| presença física no Summit | `yazo` | `credenciamento_summit_2026.*` | 2026 ainda entra por planilha; virar carga é obra, não decisão |
+| progresso e acesso no LMS | `learnworlds` | `learnworlds.produtos` / `acessos` | o LMS sabe o que a pessoa assistiu; nós sabemos a que ela tem direito |
+| propriedade de contato e estágio de pipeline | `hubspot` | `crm.contato_espelho`, `crm.sync_estado` | continua origem **do que o time comercial edita lá** |
+| **histórico consolidado do cliente com o Mind** | **`mind`** | `crm.pessoa_produtos` — **vazia** | **é isto que D1 inverte**; ver abaixo |
+| conversa, identidade, memória, estado do agente | `mind` | `engagement.*`, `pessoas.*` | sempre foi nosso |
+| vocabulário de produto, preço e oferta | `mind` | `catalogo.produtos` | §6 de `docs/CORE_UNIVERSAL.md` |
+| NPS do evento | `mind` | `engagement.nps` — **vazia** | por participante; `CHECK (nota 0–10)` já existe |
+| NPS por produto | `mind` | `crm.pessoa_nps` — **vazia** | por `(pessoa, produto)`; `CHECK (nota 0–10)` já existe |
+
+**Como ler esta tabela.** Autoridade não é sobre onde o dado está guardado — é sobre quem
+ganha quando duas casas discordam. Um espelho pode ser a cópia mais completa e ainda assim
+não mandar no fato.
+
+> **A casa que D1 pede já existe — e está vazia.** `crm.pessoa_produtos` (`pessoa_id`,
+> `produto_codigo`, `categoria`, `tipo_entrada`, `papel`, `quantidade`, `sincronizado_em`),
+> com FK para `pessoas.pessoas` e `catalogo.produtos`, UNIQUE `(pessoa, produto)` e RLS
+> ligada, foi criada em 29/08/2026 e **nunca recebeu uma linha**. O comentário original dela
+> já dizia a que veio: *"O que cada pessoa já adquiriu… Conversável: a pessoa pode perguntar
+> sobre a própria compra."*
+>
+> Mais: **`crm.contexto_comercial` já lê essa tabela** — e também `crm.pessoa_nps`. A função
+> que entrega contexto comercial ao agente foi escrita contra o consolidado local, não contra
+> o espelho do HubSpot. **A arquitetura de D1 já estava no banco; o que nunca houve foi
+> escritor.**
+>
+> Isso muda o tamanho de D1: não é redesenho, é **carga**. E confirma a regra de
+> `CLAUDE.md` — antes de criar tabela, prove que falta uma casa. Aqui não falta.
+
+**Esta tabela é o resumo, não o registro.** A classificação viva, fonte por fonte, mora em
+`registry.fontes` (§12.11 do `BACKLOG.md`). Quando as duas divergirem, o banco está certo e
+este documento está velho. Mudar autoridade de uma fonte é decisão da Adriana (**D2**),
+registrada como pendência — não patch de quem consome.
 
 ---
 

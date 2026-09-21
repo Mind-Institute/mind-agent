@@ -220,6 +220,34 @@ por isso pipeline novo é **três linhas de configuração**, não código.
 
 Esta seção é a que mais custa caro errar.
 
+> **D1 — 21/09/2026, decisão da Adriana: a direção do fluxo está invertida.** O Supabase passa
+> a ser a fonte da verdade do histórico do cliente, e passa a **alimentar** o HubSpot. O HubSpot
+> deixa de ser origem e vira destino.
+>
+> **O que isso muda hoje: nada na leitura.** Enquanto a escrita para o HubSpot não for ligada —
+> e **ligar é write-back operacional material, portanto continua atrás do gate de `AGENTS.md`**
+> — quem responde pelo histórico consolidado continua sendo o contato espelhado, exatamente
+> como descrito abaixo. D1 decide para onde a seta aponta; não autoriza o disparo.
+>
+> **O que isso muda já:** informação nova sobre o cliente nasce no Supabase, não no HubSpot.
+> Curadoria à mão no HubSpot que vire fato — como o histórico de Summit — é dívida a trazer
+> para cá, não padrão a repetir. Quem manda em cada fato, fonte por fonte, é registrado no
+> schema `registry` (§12.11 do `BACKLOG.md`), não deduzido caso a caso.
+
+### D3 — até onde o histórico do cliente vai hoje
+
+Decisão da Adriana, 21/09/2026. **O histórico consolidado cobre três verticais com três
+profundidades diferentes, e prometer paridade seria ficção de dado.**
+
+| vertical | escopo | por quê |
+|---|---|---|
+| **Summit** | **completo** | compra, credenciamento e participação existem como dado |
+| **Institute** | **parcial** | oferta, programa e encontro existem; `institute.programa_pessoas` tem 9 vínculos, e o histórico de matrícula ainda **não** foi trazido do LearnWorlds |
+| **Dash** | **fora** | o schema `dash` inteiro tem 2 linhas, ambas de documento — **nenhuma de pessoa**. Não há histórico de cliente a consolidar |
+
+Dash sai por **ausência de dado**, não por decisão de produto: entra quando houver cliente
+ali. Enquanto não houver, agente, painel e relatório não devem prometer a vertical.
+
 ### Histórico consolidado de compra e participação → **o CONTATO**
 
 `crm.contato_espelho`, incluindo o `propriedades jsonb` com o registro cru inteiro. É dali que
@@ -1098,8 +1126,18 @@ e-mail e, quando inequívoco, WhatsApp. `mind_credenciamento_fatos` é a porta i
 leitura para agentes; nunca usa nome como identidade e nunca expõe dados do comprador. A coluna
 `password` da origem **não** é espelhada — o corte é feito na porta do projeto de origem.
 
-> Não existe ainda uma source-of-truth definitiva entre Eduzz, credenciamento e HubSpot além
-> das decisões já tomadas acima. Não inventar uma.
+> ~~Não existe ainda uma source-of-truth definitiva entre Eduzz, credenciamento e HubSpot além
+> das decisões já tomadas acima. Não inventar uma.~~
+>
+> **Revogado em 21/09/2026 por D1** (§5). A regra existia porque ninguém tinha decidido quem
+> manda; agora alguém decidiu. **O Mind manda no histórico consolidado do cliente**; Eduzz,
+> credenciamento, Yazo, HubSpot e LearnWorlds são **origens de fato**, cada uma autoridade
+> sobre o que ela própria observa (a Eduzz sobre a transação, o credenciamento sobre a presença),
+> e nenhuma delas sobre o consolidado.
+>
+> **A proibição de inventar continua valendo em outra forma:** autoridade por fonte não se
+> deduz no código que consome — ela é **declarada** em `registry.fontes` e mudá-la é decisão
+> da Adriana, não do consumidor. Fonte sem classificação vira pendência; não vira palpite.
 
 ### Espelhos de outros projetos Supabase
 

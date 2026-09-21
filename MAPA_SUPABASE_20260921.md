@@ -704,6 +704,29 @@ Confirmado: `engagement.avaliacao_do_evento_convite` não existe, e nenhuma fun�
 
 Registrado aqui porque um gate que aguenta é tão informativo quanto um que vazou.
 
+### 9. A casa do histórico consolidado existe desde agosto — e nunca recebeu uma linha
+
+`crm.pessoa_produtos` tem `pessoa_id`, `produto_codigo`, `categoria`, `tipo_entrada`,
+`papel`, `quantidade` e `sincronizado_em`, com FK para `pessoas.pessoas` e
+`catalogo.produtos`, UNIQUE `(pessoa, produto)` e RLS ligada. Foi criada no stub de
+29/08/2026 e está em **0 linhas**.
+
+`crm.contexto_comercial` — a função que entrega contexto comercial ao agente — **já lê**
+essa tabela, e também `crm.pessoa_nps`. Ou seja: a arquitetura que D1 pede já estava
+desenhada e ligada; o que nunca existiu foi **escritor**.
+
+Isso reduz D1 de redesenho para carga, e explica por que o histórico do cliente hoje é lido
+do espelho do HubSpot: não porque essa fosse a decisão, mas porque era a única casa cheia.
+
+### 10. `engagement.nps` só aceita um NPS por pessoa — para sempre
+
+A tabela tem `event_id` com FK para `summit_2026.events`, o que promete NPS por evento, mas
+a constraint é `UNIQUE (participante_id)` — sem o `event_id` na chave. Quem responder ao
+NPS do Summit 2026 **não consegue responder ao de 2027**: o insert viola a unique.
+
+Não é urgente — a tabela está vazia e o escritor nunca entrou (D4). Mas a correção é mais
+barata agora, vazia, do que depois de carregada. Achado, não obra.
+
 ---
 
 ## Observação de segurança, sem ação tomada
