@@ -27,4 +27,11 @@ Thumbs.db
 
 # Relatórios com dado pessoal dos participantes: gerados sob demanda,
 # entregues como arquivo, nunca versionados.
-avaliacao-do-dia-*.pdf
+#
+# TODO PDF, e não só `avaliacao-do-dia-*`. O nome de saída do relatório é
+# argumento livre — `npm run relatorio:avaliacao -- dados.json foo.pdf`
+# gera `foo.pdf`, que o padrão antigo não pegava. Nenhum PDF é versionado
+# neste repositório (conferido: `git ls-files "*.pdf"` é vazio), e um
+# documento com nome, e-mail e o que cada participante escreveu ficava a
+# um `git add .` de entrar no histórico, de onde não se tira mais.
+*.pdf

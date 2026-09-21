@@ -155,10 +155,15 @@ doc.x = M;
    Cada linha carrega a própria amostra. Um dia com 24 respostas e outro
    com 15 não são comparáveis sem isso — e a diferença entre 4,50 e 4,33
    cabe inteira dentro dessa distância. */
-if (d.porDia && d.porDia.length) {
-  doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text('Dia a dia');
-  doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
-    .text('Os mesmos três números, separados. A amostra vem em cada linha porque é ela que diz o quanto a diferença entre os dias significa.');
+/* A MESMA TABELA SERVE AOS DOIS RECORTES. "Dia a dia" na pesquisa do dia
+   e "Por ingresso" na do evento são a mesma pergunta — os três números
+   separados por um corte, cada linha com a própria amostra. Duas cópias
+   divergiriam na primeira vez que alguém mexesse em uma só. */
+function tabelaKpi(titulo, subtitulo, primeira, linhas) {
+  if (!linhas || !linhas.length) return;
+  espaco(70);
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text(titulo);
+  doc.font('Helvetica').fontSize(8.5).fillColor(MUDO).text(subtitulo, { width: L * 0.95 });
   doc.moveDown(0.8);
 
   /* Cabeçalho da tabelinha. Colunas fixas: número alinhado embaixo de
@@ -172,14 +177,14 @@ if (d.porDia && d.porDia.length) {
       });
 
   const yCab = doc.y;
-  ['Dia', 'Respostas', 'Relevância', '4 ou 5', 'Programação', '4 ou 5']
+  [primeira, 'Respostas', 'Relevância', '4 ou 5', 'Programação', '4 ou 5']
     .forEach((t, i) => { doc.y = yCab; cabeca(t, i, i >= 2 ? 'right' : (i === 1 ? 'right' : 'left')); });
   doc.x = M;
   doc.y = yCab + 12;
   regua(doc.y);
   doc.moveDown(0.5);
 
-  for (const l of d.porDia) {
+  for (const l of linhas) {
     espaco(26);
     const y = doc.y;
     const cel = (t, i, forte) => {
@@ -212,48 +217,63 @@ if (d.porDia && d.porDia.length) {
   doc.moveDown(0.8);
 }
 
-/* ---------------- por atividade ---------------- */
-doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text('Por atividade');
-doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
-  .text('A média vem sempre com o número de avaliações ao lado. Atividade que ninguém avaliou aparece como "Sem avaliações", nunca como zero.');
-doc.moveDown(0.7);
+tabelaKpi('Dia a dia',
+  'Os mesmos três números, separados. A amostra vem em cada linha porque é ela que diz o quanto a diferença entre os dias significa.',
+  'Dia', d.porDia);
 
-/* Num relatório de mais de um dia, "11:30" aparece duas vezes e não quer
-   dizer a mesma coisa. O dia entra como cabeçalho de grupo quando a
-   consulta o traz; num relatório de um dia só, nada muda. */
-let diaCorrente = null;
+/* ---------------- por atividade ----------------
+   Também compartilhada pelas duas pesquisas: cada uma traz a própria
+   lista, e a regra de leitura — média com amostra ao lado, atividade sem
+   nota escrita por extenso e nunca como zero — vale igual nas duas. */
+function tabelaDeAtividades(titulo, subtitulo, lista) {
+  if (!lista || !lista.length) return;
+  espaco(70);
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA).text(titulo);
+  doc.font('Helvetica').fontSize(8.5).fillColor(MUDO).text(subtitulo, { width: L * 0.95 });
+  doc.moveDown(0.7);
 
-for (const a of d.porAtividade) {
-  if (a.dia && a.dia !== diaCorrente) {
-    diaCorrente = a.dia;
-    espaco(34);
-    doc.moveDown(0.6);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(SUAVE)
-      .text(a.dia, M, doc.y, { characterSpacing: 0.8 });
-    doc.moveDown(0.3);
+  /* Num relatório de mais de um dia, "11:30" aparece duas vezes e não quer
+     dizer a mesma coisa. O dia entra como cabeçalho de grupo quando a
+     consulta o traz; num relatório de um dia só, nada muda. */
+  let diaCorrente = null;
+
+  for (const a of lista) {
+    if (a.dia && a.dia !== diaCorrente) {
+      diaCorrente = a.dia;
+      espaco(34);
+      doc.moveDown(0.6);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(SUAVE)
+        .text(a.dia, M, doc.y, { characterSpacing: 0.8 });
+      doc.moveDown(0.3);
+    }
+    espaco(28);
+    const y = doc.y;
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(VERDE).text(a.inicio || '', M, y, { width: 34 });
+    doc.font('Helvetica').fontSize(9).fillColor(TINTA)
+      .text(a.titulo, M + 38, y, { width: L - 160, lineGap: 1 });
+    doc.fontSize(8).fillColor(MUDO).text(a.espaco || '', M + 38, doc.y, { width: L - 160 });
+    const yFim = Math.max(doc.y, y + 12);
+
+    if (!a.n) {
+      doc.font('Helvetica-Oblique').fontSize(8.5).fillColor(MUDO)
+        .text('Sem avaliações', M + L - 118, y, { width: 118, align: 'right' });
+    } else {
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(TINTA)
+        .text(vg(a.media), M + L - 118, y - 1, { width: 60, align: 'right' });
+      doc.font('Helvetica').fontSize(8).fillColor(MUDO)
+        .text(`${a.n} ${a.n === 1 ? 'avaliação' : 'avaliações'}`,
+          M + L - 56, y + 1, { width: 56, align: 'right' });
+    }
+    doc.x = M;
+    doc.y = yFim + 5;
+    regua(doc.y - 2);
   }
-  espaco(28);
-  const y = doc.y;
-  doc.font('Helvetica-Bold').fontSize(8.5).fillColor(VERDE).text(a.inicio || '', M, y, { width: 34 });
-  doc.font('Helvetica').fontSize(9).fillColor(TINTA)
-    .text(a.titulo, M + 38, y, { width: L - 160, lineGap: 1 });
-  doc.fontSize(8).fillColor(MUDO).text(a.espaco || '', M + 38, doc.y, { width: L - 160 });
-  const yFim = Math.max(doc.y, y + 12);
-
-  if (!a.n) {
-    doc.font('Helvetica-Oblique').fontSize(8.5).fillColor(MUDO)
-      .text('Sem avaliações', M + L - 118, y, { width: 118, align: 'right' });
-  } else {
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(TINTA)
-      .text(vg(a.media), M + L - 118, y - 1, { width: 60, align: 'right' });
-    doc.font('Helvetica').fontSize(8).fillColor(MUDO)
-      .text(`${a.n} ${a.n === 1 ? 'avaliação' : 'avaliações'}`,
-        M + L - 56, y + 1, { width: 56, align: 'right' });
-  }
-  doc.x = M;
-  doc.y = yFim + 5;
-  regua(doc.y - 2);
+  doc.moveDown(0.5);
 }
+
+tabelaDeAtividades('Por atividade',
+  'A média vem sempre com o número de avaliações ao lado. Atividade que ninguém avaliou aparece como "Sem avaliações", nunca como zero.',
+  d.porAtividade);
 
 /* ---------------- as respostas ---------------- */
 doc.addPage();
@@ -355,6 +375,26 @@ if (d.pesquisaDoEvento && Array.isArray(d.pesquisaDoEvento.respostas)) {
         `Amostra de ${ne}: leia as respostas, não a média.`, M, doc.y);
       doc.moveDown(0.8);
     }
+
+    /* POR INGRESSO, e não por dia: esta pesquisa é sobre o Summit inteiro,
+       então o corte que separa experiências diferentes é o ingresso, não
+       a data. Mesma tabela, outra pergunta. */
+    tabelaKpi('Por ingresso',
+      'Mind, VIP e Prime viveram eventos diferentes — lounge, masterclass e fila de almoço não são os mesmos. ' +
+      'Com amostras deste tamanho a diferença entre as linhas sugere, não comprova.',
+      'Ingresso', d.pesquisaDoEvento.porTicket);
+
+    tabelaDeAtividades('Por atividade, no evento inteiro',
+      'Aqui a pessoa avaliou a programação dos dois dias de uma vez, olhando para trás. ' +
+      'São notas diferentes das da pesquisa do dia: outro momento, outra memória, outra amostra.',
+      d.pesquisaDoEvento.porAtividade);
+
+    doc.addPage();
+    doc.font('Helvetica-Bold').fontSize(13).fillColor(TINTA)
+      .text('As respostas do evento, uma a uma');
+    doc.font('Helvetica').fontSize(8.5).fillColor(MUDO)
+      .text('Texto exatamente como foi escrito, sem correção de digitação.');
+    doc.moveDown(1);
 
     for (const r of ev) {
       espaco(115);
