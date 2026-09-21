@@ -168,3 +168,17 @@ test('a casca que o CSS exige está lá', () => {
 test('a página entra no build', () => {
   assert.match(build, /'avaliacao\.html'/);
 });
+
+test('o Worker segue o redirecionamento do pipeline de assets', () => {
+  /* `avaliacao.html` é servido em `/avaliacao`, e o caminho com extensão
+     recebe 307 (`html_handling`). Repassar esse 307 mandava o navegador
+     para `/avaliacao`, que voltava por aqui e recebia outro 307 — laço,
+     e a página nunca aparecia. Aconteceu no primeiro deploy. */
+  const bloco = worker.slice(worker.indexOf("decisao.tipo === 'pesquisa'"),
+    worker.indexOf("return env.ASSETS.fetch(request);"));
+  assert.match(bloco, /resposta\.status >= 300 && resposta\.status < 400/);
+  assert.match(bloco, /headers\.get\('Location'\)/);
+  /* E o destino é forçado para a nossa origem: seguir cegamente o que
+     vier no cabeçalho seria deixar outro escolher para onde vamos. */
+  assert.match(bloco, /seguinte\.host = url\.host;/);
+});
