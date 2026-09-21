@@ -1,15 +1,22 @@
 /* ============================================================
    WORKER — fallback de SPA para o painel
    ============================================================
-   Um site, dois produtos:
+   Um Worker, três produtos, separados por caminho e por HOST:
 
      /        → Mind Agent, o chat público (estático, sem rota de cliente)
      /admin/  → Painel Admin (SPA com BrowserRouter)
+     avaliacao.mindsummit.com.br → só a pesquisa, e nada mais
 
-   O `wrangler.jsonc` limita este Worker a `/admin` e `/admin/*` por
-   `run_worker_first`. Todo o resto — o chat — é servido direto pelo
-   pipeline de assets, sem passar por aqui. É de propósito: o chat não
-   tem rota de cliente, e o 404 dele deve continuar 404.
+   O Worker atende TODOS os caminhos (`run_worker_first` no
+   `wrangler.jsonc`). Era só `/admin` antes; ampliou porque a decisão do
+   domínio da pesquisa depende de olhar o Host, e o pipeline de assets
+   não olha.
+
+   Isso trouxe uma garantia para dentro do código: o fallback de SPA
+   continua valendo SÓ para o painel. O chat não tem rota de cliente, e
+   o 404 dele deve continuar 404 em vez de virar a home — antes quem
+   garantia isso era o recorte da configuração, agora é o
+   `ehDoPainel` aqui embaixo.
 
    As regras de decisão moram em `roteamento.js`, importado também pelo
    simulador local. Uma cópia só, para o que se valida ser o que sobe.
@@ -17,7 +24,10 @@
    Nenhum segredo aqui. As chaves de verdade (`service_role`,
    `OPENAI_API_KEY`) ficam nas Edge Functions do Supabase. */
 
-import { INDICE_PAINEL, decidirAntes, decidirApos404 } from './roteamento.js';
+import {
+  INDICE_PAINEL, PAGINA_DA_PESQUISA,
+  decidirAntes, decidirApos404, decidirNaPesquisa, ehDaPesquisa, ehDoPainel,
+} from './roteamento.js';
 
 export interface Env {
   /** Binding declarado em `wrangler.jsonc` → `assets.binding`. */
@@ -28,6 +38,40 @@ export interface Env {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    /* ============================================================
+       O DOMÍNIO DA PESQUISA
+       ============================================================
+       Vem ANTES de tudo, inclusive do painel: em
+       `avaliacao.mindsummit.com.br` não existe app do evento, agente nem
+       /admin. O que não está na lista de permissão é 404 — e é lista de
+       permissão justamente para o arquivo que alguém acrescentar amanhã
+       não vazar sozinho para cá. */
+    if (ehDaPesquisa(url.hostname)) {
+      const decisao = decidirNaPesquisa(url.pathname);
+
+      if (decisao.tipo === 'recusado') {
+        return new Response('Não encontrado.', {
+          status: 404,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+
+      if (decisao.tipo === 'pesquisa') {
+        /* A URL do navegador NÃO muda: a pessoa continua vendo o
+           endereço que recebeu, e não um `/avaliacao.html` que ela não
+           pediu. Por isso busca-se a página e devolve-se o conteúdo, em
+           vez de redirecionar. */
+        const pagina = new URL(PAGINA_DA_PESQUISA, url.origin);
+        const resposta = await env.ASSETS.fetch(new Request(pagina, request));
+        return new Response(resposta.body, {
+          status: resposta.status,
+          headers: resposta.headers,
+        });
+      }
+
+      return env.ASSETS.fetch(request);
+    }
 
     if (request.method === 'GET' && /^\/c\/[0-9a-f-]{36}$/i.test(url.pathname)) {
       const eventId = url.pathname.slice(3);
@@ -45,6 +89,15 @@ export default {
 
     const resposta = await env.ASSETS.fetch(request);
     if (resposta.status !== 404) return resposta;
+
+    /* O FALLBACK DE SPA É SÓ DO PAINEL, e agora isso precisa estar
+       ESCRITO. Antes quem garantia era o `run_worker_first`, que só
+       chamava o Worker em `/admin`; para o domínio da pesquisa existir,
+       o Worker passou a ser a porta de tudo — e sem esta linha
+       `/qualquer-coisa` no chat passaria a devolver o painel em vez de
+       404, que é exatamente o que o comentário do wrangler prometia
+       que não aconteceria. */
+    if (!ehDoPainel(url.pathname)) return resposta;
 
     const depois = decidirApos404(request.method, url.pathname);
     if (depois.tipo !== 'indice') return resposta;

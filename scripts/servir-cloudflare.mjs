@@ -21,7 +21,10 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decidirAntes, decidirApos404, ehDoPainel, INDICE_PAINEL } from '../cloudflare/roteamento.js';
+import {
+  INDICE_PAINEL, PAGINA_DA_PESQUISA,
+  decidirAntes, decidirApos404, decidirNaPesquisa, ehDaPesquisa, ehDoPainel,
+} from '../cloudflare/roteamento.js';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SAIDA = join(RAIZ, 'dist-cloudflare');
@@ -79,7 +82,22 @@ const servidor = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
   const metodo = req.method ?? 'GET';
 
-  /* Fora de /admin o Worker não roda: asset ou 404, como no chat. */
+  /* O DOMÍNIO DA PESQUISA, primeiro — como no Worker. Para provar aqui:
+     curl -H 'Host: avaliacao.mindsummit.com.br' http://localhost:8790/
+     Sem isto o simulador passaria a validar um site que não é o que sobe. */
+  const host = String(req.headers.host ?? '').split(':')[0];
+  if (ehDaPesquisa(host)) {
+    const decisao = decidirNaPesquisa(url.pathname);
+    if (decisao.tipo === 'recusado') {
+      return responder(res, 404, 'Não encontrado.', 'text/plain; charset=utf-8');
+    }
+    const alvo = decisao.tipo === 'pesquisa' ? PAGINA_DA_PESQUISA : url.pathname;
+    const asset = await lerAsset(alvo);
+    if (asset) return responder(res, 200, asset.corpo, asset.tipo);
+    return responder(res, 404, 'Not Found', 'text/plain; charset=utf-8');
+  }
+
+  /* Fora de /admin o Worker não decide nada: asset ou 404, como no chat. */
   if (!ehDoPainel(url.pathname)) {
     const asset = await lerAsset(url.pathname);
     if (asset) return responder(res, 200, asset.corpo, asset.tipo);

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!-- Mesma razão do app: sem `theme-color` o Safari pinta a própria barra de
+     claro, e ela encosta numa página escura como se fosse um vão nosso. -->
+<meta name="theme-color" content="#13131a" />
+<meta name="color-scheme" content="dark" />
+<meta name="robots" content="noindex" />
+<title>Avaliação do Mind Summit 2026</title>
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+<link rel="apple-touch-icon" href="./assets/simbolo-mind-verde.png" />
+<link rel="stylesheet" href="./styles.css" />
+<link rel="stylesheet" href="./avaliacao/avaliacao.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       A PESQUISA, SOZINHA
+       ============================================================
+       Esta página existe para o domínio `avaliacao.mindsummit.com.br`,
+       e ali não há app do evento nem agente: quem chega veio responder
+       uma pesquisa por um link mandado de fora, e mais nada.
+
+       POR QUE UMA PÁGINA, E NÃO O APP COM UMA ROTA: o `app.js` tem
+       140 KB e a home outros 61 KB que esta tela não executa. Num
+       disparo para milhares de pessoas, no celular, isso é a diferença
+       entre abrir e desistir. E separa o raio de dano — um defeito na
+       home ou no chat não derruba a pesquisa enquanto ela circula.
+
+       O QUE ELA NÃO DUPLICA: nada. Importa os MESMOS módulos do app —
+       `config.js`, `chat-service.js`, `avaliacao/*`. A identidade é a
+       mesma, e é justamente a peça que não pode ter duas cópias.
+
+       A casca é a mesma do app porque o CSS a exige: `.vista.ativa` é
+       o que torna a tela visível, e `.c-topo` é o cabeçalho. -->
+  <section class="vista ativa" id="vista-avaliacao">
+    <div class="c-topo">
+      <!-- Sem botão de voltar: não existe home atrás desta página. -->
+      <span class="avatar"><img src="./assets/simbolo-mind-verde.png" alt="" /></span>
+      <div>
+        <strong id="avaliacao-titulo">Avaliação do evento</strong>
+        <small id="avaliacao-sub">Sua experiência no Mind Summit</small>
+      </div>
+    </div>
+    <div class="av-corpo" id="avaliacao-corpo"></div>
+  </section>
+
+<script type="module">
+  /* O teclado do celular entra: esta tela é quase toda campo de texto, e
+     sem a medida do `visualViewport` o teclado cobre o campo que a pessoa
+     está preenchendo. São 6 KB e resolvem o pior atrito da tela. */
+  import { ligarTeclado } from './teclado.js';
+  import { abrirAvaliacaoDoEvento, subtituloDaAvaliacaoDoEvento } from './avaliacao/evento.js';
+
+  ligarTeclado();
+
+  const corpo = document.getElementById('avaliacao-corpo');
+  const sub = document.getElementById('avaliacao-sub');
+  sub.textContent = subtituloDaAvaliacaoDoEvento();
+
+  /* `null` no voltar e no aoEnviar: não há home para onde voltar nem card
+     para atualizar. A tela já sabe se comportar assim — é o mesmo caminho
+     de quem entra por convite. */
+  abrirAvaliacaoDoEvento(
+    corpo,
+    null,
+    null,
+    (texto) => { sub.textContent = texto; },
+  ).catch(() => { /* o módulo já desenhou o próprio erro */ });
+</script>
+
+</body>
+</html>
