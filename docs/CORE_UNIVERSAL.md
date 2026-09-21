@@ -1130,10 +1130,15 @@ leitura para agentes; nunca usa nome como identidade e nunca expõe dados do com
 > das decisões já tomadas acima. Não inventar uma.~~
 >
 > **Revogado em 21/09/2026 por D1** (§5). A regra existia porque ninguém tinha decidido quem
-> manda; agora alguém decidiu. **O Mind manda no histórico consolidado do cliente**; Eduzz,
-> credenciamento, Yazo, HubSpot e LearnWorlds são **origens de fato**, cada uma autoridade
-> sobre o que ela própria observa (a Eduzz sobre a transação, o credenciamento sobre a presença),
-> e nenhuma delas sobre o consolidado.
+> manda; agora alguém decidiu. **O Mind manda no histórico consolidado do cliente**, e cada
+> origem externa é autoridade apenas **sobre o fato que ela própria observa** — a Eduzz sobre
+> a liquidação do pagamento, o LearnWorlds sobre o progresso no curso. Nenhuma delas manda no
+> consolidado.
+>
+> **A presença no Summit é nossa, não da Yazo** (correção da Adriana, 21/09). O credenciamento
+> acontece na nossa porta, no nosso evento, pela nossa equipe; a Yazo é a ferramenta que o
+> opera, e a planilha de 2026 é o canal de entrada, não o dono do fato. **Autoridade segue o
+> processo, não o fornecedor** — a régua completa está em `PROJECT_STATE.md` §8.
 >
 > **A proibição de inventar continua valendo em outra forma:** autoridade por fonte não se
 > deduz no código que consome — ela é **declarada** em `registry.fontes` e mudá-la é decisão

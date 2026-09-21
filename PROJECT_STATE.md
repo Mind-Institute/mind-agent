@@ -266,7 +266,7 @@ que atravessa várias origens. Essa é do Mind.
 | fato | autoridade | onde mora aqui | nota |
 |---|---|---|---|
 | transação, fatura, refund, cupom | `eduzz` | espelho `eduzz.*` | quem processa o pagamento é quem sabe se ele aconteceu |
-| presença física no Summit | `yazo` | `credenciamento_summit_2026.*` | 2026 ainda entra por planilha; virar carga é obra, não decisão |
+| presença física no Summit | **`mind`** | `credenciamento_summit_2026.*` | **quem manda é o credenciamento, não a Yazo** — ver a regra abaixo. 2026 ainda entra por planilha; virar carga é obra, não decisão |
 | progresso e acesso no LMS | `learnworlds` | `learnworlds.produtos` / `acessos` | o LMS sabe o que a pessoa assistiu; nós sabemos a que ela tem direito |
 | propriedade de contato e estágio de pipeline | `hubspot` | `crm.contato_espelho`, `crm.sync_estado` | continua origem **do que o time comercial edita lá** |
 | **histórico consolidado do cliente com o Mind** | **`mind`** | `crm.pessoa_produtos` — **vazia** | **é isto que D1 inverte**; ver abaixo |
@@ -278,6 +278,28 @@ que atravessa várias origens. Essa é do Mind.
 **Como ler esta tabela.** Autoridade não é sobre onde o dado está guardado — é sobre quem
 ganha quando duas casas discordam. Um espelho pode ser a cópia mais completa e ainda assim
 não mandar no fato.
+
+> **A regra que decide as linhas duvidosas — correção da Adriana, 21/09/2026.**
+> **Autoridade segue o processo, não o fornecedor.**
+>
+> A pergunta certa não é *"em que sistema esse dado está?"*, é *"quem observou o fato?"*.
+>
+> - A Eduzz **observa um fato que nós não conseguimos observar**: se o pagamento liquidou.
+>   Mesma coisa para o LearnWorlds e o progresso no vídeo. Nesses casos a autoridade é deles
+>   de verdade — trocar de fornecedor muda quem observa.
+> - A Yazo **não observa nada nosso**: o credenciamento acontece na nossa porta, no nosso
+>   evento, pela nossa equipe. A Yazo é a ferramenta que usamos para operá-lo — daria para
+>   ter feito no papel. **Quem manda na presença é o credenciamento, e o credenciamento é
+>   nosso.** Trocar a Yazo por outro sistema no ano que vem não move a autoridade.
+>
+> O erro que esta regra corrige era meu, e é o erro fácil: confundir *onde o arquivo está*
+> com *de quem é o fato*. A planilha da Yazo é o canal de entrada de 2026, não o dono.
+>
+> **A mesma régua aponta para o HubSpot, e vale dizer em voz alta:** o time comercial edita
+> lá, mas o processo comercial é nosso — nenhum fato nasce no HubSpot por observação dele.
+> Isso **reforça D1** em vez de contrariá-la: o HubSpot está na tabela acima como origem do
+> que o time edita hoje, que é o estado transitório honesto, não uma autoridade de direito.
+> Quando a inversão de D1 for ligada, essa linha cai sozinha.
 
 > **A casa que D1 pede já existe — e está vazia.** `crm.pessoa_produtos` (`pessoa_id`,
 > `produto_codigo`, `categoria`, `tipo_entrada`, `papel`, `quantidade`, `sincronizado_em`),

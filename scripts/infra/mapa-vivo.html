@@ -446,10 +446,16 @@ const DECISOES = [
 ];
 
 /* Quem manda em cada fato. O fato bruto continua de quem o observou;
-   D1 decide o andar de cima, a síntese. */
+   D1 decide o andar de cima, a síntese.
+
+   A régua, corrigida pela Adriana em 21/09: autoridade segue o PROCESSO,
+   não o fornecedor. Eduzz e LearnWorlds observam fato que não
+   conseguimos observar (se liquidou, se assistiu) — autoridade deles de
+   verdade. A Yazo não observa nada nosso: o credenciamento é na nossa
+   porta, pela nossa equipe, e ela é só a ferramenta. */
 const AUTORIDADE = [
  ["transação, fatura, refund, cupom","eduzz","espelho eduzz.*"],
- ["presença física no Summit","yazo","credenciamento_summit_2026.* — 2026 ainda entra por planilha"],
+ ["presença física no Summit","mind","credenciamento_summit_2026.* — o credenciamento é nosso; a Yazo é a ferramenta, e a planilha de 2026 é o canal de entrada"],
  ["progresso e acesso no LMS","learnworlds","learnworlds.produtos / acessos"],
  ["propriedade de contato, estágio de pipeline","hubspot","crm.contato_espelho — o que o time edita lá"],
  ["histórico consolidado do cliente","mind","crm.pessoa_produtos — VAZIA; é o que D1 inverte"],
@@ -460,6 +466,7 @@ const AUTORIDADE = [
 
 /* As regras que o projeto já congelou. O consultor propõe dentro delas. */
 const REGRAS = [
+ "Autoridade segue o processo, não o fornecedor: a pergunta é quem observou o fato, não em que sistema ele está.",
  "Antes de criar tabela, provar que falta uma casa. Quase sempre não falta.",
  "Usar casas e taxonomias existentes em vez de inventar vocabulário novo.",
  "Não transformar hipótese futura em coluna criada por antecipação.",
