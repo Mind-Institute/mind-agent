@@ -418,7 +418,7 @@ const FALTA = {
 };
 const SOBRA = {
  catalogo:["As quatro tabelas de oferta (<code>ofertas</code>, <code>oferta_precos</code>, <code>oferta_inclui</code>, <code>oferta_requer</code>) estão vazias e sem leitor. Ou viram a casa única da oferta, ou saem."],
- eventos:["O schema inteiro: duas tabelas, zero linhas, criado para um caso que nunca veio."],
+ eventos:["O schema inteiro: duas tabelas, zero linhas, criado para um caso que nunca veio. <b>Remoção escrita</b> na migration <code>20260921233000</code>, aguardando merge — quando aplicar, este cartão some sozinho. Não era um <code>DROP</code> de uma linha: cinco funções vivas liam daqui como galho padrão da busca de conhecimento, e foram reescritas antes."],
  platform:["<code>llm_routes</code>, <code>llm_models</code> e <code>llm_providers</code> têm dado e <b>nenhum leitor no banco</b> — a escolha de modelo vive no código, não aqui."],
  concierge:["<code>prompts</code> é histórico: a casa canônica é <code>agentes.prompts</code>."]
 };
