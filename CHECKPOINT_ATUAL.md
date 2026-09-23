@@ -28,6 +28,14 @@ aplicada.
   (id de `participantes`).
 - Descobertas laterais registradas em `BACKLOG.md` §20 (`v_participantes` ainda resolve por junção;
   `api.me` lia schema inexistente; funções presas a `engagement.checkout_clicks`, tabela que saiu).
+- **Varredura das 160 tabelas concluída (07:37 UTC)** — `scripts/infra/identidade/60_varredura_mind_id.sql`:
+  das 164 tabelas, 110 não tinham FK para pessoa; 5 com informação de cliente entraram na Regra #1
+  (`crm.pipeline_leads_inbound`, `crm.status_summit_hs`, `treble.status_hs_contatos`,
+  `treble.status_da_conversa`, `engagement.verificacoes_email`) e foram preenchidas **sem criar pessoa**:
+  15.406 linhas ligadas por identificador já conhecido, 71 pelo `mind_id` do espelho, 149 marcadas como
+  "sem pessoa" (contato fora do espelho ou telefone de teste). `engagement.treble_eventos` (log bruto) e
+  `crm.empenho_summit_2026` (pessoa em `propriedades._contatos`, gate) ficaram de fora de propósito; as
+  103 restantes não falam de cliente ou herdam a pessoa do pai. Lateral nova: BACKLOG §20.8.
 - Testes: `tests/d5_identidade_universal_contract.sql` adaptado a `mind_id` (13 cenários, verde em
   produção dentro da prova); os demais contratos SQL do repo renomeados mecanicamente.
 

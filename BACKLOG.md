@@ -1026,3 +1026,10 @@ rename passar.
    (`summit.sessions`, `motivos_ausencia`) e `mind.esquecer_participante` (`nps_summit`,
    `participantes` fora do search_path). D6 as recria só com o rename (a primeira com
    `check_function_bodies` desligado, por ser LANGUAGE sql). Consertar ou dropar é decisão à parte.
+8. **25 pessoas ligadas a um contato do HubSpot sem a identidade `hubspot` em `engagement.identidades`**
+   (achado da varredura #34, 23/09): `crm.contato_espelho.mind_id` aponta para a pessoa, mas
+   `identidades` não tem o `hubspot_id` dela, então a porta única não encontra a pessoa por esse id.
+   `mind_pessoa_enriquecer` rodou nas 25 e não acrescentou (2 conflitos: o id já está em outra
+   pessoa). Conferir uma a uma na fila de fusões; até lá, quem chegar só com esse id HubSpot cria
+   pessoa nova. Linhas afetadas hoje: 10 em `crm.pipeline_leads_inbound`, 61 em `treble.status_hs_contatos`
+   (ligadas pelo `mind_id` do espelho).
