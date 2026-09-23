@@ -31,8 +31,11 @@ ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já cr
 - **HubSpot:** Edge Function `hubspot-perfil-writeback` (v2, publicada às 08:40 UTC; ensaio por padrão)
   — plano de 2.627 pessoas, 2.587 com contato; `icp` 2.230 (0 conflitos), `jtbd` 1.795, `jobtitle` 1.654
   (712 trocas reais listadas em `substituicoes`; 82 variações da mesma coisa seguradas), `company` 1.278
-  (83 trocas; 91 seguradas, ex.: "Beiwrsdorf"). Resultado da execução e o relatório completo (para ela
-  rever as trocas) em `public.mind_admin_audit` (`resource = 'hubspot_perfil_writeback'`).
+  (83 trocas; 91 seguradas, ex.: "Beiwrsdorf"). **Executado às 08:42–08:44 UTC em 5 lotes (25 + 700 +
+  700 + 700 + 502): 2.318 contatos atualizados, 0 erros; `icp` 2.231 gravados e 9 conflitos (ICP manual
+  já existia, não sobrescrito); `jtbd` 1.805; `jobtitle` 1.664 (722 trocas); `company` 1.283 (84 trocas).**
+  Relatórios completos (com a lista das trocas, para ela rever) em `public.mind_admin_audit`
+  (`resource = 'hubspot_perfil_writeback'`, `record_id` = `ensaio-7560`, `execucao-7561…7565`).
 - **Descobertas:** 18 pares de pessoas do banco apontam para o mesmo contato no HubSpot (candidatas a
   fusão); opção `Fundadot / Sócio / Empreendedor` com typo no HubSpot (rótulo corrigível na tela);
   o token do app privado não devolve escopos na introspecção (HTTP 400) — `crm.schemas.contacts.write`
