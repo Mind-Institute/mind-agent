@@ -119,7 +119,7 @@ pessoa.** O que muda em relação ao texto acima:
 - **Causa-raiz corrigida em `mind_crm_vincular_pessoa`:** ao ligar um contato do HubSpot à
   pessoa, o e-mail, os telefones e o nome do contato viram identidade dela. Antes só o id do
   HubSpot entrava, e a pessoa renascia no próximo login do app (586 duplicatas em 23/09).
-- **`crm.contato_espelho.pessoa_id` deixa de ser legado**: é preenchido pela porta única,
+- **`crm.contato_espelho.mind_id` deixa de ser legado**: é preenchido pela porta única,
   como em qualquer tabela-fonte. A leitura canônica continua por `identidades`.
 
 | função | papel |
@@ -185,7 +185,7 @@ sobrenome, empresa, cargo), `identificadores`, `conflitos_perfil` e `meta`.
 pessoa_id → engagement.identidades (canal='hubspot') → identificador → crm.contato_espelho.hubspot_id
 ```
 
-`pessoas.pessoas.hubspot_id` e `crm.contato_espelho.pessoa_id` são legado e **não** são caminho
+`pessoas.pessoas.hubspot_id` e `crm.contato_espelho.mind_id` são legado e **não** são caminho
 de leitura. Uma identidade `hubspot` sem espelho correspondente não é silenciada nem inventada:
 vira `meta.identidades_hubspot_sem_espelho`, e nunca um conflito de perfil.
 
@@ -228,14 +228,14 @@ pessoa_id
 ```
 
 **Nunca** por `pessoas.pessoas.hubspot_id` (projeção legada) nem por
-`crm.contato_espelho.pessoa_id`.
+`crm.contato_espelho.mind_id`.
 
 Uma pessoa pode ter **mais de um contato HubSpot**. Todos contam, cada fato preserva de qual
 contato veio, e **não há merge automático**.
 
 | função | papel |
 |---|---|
-| `public.mind_crm_vincular_pessoa(p_pessoa_id uuid) → jsonb` | **único** escritor de `crm.contato_espelho.pessoa_id` |
+| `public.mind_crm_vincular_pessoa(p_pessoa_id uuid) → jsonb` | **único** escritor de `crm.contato_espelho.mind_id` |
 | `public.mind_crm_fatos(p_pessoa_id uuid) → jsonb` | coletor factual de **perfil** CRM |
 | `public.mind_crm_comercial(p_pessoa_id uuid) → jsonb` | coletor factual da **realidade comercial** |
 | `public.mind_crm_sync_frescor() → jsonb` | frescor dos espelhos, por fonte |
@@ -393,7 +393,7 @@ Treble, web e app viraram adapters. Detalhe em §3.
 
 ### Passo 2 — Ponte pessoa ↔ HubSpot
 `public.mind_crm_vincular_pessoa(uuid)` é a única função que escreve
-`crm.contato_espelho.pessoa_id`. Telefone só vale como evidência quando identifica **um**
+`crm.contato_espelho.mind_id`. Telefone só vale como evidência quando identifica **um**
 contato; telefone corporativo compartilhado vira pendência, não vínculo.
 
 ### Passo 3 — Fila persistente de resolução de conflito
@@ -516,7 +516,7 @@ Responde: **"o que sabemos, pelo histórico real de interação, que esta pessoa
 viveu nos canais do Mind?"**
 
 ```
-pessoas.pessoas.id → engagement.conversas.participante_id → engagement.mensagens
+pessoas.pessoas.id → engagement.conversas.mind_id → engagement.mensagens
 ```
 
 Factual e determinístico. **Não usa LLM, não escreve, não lê CRM/HubSpot, nem
@@ -592,11 +592,11 @@ implementado, e nenhuma arquitetura nova se abre aqui sem evidência de que ela 
 `public.mind_agent_context(p_conversa_id uuid) → jsonb`
 
 **A conversa é a única âncora.** Não existe parâmetro de pessoa: ela vem de
-`engagement.conversas.participante_id`. Isso torna impossível, por construção, montar um contexto
+`engagement.conversas.mind_id`. Isso torna impossível, por construção, montar um contexto
 com a pessoa A e a conversa B.
 
 ```
-conversa_id → conversas.participante_id → pessoa_id
+conversa_id → conversas.mind_id → pessoa (a chave pessoa_id do payload)
             → mind_pessoa_fatos · mind_crm_fatos · mind_crm_comercial
             → mind_credenciamento_fatos · mind_engagement_fatos
 ```
@@ -670,7 +670,7 @@ Ele testa o contrato **observável** — nunca reimplementa a função para comp
 mesma lógica. Quando precisa de referência, compara com `engagement.conversas` e com os quatro
 coletores. O que fica travado:
 
-- **âncora da conversa** — `pessoa_id` é sempre o `participante_id` da conversa pedida;
+- **âncora da conversa** — a chave `pessoa_id` do payload é sempre o `mind_id` da conversa pedida;
 - **passthrough dos coletores** — `person`, `crm` e `commercial` idênticos, JSON a JSON;
 - **`entry`** — conjunto exato de chaves, `origem` reduzida a `site`/`botao_rotulo`/`descricao`, e
   a `entry_action` nos dois formatos de `variables` com a precedência fechada;
@@ -1206,8 +1206,8 @@ Encanamento único: `public.espelho_estado` + `espelho_config` / `espelho_gravar
   para tabelas novas**.~~ **Invertido por D5 (23/09/2026):** toda tabela que fala de pessoa
   tem `pessoa_id`, preenchido pela porta única antes da escrita (§3, "D5"). Legado é o
   `pessoa_id` gravado por fora da porta; a passada D5 o refaz.
-- **`public.mind_espelho_ligar()`** ainda contém blocos legados que preenchem `pessoa_id` em
-  tabelas históricas via `crm.contato_espelho.pessoa_id`. **É legado conhecido, não padrão
+- **`public.mind_espelho_ligar()`** ainda contém blocos legados que preenchem `mind_id` em
+  tabelas históricas via `crm.contato_espelho.mind_id`. **É legado conhecido, não padrão
   arquitetural** — não replicar em tabela nova. (Foi feito uma vez para
   `crm.empenho_summit_2026` e revertido.)
 - **`crm.buscar_pessoa`** não é a interface canônica do novo Core.

@@ -1018,4 +1018,11 @@ rename passar.
    comentários já anotou). A primeira declara `checkout_clicks%rowtype` e por isso só pode ser
    recriada com `check_function_bodies` desligado (é o que a migration D6 faz); as duas falham em
    runtime até a tabela voltar. Se voltar pela migration de 03/09, nasce com `participant_id`:
-   decidir se entra na Regra #1 com `mind_id`.
+   decidir se entra na Regra #1 com `mind_id`. Na mesma situação: `mind_checkout_abandonment_refresh`
+   lê `intelligence.v_checkout_abandonment`, view que também não existe mais no banco (o ledger
+   registra as migrations de 03/09 como aplicadas, mas os objetos saíram); `mindagent-recovery` a
+   chama por RPC e recebe erro hoje.
+7. **Funções já mortas antes do rename** (schema `summit` não existe): `concierge.resumo_do_dia`
+   (`summit.sessions`, `motivos_ausencia`) e `mind.esquecer_participante` (`nps_summit`,
+   `participantes` fora do search_path). D6 as recria só com o rename (a primeira com
+   `check_function_bodies` desligado, por ser LANGUAGE sql). Consertar ou dropar é decisão à parte.
