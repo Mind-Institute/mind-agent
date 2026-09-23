@@ -325,6 +325,14 @@ Deno.serve(async (req: Request) => {
     let concluido = true;
     let erro: string | null = null;
 
+    // Incremental por data, sem `after`: a busca do HubSpot recusa (400) paginar alem de
+    // 10.000 resultados, e o write-back horario de perfil altera milhares de contatos, entao
+    // o cursor batia no teto e o espelho de contatos parou em 09/09. Cada pagina pede
+    // "alterado a partir do ultimo que li" (GTE, relendo o empate da borda, o que e
+    // idempotente). Se uma pagina inteira tiver o mesmo instante, a proxima usa GT para andar.
+    if (completa) depois = undefined;
+    let usarGT = false;
+
     try {
       while (paginas < tetoPaginas) {
         // a fonte para quando estoura a fatia dela OU o teto global da invocacao
@@ -336,8 +344,9 @@ Deno.serve(async (req: Request) => {
         // Lemos todas as alteracoes do tipo de objeto. Filtrar pelo pipeline no
         // HubSpot esconderia quem saiu dele e deixaria um fantasma no espelho antigo.
         const filtros: Record<string, unknown>[] = [
-          { propertyName: modificado, operator: "GT", value: String(marcaBase) },
+          { propertyName: modificado, operator: usarGT ? "GT" : "GTE", value: String(marcaMax) },
         ];
+        const marcaAntes = marcaMax;
 
         let linhas: Array<{ id: string; properties: Record<string, unknown> }>;
         let proximo: string | undefined;
@@ -356,11 +365,11 @@ Deno.serve(async (req: Request) => {
               sorts: [{ propertyName: modificado, direction: "ASCENDING" }],
               properties: nomes,
               limit: PAGINA,
-              after: depois,
             }),
           });
           linhas = busca.results ?? [];
-          proximo = busca.paging?.next?.after;
+          // sem cursor: "ha mais" = a pagina veio cheia
+          proximo = linhas.length === PAGINA ? "mais" : undefined;
           lidos += linhas.length;
           if (linhas.length === 0) {
             const { error: erroCursor } = await db.rpc("mind_sync_incremental_marcar", {
@@ -370,6 +379,7 @@ Deno.serve(async (req: Request) => {
               p_completou: true,
             });
             if (erroCursor) throw new Error(`concluir incremental: ${erroCursor.message}`);
+            depois = undefined;
             break;
           }
         }
@@ -423,6 +433,7 @@ Deno.serve(async (req: Request) => {
 
         const ultimo = linhas[linhas.length - 1]?.properties?.[modificado];
         if (ultimo) marcaMax = Math.max(marcaMax, new Date(ultimo).getTime());
+        usarGT = completa && marcaMax <= marcaAntes;
 
         depois = proximo;
         const { error: erroProgresso } = await db.rpc("mind_sync_marcar", {
@@ -436,7 +447,7 @@ Deno.serve(async (req: Request) => {
         if (completa) {
           const { error: erroCursor } = await db.rpc("mind_sync_incremental_marcar", {
             p_fonte: fonte,
-            p_cursor: depois ?? null,
+            p_cursor: null,
             p_marca_max: marcaMax > 0 ? new Date(marcaMax).toISOString() : null,
             p_completou: !depois,
           });
