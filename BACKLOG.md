@@ -1079,9 +1079,10 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; 
 11. **`mind_hubspot_perfil_plano` recalcula `perfil_resumo` por linha** (~1,3 s para 2,6 mil; cresce linear).
     Se a base crescer, materializar o resumo em memória (`tipo = 'resumo'`) na projeção.
 12. **Parceiro de venda:** ~~sem fonte~~ — desde `20260923150946`, domínio de e-mail em
-    `intelligence.config.parceiro_venda_dominios` (Mais Diversidade → 13 pessoas); o resto à mão. Falta: o
-    **Igor** que a Adriana citou — há 12 no banco; candidatos: Igor do Amaral Barbosa (Partner, FB5
-    Consultoria), Igor Cozzo (CEO, ABTD), Igor Gomes Menezes (palestrante, People Analytics).
+    `intelligence.config.parceiro_venda_dominios` (Mais Diversidade → 13 pessoas); o resto à mão. Marcados à
+    mão em 23/09: **Igor Gomes Menezes** (o "Igor" da Adriana: deu o workshop "Bem-estar começa na agenda" com
+    Esabela Cruz e Clarissa Daroit, da Mais Diversidade — se for outro Igor, corrige-se na coluna) e o registro
+    de palestrante da **Esabela Cruz** (Gmail; o @maisdiversidade dela já vinha pelo domínio).
 13. ~~**Pessoas duplicadas entre palestrantes, professores e staff**~~ — fundidas em 23/09 por decisão dela (8
     fusões; Thiago Barros e Thiago Araújo são duas pessoas; a Mayra "Hnk" não é duplicata: é convidada
     Heineken). Ficaram, sem decisão: "Thiago dos Santos Barros" (barros.thiago@gmail.com, mesmo telefone do

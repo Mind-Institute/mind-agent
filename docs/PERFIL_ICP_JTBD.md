@@ -177,8 +177,8 @@ palestrante do HubSpot e backend… professor ou parceiro de venda não é lead"
 - Apagadas as 3 contas "ZZ TESTE — apagar" (e os 3 leads de teste do pipeline inbound ligados a elas). A
   "Mayra Andrade Jacó Hnk" **não** foi apagada: é convidada do camarote Heineken, com ingresso, venda e
   check-in nos dois dias; era "staff" só pelo `contato@` usado no registro — voltou a lead.
-- Hoje: 15.514 leads; 53 palestrantes, 17 staff, 13 parceiros de venda, 4 professores (o Igor que a
-  Adriana citou como parceiro ainda não foi marcado: há 12 Igors e três candidatos plausíveis).
+- Hoje: 15.514 leads; 53 palestrantes, 17 staff, 15 parceiros de venda (13 da Mais Diversidade pelo domínio
+  + Igor Gomes Menezes e Esabela Cruz à mão), 4 professores.
 
 ## 4. Plano — o que vem, na ordem (autônomo, com os gates marcados)
 

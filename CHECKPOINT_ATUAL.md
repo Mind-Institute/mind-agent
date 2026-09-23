@@ -78,12 +78,12 @@ ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já cr
   (3) `20260923150946`: parceiro de venda por domínio (`intelligence.config.parceiro_venda_dominios` =
   Mais Diversidade → 13) e `contato@joinmind.com.br` fora do staff; HubSpot 13 contatos/22 limpezas/0 erros.
   (4) Apagadas as 3 contas "ZZ TESTE — apagar"; a "Mayra … Hnk" ficou (convidada Heineken com ingresso e
-  check-in; voltou a lead). Falta: qual Igor é parceiro (pergunta à Adriana).
+  check-in; voltou a lead). Parceiros marcados à mão: Igor Gomes Menezes (deu workshop com a Mais
+  Diversidade) e Esabela Cruz (registro de palestrante).
 - **Gates que restam:** reprocessar as 4.921 análises de conversa com prompt novo (custo — dela);
   decisões de produto/semântica listadas em BACKLOG §21 (tradução de evidência por família, valores
   internos novos no HubSpot, empresa como sinal, rótulo de saúde pessoal no CRM); limpar por lista no
-  HubSpot o "Outros" de ~120 contatos (a função não apaga valor de lead); qual Igor marcar como parceiro de
-  venda; espelho diário de contatos do HubSpot travado desde 20/09 no teto de 10 mil da busca (BACKLOG §21.18).
+  HubSpot o "Outros" de ~120 contatos (a função não apaga valor de lead); espelho diário de contatos do HubSpot travado desde 20/09 no teto de 10 mil da busca (BACKLOG §21.18).
 
 ### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
 
