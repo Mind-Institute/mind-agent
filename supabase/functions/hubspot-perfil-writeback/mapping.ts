@@ -24,6 +24,10 @@
 // - Resumo da inteligência (`mind_resumo_inteligencia`, texto multi-linha) vem em `linha.resumo`:
 //   vazio no HubSpot → escreve; igual → nada; diferente → segue a guarda acima. Sem a propriedade
 //   no HubSpot → `ignorados` (`propriedade_inexistente`), uma vez por contato.
+// - Quem não é lead (staff, palestrante, professor, parceiro de venda — `pessoas.relacionamento_mind`,
+//   que o plano traz como `nao_lead`) não tem ICP nem JTBD (regra da Adriana, 23/09/2026): cargo e
+//   empresa seguem como para todo mundo; `icp`, `icp_confianca`, `jtbd` e o resumo que está no HubSpot
+//   são limpos, seja de quem for o valor, e vão para `limpezas` (motivo `nao_e_lead`).
 //
 // Também mora aqui `montarOpcoes`, que decide as opções finais de uma propriedade de
 // enumeração a partir do catálogo do banco sem apagar valor que já existe no HubSpot.
@@ -32,6 +36,9 @@
 export const PROPRIEDADE_RESUMO = "mind_resumo_inteligencia";
 
 export const PROPRIEDADES_LIDAS = ["email", "jobtitle", "company", "icp", "icp_confianca", "jtbd", PROPRIEDADE_RESUMO];
+
+/** Propriedades de perfil comercial: quem não é lead não as tem — o que houver lá é limpo. */
+export const PROPRIEDADES_PERFIL = ["icp", "icp_confianca", "jtbd", PROPRIEDADE_RESUMO];
 
 // Sufixos jurídicos/geográficos que não distinguem uma empresa da outra grafia dela.
 // Removidos como palavra inteira depois da normalização (`chave`).
@@ -62,6 +69,11 @@ export type Linha = {
    * aquela propriedade. Nulo/ausente = nunca escrevemos nada neste contato.
    */
   ultimo_escrito?: Record<string, unknown> | null;
+  /**
+   * true quando a pessoa não é lead (staff, palestrante, professor, parceiro de venda —
+   * pessoas.relacionamento_mind): ICP, JTBD e resumo não vão, e o que estiver no HubSpot é limpo.
+   */
+  nao_lead?: boolean | null;
 };
 
 export type OpcaoHubSpot = {
@@ -100,6 +112,8 @@ export type Substituicao = { email: string; propriedade: string; atual: string; 
 export type Equivalente = { email: string; propriedade: string; atual: string; novo: string; motivo: string };
 /** Valor que ficou como está porque alguém o editou no HubSpot depois da última escrita do Mind. */
 export type Preservado = { email: string; propriedade: string; atual: string; desejado: string; motivo: string };
+/** Valor de perfil comercial apagado no HubSpot porque a pessoa não é lead (`nao_e_lead`). */
+export type Limpeza = { email: string; propriedade: string; atual: string; motivo: string };
 
 export type Decisao = {
   mind_id: string;
@@ -113,6 +127,7 @@ export type Decisao = {
   substituicoes: Substituicao[];
   equivalentes: Equivalente[];
   preservados: Preservado[];
+  limpezas: Limpeza[];
 };
 
 export type DiffOpcoes = {
@@ -303,7 +318,8 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
   const substituicoes: Substituicao[] = [];
   const equivalentes: Equivalente[] = [];
   const preservados: Preservado[] = [];
-  const base = { mind_id: linha.mind_id, email, conflitos, ignorados, substituicoes, equivalentes, preservados };
+  const limpezas: Limpeza[] = [];
+  const base = { mind_id: linha.mind_id, email, conflitos, ignorados, substituicoes, equivalentes, preservados, limpezas };
 
   if (!atual) {
     const motivo = texto(linha.hubspot_id) || texto(linha.email) ? "sem_contato" : "sem_identificador";
@@ -360,6 +376,19 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
   };
   textoLivre("jobtitle", linha.jobtitle, chave);
   textoLivre("company", linha.company, chaveEmpresa);
+
+  // Quem não é lead não tem ICP nem JTBD (regra da Adriana, 23/09/2026): o que estiver lá é limpo,
+  // manual ou nosso, junto com o resumo que os cita. O "antes" fica no registro da escrita.
+  if (linha.nao_lead === true) {
+    for (const prop of PROPRIEDADES_PERFIL) {
+      const cur = atual.properties[prop];
+      if (vazio(cur)) continue;
+      propriedades[prop] = "";
+      // o resumo tem até ~1.200 caracteres: no relatório vai só o nome; o texto fica no registro
+      limpezas.push({ email, propriedade: prop, atual: prop === PROPRIEDADE_RESUMO ? "resumo" : String(cur).trim(), motivo: "nao_e_lead" });
+    }
+    return { ...base, id: atual.id, acao: Object.keys(propriedades).length > 0 ? "atualizar" : "nada", propriedades };
+  }
 
   // ICP: preenche vazio. Valor já presente só é trocado quando é o que o próprio Mind escreveu
   // por último (a classificação mudou no banco); valor manual nunca é sobrescrito — vira conflito.

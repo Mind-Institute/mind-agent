@@ -1038,7 +1038,9 @@ rename passar.
 
 Feito em 23/09 à tarde (ver `docs/PERFIL_ICP_JTBD.md` §3 e §6): guarda de última escrita, `memoria_regex`,
 revisão da regra (pesos, veto, rebaixamento, cargo), resumo no HubSpot, automático (cron + gatilhos),
-alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra. Ficou:
+alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; no fim da tarde,
+`pessoas.pessoas.relacionamento_mind` e a regra do não-lead (`20260923143941`, Edge Function v5 — ver
+`docs/PERFIL_ICP_JTBD.md` §2 e §3). Ficou:
 
 1. **Tradução de evidência por família (B1, gate de semântica — Adriana).** Hoje, para `especialista`
    (psicólogo, consultor), ir a uma sessão de programas/ROI/NR-1 gera o job de *comprador* (vetado a
@@ -1062,9 +1064,10 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra. 
 6. **Rótulo "Cuidar da minha saúde mental e performance" no CRM (B7, decisão de produto).** 1.122 contatos
    levam ao HubSpot um rótulo sobre saúde mental inferido de presença em palestra; alternativa:
    "Performance sustentável e energia (eu)".
-7. **Limpezas no HubSpot que a função não faz** (ela nunca apaga valor): `icp = Outros` em ~120 contatos;
-   `icp`/`jtbd` gravados em 41 staff/palestrantes na primeira rodada (agora o plano os exclui); o valor
-   interno `Fundadot / Sócio / Empreendedor` (só o rótulo foi corrigido).
+7. **Limpezas no HubSpot que a função não faz** (ela nunca apaga valor de lead): `icp = Outros` em ~120
+   contatos; o valor interno `Fundadot / Sócio / Empreendedor` (só o rótulo foi corrigido).
+   ~~`icp`/`jtbd` gravados em 41 staff/palestrantes~~ — feito em 23/09 pela regra do não-lead (v5: 86
+   limpezas em 41 contatos).
 8. **18 pares de pessoas → mesmo contato do HubSpot** (`contato_repetido_no_recorte`): duplicatas que a
    fase B (`engagement.identidade_fusoes`) ainda não cobriu. Levantar os pares e propor à Adriana.
 9. **Cargo: casos que a regra ainda erra** — typos ("Doretoria de Gente", "Funder", "Chairmam" já entra),
@@ -1075,4 +1078,26 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra. 
     revertíveis pelo banco, só pelo histórico de propriedade do HubSpot. As da tarde têm `antes`.
 11. **`mind_hubspot_perfil_plano` recalcula `perfil_resumo` por linha** (~1,3 s para 2,6 mil; cresce linear).
     Se a base crescer, materializar o resumo em memória (`tipo = 'resumo'`) na projeção.
+12. **Parceiro de venda não tem fonte no banco.** `pessoas.pessoas.relacionamento_mind` aceita
+    `parceiro_venda`, mas nenhuma tabela lista parceiros (HubSpot `lifecyclestage` só tem lead, customer,
+    opportunity; afiliado Eduzz só "MindDash Ltda"). Hoje marca-se à mão na coluna; quando existir a lista
+    (afiliados, revendedores do Dash), acrescentar a fonte em `pessoas.relacionamento_derivado()`.
+13. **Pessoas duplicadas entre palestrantes, professores e staff** (fusão = decisão dela, `mind_fusao_decidir`):
+    Adriana Drulla (`307826c1` perfil público + Institute; `24e2874d` adriana@joinmind; talvez `9a506a61`
+    "Adriana Campos", adrulla@berkeley.edu), Tamara Myles (`a9388699` × `e2c1a9d0`), Elaine Lizeo
+    (`ab6e1fd8` × `de56f363`), Ivana Moreira (`3ad0f45c` × `6d167300` × `ccf822d3` ivana@joinmind),
+    Juliana Elorza (`0125988e` × `f798c3ab`), Thiago (`fe1d6390` thiago@ × `a7164a76` taraujo@ ×
+    `cd9319e4` gmail), Mayra Andrade (`d3ba2886` mayra@ × `81021d9e` "Hnk" com `contato@joinmind.com.br`).
+    Não afeta a regra (todas já são não-lead), mas a professora e a palestrante aparecem como duas pessoas.
+14. **Especialistas do ecossistema sem pessoa:** 59 dos 66 `ecossistema.palestrantes_especialistas` não têm
+    `perfis_publicos`/`mind_id` — se forem palestrantes do Summit, já entram pelo credenciamento; os demais
+    só viram não-lead quando ganharem vínculo determinístico (nunca por nome).
+15. **O Agent ainda não recebe o tipo de relacionamento.** `mind_customer_intelligence` esconde ICP e jobs de
+    quem não é lead, mas não diz ao Agent "é palestrante/staff" — o concierge ainda pode oferecer produto a
+    um palestrante. Expor `relacionamento` no contexto do Agent é mudança de contrato/prompt (produto — dela).
+16. **Fusão e marca manual:** `mind_pessoa_fundir` não junta `relacionamento_mind`; os tipos derivados voltam
+    na hora seguinte (as fontes são repontadas para a sobrevivente), mas `parceiro_venda` marcado à mão só
+    na absorvida se perde. Juntar os arrays na fusão quando o primeiro parceiro for marcado.
+17. **Contas de teste e nomes com encoding quebrado:** três "ZZ TESTE — apagar" (`@joinmind.com.br`, hoje
+    staff) — apagar é decisão dela; "LÃ¯Â¿Â½dia Ferrari Correa" e "VinÃ¯Â¿Â½cius Muniz" com mojibake no nome.
 

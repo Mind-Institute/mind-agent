@@ -56,10 +56,25 @@ ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já cr
   resumo 2.252, `icp` 72 (BPs que estavam como CHRO), `jobtitle` 1 gravado e **5 preservados** (editados
   no HubSpot entre as rodadas — a guarda funcionou). Contrato `tests/perfil_icp_jtbd_contract.sql` →
   `PERFIL_OK` (26 casos de cargo, pesos, reserva fraca, rebaixamento, idempotência, escritor × regra).
+- **Fim da tarde de 23/09 — relacionamento com o Mind (pedido dela: *"limpa ICP e JTBD de staff e
+  palestrante do HubSpot e backend… se é professor ou parceiro de venda não é lead e portanto não
+  coletamos JTBD e ICP… guardar em pessoas.pessoas uma coluna com o tipo de relacionamento"*).** Ledger
+  `20260923143941`: coluna `pessoas.pessoas.relacionamento_mind` (`{lead}` ou staff/palestrante/professor/
+  parceiro_venda), derivada de hora em hora das fontes (credenciamento `staff_mind`/`palestrante`, e-mail
+  `@joinmind.com.br`, `seguranca.equipe`, `mind_admin_users`, `ecossistema.perfis_publicos`,
+  `institute.programa_pessoas`); `parceiro_venda` sem fonte no banco (marca-se à mão). Regra: quem não é
+  lead não tem ICP nem JTBD — a regra apaga a própria classificação, a de conversa vira `rejeitada`, o
+  escritor ignora, o leitor do Agent não devolve, o HubSpot é limpo. **80 não-leads** (57 palestrantes,
+  22 staff, 4 professores); memórias de ICP/JTBD deles zeradas (210 da regra apagadas, 1 de conversa
+  rejeitada); Edge Function **v5** executada às 14:47 UTC: 41
+  contatos, 86 limpezas (`icp` 39, `icp_confianca` 39, `jtbd` 6, resumo 2), 0 erros; ensaio seguinte 0/0.
+  Corrigido junto: o escritor perdia JTBD de conversa quando a regra já tinha o job ativo (`FOUND`
+  sobrescrito no `095020`). Contrato → `PERFIL_OK` em produção; 45 testes Node.
 - **Gates que restam:** reprocessar as 4.921 análises de conversa com prompt novo (custo — dela);
   decisões de produto/semântica listadas em BACKLOG §21 (tradução de evidência por família, valores
   internos novos no HubSpot, empresa como sinal, rótulo de saúde pessoal no CRM); limpar por lista no
-  HubSpot o ICP/JTBD dos 41 staff/palestrantes e o "Outros" de ~120 contatos (a função não apaga valor).
+  HubSpot o "Outros" de ~120 contatos (a função não apaga valor de lead); fusões de pessoas duplicadas
+  entre palestrantes/professores/staff (BACKLOG §21.13 — decisão dela por `mind_fusao_decidir`).
 
 ### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
 

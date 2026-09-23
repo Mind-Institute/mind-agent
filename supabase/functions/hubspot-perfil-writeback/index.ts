@@ -15,10 +15,14 @@
 //   aparece em `substituicoes` para ela rever.
 // - ICP só preenche o que está vazio (valor manual do HubSpot nunca é sobrescrito; a
 //   diferença vai para `conflitos`). Junto vai `icp_confianca` (0–10).
-// - JTBD (multi-seleção) recebe a união do que já está lá com o que o Mind vê.
+// - JTBD (multi-seleção): quando o HubSpot tem exatamente o que o Mind escreveu por último, o conjunto
+//   do banco substitui; quando alguém mexeu lá (ou nunca escrevemos), união — nunca apaga escolha humana.
 // - Guarda de "última escrita" (BACKLOG §21.1): valor do HubSpot diferente do que o Mind escreveu
 //   por último foi editado por alguém lá — fica, e vai para `preservados` (mapping.ts).
 // - `mind_resumo_inteligencia` (texto multi-linha) recebe `resumo` do plano, com a mesma guarda.
+// - Quem não é lead (staff, palestrante, professor, parceiro de venda — `nao_lead` no plano, de
+//   pessoas.relacionamento_mind) não tem ICP nem JTBD: icp, icp_confianca, jtbd e o resumo que estiverem
+//   no contato são limpos (`limpezas`); cargo e empresa seguem como para todo mundo.
 // - Esta função NÃO cria contatos; quem cria é a irmã de credenciamento.
 //
 // Chamada: POST com JSON { token, acao?, executar?, limite?, deslocamento?, emails?, desde? }.
@@ -635,6 +639,7 @@ Deno.serve(async (req: Request) => {
       return {
         mind_id: l.mind_id, email: l.email ?? "", acao: "pular", motivo: "contato_repetido_no_recorte",
         id: atual.id, propriedades: {}, conflitos: [], ignorados: [], substituicoes: [], equivalentes: [], preservados: [],
+        limpezas: [],
       };
     }
     if (atual) vistos.add(atual.id);
@@ -654,9 +659,12 @@ Deno.serve(async (req: Request) => {
     pular_por_motivo: pularPorMotivo,
   };
 
-  type Contadores = { escritas: number; conflitos: number; ignorados: number; substituicoes: number; equivalentes: number; preservados: number };
+  type Contadores = {
+    escritas: number; conflitos: number; ignorados: number; substituicoes: number; equivalentes: number; preservados: number; limpezas: number;
+  };
   const porPropriedade: Record<string, Contadores> = {};
-  const conta = (prop: string) => porPropriedade[prop] ??= { escritas: 0, conflitos: 0, ignorados: 0, substituicoes: 0, equivalentes: 0, preservados: 0 };
+  const conta = (prop: string) =>
+    porPropriedade[prop] ??= { escritas: 0, conflitos: 0, ignorados: 0, substituicoes: 0, equivalentes: 0, preservados: 0, limpezas: 0 };
   for (const d of decisoes) {
     if (d.acao === "atualizar") for (const prop of Object.keys(d.propriedades)) conta(prop).escritas += 1;
     for (const c of d.conflitos) conta(c.propriedade).conflitos += 1;
@@ -664,6 +672,7 @@ Deno.serve(async (req: Request) => {
     for (const s of d.substituicoes) conta(s.propriedade).substituicoes += 1;
     for (const q of d.equivalentes) conta(q.propriedade).equivalentes += 1;
     for (const p of d.preservados) conta(p.propriedade).preservados += 1;
+    for (const x of d.limpezas) conta(x.propriedade).limpezas += 1;
   }
 
   const conflitos = decisoes.flatMap((d) => d.conflitos);
@@ -671,6 +680,8 @@ Deno.serve(async (req: Request) => {
   const substituicoes = decisoes.flatMap((d) => d.substituicoes);
   const equivalentes = decisoes.flatMap((d) => d.equivalentes);
   const preservados = decisoes.flatMap((d) => d.preservados);
+  const limpezas = decisoes.flatMap((d) => d.limpezas);
+  const naoLeads = linhas.filter((l) => l.nao_lead === true).length;
   const equivalentesPorMotivo: Record<string, number> = {};
   for (const q of equivalentes) equivalentesPorMotivo[`${q.propriedade}: ${q.motivo}`] = (equivalentesPorMotivo[`${q.propriedade}: ${q.motivo}`] ?? 0) + 1;
   const preservadosPorMotivo: Record<string, number> = {};
@@ -718,6 +729,7 @@ Deno.serve(async (req: Request) => {
     conflitos: { total: conflitos.length, lista: conflitos.slice(0, MAX_LISTA) },
     ignorados: { total: ignorados.length, por_motivo: ignoradosPorMotivo, lista: ignorados.slice(0, 60) },
     preservados: { total: preservados.length, por_motivo: preservadosPorMotivo, lista: preservados.slice(0, 80) },
+    limpezas: { nao_leads_no_recorte: naoLeads, total: limpezas.length, lista: limpezas.slice(0, MAX_LISTA) },
     amostra,
     escrita,
     registrados: registro,

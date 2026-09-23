@@ -22,9 +22,14 @@ Regras de ouro:
 2. **Hipóteses ficam só no resumo.** O que está no resumo como "Hipóteses (não confirmadas)" não está na
    propriedade JTBD e não deve virar lista de e-mail; serve para o vendedor perguntar.
 3. **O que vocês editarem à mão no HubSpot fica.** O automático nunca sobrescreve um cargo, empresa ou
-   ICP que uma pessoa do time mudou no HubSpot; e um job que vocês marcarem à mão não é apagado.
+   ICP que uma pessoa do time mudou no HubSpot; e um job que vocês marcarem à mão não é apagado — exceto
+   em quem não é lead (regra 5).
 4. **Nada de saúde pessoal no CRM.** O resumo filtra falas sobre burnout, ansiedade, diagnóstico. Se
    aparecer algo assim em outra propriedade, apaguem.
+5. **Staff, palestrantes, professores e parceiros de venda não são leads** (regra da Adriana, 23/09):
+   não têm ICP, JTBD nem resumo — o banco limpa essas propriedades no contato, mesmo se alguém preencher
+   à mão. Por isso eles nunca entram nas listas abaixo. O tipo de relacionamento mora no banco
+   (`pessoas.pessoas.relacionamento_mind`); parceiro de venda ainda se marca à mão lá.
 
 ## Job → produto → quem é o comprador
 
