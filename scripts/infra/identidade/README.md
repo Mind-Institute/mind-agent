@@ -31,7 +31,7 @@ esperado, não uma falha.
 | 40 | `40_decidir.sql` | B | modelos de decisão: aprovar um padrão (só confiança alta entra), aprovar ou rejeitar uma linha |
 | 50 | `50_criar_simular.sql` | C | simula a criação por fonte, uma fonte por vez, na ordem HubSpot → Eduzz → Blinket → Treble → credenciamento → Yazo |
 | 51 | `51_criar_aplicar.sql` | C | cria/liga por fonte, em lotes; **repita cada fonte até `restantes_nesta_fonte = 0`** |
-| 60 | `60_varredura_mind_id.sql` | D6 | varredura das 164 tabelas (23/09): as 5 tabelas com cliente que faltavam entram na Regra #1; o que ficou de fora e por quê |
+| 60 | `60_varredura_mind_id.sql` | D6 | varredura das 164 tabelas (23/09): as 5 tabelas com cliente que faltavam entram na Regra #1 e foram preenchidas sem criar pessoa (resultado no próprio arquivo); o que ficou de fora e por quê |
 | 90 | `90_depois.sql` | — | fotografia final e verificações |
 
 Ordem: `05` (hoje) → migration → `00` → `10` → `11` (até zerar) → `30` → `40` → `11` de novo se

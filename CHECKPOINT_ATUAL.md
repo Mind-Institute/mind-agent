@@ -6,6 +6,41 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
+
+Pedidos da Adriana (23/09, manhã): *"crie essas duas tabelas na intelligence"*, *"colocar todas as
+pessoas que foram no summit para passar por essa classificação"*, *"usar o que as pessoas escreveram
+de empresa e cargo para fazer update em cargo no hubspot, empresa no hubspot (sempre checando… typo
+ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já criei as propriedades
+[icp e jtbd no HubSpot]; agora a gente tem que popular"*. Mapa completo e plano: `docs/PERFIL_ICP_JTBD.md`.
+
+- **Catálogos (D2 exercida por ela):** `intelligence.icp` (13 perfis = as 13 opções que ela deixou na
+  propriedade `icp` do HubSpot, com `hubspot_valor` = valor interno — 3 valores antigos reaproveitados
+  com significado novo — e `rotulo_legado` para traduzir memórias antigas; + `concorrente`, Vittude por
+  `regex_empresa`) e `intelligence.jtbd` (13 jobs mind = as 13 opções da propriedade `jtbd` + JT01–JT15
+  do estudo, com `produtos`, `icps_tipicos`, `jt_raiz` e `sinais`). `summit_2026.sessions.jtbd`: 62 sessões.
+- **Regra:** `intelligence.icp_por_cargo` (determinística), `perfil_evidencias` (check-in 0,70 · reserva
+  0,60 · jornada do app · jobs-raiz de conversa traduzidos · patrocínio · produto preferido · contexto por
+  família de ICP), `perfil_projetar` grava em `participante_memoria` sem derrubar memória de conversa nem
+  ICP manual do HubSpot; `perfil_projetar_lote` por prefixo de uuid; `perfil_gravar_pessoas` leva cargo e
+  empresa a `pessoas.pessoas`. Escritor e leitor validam pelos catálogos (rótulos antigos traduzidos).
+- **Executado:** 3.855 pessoas classificadas (2.250 ICP `ativa` + 17 `proposta` divergentes da conversa;
+  6.970 jobs `ativa` + 4.990 `proposta`; 1.779 cargos e 1.677 empresas como memória);
+  `pessoas.pessoas`: 1.815 cargos e 1.667 empresas gravados. Ledger: `20260923081119`, `081602`,
+  `081831`, `082020`, `082744`, `083527`. Contrato `tests/perfil_icp_jtbd_contract.sql` → `PERFIL_OK`.
+- **HubSpot:** Edge Function `hubspot-perfil-writeback` (v2, publicada às 08:40 UTC; ensaio por padrão)
+  — plano de 2.627 pessoas, 2.587 com contato; `icp` 2.230 (0 conflitos), `jtbd` 1.795, `jobtitle` 1.654
+  (712 trocas reais listadas em `substituicoes`; 82 variações da mesma coisa seguradas), `company` 1.278
+  (83 trocas; 91 seguradas, ex.: "Beiwrsdorf"). Resultado da execução e o relatório completo (para ela
+  rever as trocas) em `public.mind_admin_audit` (`resource = 'hubspot_perfil_writeback'`).
+- **Descobertas:** 18 pares de pessoas do banco apontam para o mesmo contato no HubSpot (candidatas a
+  fusão); opção `Fundadot / Sócio / Empreendedor` com typo no HubSpot (rótulo corrigível na tela);
+  o token do app privado não devolve escopos na introspecção (HTTP 400) — `crm.schemas.contacts.write`
+  só se descobre tentando (`acao: "propriedades"` em ensaio).
+- **Gates que restam:** reprocessar as 4.921 análises de conversa com prompt novo (custo — dela);
+  propriedade de resumo da inteligência no HubSpot (ela cria `mind_resumo_inteligencia`); automático
+  (cron) só depois da guarda de "última escrita" (BACKLOG §21).
+
 ### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
 
 Pedido da Adriana: *"varra todas as tabelas do banco e, nas colunas onde a gente tem o universal ID,
@@ -28,6 +63,14 @@ aplicada.
   (id de `participantes`).
 - Descobertas laterais registradas em `BACKLOG.md` §20 (`v_participantes` ainda resolve por junção;
   `api.me` lia schema inexistente; funções presas a `engagement.checkout_clicks`, tabela que saiu).
+- **Varredura das 160 tabelas concluída (07:37 UTC)** — `scripts/infra/identidade/60_varredura_mind_id.sql`:
+  das 164 tabelas, 110 não tinham FK para pessoa; 5 com informação de cliente entraram na Regra #1
+  (`crm.pipeline_leads_inbound`, `crm.status_summit_hs`, `treble.status_hs_contatos`,
+  `treble.status_da_conversa`, `engagement.verificacoes_email`) e foram preenchidas **sem criar pessoa**:
+  15.406 linhas ligadas por identificador já conhecido, 71 pelo `mind_id` do espelho, 149 marcadas como
+  "sem pessoa" (contato fora do espelho ou telefone de teste). `engagement.treble_eventos` (log bruto) e
+  `crm.empenho_summit_2026` (pessoa em `propriedades._contatos`, gate) ficaram de fora de propósito; as
+  103 restantes não falam de cliente ou herdam a pessoa do pai. Lateral nova: BACKLOG §20.8.
 - Testes: `tests/d5_identidade_universal_contract.sql` adaptado a `mind_id` (13 cenários, verde em
   produção dentro da prova); os demais contratos SQL do repo renomeados mecanicamente.
 

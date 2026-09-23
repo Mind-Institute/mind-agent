@@ -1026,3 +1026,37 @@ rename passar.
    (`summit.sessions`, `motivos_ausencia`) e `mind.esquecer_participante` (`nps_summit`,
    `participantes` fora do search_path). D6 as recria só com o rename (a primeira com
    `check_function_bodies` desligado, por ser LANGUAGE sql). Consertar ou dropar é decisão à parte.
+8. **25 pessoas ligadas a um contato do HubSpot sem a identidade `hubspot` em `engagement.identidades`**
+   (achado da varredura #34, 23/09): `crm.contato_espelho.mind_id` aponta para a pessoa, mas
+   `identidades` não tem o `hubspot_id` dela, então a porta única não encontra a pessoa por esse id.
+   `mind_pessoa_enriquecer` rodou nas 25 e não acrescentou (2 conflitos: o id já está em outra
+   pessoa). Conferir uma a uma na fila de fusões; até lá, quem chegar só com esse id HubSpot cria
+   pessoa nova. Linhas afetadas hoje: 10 em `crm.pipeline_leads_inbound`, 61 em `treble.status_hs_contatos`
+   (ligadas pelo `mind_id` do espelho).
+
+## 21. Perfil ICP/JTBD e HubSpot — o que ficou para depois (23/09/2026)
+
+1. **Guarda de "última escrita" antes de qualquer automático.** `hubspot-perfil-writeback` ainda não
+   registra por contato o que escreveu; um cron que rode de novo poderia desfazer uma edição humana de
+   `jobtitle`/`company` no HubSpot. Regra a implementar: só sobrescreve vazio ou o valor que o Mind
+   escreveu por último (`mind_admin_audit`, `resource = 'hubspot_contato'`). Depois: `pg_cron` horário
+   para quem teve memória `icp`/`jtbd`/`cargo`/`empresa` atualizada (`docs/PERFIL_ICP_JTBD.md` §4.2–4.3).
+2. **Alinhar opções das propriedades pelo catálogo** (`acao: "propriedades"`) exige o escopo
+   `crm.schemas.contacts.write` no app privado do HubSpot; a introspecção do token devolve 400, então só
+   a tentativa em ensaio diz se o escopo existe. Enquanto isso, o rótulo `Fundadot / Sócio / Empreendedor`
+   se corrige na tela do HubSpot (o valor interno fica).
+3. **18 pares de pessoas → mesmo contato do HubSpot** (`contato_repetido_no_recorte` no relatório): são
+   duplicatas no banco que a fase B (`engagement.identidade_fusoes`) ainda não cobriu. Levantar os pares e
+   propor à Adriana.
+4. **Revisitar a inteligência já gravada com a lente ICP/JTBD** — 7,1 mil memórias de interesse/objetivo/
+   preferência comercial/delegação/patrocínio viram evidência por regex (`sinais.memoria_regex`); depois
+   prompt novo do `analisar-conversa` (13 ICPs, 13 jobs mind, resumo) e reprocessamento — gate de custo.
+5. **Resumo da inteligência por pessoa** numa propriedade de texto do HubSpot (`perfil_resumo`), por regra
+   primeiro, por IA depois.
+6. `treinar_liderancas` e `autoridade_escala` só nascem por contexto (0,5–0,6 → `proposta`); para virarem
+   `ativa` precisam de evidência direta. `icp_confianca` no HubSpot recebe 7 (regra por cargo).
+7. `analista_nao_rh`, `diretor_vp_nao_rh` e `gestor_nao_rh` reaproveitam no HubSpot os valores internos
+   antigos `Executivo Sênior / Alto Performer`, `Gestor / Middle Manager` e `People Leader / Business
+   Partner` (decisão dela na tela): os 13 contatos classificados à mão antes de 23/09 carregam o
+   significado novo — conferir um a um.
+

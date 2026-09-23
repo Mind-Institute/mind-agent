@@ -41,3 +41,4 @@ diff -u supabase/functions/treble-inbound-agent/index.ts <baixado>/index.ts
 |---|---|
 | `treble-inbound-agent` | runtime do Vendedor Summit — o turno atravessa Router → Capability Gate → Kit Loader, e essa mudança precisa ser revisável em PR |
 | `mindagent-chat` | runtime do Concierge Summit — o turno atravessa Capability Gate → Kit Loader, e o mesmo endpoint executa as ferramentas do Play. Versionada a partir da **version 23** viva, num commit isolado, para o diff ser contra a fonte real |
+| `hubspot-perfil-writeback` | perfil profissional → HubSpot (jobtitle, company, icp + icp_confianca, jtbd) a partir de `mind_hubspot_perfil_plano`; ENSAIO por padrão; irmã de `hubspot-commercial-writeback`. Publicada em 23/09/2026 (versão 1 = este código). Ver `docs/PERFIL_ICP_JTBD.md` |

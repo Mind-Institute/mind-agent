@@ -10,11 +10,22 @@ select 'treble.status_da_conversa', public.mind_pessoa_ligar_tabela('treble.stat
 union all
 select 'engagement.verificacoes_email', public.mind_pessoa_ligar_tabela('engagement.verificacoes_email'::regclass, '{"emails":["email"]}'::jsonb);
 
--- Depois de ligar, preencher (repetir por tabela até restantes_nesta_fonte = 0; fora de :20/:50):
--- select public.mind_identidade_criar_faltantes('crm.pipeline_leads_inbound'::regclass, 1000, false);
--- select public.mind_identidade_criar_faltantes('crm.status_summit_hs'::regclass, 1000, false);
--- select public.mind_identidade_criar_faltantes('treble.status_hs_contatos'::regclass, 1000, false);
--- select public.mind_identidade_criar_faltantes('treble.status_da_conversa'::regclass, 1000, false);
+-- Preenchimento executado em 23/09 (07:21–07:37 UTC), sem criar pessoa nenhuma:
+--   1) ligação por identificador já conhecido (engagement.identidades, canal hubspot/whatsapp) —
+--      o trigger não chama a porta quando só mind_id muda e a linha já tem pessoa:
+--        pipeline_leads_inbound 3.286/3.437 · status_summit_hs 342/342 · status_hs_contatos 6.068/6.132 ·
+--        status_da_conversa 5.610/5.615 (telefone normalizado por public.telefone_normalizar);
+--   2) 71 linhas (25 pessoas) cujo contato existe em crm.contato_espelho com mind_id mas sem a
+--      identidade hubspot em engagement.identidades: ligadas pelo mind_id do espelho, com
+--      mind.d5_pular_trigger = '1' (criar_faltantes criaria uma segunda pessoa só com o id HubSpot);
+--      mind_pessoa_enriquecer rodou nas 25 e não acrescentou a identidade (2 conflitos) — BACKLOG §20.8;
+--   3) o resto foi marcado como resolvido sem pessoa, para não ficar pendente para sempre:
+--        141 leads e 3 contatos cujo id HubSpot não está no espelho (contato apagado/fundido no HubSpot)
+--        → 'sem pessoa: contato HubSpot fora do espelho (varredura D6)';
+--        5 telefones de teste (5511977770009, 5512025550123…) sem conversa → 'sem pessoa: telefone de teste…'.
+--   Não usar mind_identidade_criar_faltantes nestas fontes: um id HubSpot sozinho criaria pessoa
+--   sem nome nem e-mail. Resultado final: leads 3.296/3.437 · summit_hs 342/342 ·
+--   hs_contatos 6.129/6.132 · da_conversa 5.610/5.615 · verificacoes_email 0 linhas.
 --
 -- Ficaram de fora, de propósito (varredura de 23/09, 164 tabelas, 110 sem FK para pessoas):
 --   engagement.treble_eventos (43.005) — log bruto dos webhooks; telefone vem sem DDI (~100 não-BR
