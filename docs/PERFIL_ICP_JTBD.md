@@ -17,11 +17,12 @@
 | classificação de cada pessoa | `intelligence.participante_memoria` | tipo `icp` (chave `icp_atual`), tipo `jtbd` (chave `jtbd:<codigo>`), tipo `cargo`/`empresa`; origem `regra_perfil` quando veio da regra, `analise_*` quando veio de conversa |
 | leitura para o Agent | `public.mind_customer_intelligence(mind_id)` | `professional_context.icp` (rótulo + code), `jobs_observed` |
 | cargo/empresa da pessoa | `pessoas.pessoas.cargo/empresa` | o que ela escreveu no credenciamento, na forma de exibição (`intelligence.texto_exibir`), empresa com a grafia mais frequente |
-| plano do HubSpot | `public.mind_hubspot_perfil_plano(p_desde)` | uma linha por pessoa: `jobtitle`, `company`, `icp` + `icp_confianca`, `jtbd[]`, `resumo`, `ultimo_escrito` (o que o Mind gravou por último no contato); `p_desde` recorta quem teve memória alterada; staff do Mind e palestrantes só levam cargo/empresa; só `service_role` |
+| relacionamento com o Mind | `pessoas.pessoas.relacionamento_mind` (`text[]`) | `{lead}` por padrão; `staff`, `palestrante`, `professor`, `parceiro_venda` quando não é lead (pode ter mais de um). Mantido de hora em hora por `pessoas.relacionamento_atualizar()` a partir de `pessoas.relacionamento_derivado()` — só acrescenta; `parceiro_venda` e correções se marcam à mão na coluna. **Quem não é lead não tem ICP nem JTBD** (§2) |
+| plano do HubSpot | `public.mind_hubspot_perfil_plano(p_desde)` | uma linha por pessoa: `jobtitle`, `company`, `icp` + `icp_confianca`, `jtbd[]`, `resumo`, `ultimo_escrito` (o que o Mind gravou por último no contato); `p_desde` recorta quem teve memória alterada (ou deixou de ser lead); quem não é lead vem com `nao_lead = true` — só cargo/empresa, e o ICP/JTBD/resumo que houver no contato é limpo; só `service_role` |
 | resumo da inteligência por pessoa | `intelligence.perfil_resumo(mind_id)` → propriedade `mind_resumo_inteligencia` do HubSpot | texto por regra (sem IA): perfil, ICP e por quê, jobs ativos com evidência, hipóteses não confirmadas, última conversa (sem saúde pessoal), produtos com fit do job mais forte |
 | memória de "última escrita" no HubSpot | `public.mind_admin_audit` (`resource = 'hubspot_contato'`, `record_id` = id do contato) | escrita por `public.mind_hubspot_perfil_registrar` a cada lote gravado; é a guarda que impede o automático de desfazer edição humana |
 | automático | `pg_cron` `perfil_projetar_horario` (hh:36) e `hubspot_perfil_writeback_horario` (hh:41); gatilhos `icp_alinhar_hubspot` / `jtbd_alinhar_hubspot` | `intelligence.perfil_projetar_todos` reprojeta todo mundo; `public.mind_hubspot_perfil_disparar` chama a função só para quem mudou nas últimas 2 h; editar o catálogo alinha rótulos/opções no HubSpot |
-| escrita no HubSpot | Edge Function `hubspot-perfil-writeback` (v4) | ENSAIO por padrão (`executar: false`); aceita `desde`; relatório com `substituicoes`, `equivalentes`, `conflitos`, `ignorados`, `preservados` (editado no HubSpot depois do Mind) e `registrados` |
+| escrita no HubSpot | Edge Function `hubspot-perfil-writeback` (v5) | ENSAIO por padrão (`executar: false`); aceita `desde`; relatório com `substituicoes`, `equivalentes`, `conflitos`, `ignorados`, `preservados` (editado no HubSpot depois do Mind), `limpezas` (perfil apagado de quem não é lead) e `registrados` |
 
 ## 2. Como a regra decide
 
@@ -76,6 +77,20 @@ fica como está e vai para `preservados`; quando é o nosso, a mudança do banco
 JTBD: se o HubSpot tem exatamente o que o Mind escreveu, o conjunto do banco substitui (job
 rebaixado sai); se alguém marcou algo lá, união — escolha humana nunca é apagada.
 
+**Quem não é lead não tem ICP nem JTBD** (regra da Adriana, 23/09: *"se é professor ou parceiro de
+venda não é lead e portanto não coletamos JTBD e ICP"*; staff e palestrantes idem). A casa é
+`pessoas.pessoas.relacionamento_mind`; as fontes, só por vínculo determinístico (`mind_id`, nunca nome):
+staff = credenciamento `staff_mind`, e-mail `@joinmind.com.br`, `seguranca.equipe`, `mind_admin_users`
+ativos; palestrante = credenciamento `palestrante`, `ecossistema.perfis_publicos` ligado a
+`palestrantes_especialistas`; professor = `institute.programa_pessoas` (formadora, curadoria,
+convidado — o time do Institute que o site publica pelo `ecossistema`); parceiro de venda = sem fonte no
+banco, marca-se à mão. Para quem não é lead: `perfil_projetar` apaga a classificação da própria regra e
+marca `rejeitada` a de conversa (cargo e empresa ficam — são fato); o escritor de conversa ignora
+`icp`/`jtbd` (grava o resto); o leitor do Agent não devolve ICP nem jobs; o plano do HubSpot manda
+`nao_lead` e a função **limpa** `icp`, `icp_confianca`, `jtbd` e o resumo do contato — é a única
+exceção à regra "a função nunca apaga valor", pedida por ela. O "antes" de cada limpeza fica no
+registro de última escrita. Voltar a ser lead (tirar o tipo à mão) faz a regra reclassificar pelo cargo.
+
 ## 3. O que foi feito em 23/09
 
 - Migrations aplicadas em produção (ledger): `20260923081119 intelligence_icp_jtbd_catalogos`,
@@ -114,6 +129,26 @@ rebaixado sai); se alguém marcou algo lá, união — escolha humana nunca é a
   (1.343 conjuntos corrigidos), `mind_resumo_inteligencia` 2.252, `icp` 72 (BPs que estavam como CHRO),
   `jobtitle` 1 gravado e **5 preservados** (editados no HubSpot entre as duas rodadas — a guarda funcionou).
 - Automático ligado (`pg_cron` hh:36 projeção, hh:41 write-back de quem mudou; gatilhos nos catálogos).
+
+**Fim da tarde de 23/09 — relacionamento com o Mind (pedido dela: "limpa ICP e JTBD de staff e
+palestrante do HubSpot e backend… professor ou parceiro de venda não é lead").**
+
+- Migration `20260923143941 pessoas_relacionamento_mind_e_regra_nao_lead`: coluna
+  `pessoas.pessoas.relacionamento_mind` (check: tipos conhecidos, `lead` nunca junto de outro),
+  `pessoas.e_lead`, `pessoas.relacionamento_derivado`, `pessoas.relacionamento_atualizar` (roda no começo
+  de `perfil_projetar_todos`, hh:36), a regra em `perfil_projetar`, no escritor, no leitor e no plano.
+  Corrige também um erro do `095020`: o escritor perdia a memória de JTBD de conversa quando a regra já
+  tinha o mesmo job **ativo** (o `update` que rebaixa a linha da regra sobrescrevia o `FOUND`) — caso A
+  no contrato.
+- Banco: **80 pessoas não são lead** — 57 palestrantes, 22 staff, 4 professores (3 com dois tipos);
+  15.525 leads. Apagadas as memórias de ICP/JTBD da regra dessas pessoas (210, medidas antes da
+  migration); 1 de conversa virou `rejeitada`; 0 ativas ou propostas restantes.
+- HubSpot (v5, 14:47 UTC): 41 contatos, **86 limpezas** — `icp` 39, `icp_confianca` 39, `jtbd` 6,
+  resumo 2; 0 erros; 41 registros de última escrita. Ensaio seguinte: 0 a escrever, 0 a limpar.
+- Contrato `tests/perfil_icp_jtbd_contract.sql` → `PERFIL_OK` em produção (com rollback): caso A do
+  escritor e a seção não-lead (check da coluna, atualizador só acrescenta, regra apaga/rejeita e é
+  idempotente, escritor ignora ICP/JTBD e grava o resto, leitor sem ICP/jobs, plano `nao_lead`, recorte
+  por data, volta a lead). Testes Node do `mapping.ts`: 45.
 
 ## 4. Plano — o que vem, na ordem (autônomo, com os gates marcados)
 
@@ -185,5 +220,6 @@ a sessão de programas → `vender_para_rh` com o mesmo peso); valores internos 
 3 rótulos reaproveitados; empresa como sinal (fornecedor de bem-estar, gente da casa, `summit_2026.exhibitors`);
 peso de reserva por sessão; reprocessamento das análises de conversa com prompt novo (custo — dela);
 rótulo "Cuidar da minha saúde mental e performance" no CRM (decisão de produto); "Outros" gravado em
-~120 contatos e ICP/JTBD já gravados em 41 staff/palestrantes (limpar por lista no HubSpot — a função
-não apaga valor); 5 legados manuais lidos com o rótulo novo pelo *fallback* do CRM.
+~120 contatos (limpar por lista no HubSpot — a função não apaga valor de lead); ~~ICP/JTBD já gravados
+em 41 staff/palestrantes~~ — limpos pela v5 em 23/09 (regra do não-lead, §2); 5 legados manuais lidos
+com o rótulo novo pelo *fallback* do CRM.

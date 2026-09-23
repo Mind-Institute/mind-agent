@@ -7,6 +7,7 @@ import {
   montarOpcoes,
   planejar,
   PROPRIEDADES_LIDAS,
+  PROPRIEDADES_PERFIL,
   unirJtbd,
 } from "../supabase/functions/hubspot-perfil-writeback/mapping.ts";
 
@@ -665,4 +666,52 @@ test("cargo: nível solto (\"Gerente\") não substitui cargo com área (\"Gerent
   const outraArea = planejar(linha({ jobtitle: "Diretora", ultimo_escrito: { jobtitle: "Gerente de Marketing" } }), contato({ jobtitle: "Gerente de Marketing" }), defs);
   assert.equal(outraArea.acao, "nada");
   assert.deepEqual(outraArea.equivalentes.map((e) => e.motivo), ["novo_menos_especifico"]);
+});
+
+// ------------------------------------------- quem não é lead não tem ICP nem JTBD (Adriana, 23/09)
+test("não-lead: ICP, confiança, JTBD e resumo que estão no HubSpot são limpos, manuais ou nossos; cargo e empresa seguem", () => {
+  const d = planejar(
+    linha({ nao_lead: true, jobtitle: "Diretora de Pessoas", company: "Vale", icp: null, jtbd: [], resumo: null,
+            ultimo_escrito: { jtbd: "engajar_lideres" } }),
+    contato({ jobtitle: "", company: "Vale S.A.", icp: "CHRO / VP de Pessoas", icp_confianca: "7",
+              jtbd: "engajar_lideres;nr1_mensuracao", mind_resumo_inteligencia: "ICP: CHRO\nJTBD: engajar líderes" }),
+    defs,
+  );
+  assert.equal(d.acao, "atualizar");
+  assert.deepEqual(d.propriedades, { jobtitle: "Diretora de Pessoas", icp: "", icp_confianca: "", jtbd: "", mind_resumo_inteligencia: "" });
+  assert.deepEqual(d.limpezas.map((x) => [x.propriedade, x.motivo]), [
+    ["icp", "nao_e_lead"], ["icp_confianca", "nao_e_lead"], ["jtbd", "nao_e_lead"], ["mind_resumo_inteligencia", "nao_e_lead"],
+  ]);
+  assert.equal(d.limpezas[0].atual, "CHRO / VP de Pessoas");
+  assert.equal(d.limpezas[2].atual, "engajar_lideres;nr1_mensuracao");
+  assert.equal(d.limpezas[3].atual, "resumo", "o texto do resumo não vai para o relatório");
+  assert.deepEqual(d.conflitos, [], "ICP manual de não-lead não é conflito: é limpo");
+  assert.deepEqual(d.preservados, []);
+  assert.equal(d.propriedades.company, undefined, "\"Vale\" ≡ \"Vale S.A.\": empresa segue a regra de sempre");
+});
+
+test("não-lead: nada de perfil no HubSpot → nada a limpar; o plano não escreve ICP/JTBD mesmo se vier", () => {
+  const limpo = planejar(linha({ nao_lead: true }), contato({ icp: "", jtbd: "", icp_confianca: null }), defs);
+  assert.equal(limpo.acao, "nada");
+  assert.deepEqual(limpo.limpezas, []);
+  // defesa em profundidade: o plano já manda nulo, mas mesmo que viesse, quem não é lead não recebe perfil
+  const vazou = planejar(linha({ nao_lead: true, icp: "gestor_rh", icp_confianca: 6, jtbd: ["nr1_mensuracao"], resumo: "x" }), contato({}), defs);
+  assert.equal(vazou.acao, "nada");
+  assert.deepEqual(vazou.propriedades, {});
+});
+
+test("não-lead: nao_lead false/ausente segue a regra de sempre (ICP vazio é preenchido)", () => {
+  for (const extra of [{ nao_lead: false }, {}]) {
+    const d = planejar(linha({ ...extra, icp: "gestor_rh", icp_confianca: 7 }), contato({ icp: "" }), defs);
+    assert.equal(d.propriedades.icp, "gestor_rh");
+    assert.deepEqual(d.limpezas, []);
+  }
+  assert.deepEqual(PROPRIEDADES_PERFIL, ["icp", "icp_confianca", "jtbd", "mind_resumo_inteligencia"]);
+  for (const p of PROPRIEDADES_PERFIL) assert.ok(PROPRIEDADES_LIDAS.includes(p), `${p} precisa ser lida para ser limpa`);
+});
+
+test("pular (sem contato) também traz limpezas vazio, para o relatório somar sem quebrar", () => {
+  const d = planejar(linha({ nao_lead: true }), null, defs);
+  assert.equal(d.acao, "pular");
+  assert.deepEqual(d.limpezas, []);
 });

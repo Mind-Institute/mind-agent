@@ -1,8 +1,9 @@
 -- Contrato dos catálogos de ICP/JTBD (intelligence.icp, intelligence.jtbd) e do perfil por regra
 -- (intelligence.perfil_projetar, escritor analise_projetar_memoria, leitor mind_customer_intelligence,
 -- plano mind_hubspot_perfil_plano). Sempre termina em rollback: a exceção PERFIL_OK é o resultado.
--- Rodar depois das migrations 20260923081119 … 20260923094000 (revisão de 23/09: pesos por sala, reserva fraca,
--- veto por ICP típico, regra de cargo ampliada, ICP manual do HubSpot só quando não é do Mind).
+-- Rodar depois das migrations 20260923081119 … 20260923143941 (revisão de 23/09: pesos por sala, reserva fraca,
+-- veto por ICP típico, regra de cargo ampliada, ICP manual do HubSpot só quando não é do Mind; escritor não pisa na
+-- regra; relacionamento com o Mind — quem não é lead não tem ICP nem JTBD).
 begin;
 set local mind.d5_pular_trigger = '1';
 do $$
@@ -127,17 +128,83 @@ begin
     raise exception 'leitor: jobs_observed sem source/evidence: %', v_ci->'jobs_observed'; end if;
   if jsonb_array_length(v_ci->'jobs_observed') > 5 then raise exception 'leitor: mais de 5 jobs'; end if;
 
-  -- escritor: traduz rótulo legado e aceita job mind
+  -- escritor: traduz rótulo legado e aceita job mind; a conversa não pisa na linha da regra (encontrar_pares já era hipótese da regra)
   n := public.analise_projetar_memoria(v_p, 'analise_vendas_summit',
         '[{"category":"icp","value":"CHRO / VP de Pessoas","confidence":"high","scope":"stable"},
           {"category":"jtbd","code":"encontrar_pares","value":"x","confidence":"high","scope":"stable"}]'::jsonb);
-  if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:encontrar_pares' and origem = 'analise_vendas_summit') then raise exception 'escritor não aceitou job mind'; end if;
+  if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:encontrar_pares' and origem = 'analise_vendas_summit' and status = 'ativa') then raise exception 'escritor não aceitou job mind'; end if;
+  if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:encontrar_pares' and origem = 'regra_perfil' and status = 'proposta') then raise exception 'linha da regra devia continuar como hipótese ao lado da conversa'; end if;
   if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'icp_atual' and status = 'ativa' and valor->>'text' = 'CHRO / VP / Diretor(a) de RH ou Pessoas') then raise exception 'escritor não traduziu o rótulo legado'; end if;
+  -- e a regra, rodando de novo, não promove a própria linha por cima da conversa ativa
+  r := intelligence.perfil_projetar(v_p, true);
+  if (select count(*) from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:encontrar_pares' and status = 'ativa') <> 1 then raise exception 'encontrar_pares com mais de uma ativa'; end if;
+
+  -- caso A (FOUND sobrescrito em 095020, corrigido em 20260923143941): a regra tem o job ATIVO e a conversa confirma o
+  -- mesmo job com alta confiança → a conversa grava a própria linha ativa e a da regra cede (proposta)
+  n := public.analise_projetar_memoria(v_p, 'analise_vendas_summit',
+        '[{"category":"jtbd","code":"nr1_mensuracao","value":"x","confidence":"high","scope":"stable"}]'::jsonb);
+  if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:nr1_mensuracao' and origem = 'analise_vendas_summit' and status = 'ativa') then
+    raise exception 'caso A: a conversa devia gravar nr1_mensuracao ativa mesmo com a regra ativa'; end if;
+  if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:nr1_mensuracao' and origem = 'regra_perfil' and status = 'proposta') then
+    raise exception 'caso A: a linha da regra devia ceder (proposta)'; end if;
+  r := intelligence.perfil_projetar(v_p, true);
+  if (select count(*) from intelligence.participante_memoria where mind_id = v_p and chave = 'jtbd:nr1_mensuracao' and status = 'ativa') <> 1 then
+    raise exception 'caso A: nr1_mensuracao devia ter exatamente uma ativa'; end if;
 
   -- plano do HubSpot lista a pessoa com icp e o job
   if not exists (select 1 from public.mind_hubspot_perfil_plano() p where p.mind_id = v_p and p.icp = 'CHRO / VP de Pessoas' and 'Cumprir a NR-1 e gerir riscos psicossociais com dados' = any(p.jtbd)) then
     raise exception 'plano do HubSpot sem a pessoa ou com valores errados'; end if;
 
-  raise exception 'PERFIL_OK: catálogos, regra de cargo (26 casos), projeção (pesos, reserva fraca, rebaixamento, idempotência), escritor, leitor e plano conferem';
+  -- relacionamento com o Mind (Adriana, 23/09): quem não é lead não tem ICP nem JTBD
+  if not pessoas.e_lead(v_p) then raise exception 'pessoa nova devia nascer lead'; end if;
+  begin
+    update pessoas.pessoas set relacionamento_mind = '{lead,staff}' where id = v_p;
+    raise exception 'lead junto com outro tipo devia ser recusado';
+  exception when check_violation then null; end;
+  begin
+    update pessoas.pessoas set relacionamento_mind = '{cliente}' where id = v_p;
+    raise exception 'tipo fora da lista devia ser recusado';
+  exception when check_violation then null; end;
+  update pessoas.pessoas set relacionamento_mind = '{palestrante}' where id = v_p;
+  if pessoas.e_lead(v_p) then raise exception 'palestrante não é lead'; end if;
+  -- o atualizador só acrescenta: não tira a marca feita à mão
+  r := pessoas.relacionamento_atualizar(true);
+  if (select relacionamento_mind from pessoas.pessoas where id = v_p) <> '{palestrante}' then raise exception 'relacionamento_atualizar tirou uma marca'; end if;
+  -- a regra apaga a própria classificação e rejeita a da conversa; cargo e empresa ficam
+  r := intelligence.perfil_projetar(v_p, true);
+  if coalesce((r->>'nao_e_lead')::boolean, false) is not true then raise exception 'perfil_projetar devia dizer nao_e_lead: %', r; end if;
+  if (r->>'memorias_apagadas')::int < 1 or (r->>'memorias_rejeitadas')::int < 1 then raise exception 'esperava apagar a regra e rejeitar a conversa: %', r; end if;
+  if exists (select 1 from intelligence.participante_memoria where mind_id = v_p and tipo in ('icp', 'jtbd') and status in ('ativa', 'proposta')) then
+    raise exception 'não-lead ficou com ICP/JTBD ativo ou proposto'; end if;
+  if exists (select 1 from intelligence.participante_memoria where mind_id = v_p and tipo in ('icp', 'jtbd') and origem = 'regra_perfil') then
+    raise exception 'a regra devia apagar a própria classificação'; end if;
+  if not exists (select 1 from intelligence.participante_memoria where mind_id = v_p and chave = 'cargo_atual' and status = 'ativa') then
+    raise exception 'cargo é fato: não-lead mantém'; end if;
+  r := intelligence.perfil_projetar(v_p, true);
+  if (r->>'memorias_apagadas')::int <> 0 or (r->>'memorias_rejeitadas')::int <> 0 then raise exception 'limpeza devia ser idempotente: %', r; end if;
+  -- o escritor da conversa ignora icp/jtbd de não-lead, mas grava o resto
+  n := public.analise_projetar_memoria(v_p, 'analise_vendas_summit',
+        '[{"category":"icp","value":"CHRO / VP de Pessoas","confidence":"high","scope":"stable"},
+          {"category":"jtbd","code":"nr1_mensuracao","value":"x","confidence":"high","scope":"stable"},
+          {"category":"interest","value":"Liderança humanizada","confidence":"high","scope":"stable"}]'::jsonb);
+  if n <> 1 then raise exception 'escritor devia gravar só o interesse (1), gravou %', n; end if;
+  if exists (select 1 from intelligence.participante_memoria where mind_id = v_p and tipo in ('icp', 'jtbd') and status in ('ativa', 'proposta')) then
+    raise exception 'escritor gravou ICP/JTBD de não-lead'; end if;
+  -- o leitor do Agent não devolve ICP nem jobs
+  v_ci := public.mind_customer_intelligence(v_p);
+  if v_ci->'professional_context' ? 'icp' or jsonb_array_length(v_ci->'jobs_observed') <> 0 then raise exception 'leitor devolveu perfil de não-lead: %', v_ci; end if;
+  if v_ci->'professional_context'->>'role' is null then raise exception 'leitor devia manter o cargo do não-lead'; end if;
+  -- o plano do HubSpot manda limpar (nao_lead) e entra no recorte horário porque a pessoa mudou
+  if not exists (select 1 from public.mind_hubspot_perfil_plano() p where p.mind_id = v_p and p.nao_lead and p.icp is null and p.icp_confianca is null
+                   and cardinality(p.jtbd) = 0 and p.resumo is null and p.fontes->'relacionamento' = '["palestrante"]'::jsonb) then
+    raise exception 'plano do HubSpot devia trazer o não-lead limpo'; end if;
+  if not exists (select 1 from public.mind_hubspot_perfil_plano(now() - interval '1 minute') p where p.mind_id = v_p and p.nao_lead) then
+    raise exception 'não-lead recém-marcado devia entrar no recorte por data'; end if;
+  -- e volta: marcado de novo como lead, a regra reclassifica pelo cargo
+  update pessoas.pessoas set relacionamento_mind = '{lead}' where id = v_p;
+  r := intelligence.perfil_projetar(v_p, true);
+  if r->>'icp_acao' <> 'criada' then raise exception 'de volta a lead, a regra devia recriar o ICP: %', r; end if;
+
+  raise exception 'PERFIL_OK: catálogos, regra de cargo (26 casos), projeção (pesos, reserva fraca, rebaixamento, idempotência), escritor (e caso A), leitor, plano e não-lead conferem';
 end $$;
 rollback;
