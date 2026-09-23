@@ -9,14 +9,29 @@
 //   outra coisa de verdade, escreve-se e a troca vai para `substituicoes`, para ela rever.
 // - ICP só preenche o que está vazio; valor já presente no HubSpot (manual) nunca é
 //   sobrescrito — a diferença vai para `conflitos`. Junto com o ICP vai `icp_confianca`.
-// - JTBD é multi-seleção: escreve-se a união (atual ∪ desejado), na ordem do catálogo, e
-//   só quando a união acrescenta algo ao que já está lá.
+// - JTBD é multi-seleção: quando o HubSpot tem exatamente o que o Mind escreveu por último, o
+//   conjunto do banco substitui (pode remover job rebaixado); quando alguém mexeu lá, ou nunca
+//   escrevemos, união (atual ∪ desejado) na ordem do catálogo — nunca se apaga escolha humana.
+// - Cargo/empresa novos que parecem headline/URL/e-mail, longos demais ou um nível solto no lugar
+//   de um cargo com área não substituem o que está lá (`pior`).
 // - Esta função não cria contatos (isso é da irmã de credenciamento): sem contato, pula.
+// - Guarda de "última escrita" (BACKLOG §21.1, condição para o cron horário): `linha.ultimo_escrito`
+//   é o que o Mind escreveu por último nesse contato (registrado por mind_hubspot_perfil_registrar).
+//   Quando o valor que está no HubSpot não é o que o Mind escreveu, alguém editou lá depois de nós:
+//   fica como está e vai para `preservados` (`editado_no_hubspot`). Quando é o nosso, a mudança do
+//   banco passa — inclusive no ICP, que de outro jeito é manual e nunca se sobrescreve. Sem registro
+//   (nunca escrevemos aquela propriedade), vale a regra de sempre.
+// - Resumo da inteligência (`mind_resumo_inteligencia`, texto multi-linha) vem em `linha.resumo`:
+//   vazio no HubSpot → escreve; igual → nada; diferente → segue a guarda acima. Sem a propriedade
+//   no HubSpot → `ignorados` (`propriedade_inexistente`), uma vez por contato.
 //
 // Também mora aqui `montarOpcoes`, que decide as opções finais de uma propriedade de
 // enumeração a partir do catálogo do banco sem apagar valor que já existe no HubSpot.
 
-export const PROPRIEDADES_LIDAS = ["email", "jobtitle", "company", "icp", "icp_confianca", "jtbd"];
+/** Propriedade de texto multi-linha do HubSpot que recebe o resumo da inteligência. */
+export const PROPRIEDADE_RESUMO = "mind_resumo_inteligencia";
+
+export const PROPRIEDADES_LIDAS = ["email", "jobtitle", "company", "icp", "icp_confianca", "jtbd", PROPRIEDADE_RESUMO];
 
 // Sufixos jurídicos/geográficos que não distinguem uma empresa da outra grafia dela.
 // Removidos como palavra inteira depois da normalização (`chave`).
@@ -39,6 +54,14 @@ export type Linha = {
   icp_confianca: number | null;
   jtbd: string[] | null;
   fontes?: Record<string, unknown> | null;
+  /** Texto multi-linha para `mind_resumo_inteligencia`; vazio/nulo = não escreve. */
+  resumo?: string | null;
+  /**
+   * O que o Mind escreveu por último neste contato, por propriedade (mind_hubspot_perfil_registrar),
+   * ex.: {"jobtitle":"Gerente de RH","icp":"gestor_rh","jtbd":"a;b"}. Chave ausente = nunca escrevemos
+   * aquela propriedade. Nulo/ausente = nunca escrevemos nada neste contato.
+   */
+  ultimo_escrito?: Record<string, unknown> | null;
 };
 
 export type OpcaoHubSpot = {
@@ -75,6 +98,8 @@ export type Conflito = { email: string; propriedade: string; atual: string; dese
 export type Ignorado = { email: string; propriedade: string; valor: string; motivo: string };
 export type Substituicao = { email: string; propriedade: string; atual: string; novo: string };
 export type Equivalente = { email: string; propriedade: string; atual: string; novo: string; motivo: string };
+/** Valor que ficou como está porque alguém o editou no HubSpot depois da última escrita do Mind. */
+export type Preservado = { email: string; propriedade: string; atual: string; desejado: string; motivo: string };
 
 export type Decisao = {
   mind_id: string;
@@ -87,6 +112,7 @@ export type Decisao = {
   ignorados: Ignorado[];
   substituicoes: Substituicao[];
   equivalentes: Equivalente[];
+  preservados: Preservado[];
 };
 
 export type DiffOpcoes = {
@@ -238,8 +264,36 @@ export function equivalente(chaveAtual: string, chaveNova: string): string | nul
   return null;
 }
 
+// Valor novo que não merece substituir o que está lá: headline do LinkedIn / URL / e-mail colados no
+// cargo ("CEO | Palestrante | dibe.com.br"), texto longo demais, ou um nível solto ("Gerente") no lugar
+// de um cargo com área ("Gerente de Comunicação").
+const RE_LIXO = /\||https?:\/\/|www\.|@/i;
+const NIVEL_SOLTO = new Set([
+  "gerente", "diretor", "diretora", "coordenador", "coordenadora", "analista", "assistente", "gestor", "gestora",
+  "supervisor", "supervisora", "head", "lider", "ceo", "socio", "socia", "consultor", "consultora", "coach",
+  "estagiario", "estagiaria", "executivo", "executiva", "assessor", "assessora", "especialista",
+]);
+export function pior(prop: string, atualTexto: string, novo: string): string | null {
+  if (RE_LIXO.test(novo) || novo.length > 80) return "novo_parece_headline_ou_url";
+  if (prop === "jobtitle" && atualTexto !== "" && NIVEL_SOLTO.has(chave(novo)) && chave(atualTexto).split(" ").length >= 2) {
+    return "novo_menos_especifico";
+  }
+  return null;
+}
+
 function emailDe(linha: Linha, atual: ContatoAtual | null): string {
   return (texto(linha.email) || texto(atual?.properties.email)).toLowerCase();
+}
+
+/**
+ * O que o Mind escreveu por último nessa propriedade, ou null quando nunca escreveu (chave ausente
+ * em `ultimo_escrito`). Chave presente com valor nulo conta como "escrevemos vazio" ("").
+ */
+function ultimoEscrito(linha: Linha, prop: string): string | null {
+  const ue = linha.ultimo_escrito;
+  if (!ue || typeof ue !== "object" || !Object.prototype.hasOwnProperty.call(ue, prop)) return null;
+  const v = ue[prop];
+  return v === null || v === undefined ? "" : String(v).trim();
 }
 
 export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definicoes): Decisao {
@@ -248,7 +302,8 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
   const conflitos: Conflito[] = [];
   const substituicoes: Substituicao[] = [];
   const equivalentes: Equivalente[] = [];
-  const base = { mind_id: linha.mind_id, email, conflitos, ignorados, substituicoes, equivalentes };
+  const preservados: Preservado[] = [];
+  const base = { mind_id: linha.mind_id, email, conflitos, ignorados, substituicoes, equivalentes, preservados };
 
   if (!atual) {
     const motivo = texto(linha.hubspot_id) || texto(linha.email) ? "sem_contato" : "sem_identificador";
@@ -256,9 +311,12 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
   }
 
   const propriedades: Record<string, string> = {};
+  const preservar = (prop: string, atualTexto: string, desejado: string) =>
+    preservados.push({ email, propriedade: prop, atual: atualTexto, desejado, motivo: "editado_no_hubspot" });
 
   // Texto livre (cargo, empresa): atualiza, mas sem duplicar grafia; troca real vai para
-  // `substituicoes`, para a Adriana rever.
+  // `substituicoes`, para a Adriana rever — a menos que o valor de lá não seja o que o Mind
+  // escreveu por último: aí foi editado no HubSpot e fica (`preservados`).
   const textoLivre = (prop: string, desejado: string | null, chaveDe: (v: unknown) => string) => {
     const novo = texto(desejado);
     if (!novo) return;
@@ -268,13 +326,33 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
     }
     const cur = atual.properties[prop];
     if (vazio(cur)) {
+      const p = pior(prop, "", novo);
+      if (p) {
+        ignorados.push({ email, propriedade: prop, valor: novo, motivo: p });
+        return;
+      }
       propriedades[prop] = novo;
       return;
     }
     const atualTexto = String(cur).trim();
-    const motivo = equivalente(chaveDe(atualTexto), chaveDe(novo));
-    if (motivo) {
-      if (motivo !== "mesma_chave") equivalentes.push({ email, propriedade: prop, atual: atualTexto, novo, motivo });
+    const kAtual = chaveDe(atualTexto);
+    const kNovo = chaveDe(novo);
+    if (kAtual === kNovo) return;
+    const p = pior(prop, atualTexto, novo);
+    if (p) {
+      equivalentes.push({ email, propriedade: prop, atual: atualTexto, novo, motivo: p });
+      return;
+    }
+    // "Gerente" → "Gerente de Comunicação Interna" enriquece: a contenção não segura o valor mais rico
+    const enriquece = prop === "jobtitle" && NIVEL_SOLTO.has(kAtual) && kNovo.split(" ").length >= 2 && kNovo.includes(kAtual);
+    const motivo = equivalente(kAtual, kNovo);
+    if (motivo && !enriquece) {
+      equivalentes.push({ email, propriedade: prop, atual: atualTexto, novo, motivo });
+      return;
+    }
+    const ultimo = ultimoEscrito(linha, prop);
+    if (ultimo !== null && chaveDe(ultimo) !== kAtual) {
+      preservar(prop, atualTexto, novo);
       return;
     }
     propriedades[prop] = novo;
@@ -283,35 +361,82 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
   textoLivre("jobtitle", linha.jobtitle, chave);
   textoLivre("company", linha.company, chaveEmpresa);
 
-  // ICP: só preenche vazio. Valor já presente (manual) nunca é sobrescrito; diferença vira conflito.
+  // ICP: preenche vazio. Valor já presente só é trocado quando é o que o próprio Mind escreveu
+  // por último (a classificação mudou no banco); valor manual nunca é sobrescrito — vira conflito.
   const icpDesejado = texto(linha.icp);
   if (icpDesejado) {
     const aceitos = validar(email, "icp", [icpDesejado], defs, ignorados);
     if (aceitos.length > 0) {
       const novo = aceitos[0];
-      const cur = atual.properties.icp;
-      if (vazio(cur)) {
+      const escreverIcp = () => {
         propriedades.icp = novo;
         const confianca = linha.icp_confianca;
         if (typeof confianca === "number" && Number.isFinite(confianca)) {
           if (defs.icp_confianca) propriedades.icp_confianca = String(confianca);
           else ignorados.push({ email, propriedade: "icp_confianca", valor: String(confianca), motivo: "propriedade_inexistente" });
         }
-      } else if (String(cur).trim().toLowerCase() !== novo.toLowerCase()) {
-        conflitos.push({ email, propriedade: "icp", atual: String(cur).trim(), desejado: novo });
+      };
+      const cur = atual.properties.icp;
+      if (vazio(cur)) {
+        escreverIcp();
+      } else {
+        const atualTexto = String(cur).trim();
+        if (atualTexto.toLowerCase() !== novo.toLowerCase()) {
+          const ultimo = ultimoEscrito(linha, "icp");
+          if (ultimo !== null && ultimo.toLowerCase() === atualTexto.toLowerCase()) {
+            escreverIcp();
+            substituicoes.push({ email, propriedade: "icp", atual: atualTexto, novo });
+          } else {
+            conflitos.push({ email, propriedade: "icp", atual: atualTexto, desejado: novo });
+          }
+        }
       }
     }
   }
 
-  // JTBD (multi-seleção): união do que já está lá com o que o Mind vê, na ordem do catálogo.
+  // JTBD (multi-seleção). Quando o que está no HubSpot é exatamente o que o Mind escreveu por último
+  // ("nosso e intacto"), o banco manda: o conjunto atual substitui o anterior — inclusive removendo job
+  // que a regra rebaixou. Quando alguém marcou algo lá (ou nunca escrevemos), união: nunca se apaga o
+  // que a pessoa já tem. Plano sem job + nosso intacto = limpa a propriedade (vai para `substituicoes`).
   const jtbdDesejado = unicos((Array.isArray(linha.jtbd) ? linha.jtbd : []).map(texto).filter((v) => v !== ""));
-  if (jtbdDesejado.length > 0) {
-    const aceitos = validar(email, "jtbd", jtbdDesejado, defs, ignorados);
-    const def = defs.jtbd;
-    if (def && aceitos.length > 0) {
-      const atuais = partes(String(atual.properties.jtbd ?? ""));
-      const uniao = unirJtbd(atuais, aceitos, def);
-      if (!mesmoConjunto(atuais, uniao)) propriedades.jtbd = uniao.join(";");
+  const defJtbd = defs.jtbd;
+  if (defJtbd) {
+    const atuais = partes(String(atual.properties.jtbd ?? ""));
+    const ultimoJtbd = ultimoEscrito(linha, "jtbd");
+    const nossoIntacto = ultimoJtbd !== null && mesmoConjunto(partes(ultimoJtbd), atuais);
+    const aceitos = jtbdDesejado.length > 0 ? validar(email, "jtbd", jtbdDesejado, defs, ignorados) : [];
+    if (aceitos.length > 0) {
+      const alvo = nossoIntacto ? unirJtbd([], aceitos, defJtbd) : unirJtbd(atuais, aceitos, defJtbd);
+      if (!mesmoConjunto(atuais, alvo)) {
+        propriedades.jtbd = alvo.join(";");
+        if (nossoIntacto && atuais.some((v) => !alvo.some((a) => a.toLowerCase() === v.toLowerCase()))) {
+          substituicoes.push({ email, propriedade: "jtbd", atual: atuais.join(";"), novo: propriedades.jtbd });
+        }
+      }
+    } else if (jtbdDesejado.length === 0 && nossoIntacto && atuais.length > 0) {
+      propriedades.jtbd = "";
+      substituicoes.push({ email, propriedade: "jtbd", atual: atuais.join(";"), novo: "" });
+    }
+  } else if (jtbdDesejado.length > 0) {
+    validar(email, "jtbd", jtbdDesejado, defs, ignorados);
+  }
+
+  // Resumo da inteligência (texto multi-linha): vazio → escreve; igual → nada; diferente → só
+  // quando o que está lá é o que o Mind escreveu por último (ou nunca escrevemos).
+  const resumoDesejado = texto(linha.resumo);
+  if (resumoDesejado) {
+    if (!defs[PROPRIEDADE_RESUMO]) {
+      // `valor` fixo de propósito: o texto tem até ~1.200 caracteres e o relatório agrega por valor.
+      ignorados.push({ email, propriedade: PROPRIEDADE_RESUMO, valor: "resumo", motivo: "propriedade_inexistente" });
+    } else {
+      const cur = texto(atual.properties[PROPRIEDADE_RESUMO]);
+      if (cur === "") {
+        propriedades[PROPRIEDADE_RESUMO] = resumoDesejado;
+      } else if (cur !== resumoDesejado) {
+        const ultimo = ultimoEscrito(linha, PROPRIEDADE_RESUMO);
+        if (ultimo !== null && ultimo !== cur) preservar(PROPRIEDADE_RESUMO, cur, resumoDesejado);
+        else propriedades[PROPRIEDADE_RESUMO] = resumoDesejado;
+      }
     }
   }
 
