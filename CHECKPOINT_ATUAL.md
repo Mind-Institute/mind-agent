@@ -6,6 +6,31 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
+
+Pedido da Adriana: *"varra todas as tabelas do banco e, nas colunas onde a gente tem o universal ID,
+renomeie a coluna como universal MIND ID"*. Migration `20260923071424` (`d6_mind_id.sql`), provada em
+produção em `begin … rollback` (migration + contrato D5 + fumaça de 35 funções e 12 views) e depois
+aplicada.
+
+- **53 colunas renomeadas para `mind_id`**: 51 FKs para `pessoas.pessoas` (`pessoa_id` em 20 tabelas,
+  `participante_id` em 27, `participant_id` em `intelligence.recovery_inbox`, `person_id` em
+  `summit_2026.registrations`) mais `crm.empenho_summit_2026.pessoa_id` e
+  `crm.pipeline_leads_inbound.pessoa_id`, que estavam vazias e sem FK e ganharam a FK. Nas 11 tabelas
+  da Regra #1 as companheiras viram `mind_id_criterio` e `mind_id_resolvido_em`. Índices e constraints
+  com o nome antigo foram renomeados; 63 funções reescritas só nas referências a coluna.
+- **O que não mudou, de propósito**: as chaves dos payloads das funções (`pessoa_id`, `participante_id`
+  em jsonb e em `returns table`) e os nomes de saída das views (`api.*`, `v_participantes`,
+  `v_ingressos`…) — contrato de API lido pelas Edge Functions e pelo app. **Nenhuma Edge Function
+  precisou de deploy.** `pessoas.v_pessoa_360` é a única view cuja saída muda (`mind_id`).
+- Não são o ID universal e ficaram: `"Check Ins Summit".participante_id`, `"Reservas_Agenda_APP".participante_id`,
+  `controle_de_inscritos_e_presenca.participante_id` (id do credenciamento) e `yazo_envio_fila.participant_id`
+  (id de `participantes`).
+- Descobertas laterais registradas em `BACKLOG.md` §20 (`v_participantes` ainda resolve por junção;
+  `api.me` lia schema inexistente; funções presas a `engagement.checkout_clicks`, tabela que saiu).
+- Testes: `tests/d5_identidade_universal_contract.sql` adaptado a `mind_id` (13 cenários, verde em
+  produção dentro da prova); os demais contratos SQL do repo renomeados mecanicamente.
+
 ### D5 — identidade universal — 23/09/2026, APLICADA E PASSADA EXECUTADA EM PRODUÇÃO
 
 Regra #1 em `READ_ME_FIRST.md` (regras v2 combinadas com a Adriana na madrugada de 23/09:

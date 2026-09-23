@@ -8,6 +8,8 @@ Regra #1 em `READ_ME_FIRST.md`. Migrations, na ordem em que estão no ledger de 
 | `20260923033919` | `d5_2_email_nome_vencem.sql` | a regra da Adriana: e-mail + nome vencem, telefone/CPF de linha comprada por terceiro ficam de fora, bater com `pessoas.pessoas` antes de criar |
 | `20260923040915` | `d5_3_enriquecer_indexado.sql` | índices de expressão sem predicado parcial; fase A por índice (12 s → 50 ms por pessoa) |
 | `20260923043442` | `d5_4_proposta_guarda_a_evidencia_mais_forte.sql` | a proposta de fusão classifica pela evidência mais forte que o par compartilha |
+| `20260923050355` | `d5_5_tabelas_da_adriana_na_regra.sql` | Reservas_Agenda_APP e Check Ins Summit sob a Regra #1 |
+| `20260923071424` | `d6_mind_id.sql` | **D6**: a coluna do ID universal chama-se `mind_id` em 53 tabelas (companheiras `mind_id_criterio`/`mind_id_resolvido_em`); 63 funções recriadas só com o rename; `v_pessoa_360` expõe `mind_id`. Aplicada via `execute_sql` (texto carregado em large object e executado numa transação), ledger carimbado à mão |
 
 **A passada foi executada em produção pelo Claude em 23/09/2026 (madrugada), a pedido da Adriana**
 ("nada deve ficar comigo, execute"). Os scripts ficam como registro e como modelo para rodadas
@@ -29,6 +31,7 @@ esperado, não uma falha.
 | 40 | `40_decidir.sql` | B | modelos de decisão: aprovar um padrão (só confiança alta entra), aprovar ou rejeitar uma linha |
 | 50 | `50_criar_simular.sql` | C | simula a criação por fonte, uma fonte por vez, na ordem HubSpot → Eduzz → Blinket → Treble → credenciamento → Yazo |
 | 51 | `51_criar_aplicar.sql` | C | cria/liga por fonte, em lotes; **repita cada fonte até `restantes_nesta_fonte = 0`** |
+| 60 | `60_varredura_mind_id.sql` | D6 | varredura das 164 tabelas (23/09): as 5 tabelas com cliente que faltavam entram na Regra #1; o que ficou de fora e por quê |
 | 90 | `90_depois.sql` | — | fotografia final e verificações |
 
 Ordem: `05` (hoje) → migration → `00` → `10` → `11` (até zerar) → `30` → `40` → `11` de novo se
