@@ -1,9 +1,15 @@
 -- 1) credenciamento_worknet fica só com ingresso.
---    Os 9 check-ins manuais que a Worknet registrou por e-mail não identificam
---    ingresso: 7 e-mails não existem entre os 2.577 e os 2 que existem já tinham
---    o bip do próprio ingresso (Alexandre Dias; Francisco de Assis, 2 ingressos).
---    Saem, com a coluna por_email: a tabela deixa de carregar identificador de
---    pessoa e a Regra #1 (D5) não se aplica a ela. A presença não muda.
+--    Dos 9 check-ins manuais que a Worknet registrou por e-mail, 7 e-mails não
+--    existem entre os 2.577 ingressos (gente sem ingresso no controle) e 2
+--    identificam 3 ingressos: oralestetica@yahoo.com.br -> 2609CZLKVD (Alexandre
+--    Dias) e souzajuniorfa@hotmail.com -> 2609AGQFAB e 2609RVA4GM (Francisco de
+--    Assis de Souza Júnior, dois ingressos no mesmo e-mail). Esses 3 entram como
+--    evidência por ingresso; as linhas por e-mail saem com a coluna por_email, e a
+--    tabela deixa de carregar identificador de pessoa (Regra #1 não se aplica).
+--    A presença não muda (1.695 em 16/09).
+insert into credenciamento_summit_2026.credenciamento_worknet (chave, dia) values
+  ('2609CZLKVD', 16), ('2609AGQFAB', 16), ('2609RVA4GM', 16)
+on conflict do nothing;
 delete from credenciamento_summit_2026.credenciamento_worknet where por_email;
 alter table credenciamento_summit_2026.credenciamento_worknet
   drop constraint if exists credenciamento_worknet_pkey,
@@ -15,7 +21,7 @@ begin
   end if;
 end $$;
 comment on table credenciamento_summit_2026.credenciamento_worknet is
-  'Evidência do credenciamento da Worknet (o sistema de bip na entrada), relatório de 23/09/2026: uma linha por ingresso (chave = número do ingresso) e dia (16 ou 17/09) em que foi bipado. 1.670 em 16/09 e 187 em 17/09. Os 93 crachás retirados de 13 a 15/09 (credenciamento antecipado) não marcam dia.';
+  'Evidência do credenciamento da Worknet (o sistema de bip na entrada), relatório de 23/09/2026: uma linha por ingresso (chave = número do ingresso) e dia (16 ou 17/09) em que foi bipado. 1.673 em 16/09 e 187 em 17/09. Os 93 crachás retirados de 13 a 15/09 (credenciamento antecipado) não marcam dia.';
 
 -- 2) controle_de_inscritos_e_presenca entra na Regra #1 (D5): pessoa_id resolvido
 --    pela porta única com os hints e-mail, nome e id do credenciamento
