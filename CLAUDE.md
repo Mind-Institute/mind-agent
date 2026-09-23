@@ -4,6 +4,7 @@
 
 Leia, nesta ordem:
 
+0. **`READ_ME_FIRST.md`** — a Regra #1: toda linha sobre uma pessoa nasce com `pessoa_id` (D5).
 1. **`CHECKPOINT_ATUAL.md`** — onde estamos exatamente agora.
 2. **`PROJECT_STATE.md`** — arquitetura, gates e decisões congeladas.
 3. **`GO_LIVE_PARALLEL_20260830.md`** — ownership da sua lane e ordem de integração.
@@ -86,6 +87,7 @@ CANAL/ENTRADA
 - não invente requisito, prompt, playbook ou conteúdo de negócio;
 - use casas/taxonomias existentes;
 - antes de criar tabela, prove que falta uma casa;
+- **Regra #1 (D5):** toda tabela que fala de pessoa tem `pessoa_id`, resolvido ou criado pela porta única `mind_identidade_resolver` **antes** da escrita (`mind_pessoa_ligar_tabela` põe uma tabela nova na regra); nunca grave pessoa ou identificador fora dela; nunca funda pessoas fora de `mind_fusao_decidir` — a fusão é decisão da Adriana;
 - não transforme hipótese futura em hardening atual;
 - não exponha memória ao Agent sem o contrato de sensibilidade aprovado;
 - não ligue outbound sem gate;

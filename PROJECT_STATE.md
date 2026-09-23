@@ -3,7 +3,25 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v9 — 21/09/2026.**
+> **Versão do checkpoint arquitetural: v10 — 23/09/2026.**
+>
+> **v10 acrescenta D5 — identidade universal.** Nas palavras da Adriana (22–23/09): *"o
+> número de identidade único do sistema deve existir para todas as pessoas e, quando uma
+> pessoa nova chegar por qualquer lugar, deve procurar por ela e, se não achar, criar novo
+> ID — senão vai ficar uma porção de coisas soltas"*; *"toda tabela que tem pessoas deve ter
+> obrigatoriamente o ID da pessoa: resolver ID ou criar antes de escrever a pessoa no
+> sistema, sempre"*; *"antes de criar qualquer pessoa deve enriquecer as pessoas que já
+> existem com os dados que são usados para identidade dela, para não duplicar, e caso já
+> esteja duplicado unifique"*; *"antes de fundir deve sempre confirmar comigo"*; e sobre CPF:
+> *"CPF igual mas e-mail, WhatsApp ou nome diferente = pessoa diferente; muitas vezes é do
+> comprador ou porta-voz; mesmo assim pode servir para resolver conflitos; na dúvida
+> perguntar e não unificar"*. A forma operacional está em **`READ_ME_FIRST.md`** (Regra #1) e
+> em §7. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados do Summit e ~900
+> compradores da Eduzz sem pessoa; **586 duplicatas** entre credenciados e CRM, todas com a
+> mesma causa (pessoa nascida do WhatsApp, ligada ao HubSpot só pelo id do contato, sem o
+> e-mail, e recriada no login do app). `pessoas.pessoas` deixa de ser "espelho de leitura do
+> HubSpot" e vira o registro de todo mundo. Migration
+> `20260923013000_d5_identidade_universal.sql`; passada em `scripts/infra/identidade/`.
 >
 > v9 congela quatro decisões da Adriana, tomadas depois que o Summit 2026 acabou e o
 > inventário do banco ficou pronto (`MAPA_SUPABASE_20260921.md`):
@@ -213,10 +231,22 @@ Regras:
 
 `pessoas.pessoas.id` é a `pessoa_id` canônica. HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
 
+**D5 (23/09/2026) — identidade universal.** Toda pessoa, de qualquer fonte, existe em
+`pessoas.pessoas` com o id que persiste. Toda tabela que fala de pessoa tem `pessoa_id`,
+preenchido pela porta única `mind_identidade_resolver` **antes** da escrita (trigger
+`mind_pessoa_antes_de_escrever`; `mind_pessoa_ligar_tabela` põe uma tabela nova na regra).
+Força dos identificadores: login 4 · WhatsApp, HubSpot, Yazo, credenciamento, Eduzz,
+LearnWorlds 3 · e-mail 2 · **CPF e CNPJ 1 — apoio, nunca decidem sozinhos** (o CPF do
+credenciamento e da Yazo é o do comprador). Nome nunca identifica. Antes de criar: enriquecer
+(`mind_pessoa_enriquecer`, ancorado, nunca cria) e unificar. A pessoa com todos os ids numa
+linha: `pessoas.v_pessoa_360`. Uma pessoa fundida fica com `fundida_em`; o id antigo continua
+resolvendo (`mind_pessoa_canonica`).
+
 Conflito de identidade:
 
 ```text
-detecta → persiste evidência → pendência idempotente → NÃO auto-merge → resolução humana
+detecta → persiste evidência → pendência idempotente com PROPOSTA (padrão, quem sobrevive)
+→ NÃO auto-merge → decisão da Adriana em mind_fusao_decidir (bloco só para confiança alta)
 ```
 
 ### Intelligence

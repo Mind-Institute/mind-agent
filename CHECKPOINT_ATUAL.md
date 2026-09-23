@@ -6,6 +6,19 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### D5 — identidade universal — 23/09/2026, ESCRITA E PROVADA, NÃO APLICADA
+
+Regra #1 em `READ_ME_FIRST.md`. Migration `supabase/migrations/20260923013000_d5_identidade_universal.sql`
+provada duas vezes num Postgres 16 descartável (idempotente) com o contrato
+`tests/d5_identidade_universal_contract.sql`, que reproduz o cenário das 586 duplicatas
+e roda em produção dentro de `begin … rollback`. **Nenhuma mudança foi aplicada na
+produção.** A Adriana roda a passada em `scripts/infra/identidade/` (README lá), na ordem
+A enriquecer → B unificar (só com a decisão dela) → C criar (HubSpot → Eduzz → Blinket →
+Treble → credenciamento → Yazo). Prévia só-leitura da fase A em 23/09: acrescentaria 2.114
+e-mails e 264 WhatsApps a pessoas já ligadas ao HubSpot, daria nome a 2.960, e revelaria 822
+duplicatas (584 `mesmo_email_hubspot_x_login`, 238 `mesmo_telefone_emails_diferentes`).
+Branch `claude/trusting-einstein-pydyqb`, PR #110.
+
 ### Avaliação do evento — NO AR desde 18/09/2026
 
 A segunda pesquisa: o Summit inteiro, respondido depois que ele acaba. As mesmas

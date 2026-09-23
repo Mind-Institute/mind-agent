@@ -93,6 +93,47 @@ detecta → persiste evidência → vira pendência → NÃO faz auto-merge → 
 A pendência vai para `engagement.identidade_fusoes` (263 pendentes hoje), e os identificadores
 da outra pessoa **não são vinculados** — ninguém vê dado de terceiro.
 
+### D5 — identidade universal (23/09/2026)
+
+Regra #1 do sistema (`READ_ME_FIRST.md`): **toda linha sobre uma pessoa nasce ligada à
+pessoa.** O que muda em relação ao texto acima:
+
+- **Espelho passa pela porta única na escrita.** Antes, fonte em lote (HubSpot, Eduzz,
+  credenciamento, Yazo) entrava como espelho e a pessoa era resolvida por junção na leitura.
+  Agora cada tabela-fonte tem `pessoa_id`, `pessoa_criterio` e `pessoa_resolvido_em`, e um
+  trigger `before insert or update` (`mind_pessoa_antes_de_escrever`) chama
+  `mind_identidade_resolver` antes de a linha existir. Falha de identidade não bloqueia a
+  escrita. `mind_pessoa_ligar_tabela(tabela, mapa)` põe uma tabela nova na regra.
+- **Canais novos em `identidades`:** `cpf`, `cnpj`, `credenciamento`, `learnworlds` (além
+  de `yazo` e `eduzz`, que já existiam no CHECK). Força: login 4 · WhatsApp e ids de
+  terceiro 3 · e-mail 2 · **CPF/CNPJ 1** — evidência de apoio; nunca escolhem, criam nem
+  abrem conflito. CPF igual com e-mail, WhatsApp ou nome diferente é pessoa diferente.
+- **Só evidência forte cria pessoa**, e só quando nenhuma pessoa existente está por
+  enriquecer (`pessoas.pessoas.enriquecida_em` nulo): enriquecer e unificar antes de criar.
+- **Todo conflito nasce com proposta** (`identidade_fusoes.padrao`, `proposta`): quem
+  sobrevive (login no app > mais identificadores > mais antiga), confiança, motivo.
+- **Fusão existe, e só por decisão.** `mind_pessoa_fundir` repointa dinamicamente toda FK
+  para `pessoas.pessoas`, mantém a absorvida com `fundida_em` (nenhum id morre) e recusa
+  rodar fora de `mind_fusao_decidir`, que exige a decisão da Adriana — padrão inteiro só
+  para confiança alta; média e baixa linha a linha.
+- **Causa-raiz corrigida em `mind_crm_vincular_pessoa`:** ao ligar um contato do HubSpot à
+  pessoa, o e-mail, os telefones e o nome do contato viram identidade dela. Antes só o id do
+  HubSpot entrava, e a pessoa renascia no próximo login do app (586 duplicatas em 23/09).
+- **`crm.contato_espelho.pessoa_id` deixa de ser legado**: é preenchido pela porta única,
+  como em qualquer tabela-fonte. A leitura canônica continua por `identidades`.
+
+| função | papel |
+|---|---|
+| `public.mind_pessoa_antes_de_escrever()` | trigger das tabelas-fonte: resolve ou cria antes de escrever |
+| `public.mind_pessoa_ligar_tabela(regclass, jsonb)` | põe uma tabela na regra (colunas + trigger) |
+| `public.mind_pessoa_enriquecer(uuid)` | fase A: completa uma pessoa com o que as fontes ligadas sabem; nunca cria |
+| `public.mind_identidade_enriquecer_todas(int, bool)` · `mind_identidade_criar_faltantes(regclass, int, bool)` | motores das fases A e C, em lotes, com simulação |
+| `public.mind_fusao_propor(uuid, uuid, text)` | classifica a duplicata e propõe quem sobrevive |
+| `public.mind_fusao_decidir(text, text, text)` | **o único caminho que funde** (aprovar) ou descarta (rejeitar) |
+| `public.mind_pessoa_fundir(uuid, uuid, text)` | a fusão em si; recusa-se fora de `mind_fusao_decidir` |
+| `public.mind_pessoa_canonica(uuid)` | segue `fundida_em` até a sobrevivente |
+| `pessoas.v_pessoa_360` | a pessoa com todos os ids numa linha |
+
 ### Funções vivas
 
 | função | papel |
@@ -122,8 +163,13 @@ liga a mensagem órfã. Conversa já identificada é **âncora**: ganha de qualq
 
 ### ⚠️ `pessoa_id` legado em tabelas CRM
 
-Algumas tabelas de CRM têm uma coluna `pessoa_id` de origem histórica. **Ela não é caminho
-canônico de leitura e não deve ser propagada para tabelas novas.** Ver §13.
+~~Algumas tabelas de CRM têm uma coluna `pessoa_id` de origem histórica. **Ela não é caminho
+canônico de leitura e não deve ser propagada para tabelas novas.** Ver §13.~~
+
+> **Revisto por D5 (23/09/2026).** A coluna `pessoa_id` passa a ser **obrigatória** em toda
+> tabela que fala de pessoa, preenchida pela porta única antes da escrita. O que continua
+> valendo: a leitura canônica dos identificadores é por `engagement.identidades`, e o
+> `pessoa_id` histórico que **não** passou pela porta é o legado — a passada D5 o refaz.
 
 ### `public.mind_pessoa_fatos(p_pessoa_id uuid) → jsonb`  *(Passo 7)*
 
@@ -1156,8 +1202,10 @@ Encanamento único: `public.espelho_estado` + `espelho_config` / `espelho_gravar
 
 - **`pessoas.pessoas.hubspot_id`** é projeção legada de conveniência. Diverge da identidade e
   aponta para contato inexistente em alguns casos. **Nunca é caminho de leitura.**
-- **`pessoa_id` em tabelas CRM** não é caminho canônico de leitura e **não deve ser propagado
-  para tabelas novas**.
+- ~~**`pessoa_id` em tabelas CRM** não é caminho canônico de leitura e **não deve ser propagado
+  para tabelas novas**.~~ **Invertido por D5 (23/09/2026):** toda tabela que fala de pessoa
+  tem `pessoa_id`, preenchido pela porta única antes da escrita (§3, "D5"). Legado é o
+  `pessoa_id` gravado por fora da porta; a passada D5 o refaz.
 - **`public.mind_espelho_ligar()`** ainda contém blocos legados que preenchem `pessoa_id` em
   tabelas históricas via `crm.contato_espelho.pessoa_id`. **É legado conhecido, não padrão
   arquitetural** — não replicar em tabela nova. (Foi feito uma vez para
