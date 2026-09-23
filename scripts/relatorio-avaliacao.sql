@@ -49,7 +49,7 @@ select jsonb_pretty(jsonb_build_object(
                         where t.avaliacao_id = r.id))
       order by r.enviado_em desc)
     from engagement.avaliacao_do_dia r
-    join pessoas.pessoas pe on pe.id = r.participante_id
+    join pessoas.pessoas pe on pe.id = r.mind_id
     cross join p
     where r.event_id = (select id from ev)
       and (p.dia_alvo is null or r.dia = p.dia_alvo)

@@ -989,3 +989,40 @@ deixar de apagar/sobrescrever e passar a **anexar estado** (`ativo`, `arquivado_
 `deletado_em`, `reenviado_em`); (2) a lista de reenvio (quem sobe de volta, quando) e o gate de
 outbound/write-back D1 antes de qualquer upload; (3) com D5, a pessoa continua existindo em
 `pessoas.pessoas` mesmo se o contato sumir do HubSpot — o `pessoa_id` é o elo para ressubir.
+
+## 20. Descobertas laterais do rename D6 (`mind_id`) — 23/09/2026
+
+Registradas durante a reescrita das 63 funções; nenhuma foi corrigida além do necessário para o
+rename passar.
+
+1. **`credenciamento_summit_2026.v_participantes` ainda resolve `pessoa_id` por junção lateral**
+   em `engagement.identidades` (e-mail, depois telefone) — desenho anterior a D5. A coluna real
+   `participantes.mind_id` (preenchida pelo trigger da Regra #1) existe e é a fonte certa. Recriar a
+   view lendo `mind_id` e com saída `mind_id` (hoje a saída chama `pessoa_id`; `mind_credenciamento_fatos`
+   lê `v.pessoa_id` e precisaria acompanhar). Sem consumidor quebrado hoje.
+2. **`api.me` estava quebrada antes do rename**: lia `summit.registrations`, schema que não existe
+   (só `summit_2026`); com `check_function_bodies=on` o `create or replace` literal falharia, então
+   a reescrita D6 corrige o schema para `summit_2026.registrations` junto com `person_id → mind_id`.
+   Conferir se o app ainda chama `api.me` ou se é função morta.
+3. **Colunas `pessoa_id` vazias e sem FK** em `crm.empenho_summit_2026` (25 linhas) e
+   `crm.pipeline_leads_inbound` (3.428 linhas) — nunca preenchidas. D6 renomeia para `mind_id` e
+   cria a FK; preencher é a varredura das 160 tabelas (leads inbound ligam pelo contato HubSpot).
+4. **`credenciamento_summit_2026.yazo_envio_fila.participant_id`** aponta para `participantes.id`
+   (11.404/11.404), não para pessoa: não é o ID universal e não foi renomeada. Se um dia a fila
+   precisar da pessoa, entra pela Regra #1 com `credenciamento_id`.
+5. **`mind_espelho_ligar` mantém blocos legados** que gravam `mind_id` em `pipeline_de_vendas_summit`
+   e `vendas_historicas_mind_summit` a partir de `contato_espelho` (§ CORE_UNIVERSAL 13). Continua
+   legado conhecido; só o nome da coluna mudou.
+6. **`mind_checkout_click_registrar` e `mind_checkout_event_purchase_status` dependem de
+   `engagement.checkout_clicks`**, tabela que saiu do banco entre 21 e 23/09 (a migration de
+   comentários já anotou). A primeira declara `checkout_clicks%rowtype` e por isso só pode ser
+   recriada com `check_function_bodies` desligado (é o que a migration D6 faz); as duas falham em
+   runtime até a tabela voltar. Se voltar pela migration de 03/09, nasce com `participant_id`:
+   decidir se entra na Regra #1 com `mind_id`. Na mesma situação: `mind_checkout_abandonment_refresh`
+   lê `intelligence.v_checkout_abandonment`, view que também não existe mais no banco (o ledger
+   registra as migrations de 03/09 como aplicadas, mas os objetos saíram); `mindagent-recovery` a
+   chama por RPC e recebe erro hoje.
+7. **Funções já mortas antes do rename** (schema `summit` não existe): `concierge.resumo_do_dia`
+   (`summit.sessions`, `motivos_ausencia`) e `mind.esquecer_participante` (`nps_summit`,
+   `participantes` fora do search_path). D6 as recria só com o rename (a primeira com
+   `check_function_bodies` desligado, por ser LANGUAGE sql). Consertar ou dropar é decisão à parte.

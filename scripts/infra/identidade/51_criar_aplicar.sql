@@ -9,8 +9,8 @@ select public.mind_identidade_criar_faltantes('crm.contato_espelho', 2000, false
 -- 4. Treble: engagement.conversas não tem o trigger (a porta única ali é mind_inbound, que já
 --    resolve identidade a cada mensagem). Só as conversas antigas sem pessoa passam aqui:
 -- update engagement.conversas c
---    set participante_id = (public.mind_identidade_resolver(jsonb_build_object('whatsapp', c.telefone), c.nome_contato, 'treble')->>'pessoa_id')::uuid
---  where c.participante_id is null and c.telefone is not null;
+--    set mind_id = (public.mind_identidade_resolver(jsonb_build_object('whatsapp', c.telefone), c.nome_contato, 'treble')->>'pessoa_id')::uuid
+--  where c.mind_id is null and c.telefone is not null;
 
 -- select public.mind_identidade_criar_faltantes('credenciamento_summit_2026.participantes', 2000, false); -- 5. credenciamento
 -- select public.mind_identidade_criar_faltantes('credenciamento_summit_2026.yazo_espelho', 2000, false);  -- 6. Yazo

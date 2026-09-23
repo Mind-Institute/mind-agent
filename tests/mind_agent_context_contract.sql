@@ -36,7 +36,7 @@ values ('09000000-0000-4000-8000-000000000001',
 -- O espelho resolve o credenciamento pela identidade canônica antes de o coletor
 -- ser chamado. Nome nunca é usado como identidade.
 insert into engagement.identidades
-  (pessoa_id, canal, identificador, verificado, confianca)
+  (mind_id, canal, identificador, verificado, confianca)
 values
   ('09000000-0000-4000-8000-000000000001',
    'email', 'p9-credenciamento@example.test', true, 'alta');
@@ -61,7 +61,7 @@ values
 -- CONVERSA A -- a mais recente. variables em ARRAY. Carrega estado do agente
 -- (audience, stage e as chaves de resultado) para provar que ele nao vaza.
 insert into engagement.conversas
-  (id, participante_id, canal, agente, origem_codigo, produto_codigo,
+  (id, mind_id, canal, agente, origem_codigo, produto_codigo,
    iniciada_em, ultima_atividade, encerrada_em, audience, stage, variables)
 values ('09000000-0000-4000-8000-0000000000a1',
         '09000000-0000-4000-8000-000000000001',
@@ -80,7 +80,7 @@ values ('09000000-0000-4000-8000-0000000000a1',
 -- CONVERSA B -- a mais antiga. variables em OBJECT com as DUAS chaves de CTA,
 -- para travar a precedencia. Tem os 9 campos preenchidos.
 insert into engagement.conversas
-  (id, participante_id, canal, agente, origem_codigo, produto_codigo,
+  (id, mind_id, canal, agente, origem_codigo, produto_codigo,
    iniciada_em, ultima_atividade, encerrada_em, audience, stage, variables)
 values ('09000000-0000-4000-8000-0000000000b1',
         '09000000-0000-4000-8000-000000000001',
@@ -99,21 +99,21 @@ values ('09000000-0000-4000-8000-0000000000b1',
 
 -- CONVERSA C -- intermediaria e minima: sem origem, sem variables.
 insert into engagement.conversas
-  (id, participante_id, canal, agente, iniciada_em, ultima_atividade, encerrada_em)
+  (id, mind_id, canal, agente, iniciada_em, ultima_atividade, encerrada_em)
 values ('09000000-0000-4000-8000-0000000000c1',
         '09000000-0000-4000-8000-000000000001',
         'mindagent-web', 'mindagent-chat',
         now() - interval '3 days', now() - interval '3 days', now() - interval '3 days');
 
 -- CONVERSA ORFA -- existe, mas sem pessoa. So para o contrato de erro.
-insert into engagement.conversas (id, participante_id, canal, iniciada_em)
+insert into engagement.conversas (id, mind_id, canal, iniciada_em)
 values ('09000000-0000-4000-8000-0000000000d1', null, 'whatsapp', now() - interval '2 days');
 
 -- Mensagens, tambem fora da ordem de insercao. A mensagem do lead em A contem
 -- de proposito as palavras "intent" e "objection": se a pessoa escreveu, isso
 -- e historico factual e continua no transcrito. O contrato proibe essas chaves
 -- na ESTRUTURA, nao essas palavras no texto.
-insert into engagement.mensagens (conversa_id, participante_id, papel, conteudo, origem, criado_em)
+insert into engagement.mensagens (conversa_id, mind_id, papel, conteudo, origem, criado_em)
 values
  ('09000000-0000-4000-8000-0000000000a1','09000000-0000-4000-8000-000000000001',
   'agente','Resposta do agente na conversa A.','agente', now() - interval '1 day' + interval '2 min'),
@@ -150,7 +150,7 @@ begin
   if (v->>'ok')::boolean is not false
      or v->>'motivo' <> 'conversa_sem_pessoa'
      or v->>'conversa_id' <> c_orfa::text then
-    raise exception 'CONTRATO 1: conversa sem participante_id devia devolver conversa_sem_pessoa com o id preservado, veio %', v;
+    raise exception 'CONTRATO 1: conversa sem mind_id devia devolver conversa_sem_pessoa com o id preservado, veio %', v;
   end if;
   -- Chegar aqui ja prova que nenhum dos tres lancou exception.
 end
@@ -164,9 +164,9 @@ declare
   v        jsonb := public.mind_agent_context(c_atual);
   v_espera uuid;
 begin
-  select participante_id into v_espera from engagement.conversas where id = c_atual;
+  select mind_id into v_espera from engagement.conversas where id = c_atual;
   if (v->>'pessoa_id')::uuid is distinct from v_espera then
-    raise exception 'CONTRATO 2: pessoa_id (%) devia ser o participante_id da conversa (%)',
+    raise exception 'CONTRATO 2: pessoa_id (%) devia ser o mind_id da conversa (%)',
       v->>'pessoa_id', v_espera;
   end if;
   if (v->>'conversa_id')::uuid is distinct from c_atual then
@@ -618,7 +618,7 @@ begin
 
   if not exists (
     select 1 from engagement.identidades i
-    where i.pessoa_id = v_pid
+    where i.mind_id = v_pid
       and i.canal = 'whatsapp'
       and i.identificador = '5511977776666'
       and i.verificado is false
