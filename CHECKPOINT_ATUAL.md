@@ -28,7 +28,7 @@ ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já cr
   6.970 jobs `ativa` + 4.990 `proposta`; 1.779 cargos e 1.677 empresas como memória);
   `pessoas.pessoas`: 1.815 cargos e 1.667 empresas gravados. Ledger: `20260923081119`, `081602`,
   `081831`, `082020`, `082744`, `083527`. Contrato `tests/perfil_icp_jtbd_contract.sql` → `PERFIL_OK`.
-- **HubSpot:** Edge Function `hubspot-perfil-writeback` (v2, publicada às 08:40 UTC; ensaio por padrão)
+- **HubSpot (manhã):** Edge Function `hubspot-perfil-writeback` (v2, publicada às 08:40 UTC; ensaio por padrão)
   — plano de 2.627 pessoas, 2.587 com contato; `icp` 2.230 (0 conflitos), `jtbd` 1.795, `jobtitle` 1.654
   (712 trocas reais listadas em `substituicoes`; 82 variações da mesma coisa seguradas), `company` 1.278
   (83 trocas; 91 seguradas, ex.: "Beiwrsdorf"). **Executado às 08:42–08:44 UTC em 5 lotes (25 + 700 +
@@ -40,9 +40,26 @@ ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já cr
   fusão); opção `Fundadot / Sócio / Empreendedor` com typo no HubSpot (rótulo corrigível na tela);
   o token do app privado não devolve escopos na introspecção (HTTP 400) — `crm.schemas.contacts.write`
   só se descobre tentando (`acao: "propriedades"` em ensaio).
+- **Tarde de 23/09 — segunda rodada, com revisão crítica (docs/PERFIL_ICP_JTBD.md §6).** Ledger:
+  `085242` (guarda de última escrita: `mind_hubspot_perfil_registrar`, plano com `p_desde`/`resumo`/
+  `ultimo_escrito`, `perfil_resumo`), `090316` (`memoria_regex`: o que a pessoa disse vira evidência),
+  `091022` e `093110` (regra revisada: check-in pesa pelo tamanho da sala, reserva 0,50 nunca faz job
+  sozinha, veto por ICP típico, rebaixamento, cargo com siglas/abreviações/RH antes de saúde, ICP manual
+  só quando não é do Mind), `093258` (resumo, plano sem staff/palestrantes, leitor com fonte/evidência),
+  `095020` (conversa não pisa na linha da regra), `095258` (**automático**: `pg_cron` hh:36 reprojeção +
+  hh:41 write-back de quem mudou em 2 h; gatilhos `icp_alinhar_hubspot`/`jtbd_alinhar_hubspot`).
+  Resultado no banco: jobs ativos **7.068 → 3.844**, pessoas com 6+ jobs **221 → 34**, 2,4 jobs por
+  contato. Edge Function **v4** (guarda + JTBD como conjunto + qualidade do valor novo; 41 testes Node).
+  HubSpot: propriedades alinhadas pela função (rótulo "Fundadot" corrigido; `mind_resumo_inteligencia`
+  criada — o token tem `crm.schemas.contacts.write`); execução em 4 lotes às 09:45–09:48 UTC: **2.288
+  contatos, 0 erros, 2.288 registros de última escrita**; `jtbd` 1.368 (1.343 conjuntos corrigidos),
+  resumo 2.252, `icp` 72 (BPs que estavam como CHRO), `jobtitle` 1 gravado e **5 preservados** (editados
+  no HubSpot entre as rodadas — a guarda funcionou). Contrato `tests/perfil_icp_jtbd_contract.sql` →
+  `PERFIL_OK` (26 casos de cargo, pesos, reserva fraca, rebaixamento, idempotência, escritor × regra).
 - **Gates que restam:** reprocessar as 4.921 análises de conversa com prompt novo (custo — dela);
-  propriedade de resumo da inteligência no HubSpot (ela cria `mind_resumo_inteligencia`); automático
-  (cron) só depois da guarda de "última escrita" (BACKLOG §21).
+  decisões de produto/semântica listadas em BACKLOG §21 (tradução de evidência por família, valores
+  internos novos no HubSpot, empresa como sinal, rótulo de saúde pessoal no CRM); limpar por lista no
+  HubSpot o ICP/JTBD dos 41 staff/palestrantes e o "Outros" de ~120 contatos (a função não apaga valor).
 
 ### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
 

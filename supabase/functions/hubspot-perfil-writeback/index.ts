@@ -1,10 +1,13 @@
-// hubspot-perfil-writeback — leva o perfil profissional (cargo, empresa, ICP e JTBD) ao HubSpot.
+// hubspot-perfil-writeback — leva o perfil profissional (cargo, empresa, ICP, JTBD e o resumo da
+// inteligência) ao HubSpot.
 //
 // Pedido da Adriana em 23/09/2026, na direção de D1 (o banco alimenta o HubSpot). Irmã de
 // hubspot-credenciamento-writeback: mesma porta, mesmo relatório, mesmo ENSAIO por padrão.
-// O plano por pessoa vem de `mind_hubspot_perfil_plano()`; os catálogos (ICP, JTBD) vêm de
+// O plano por pessoa vem de `mind_hubspot_perfil_plano(p_desde)`; os catálogos (ICP, JTBD) vêm de
 // `mind_hubspot_perfil_definicoes()`; a decisão do que escrever é `mapping.ts` (puro,
-// testado no Node); aqui só há I/O.
+// testado no Node); aqui só há I/O. Cada escrita bem-sucedida é registrada em
+// `mind_hubspot_perfil_registrar` (o que foi escrito e o que havia antes): é desse registro que o
+// plano tira `ultimo_escrito`, a guarda que impede um cron de desfazer edição humana no HubSpot.
 //
 // Regras dela:
 // - cargo (jobtitle) e empresa (company) são o que a pessoa escreveu no credenciamento:
@@ -13,15 +16,21 @@
 // - ICP só preenche o que está vazio (valor manual do HubSpot nunca é sobrescrito; a
 //   diferença vai para `conflitos`). Junto vai `icp_confianca` (0–10).
 // - JTBD (multi-seleção) recebe a união do que já está lá com o que o Mind vê.
+// - Guarda de "última escrita" (BACKLOG §21.1): valor do HubSpot diferente do que o Mind escreveu
+//   por último foi editado por alguém lá — fica, e vai para `preservados` (mapping.ts).
+// - `mind_resumo_inteligencia` (texto multi-linha) recebe `resumo` do plano, com a mesma guarda.
 // - Esta função NÃO cria contatos; quem cria é a irmã de credenciamento.
 //
-// Chamada: POST com JSON { token, acao?, executar?, limite?, deslocamento?, emails? }.
+// Chamada: POST com JSON { token, acao?, executar?, limite?, deslocamento?, emails?, desde? }.
 //   token        obrigatório — intelligence.config.analise_token (mesma porta dos outros
 //                disparos internos). Além do JWT que o gateway exige.
 //   acao         "contatos" (padrão) escreve nos contatos; "propriedades" garante as
-//                definições de `icp` (opções) e `jtbd` (cria se faltar) a partir dos catálogos.
-//   executar     false por padrão: ENSAIO, nada é escrito, o relatório diz o que seria.
+//                definições de `icp` (opções), `jtbd` (cria se faltar) e
+//                `mind_resumo_inteligencia` (cria se faltar) a partir dos catálogos.
+//   executar     false por padrão: ENSAIO, nada é escrito nem registrado, o relatório diz o que seria.
 //   limite / deslocamento / emails  recortam o plano (piloto, retomada).
+//   desde        ISO 8601; quando vem, o plano só traz quem teve memória alterada desde então
+//                (é o que o cron horário manda).
 //
 // Escreve em lotes de 100 (batch API); se um lote falha, refaz um a um para isolar o erro
 // em vez de perder o lote inteiro. Respeita 429 com espera. Escrever definição de
@@ -32,7 +41,7 @@
 // diferencie contra a versão no ar — supabase/functions/README.md.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.112.3";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.112.3";
 import {
   type Catalogos,
   type ContatoAtual,
@@ -43,11 +52,13 @@ import {
   montarOpcoes,
   type OpcaoHubSpot,
   planejar,
+  PROPRIEDADE_RESUMO,
   PROPRIEDADES_LIDAS,
 } from "./mapping.ts";
 
 const HUBSPOT = "https://api.hubapi.com";
 const LOTE = 100;
+const REGISTRO_LOTE = 200; // fatia de mind_hubspot_perfil_registrar
 const ORCAMENTO_MS = 110_000; // o gateway derruba a chamada em 150 s; a função devolve antes
 const MAX_LISTA = 400;
 const PAGINA = 1000; // PostgREST devolve no máximo 1.000 linhas por chamada
@@ -152,6 +163,7 @@ async function definicoes(token: string): Promise<Definicoes> {
 type PropriedadeHubSpot = {
   name: string;
   label?: string;
+  description?: string;
   type?: string;
   fieldType?: string;
   groupName?: string;
@@ -168,7 +180,7 @@ async function lerPropriedade(token: string, nome: string): Promise<PropriedadeH
   }
 }
 
-async function lerContatos(token: string, emails: string[]): Promise<Map<string, ContatoAtual>> {
+async function lerContatos(token: string, emails: string[], propriedades: string[]): Promise<Map<string, ContatoAtual>> {
   const mapa = new Map<string, ContatoAtual>();
   for (const fatia of fatiar(emails, LOTE)) {
     const r = await hubspot(token, "/crm/v3/objects/contacts/batch/read", {
@@ -176,7 +188,7 @@ async function lerContatos(token: string, emails: string[]): Promise<Map<string,
       body: JSON.stringify({
         idProperty: "email",
         inputs: fatia.map((id) => ({ id })),
-        properties: PROPRIEDADES_LIDAS,
+        properties: propriedades,
       }),
     });
     for (const c of (r.results ?? []) as Array<{ id: string | number; properties?: Record<string, string | null> }>) {
@@ -187,14 +199,14 @@ async function lerContatos(token: string, emails: string[]): Promise<Map<string,
   return mapa;
 }
 
-async function lerContatosPorId(token: string, ids: string[]): Promise<Map<string, ContatoAtual>> {
+async function lerContatosPorId(token: string, ids: string[], propriedades: string[]): Promise<Map<string, ContatoAtual>> {
   const mapa = new Map<string, ContatoAtual>();
   for (const fatia of fatiar(ids, LOTE)) {
     const r = await hubspot(token, "/crm/v3/objects/contacts/batch/read", {
       method: "POST",
       body: JSON.stringify({
         inputs: fatia.map((id) => ({ id })),
-        properties: PROPRIEDADES_LIDAS,
+        properties: propriedades,
       }),
     });
     for (const c of (r.results ?? []) as Array<{ id: string | number; properties?: Record<string, string | null> }>) {
@@ -207,7 +219,8 @@ async function lerContatosPorId(token: string, ids: string[]): Promise<Map<strin
 /**
  * Escreve um contato sozinho. Se o HubSpot recusar uma propriedade, tira só ela e tenta
  * mais uma vez: o resto do que a pessoa tem entra, e o valor recusado vai para `erros`
- * com o nome da propriedade, para a correção acontecer na origem.
+ * com o nome da propriedade, para a correção acontecer na origem. Devolve o que de fato
+ * gravou (para o registro de última escrita), ou null quando nada entrou.
  */
 async function umAUm(
   token: string,
@@ -215,34 +228,40 @@ async function umAUm(
   metodo: "PATCH" | "POST",
   d: Decisao,
   erros: string[],
-): Promise<boolean> {
+): Promise<Record<string, string> | null> {
   const propriedades = { ...d.propriedades };
   for (let tentativa = 0; tentativa < 2; tentativa += 1) {
     try {
       await hubspot(token, caminho, { method: metodo, body: JSON.stringify({ properties: propriedades }) });
-      return true;
+      return propriedades;
     } catch (e) {
       const recusadas = propriedadesRecusadas(e).filter((p) => p in propriedades);
       if (recusadas.length === 0 || recusadas.includes("email")) {
         erros.push(`${d.email}: ${mensagem(e).slice(0, 220)}`);
-        return false;
+        return null;
       }
       for (const p of recusadas) {
         erros.push(`${d.email}: ${p} recusado pelo HubSpot (${propriedades[p]}), gravado sem ele`);
         delete propriedades[p];
       }
-      if (Object.keys(propriedades).length === 0) return false;
+      if (Object.keys(propriedades).length === 0) return null;
     }
   }
-  return false;
+  return null;
 }
 
 type Escrita = { atualizados: number; incompleto: boolean };
 
-// Só atualiza: esta função não cria contatos.
+/** Uma escrita que aconteceu: a decisão e as propriedades que de fato entraram no HubSpot. */
+type Escrito = { d: Decisao; propriedades: Record<string, string> };
+type Registrar = (escritos: Escrito[]) => Promise<void>;
+
+// Só atualiza: esta função não cria contatos. Registra cada escrita logo depois dela (e não no
+// fim), para o registro de última escrita ficar íntegro mesmo se o gateway derrubar a chamada.
 async function escrever(
   token: string,
   decisoes: Decisao[],
+  registrar: Registrar,
   erros: string[],
   prazo: () => boolean,
 ): Promise<Escrita> {
@@ -250,23 +269,76 @@ async function escrever(
 
   for (const fatia of fatiar(decisoes.filter((d) => d.acao === "atualizar"), LOTE)) {
     if (prazo()) { resultado.incompleto = true; return resultado; }
+    let loteGravado = false;
     try {
       await hubspot(token, "/crm/v3/objects/contacts/batch/update", {
         method: "POST",
         body: JSON.stringify({ inputs: fatia.map((d) => ({ id: d.id, properties: d.propriedades })) }),
       });
-      resultado.atualizados += fatia.length;
+      loteGravado = true;
     } catch (e) {
       erros.push(`lote de atualização recusado, refazendo um a um: ${mensagem(e).slice(0, 160)}`);
+      const escritos: Escrito[] = [];
       for (const d of fatia) {
-        if (prazo()) { resultado.incompleto = true; return resultado; }
-        const ok = await umAUm(token, `/crm/v3/objects/contacts/${encodeURIComponent(d.id ?? "")}`, "PATCH", d, erros);
-        if (ok) resultado.atualizados += 1;
+        if (prazo()) { resultado.incompleto = true; break; }
+        const gravadas = await umAUm(token, `/crm/v3/objects/contacts/${encodeURIComponent(d.id ?? "")}`, "PATCH", d, erros);
+        if (gravadas) {
+          resultado.atualizados += 1;
+          escritos.push({ d, propriedades: gravadas });
+        }
       }
+      await registrar(escritos);
+      if (resultado.incompleto) return resultado;
+    }
+    if (loteGravado) {
+      resultado.atualizados += fatia.length;
+      await registrar(fatia.map((d) => ({ d, propriedades: d.propriedades })));
     }
   }
 
   return resultado;
+}
+
+/** Item de mind_hubspot_perfil_registrar: o que foi escrito e o que havia antes, por propriedade. */
+type ItemRegistro = {
+  hubspot_id: string;
+  mind_id: string;
+  propriedades: Record<string, string>;
+  antes: Record<string, string | null>;
+};
+type Registro = { itens: number; erros: number };
+
+/**
+ * Registra as escritas no banco, em fatias de até 200. Erro aqui não derruba a rodada: vai para
+ * `erros` e para `registrados.erros` (contado em itens, para a reconciliação saber quantas
+ * escritas ficaram sem registro).
+ */
+function registrador(
+  db: SupabaseClient,
+  rotulo: string,
+  atuais: Map<string, ContatoAtual>,
+  registro: Registro,
+  erros: string[],
+): Registrar {
+  return async (escritos) => {
+    if (escritos.length === 0) return;
+    const itens: ItemRegistro[] = escritos.map(({ d, propriedades }) => {
+      const antes: Record<string, string | null> = {};
+      const props = atuais.get(d.id ?? "")?.properties ?? {};
+      for (const p of Object.keys(propriedades)) antes[p] = props[p] ?? null;
+      return { hubspot_id: d.id ?? "", mind_id: d.mind_id, propriedades, antes };
+    });
+    for (const fatia of fatiar(itens, REGISTRO_LOTE)) {
+      try {
+        const { data, error } = await db.rpc("mind_hubspot_perfil_registrar", { p_itens: fatia, p_rotulo: rotulo });
+        if (error) throw new Error(error.message);
+        registro.itens += typeof data === "number" ? data : fatia.length;
+      } catch (e) {
+        registro.erros += fatia.length;
+        erros.push(`registro de ${fatia.length} escritas falhou (mind_hubspot_perfil_registrar): ${mensagem(e).slice(0, 200)}`);
+      }
+    }
+  };
 }
 
 type RelatorioPropriedade = {
@@ -339,25 +411,49 @@ async function criarJtbd(
     ctx.erros.push(`jtbd: ${rel.erro}`);
     return rel;
   }
+  return criarPropriedade(ctx, rel, {
+    name: "jtbd",
+    label: "JTBD (Mind)",
+    description: "Jobs to be done da pessoa segundo a inteligência do Mind (catálogo intelligence.jtbd). Multi-seleção.",
+    groupName,
+    type: "enumeration",
+    fieldType: "checkbox",
+    options: m.opcoes,
+  });
+}
+
+/** Cria `mind_resumo_inteligencia` (texto multi-linha) no mesmo grupo de `icp`. */
+async function criarResumo(ctx: Contexto, groupName: string | undefined): Promise<RelatorioPropriedade> {
+  const rel: RelatorioPropriedade = { existe: false, acao: "criar", opcoes: 0, diff: null, executado: false };
+  if (!groupName) {
+    rel.erro = `sem groupName: a propriedade icp não foi lida, e ${PROPRIEDADE_RESUMO} nasce no grupo dela`;
+    ctx.erros.push(`${PROPRIEDADE_RESUMO}: ${rel.erro}`);
+    return rel;
+  }
+  return criarPropriedade(ctx, rel, {
+    name: PROPRIEDADE_RESUMO,
+    label: "Resumo da inteligência (Mind)",
+    description: "Resumo do que o Mind sabe sobre a pessoa: cargo, empresa, ICP, jobs observados com evidência, última conversa e produtos com fit. Escrito pelo banco (regra, sem IA); edições manuais aqui são preservadas.",
+    groupName,
+    type: "string",
+    fieldType: "textarea",
+  });
+}
+
+/** POST da definição no HubSpot; em ENSAIO ou sem escopo só relata. 403 vira `escopo_faltando`. */
+async function criarPropriedade(
+  ctx: Contexto,
+  rel: RelatorioPropriedade,
+  definicao: PropriedadeHubSpot,
+): Promise<RelatorioPropriedade> {
   if (!ctx.executar || ctx.escopoFaltando) return rel;
   try {
-    await hubspot(ctx.token, "/crm/v3/properties/contacts", {
-      method: "POST",
-      body: JSON.stringify({
-        name: "jtbd",
-        label: "JTBD (Mind)",
-        description: "Jobs to be done da pessoa segundo a inteligência do Mind (catálogo intelligence.jtbd). Multi-seleção.",
-        groupName,
-        type: "enumeration",
-        fieldType: "checkbox",
-        options: m.opcoes,
-      }),
-    });
+    await hubspot(ctx.token, "/crm/v3/properties/contacts", { method: "POST", body: JSON.stringify(definicao) });
     rel.executado = true;
   } catch (e) {
     ctx.escopoFaltando = escopoFaltandoEm(e) ?? ctx.escopoFaltando;
     rel.erro = mensagem(e);
-    ctx.erros.push(`jtbd: ${mensagem(e).slice(0, 220)}`);
+    ctx.erros.push(`${definicao.name}: ${mensagem(e).slice(0, 220)}`);
   }
   return rel;
 }
@@ -382,6 +478,7 @@ Deno.serve(async (req: Request) => {
     limite?: number;
     deslocamento?: number;
     emails?: string[];
+    desde?: string | null;
   };
 
   const { data: cfg } = await db.rpc("analise_config");
@@ -394,6 +491,14 @@ Deno.serve(async (req: Request) => {
   const acao = corpo.acao ?? "contatos";
   if (acao !== "contatos" && acao !== "propriedades") {
     return json(400, { ok: false, erro: "acao_invalida", aceitas: ["contatos", "propriedades"] });
+  }
+  let desde: string | undefined;
+  if (corpo.desde !== undefined && corpo.desde !== null) {
+    const instante = typeof corpo.desde === "string" ? Date.parse(corpo.desde) : NaN;
+    if (Number.isNaN(instante)) {
+      return json(400, { ok: false, erro: "desde_invalido", esperado: "ISO 8601, ex.: 2026-09-23T10:00:00Z" });
+    }
+    desde = new Date(instante).toISOString();
   }
 
   const intro = await escopos(token);
@@ -414,9 +519,11 @@ Deno.serve(async (req: Request) => {
 
     let icpAtual: PropriedadeHubSpot | null;
     let jtbdAtual: PropriedadeHubSpot | null;
+    let resumoAtual: PropriedadeHubSpot | null;
     try {
       icpAtual = await lerPropriedade(token, "icp");
       jtbdAtual = await lerPropriedade(token, "jtbd");
+      resumoAtual = await lerPropriedade(token, PROPRIEDADE_RESUMO);
     } catch (e) {
       return json(500, { ok: false, erro: `propriedades do HubSpot: ${mensagem(e)}` });
     }
@@ -436,6 +543,11 @@ Deno.serve(async (req: Request) => {
     propriedades.jtbd = jtbdAtual
       ? await alinharOpcoes(ctx, "jtbd", jtbdAtual, catalogos.jtbd)
       : await criarJtbd(ctx, icpAtual?.groupName, catalogos.jtbd);
+
+    // Texto livre: não há opções a alinhar; existe → nada; falta → cria no grupo de `icp`.
+    propriedades[PROPRIEDADE_RESUMO] = resumoAtual
+      ? { existe: true, acao: "nada", opcoes: 0, diff: null, executado: false }
+      : await criarResumo(ctx, icpAtual?.groupName);
 
     const pendentes = Object.values(propriedades).filter((p) => p.acao !== "nada" && !p.executado).length;
     return json(200, {
@@ -462,12 +574,14 @@ Deno.serve(async (req: Request) => {
     return json(500, { ok: false, erro: `propriedades do HubSpot: ${mensagem(e)}` });
   }
   const propriedadesFaltando = PROPRIEDADES_LIDAS.filter((p) => !defs[p]);
+  // Só se pede ao HubSpot o que existe lá (o resumo pode ainda não ter sido criado).
+  const lidas = PROPRIEDADES_LIDAS.filter((p) => defs[p]);
 
   // PostgREST devolve no máximo 1.000 linhas por chamada; o plano pode ter mais. Pagina até acabar.
   const planoTodo: Linha[] = [];
   for (let de = 0; ; de += PAGINA) {
     const { data: pagina, error: erroPlano } = await db
-      .rpc("mind_hubspot_perfil_plano")
+      .rpc("mind_hubspot_perfil_plano", { p_desde: desde ?? null })
       .range(de, de + PAGINA - 1);
     if (erroPlano) return json(500, { ok: false, erro: `plano: ${erroPlano.message}` });
     const lote = (pagina ?? []) as Linha[];
@@ -494,11 +608,11 @@ Deno.serve(async (req: Request) => {
   let porId: Map<string, ContatoAtual>;
   let porEmail: Map<string, ContatoAtual>;
   try {
-    porId = await lerContatosPorId(token, [...new Set(linhas.flatMap((l) => l.hubspot_id ? [l.hubspot_id] : []))]);
+    porId = await lerContatosPorId(token, [...new Set(linhas.flatMap((l) => l.hubspot_id ? [l.hubspot_id] : []))], lidas);
     const emailsSemId = linhas
       .filter((l) => l.email !== null && (l.hubspot_id === null || !porId.has(l.hubspot_id)))
       .map((l) => l.email as string);
-    porEmail = await lerContatos(token, [...new Set(emailsSemId)]);
+    porEmail = await lerContatos(token, [...new Set(emailsSemId)], lidas);
   } catch (e) {
     return json(500, { ok: false, erro: `leitura dos contatos: ${mensagem(e)}` });
   }
@@ -509,14 +623,18 @@ Deno.serve(async (req: Request) => {
   // Duas linhas do plano no mesmo contato não entram no mesmo lote (o HubSpot recusa o
   // lote inteiro); a segunda é pulada e aparece no relatório.
   const vistos = new Set<string>();
+  const atuais = new Map<string, ContatoAtual>(); // por id do HubSpot: o "antes" do registro de escrita
   let existentes = 0;
   const decisoes: Decisao[] = linhas.map((l) => {
     const atual = localizar(l);
-    if (atual) existentes += 1;
+    if (atual) {
+      existentes += 1;
+      atuais.set(atual.id, atual);
+    }
     if (atual && vistos.has(atual.id)) {
       return {
         mind_id: l.mind_id, email: l.email ?? "", acao: "pular", motivo: "contato_repetido_no_recorte",
-        id: atual.id, propriedades: {}, conflitos: [], ignorados: [], substituicoes: [], equivalentes: [],
+        id: atual.id, propriedades: {}, conflitos: [], ignorados: [], substituicoes: [], equivalentes: [], preservados: [],
       };
     }
     if (atual) vistos.add(atual.id);
@@ -536,22 +654,27 @@ Deno.serve(async (req: Request) => {
     pular_por_motivo: pularPorMotivo,
   };
 
-  const porPropriedade: Record<string, { escritas: number; conflitos: number; ignorados: number; substituicoes: number; equivalentes: number }> = {};
-  const conta = (prop: string) => porPropriedade[prop] ??= { escritas: 0, conflitos: 0, ignorados: 0, substituicoes: 0, equivalentes: 0 };
+  type Contadores = { escritas: number; conflitos: number; ignorados: number; substituicoes: number; equivalentes: number; preservados: number };
+  const porPropriedade: Record<string, Contadores> = {};
+  const conta = (prop: string) => porPropriedade[prop] ??= { escritas: 0, conflitos: 0, ignorados: 0, substituicoes: 0, equivalentes: 0, preservados: 0 };
   for (const d of decisoes) {
     if (d.acao === "atualizar") for (const prop of Object.keys(d.propriedades)) conta(prop).escritas += 1;
     for (const c of d.conflitos) conta(c.propriedade).conflitos += 1;
     for (const i of d.ignorados) conta(i.propriedade).ignorados += 1;
     for (const s of d.substituicoes) conta(s.propriedade).substituicoes += 1;
     for (const q of d.equivalentes) conta(q.propriedade).equivalentes += 1;
+    for (const p of d.preservados) conta(p.propriedade).preservados += 1;
   }
 
   const conflitos = decisoes.flatMap((d) => d.conflitos);
   const ignorados = decisoes.flatMap((d) => d.ignorados);
   const substituicoes = decisoes.flatMap((d) => d.substituicoes);
   const equivalentes = decisoes.flatMap((d) => d.equivalentes);
+  const preservados = decisoes.flatMap((d) => d.preservados);
   const equivalentesPorMotivo: Record<string, number> = {};
   for (const q of equivalentes) equivalentesPorMotivo[`${q.propriedade}: ${q.motivo}`] = (equivalentesPorMotivo[`${q.propriedade}: ${q.motivo}`] ?? 0) + 1;
+  const preservadosPorMotivo: Record<string, number> = {};
+  for (const p of preservados) preservadosPorMotivo[`${p.propriedade}: ${p.motivo}`] = (preservadosPorMotivo[`${p.propriedade}: ${p.motivo}`] ?? 0) + 1;
   const ignoradosPorMotivo: Record<string, number> = {};
   for (const i of ignorados) {
     const k = `${i.propriedade}: ${i.motivo} (${i.valor})`;
@@ -573,13 +696,19 @@ Deno.serve(async (req: Request) => {
     }));
 
   const erros: string[] = [];
+  const registro: Registro = { itens: 0, erros: 0 };
   let escrita: Escrita | null = null;
-  if (executar) escrita = await escrever(token, decisoes, erros, prazo);
+  if (executar) {
+    // Só o que foi escrito de verdade é registrado; em ENSAIO nada é escrito, logo nada se registra.
+    const rotulo = `hubspot-perfil-writeback ${executar ? "execucao" : "ensaio"}`;
+    escrita = await escrever(token, decisoes, registrador(db, rotulo, atuais, registro, erros), erros, prazo);
+  }
 
   return json(200, {
     ok: erros.length === 0 && !(escrita?.incompleto),
     executar,
     acao,
+    desde: desde ?? null,
     escopos: escoposRelatorio,
     propriedades_faltando: propriedadesFaltando,
     totais,
@@ -588,8 +717,10 @@ Deno.serve(async (req: Request) => {
     equivalentes: { total: equivalentes.length, por_motivo: equivalentesPorMotivo, lista: equivalentes.slice(0, 80) },
     conflitos: { total: conflitos.length, lista: conflitos.slice(0, MAX_LISTA) },
     ignorados: { total: ignorados.length, por_motivo: ignoradosPorMotivo, lista: ignorados.slice(0, 60) },
+    preservados: { total: preservados.length, por_motivo: preservadosPorMotivo, lista: preservados.slice(0, 80) },
     amostra,
     escrita,
+    registrados: registro,
     erros,
     ms: Date.now() - inicio,
   });

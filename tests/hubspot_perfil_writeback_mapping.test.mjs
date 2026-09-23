@@ -33,6 +33,7 @@ const defs = {
     ],
   },
   icp_confianca: { name: "icp_confianca", type: "number", fieldType: "number", options: [] },
+  mind_resumo_inteligencia: { name: "mind_resumo_inteligencia", type: "string", fieldType: "textarea", options: [] },
   jtbd: {
     name: "jtbd", type: "enumeration", fieldType: "checkbox",
     options: [
@@ -94,8 +95,8 @@ test("chave de cargo normaliza acento, caixa e pontuação sem adivinhar palavra
 });
 
 // ------------------------------------------------------------------ planejar
-test("propriedades lidas são exatamente as do perfil", () => {
-  assert.deepEqual(PROPRIEDADES_LIDAS, ["email", "jobtitle", "company", "icp", "icp_confianca", "jtbd"]);
+test("propriedades lidas são exatamente as do perfil, mais o resumo da inteligência", () => {
+  assert.deepEqual(PROPRIEDADES_LIDAS, ["email", "jobtitle", "company", "icp", "icp_confianca", "jtbd", "mind_resumo_inteligencia"]);
 });
 
 test("contato ausente é pulado: esta função não cria contatos", () => {
@@ -358,8 +359,17 @@ test("runtime segue a irmã: token da analise_config, ensaio por padrão, não c
   assert.match(index, /db\.rpc\("analise_config"\)/);
   assert.match(index, /corpo\.executar === true/);
   assert.match(index, /ORCAMENTO_MS = 110_000/);
-  assert.match(index, /rpc\("mind_hubspot_perfil_plano"\)/);
+  assert.match(index, /rpc\("mind_hubspot_perfil_plano", \{ p_desde: desde \?\? null \}\)/);
   assert.match(index, /rpc\("mind_hubspot_perfil_definicoes"\)/);
+  assert.match(index, /rpc\("mind_hubspot_perfil_registrar", \{ p_itens: fatia, p_rotulo: rotulo \}\)/);
+  assert.match(index, /REGISTRO_LOTE = 200/);
+  assert.match(index, /hubspot-perfil-writeback \$\{executar \? "execucao" : "ensaio"\}/);
+  assert.match(index, /if \(executar\) \{[\s\S]*registrador\(/); // só registra quando executa
+  assert.match(index, /fieldType: "textarea"/);
+  assert.match(index, /label: "Resumo da inteligência \(Mind\)"/);
+  assert.match(index, /preservados: \{ total: preservados\.length, por_motivo: preservadosPorMotivo, lista: preservados\.slice\(0, 80\) \}/);
+  assert.match(index, /registrados: registro/);
+  assert.match(index, /desde_invalido/);
   assert.match(index, /crm\.schemas\.contacts\.write/);
   assert.match(index, /escopo_faltando/);
   assert.match(index, /sem_contato|planejar/);
@@ -394,9 +404,265 @@ test("planejar: typo e contenção ficam em equivalentes, sem escrever; troca re
   assert.deepEqual(d.propriedades, {});
   assert.equal(d.equivalentes.length, 2);
   assert.equal(d.equivalentes.find((q) => q.propriedade === "company").motivo, "typo_provavel");
-  assert.equal(d.equivalentes.find((q) => q.propriedade === "jobtitle").motivo, "uma_contem_a_outra");
+  assert.equal(d.equivalentes.find((q) => q.propriedade === "jobtitle").motivo, "novo_menos_especifico"); // "CEO" no lugar de "CEO / Fundador" empobrece
   const d2 = planejar({ ...linha, jobtitle: "Empreendedor", company: "Dna Treinamentos" }, { id: "1", properties: { email: "a@b.c", jobtitle: "Board Member", company: "Kilson e Albuquerque Treinamentos ltda" } }, defs);
   assert.equal(d2.acao, "atualizar");
   assert.deepEqual(d2.propriedades, { jobtitle: "Empreendedor", company: "Dna Treinamentos" });
   assert.equal(d2.substituicoes.length, 2);
+});
+
+// ---- guarda de "última escrita" (BACKLOG §21.1): o cron nunca desfaz uma edição humana feita no HubSpot depois da nossa
+const RESUMO_A = "Cargo: Gerente de RH na Vale.\nICP: Gestor de RH (7/10).\nJobs: cumprir a NR-1 com dados.";
+const RESUMO_B = "Cargo: Diretora de RH na Vale.\nICP: CHRO / Diretor de RH (7/10).\nJobs: engajar líderes no cuidado.";
+
+test("cargo: valor atual é o que o Mind escreveu por último e o desejado mudou → escreve e vai para substituicoes", () => {
+  const d = planejar(
+    linha({ jobtitle: "Diretora de RH", ultimo_escrito: { jobtitle: "Gerente de RH" } }),
+    contato({ jobtitle: "Gerente de RH" }),
+    defs,
+  );
+  assert.equal(d.acao, "atualizar");
+  assert.deepEqual(d.propriedades, { jobtitle: "Diretora de RH" });
+  assert.deepEqual(d.substituicoes, [{ email: "ada@example.com", propriedade: "jobtitle", atual: "Gerente de RH", novo: "Diretora de RH" }]);
+  assert.deepEqual(d.preservados, []);
+
+  // a comparação é por chave: grafia/caixa diferente do que escrevemos ainda é "nosso"
+  const caixa = planejar(
+    linha({ jobtitle: "Diretora de RH", ultimo_escrito: { jobtitle: "Gerente de RH" } }),
+    contato({ jobtitle: "gerente de rh" }),
+    defs,
+  );
+  assert.deepEqual(caixa.propriedades, { jobtitle: "Diretora de RH" });
+
+  // empresa usa a chave de empresa: "Vale" que virou "VALE SA" na tela continua sendo o que escrevemos
+  const empresa = planejar(
+    linha({ company: "Beiersdorf", ultimo_escrito: { company: "Vale" } }),
+    contato({ company: "VALE SA" }),
+    defs,
+  );
+  assert.deepEqual(empresa.propriedades, { company: "Beiersdorf" });
+  assert.equal(empresa.substituicoes.length, 1);
+  assert.deepEqual(empresa.preservados, []);
+});
+
+test("cargo: valor atual diferente do que o Mind escreveu por último foi editado no HubSpot → preservado, sem escrever", () => {
+  const d = planejar(
+    linha({ jobtitle: "Diretora de RH", ultimo_escrito: { jobtitle: "Gerente de RH" } }),
+    contato({ jobtitle: "Head de Pessoas" }),
+    defs,
+  );
+  assert.equal(d.acao, "nada");
+  assert.deepEqual(d.propriedades, {});
+  assert.deepEqual(d.substituicoes, []);
+  assert.deepEqual(d.preservados, [{
+    email: "ada@example.com", propriedade: "jobtitle", atual: "Head de Pessoas", desejado: "Diretora de RH", motivo: "editado_no_hubspot",
+  }]);
+
+  // o que já existe continua valendo antes da guarda: vazio escreve; equivalente ao desejado não escreve
+  const vazio = planejar(linha({ jobtitle: "Diretora de RH", ultimo_escrito: { jobtitle: "Gerente de RH" } }), contato({ jobtitle: "" }), defs);
+  assert.deepEqual(vazio.propriedades, { jobtitle: "Diretora de RH" });
+  const equivalente = planejar(linha({ jobtitle: "Diretora de RH", ultimo_escrito: { jobtitle: "Gerente de RH" } }), contato({ jobtitle: "diretora de rh" }), defs);
+  assert.equal(equivalente.acao, "nada");
+  assert.deepEqual(equivalente.preservados, []);
+
+  // a guarda é por propriedade: empresa nunca escrita segue a regra de sempre no mesmo contato
+  const misto = planejar(
+    linha({ jobtitle: "Diretora de RH", company: "Beiersdorf", ultimo_escrito: { jobtitle: "Gerente de RH" } }),
+    contato({ jobtitle: "Head de Pessoas", company: "BDF NIVEA" }),
+    defs,
+  );
+  assert.deepEqual(misto.propriedades, { company: "Beiersdorf" });
+  assert.equal(misto.preservados.length, 1);
+  assert.equal(misto.substituicoes.length, 1);
+});
+
+test("cargo: sem registro de última escrita, troca real escreve como antes", () => {
+  for (const ultimo_escrito of [undefined, null, {}, { company: "Vale" }]) {
+    const d = planejar(linha({ jobtitle: "Gerente de RH", ultimo_escrito }), contato({ jobtitle: "Analista de RH" }), defs);
+    assert.equal(d.acao, "atualizar");
+    assert.deepEqual(d.propriedades, { jobtitle: "Gerente de RH" });
+    assert.equal(d.substituicoes.length, 1);
+    assert.deepEqual(d.preservados, []);
+  }
+});
+
+test("ICP: valor atual igual ao último escrito pelo Mind e classificação nova → escreve icp + icp_confianca e registra substituição; ICP manual continua conflito", () => {
+  const nosso = planejar(
+    linha({ icp: "analista_bp_rh", icp_confianca: 7, ultimo_escrito: { icp: "gestor_rh", icp_confianca: "7" } }),
+    contato({ icp: "gestor_rh", icp_confianca: "7" }),
+    defs,
+  );
+  assert.equal(nosso.acao, "atualizar");
+  assert.deepEqual(nosso.propriedades, { icp: "analista_bp_rh", icp_confianca: "7" });
+  assert.deepEqual(nosso.substituicoes, [{ email: "ada@example.com", propriedade: "icp", atual: "gestor_rh", novo: "analista_bp_rh" }]);
+  assert.deepEqual(nosso.conflitos, []);
+
+  // caixa não separa: o valor gravado pode voltar com outra grafia
+  const caixa = planejar(linha({ icp: "analista_bp_rh", ultimo_escrito: { icp: "GESTOR_RH" } }), contato({ icp: "gestor_rh" }), defs);
+  assert.deepEqual(caixa.propriedades, { icp: "analista_bp_rh" });
+
+  // alguém trocou o ICP no HubSpot depois de nós: manual, não sobrescreve
+  const manual = planejar(
+    linha({ icp: "analista_bp_rh", icp_confianca: 7, ultimo_escrito: { icp: "gestor_rh" } }),
+    contato({ icp: "CEO / C-Suite" }),
+    defs,
+  );
+  assert.equal(manual.acao, "nada");
+  assert.deepEqual(manual.propriedades, {});
+  assert.deepEqual(manual.conflitos, [{ email: "ada@example.com", propriedade: "icp", atual: "CEO / C-Suite", desejado: "analista_bp_rh" }]);
+  assert.deepEqual(manual.substituicoes, []);
+
+  // sem registro: continua como hoje (conflito)
+  const semRegistro = planejar(linha({ icp: "analista_bp_rh" }), contato({ icp: "gestor_rh" }), defs);
+  assert.equal(semRegistro.conflitos.length, 1);
+  assert.deepEqual(semRegistro.propriedades, {});
+
+  // igual ao desejado: nada, com ou sem registro
+  const igual = planejar(linha({ icp: "gestor_rh", ultimo_escrito: { icp: "gestor_rh" } }), contato({ icp: "gestor_rh" }), defs);
+  assert.equal(igual.acao, "nada");
+});
+
+test("resumo: sem a propriedade no HubSpot vai para ignorados (propriedade_inexistente) uma vez por contato, sem escrever", () => {
+  const { mind_resumo_inteligencia: _, ...semResumo } = defs;
+  const d = planejar(linha({ resumo: RESUMO_A, jobtitle: "CHRO" }), contato({}), semResumo);
+  assert.equal(d.acao, "atualizar");
+  assert.deepEqual(d.propriedades, { jobtitle: "CHRO" });
+  assert.deepEqual(d.ignorados, [{
+    email: "ada@example.com", propriedade: "mind_resumo_inteligencia", valor: "resumo", motivo: "propriedade_inexistente",
+  }]);
+
+  const semResumoNoPlano = planejar(linha({ resumo: "   ", jobtitle: "CHRO" }), contato({}), semResumo);
+  assert.deepEqual(semResumoNoPlano.ignorados, []);
+});
+
+test("resumo: vazio escreve; igual não escreve; editado por humano preserva; último escrito pelo Mind e mudou escreve", () => {
+  const vazio = planejar(linha({ resumo: RESUMO_A }), contato({}), defs);
+  assert.equal(vazio.acao, "atualizar");
+  assert.deepEqual(vazio.propriedades, { mind_resumo_inteligencia: RESUMO_A });
+
+  const igual = planejar(linha({ resumo: RESUMO_A, ultimo_escrito: { mind_resumo_inteligencia: RESUMO_A } }), contato({ mind_resumo_inteligencia: `${RESUMO_A}\n` }), defs);
+  assert.equal(igual.acao, "nada");
+  assert.deepEqual(igual.propriedades, {});
+  assert.deepEqual(igual.preservados, []);
+
+  const humano = planejar(
+    linha({ resumo: RESUMO_B, ultimo_escrito: { mind_resumo_inteligencia: RESUMO_A } }),
+    contato({ mind_resumo_inteligencia: "Cliente estratégica — falar com a Adriana antes de qualquer abordagem." }),
+    defs,
+  );
+  assert.equal(humano.acao, "nada");
+  assert.deepEqual(humano.propriedades, {});
+  assert.deepEqual(humano.preservados, [{
+    email: "ada@example.com",
+    propriedade: "mind_resumo_inteligencia",
+    atual: "Cliente estratégica — falar com a Adriana antes de qualquer abordagem.",
+    desejado: RESUMO_B,
+    motivo: "editado_no_hubspot",
+  }]);
+
+  const nosso = planejar(
+    linha({ resumo: RESUMO_B, ultimo_escrito: { mind_resumo_inteligencia: RESUMO_A } }),
+    contato({ mind_resumo_inteligencia: RESUMO_A }),
+    defs,
+  );
+  assert.equal(nosso.acao, "atualizar");
+  assert.deepEqual(nosso.propriedades, { mind_resumo_inteligencia: RESUMO_B });
+  assert.deepEqual(nosso.preservados, []);
+
+  // nunca escrevemos o resumo neste contato, mas há texto lá: escreve (regra de sempre)
+  const semRegistro = planejar(linha({ resumo: RESUMO_B, ultimo_escrito: { jobtitle: "CHRO" } }), contato({ mind_resumo_inteligencia: "texto antigo" }), defs);
+  assert.deepEqual(semRegistro.propriedades, { mind_resumo_inteligencia: RESUMO_B });
+});
+
+test("decisão completa com a guarda: ICP nosso muda, cargo editado no HubSpot fica, resumo entra", () => {
+  const d = planejar(
+    linha({
+      jobtitle: "Diretora de RH", company: "Vale S.A.", icp: "analista_bp_rh", icp_confianca: 7, jtbd: ["nr1_mensuracao"], resumo: RESUMO_B,
+      ultimo_escrito: { jobtitle: "Gerente de RH", company: "Vale", icp: "gestor_rh", icp_confianca: "7", jtbd: "engajar_lideres" },
+    }),
+    contato({ jobtitle: "Head de Pessoas", company: "VALE SA", icp: "gestor_rh", icp_confianca: "7", jtbd: "engajar_lideres", mind_resumo_inteligencia: "" }),
+    defs,
+  );
+  assert.equal(d.acao, "atualizar");
+  // jtbd: o HubSpot tinha exatamente o que o Mind escreveu ("engajar_lideres") → nosso e intacto → o
+  // conjunto do banco substitui (o job rebaixado sai) e a troca aparece em substituicoes
+  assert.deepEqual(d.propriedades, {
+    icp: "analista_bp_rh",
+    icp_confianca: "7",
+    jtbd: "nr1_mensuracao",
+    mind_resumo_inteligencia: RESUMO_B,
+  });
+  assert.deepEqual(d.preservados.map((p) => p.propriedade), ["jobtitle"]);
+  assert.deepEqual(d.substituicoes.map((s) => s.propriedade), ["icp", "jtbd"]);
+  assert.deepEqual(d.conflitos, []);
+  assert.deepEqual(d.equivalentes, []); // "Vale S.A." ≡ "VALE SA" é mesma_chave, que não se lista
+});
+
+// ------------------------------------------------------- jtbd: conjunto × união (revisão 23/09)
+test("jtbd: HubSpot tem exatamente o que o Mind escreveu por último → o conjunto do banco substitui e pode remover job", () => {
+  const d = planejar(
+    linha({ jtbd: ["nr1_mensuracao"], ultimo_escrito: { jtbd: "engajar_lideres;reduzir_afastamentos" } }),
+    contato({ jtbd: "reduzir_afastamentos;engajar_lideres" }),
+    defs,
+  );
+  assert.equal(d.propriedades.jtbd, "nr1_mensuracao");
+  assert.deepEqual(d.substituicoes, [{ email: "ada@example.com", propriedade: "jtbd", atual: "reduzir_afastamentos;engajar_lideres", novo: "nr1_mensuracao" }]);
+});
+
+test("jtbd: alguém marcou um job a mais no HubSpot → união, nunca se apaga escolha humana", () => {
+  const d = planejar(
+    linha({ jtbd: ["nr1_mensuracao"], ultimo_escrito: { jtbd: "engajar_lideres" } }),
+    contato({ jtbd: "engajar_lideres;reduzir_afastamentos" }),
+    defs,
+  );
+  assert.equal(d.propriedades.jtbd, "engajar_lideres;nr1_mensuracao;reduzir_afastamentos");
+  assert.deepEqual(d.substituicoes, []);
+});
+
+test("jtbd: sem registro de última escrita → união, como antes", () => {
+  const d = planejar(linha({ jtbd: ["nr1_mensuracao"] }), contato({ jtbd: "engajar_lideres" }), defs);
+  assert.equal(d.propriedades.jtbd, "engajar_lideres;nr1_mensuracao");
+  assert.deepEqual(d.substituicoes, []);
+});
+
+test("jtbd: plano sem job e HubSpot com o que o Mind escreveu → limpa a propriedade (substituição visível); com edição humana, fica", () => {
+  const limpa = planejar(linha({ jtbd: [], ultimo_escrito: { jtbd: "engajar_lideres" } }), contato({ jtbd: "engajar_lideres" }), defs);
+  assert.equal(limpa.acao, "atualizar");
+  assert.equal(limpa.propriedades.jtbd, "");
+  assert.deepEqual(limpa.substituicoes.map((s) => s.propriedade), ["jtbd"]);
+  const fica = planejar(linha({ jtbd: [], ultimo_escrito: { jtbd: "engajar_lideres" } }), contato({ jtbd: "engajar_lideres;reduzir_afastamentos" }), defs);
+  assert.equal(fica.acao, "nada");
+  const nunca = planejar(linha({ jtbd: [] }), contato({ jtbd: "engajar_lideres" }), defs);
+  assert.equal(nunca.acao, "nada");
+});
+
+test("jtbd: conjunto igual ao atual (em outra ordem) não escreve", () => {
+  const d = planejar(
+    linha({ jtbd: ["nr1_mensuracao", "engajar_lideres"], ultimo_escrito: { jtbd: "nr1_mensuracao;engajar_lideres" } }),
+    contato({ jtbd: "engajar_lideres;nr1_mensuracao" }),
+    defs,
+  );
+  assert.equal(d.acao, "nada");
+});
+
+// ------------------------------------------------------- qualidade do valor novo (revisão 23/09)
+test("cargo: headline do LinkedIn, URL ou e-mail colados não substituem o que está lá nem entram em campo vazio", () => {
+  const cheio = planejar(linha({ jobtitle: "CEO | Palestrante | Idealizadora do Sistema DIBE | dibe.com.br" }), contato({ jobtitle: "CEO" }), defs);
+  assert.equal(cheio.acao, "nada");
+  assert.deepEqual(cheio.equivalentes.map((e) => e.motivo), ["novo_parece_headline_ou_url"]);
+  const vazio = planejar(linha({ company: "https://www.minhaempresa.com.br" }), contato({ company: "" }), defs);
+  assert.equal(vazio.acao, "nada");
+  assert.deepEqual(vazio.ignorados.map((i) => i.motivo), ["novo_parece_headline_ou_url"]);
+});
+
+test("cargo: nível solto (\"Gerente\") não substitui cargo com área (\"Gerente de Comunicação\"); o inverso substitui", () => {
+  const pobre = planejar(linha({ jobtitle: "Gerente", ultimo_escrito: { jobtitle: "Gerente de Comunicação" } }), contato({ jobtitle: "Gerente de Comunicação" }), defs);
+  assert.equal(pobre.acao, "nada");
+  assert.deepEqual(pobre.equivalentes.map((e) => e.motivo), ["novo_menos_especifico"]);
+  const rico = planejar(linha({ jobtitle: "Gerente de Comunicação Interna", ultimo_escrito: { jobtitle: "Gerente" } }), contato({ jobtitle: "Gerente" }), defs);
+  assert.equal(rico.acao, "atualizar");
+  assert.equal(rico.propriedades.jobtitle, "Gerente de Comunicação Interna");
+  const outraArea = planejar(linha({ jobtitle: "Diretora", ultimo_escrito: { jobtitle: "Gerente de Marketing" } }), contato({ jobtitle: "Gerente de Marketing" }), defs);
+  assert.equal(outraArea.acao, "nada");
+  assert.deepEqual(outraArea.equivalentes.map((e) => e.motivo), ["novo_menos_especifico"]);
 });

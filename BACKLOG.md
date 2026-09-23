@@ -1034,29 +1034,45 @@ rename passar.
    pessoa nova. Linhas afetadas hoje: 10 em `crm.pipeline_leads_inbound`, 61 em `treble.status_hs_contatos`
    (ligadas pelo `mind_id` do espelho).
 
-## 21. Perfil ICP/JTBD e HubSpot — o que ficou para depois (23/09/2026)
+## 21. Perfil ICP/JTBD e HubSpot — o que ficou para depois (23/09/2026, atualizado à tarde)
 
-1. **Guarda de "última escrita" antes de qualquer automático.** `hubspot-perfil-writeback` ainda não
-   registra por contato o que escreveu; um cron que rode de novo poderia desfazer uma edição humana de
-   `jobtitle`/`company` no HubSpot. Regra a implementar: só sobrescreve vazio ou o valor que o Mind
-   escreveu por último (`mind_admin_audit`, `resource = 'hubspot_contato'`). Depois: `pg_cron` horário
-   para quem teve memória `icp`/`jtbd`/`cargo`/`empresa` atualizada (`docs/PERFIL_ICP_JTBD.md` §4.2–4.3).
-2. **Alinhar opções das propriedades pelo catálogo** (`acao: "propriedades"`) exige o escopo
-   `crm.schemas.contacts.write` no app privado do HubSpot; a introspecção do token devolve 400, então só
-   a tentativa em ensaio diz se o escopo existe. Enquanto isso, o rótulo `Fundadot / Sócio / Empreendedor`
-   se corrige na tela do HubSpot (o valor interno fica).
-3. **18 pares de pessoas → mesmo contato do HubSpot** (`contato_repetido_no_recorte` no relatório): são
-   duplicatas no banco que a fase B (`engagement.identidade_fusoes`) ainda não cobriu. Levantar os pares e
-   propor à Adriana.
-4. **Revisitar a inteligência já gravada com a lente ICP/JTBD** — 7,1 mil memórias de interesse/objetivo/
-   preferência comercial/delegação/patrocínio viram evidência por regex (`sinais.memoria_regex`); depois
-   prompt novo do `analisar-conversa` (13 ICPs, 13 jobs mind, resumo) e reprocessamento — gate de custo.
-5. **Resumo da inteligência por pessoa** numa propriedade de texto do HubSpot (`perfil_resumo`), por regra
-   primeiro, por IA depois.
-6. `treinar_liderancas` e `autoridade_escala` só nascem por contexto (0,5–0,6 → `proposta`); para virarem
-   `ativa` precisam de evidência direta. `icp_confianca` no HubSpot recebe 7 (regra por cargo).
-7. `analista_nao_rh`, `diretor_vp_nao_rh` e `gestor_nao_rh` reaproveitam no HubSpot os valores internos
-   antigos `Executivo Sênior / Alto Performer`, `Gestor / Middle Manager` e `People Leader / Business
-   Partner` (decisão dela na tela): os 13 contatos classificados à mão antes de 23/09 carregam o
-   significado novo — conferir um a um.
+Feito em 23/09 à tarde (ver `docs/PERFIL_ICP_JTBD.md` §3 e §6): guarda de última escrita, `memoria_regex`,
+revisão da regra (pesos, veto, rebaixamento, cargo), resumo no HubSpot, automático (cron + gatilhos),
+alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra. Ficou:
+
+1. **Tradução de evidência por família (B1, gate de semântica — Adriana).** Hoje, para `especialista`
+   (psicólogo, consultor), ir a uma sessão de programas/ROI/NR-1 gera o job de *comprador* (vetado a
+   hipótese) e o job de *fornecedor* (`vender_para_rh`/`autoridade_escala`) só por contexto (0,5–0,6).
+   O certo é a mesma evidência sustentar o job de fornecedor com o mesmo peso; para RH decisor,
+   liderança → `treinar_liderancas` com o peso da evidência. Implementar como `sinais.traducao_por_familia`.
+2. **Valores internos novos no HubSpot (B2).** `diretor_vp_nao_rh`, `gestor_nao_rh` e `analista_nao_rh`
+   reaproveitam os valores internos antigos `Gestor / Middle Manager`, `People Leader / Business Partner`
+   e `Executivo Sênior / Alto Performer` (decisão dela na tela): listas/workflows antigos mudaram de
+   significado; 5 contatos marcados à mão antes de 23/09 são lidos pelo *fallback* do CRM com o rótulo
+   novo. Criar valores novos, migrar os ≤ 13 legados à mão, reescrever os contatos (a guarda permite).
+3. **Empresa como sinal (B3).** ~110 fornecedores (CEO de consultoria, dono de clínica, Wellhub, Einstein…)
+   estão como compradores porque a regra só olha o cargo. Linhas novas em `intelligence.icp`
+   (`fornecedor_bem_estar`, `mind_interno`) por `regex_empresa`, e `summit_2026.exhibitors` (vazia) como fonte.
+4. **Peso de reserva por sessão (B4).** Hoje reserva vale 0,50 fixo. Alternativa: coluna `peso` em
+   `summit_2026.sessions` (plenária 0,5, trilha 1,0) marcada pela Adriana, ou ignorar reserva em sessão
+   reservada por > 40% das pessoas.
+5. **Conversa (B5, gate de custo).** Prompt novo do `analisar-conversa` (13 ICPs, 13 jobs mind, resumo);
+   memória JT em `proposta` entrando com `least(conf, 0.65)`; JT10 → `engajar_reter` em vez de
+   `escolher_programas`; reprocessar as 4.921 análises.
+6. **Rótulo "Cuidar da minha saúde mental e performance" no CRM (B7, decisão de produto).** 1.122 contatos
+   levam ao HubSpot um rótulo sobre saúde mental inferido de presença em palestra; alternativa:
+   "Performance sustentável e energia (eu)".
+7. **Limpezas no HubSpot que a função não faz** (ela nunca apaga valor): `icp = Outros` em ~120 contatos;
+   `icp`/`jtbd` gravados em 41 staff/palestrantes na primeira rodada (agora o plano os exclui); o valor
+   interno `Fundadot / Sócio / Empreendedor` (só o rótulo foi corrigido).
+8. **18 pares de pessoas → mesmo contato do HubSpot** (`contato_repetido_no_recorte`): duplicatas que a
+   fase B (`engagement.identidade_fusoes`) ainda não cobriu. Levantar os pares e propor à Adriana.
+9. **Cargo: casos que a regra ainda erra** — typos ("Doretoria de Gente", "Funder", "Chairmam" já entra),
+   "HRD" (diretor de RH, hoje analista), "Executiva de RH", "Diretor Médico" (hoje saúde). Correção
+   cirúrgica em `icp_por_cargo` + caso no contrato.
+10. **Semente da última escrita** (08:52 UTC) sem `antes` e com contagens ≠ do que foi de fato escrito na
+    primeira rodada (`company` 1.465 registrados / 1.283 escritos): as escritas de 23/09 de manhã não são
+    revertíveis pelo banco, só pelo histórico de propriedade do HubSpot. As da tarde têm `antes`.
+11. **`mind_hubspot_perfil_plano` recalcula `perfil_resumo` por linha** (~1,3 s para 2,6 mil; cresce linear).
+    Se a base crescer, materializar o resumo em memória (`tipo = 'resumo'`) na projeção.
 
