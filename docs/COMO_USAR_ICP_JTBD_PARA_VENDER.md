@@ -28,8 +28,9 @@ Regras de ouro:
    aparecer algo assim em outra propriedade, apaguem.
 5. **Staff, palestrantes, professores e parceiros de venda não são leads** (regra da Adriana, 23/09):
    não têm ICP, JTBD nem resumo — o banco limpa essas propriedades no contato, mesmo se alguém preencher
-   à mão. Por isso eles nunca entram nas listas abaixo. O tipo de relacionamento mora no banco
-   (`pessoas.pessoas.relacionamento_mind`); parceiro de venda ainda se marca à mão lá.
+   à mão. Por isso eles nunca entram nas listas abaixo, e a IA não gera inteligência comercial sobre eles.
+   O tipo de relacionamento mora no banco (`pessoas.pessoas.relacionamento_mind`); parceiro de venda vem do
+   domínio de e-mail (hoje: todo mundo da Mais Diversidade) ou se marca à mão lá.
 
 ## Job → produto → quem é o comprador
 

@@ -1,7 +1,7 @@
 -- Contrato dos catálogos de ICP/JTBD (intelligence.icp, intelligence.jtbd) e do perfil por regra
 -- (intelligence.perfil_projetar, escritor analise_projetar_memoria, leitor mind_customer_intelligence,
 -- plano mind_hubspot_perfil_plano). Sempre termina em rollback: a exceção PERFIL_OK é o resultado.
--- Rodar depois das migrations 20260923081119 … 20260923143941 (revisão de 23/09: pesos por sala, reserva fraca,
+-- Rodar depois das migrations 20260923081119 … 20260923150946 (revisão de 23/09: pesos por sala, reserva fraca,
 -- veto por ICP típico, regra de cargo ampliada, ICP manual do HubSpot só quando não é do Mind; escritor não pisa na
 -- regra; relacionamento com o Mind — quem não é lead não tem ICP nem JTBD).
 begin;
@@ -205,6 +205,22 @@ begin
   r := intelligence.perfil_projetar(v_p, true);
   if r->>'icp_acao' <> 'criada' then raise exception 'de volta a lead, a regra devia recriar o ICP: %', r; end if;
 
-  raise exception 'PERFIL_OK: catálogos, regra de cargo (26 casos), projeção (pesos, reserva fraca, rebaixamento, idempotência), escritor (e caso A), leitor, plano e não-lead conferem';
+  -- parceiro de venda pelo domínio de e-mail (intelligence.config.parceiro_venda_dominios; 20260923150946) e a
+  -- caixa genérica contato@joinmind.com.br fora da regra de staff
+  insert into engagement.identidades (mind_id, canal, identificador, verificado, confianca)
+  values (v_p, 'email', 'contrato.perfil@maisdiversidade.com.br', true, 1);
+  if not exists (select 1 from pessoas.relacionamento_derivado() d where d.mind_id = v_p and d.tipo = 'parceiro_venda') then
+    raise exception 'e-mail de domínio parceiro devia derivar parceiro_venda'; end if;
+  r := pessoas.relacionamento_atualizar(true);
+  if (select relacionamento_mind from pessoas.pessoas where id = v_p) <> '{parceiro_venda}' then
+    raise exception 'relacionamento_atualizar devia marcar parceiro_venda e tirar lead: %', (select relacionamento_mind from pessoas.pessoas where id = v_p); end if;
+  if exists (select 1 from pessoas.relacionamento_derivado() d
+               join engagement.identidades i on i.mind_id = d.mind_id and i.canal = 'email' and i.identificador = 'contato@joinmind.com.br'
+              where d.tipo = 'staff' and d.fonte like '%@joinmind.com.br%'
+                and not exists (select 1 from engagement.identidades j where j.mind_id = d.mind_id and j.canal = 'email'
+                                   and j.identificador like '%@joinmind.com.br' and j.identificador <> 'contato@joinmind.com.br')) then
+    raise exception 'contato@joinmind.com.br (caixa genérica) não devia fazer de ninguém staff'; end if;
+
+  raise exception 'PERFIL_OK: catálogos, regra de cargo (26 casos), projeção (pesos, reserva fraca, rebaixamento, idempotência), escritor (e caso A), leitor, plano, não-lead e parceiro por domínio conferem';
 end $$;
 rollback;

@@ -70,11 +70,20 @@ ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já cr
   contatos, 86 limpezas (`icp` 39, `icp_confianca` 39, `jtbd` 6, resumo 2), 0 erros; ensaio seguinte 0/0.
   Corrigido junto: o escritor perdia JTBD de conversa quando a regra já tinha o job ativo (`FOUND`
   sobrescrito no `095020`). Contrato → `PERFIL_OK` em produção; 45 testes Node.
+- **Noite de 23/09 — decisões da Adriana executadas.** (1) `20260923145909`: os prompts de inteligência
+  (análise pós-conversa `analisar-conversa` e Silence) não rodam para não-lead — trava em `analise_pendentes`,
+  `analise_montar_contexto` e `silence_claim_pendentes` (contrato `tests/analise_nao_lead_contract.sql` →
+  `ANALISE_NAO_LEAD_OK`). (2) 8 fusões por `mind_fusao_decidir`: Adriana (3→1, nome corrigido para Drulla),
+  Tamara, Elaine, Ivana (3→1), Juliana, Thiago Araújo; Thiago Barros (thiago@) fica separado (outro CPF).
+  (3) `20260923150946`: parceiro de venda por domínio (`intelligence.config.parceiro_venda_dominios` =
+  Mais Diversidade → 13) e `contato@joinmind.com.br` fora do staff; HubSpot 13 contatos/22 limpezas/0 erros.
+  (4) Apagadas as 3 contas "ZZ TESTE — apagar"; a "Mayra … Hnk" ficou (convidada Heineken com ingresso e
+  check-in; voltou a lead). Falta: qual Igor é parceiro (pergunta à Adriana).
 - **Gates que restam:** reprocessar as 4.921 análises de conversa com prompt novo (custo — dela);
   decisões de produto/semântica listadas em BACKLOG §21 (tradução de evidência por família, valores
   internos novos no HubSpot, empresa como sinal, rótulo de saúde pessoal no CRM); limpar por lista no
-  HubSpot o "Outros" de ~120 contatos (a função não apaga valor de lead); fusões de pessoas duplicadas
-  entre palestrantes/professores/staff (BACKLOG §21.13 — decisão dela por `mind_fusao_decidir`).
+  HubSpot o "Outros" de ~120 contatos (a função não apaga valor de lead); qual Igor marcar como parceiro de
+  venda; espelho diário de contatos do HubSpot travado desde 20/09 no teto de 10 mil da busca (BACKLOG §21.18).
 
 ### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
 

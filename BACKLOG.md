@@ -1078,17 +1078,23 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; 
     revertíveis pelo banco, só pelo histórico de propriedade do HubSpot. As da tarde têm `antes`.
 11. **`mind_hubspot_perfil_plano` recalcula `perfil_resumo` por linha** (~1,3 s para 2,6 mil; cresce linear).
     Se a base crescer, materializar o resumo em memória (`tipo = 'resumo'`) na projeção.
-12. **Parceiro de venda não tem fonte no banco.** `pessoas.pessoas.relacionamento_mind` aceita
-    `parceiro_venda`, mas nenhuma tabela lista parceiros (HubSpot `lifecyclestage` só tem lead, customer,
-    opportunity; afiliado Eduzz só "MindDash Ltda"). Hoje marca-se à mão na coluna; quando existir a lista
-    (afiliados, revendedores do Dash), acrescentar a fonte em `pessoas.relacionamento_derivado()`.
-13. **Pessoas duplicadas entre palestrantes, professores e staff** (fusão = decisão dela, `mind_fusao_decidir`):
+12. **Parceiro de venda:** ~~sem fonte~~ — desde `20260923150946`, domínio de e-mail em
+    `intelligence.config.parceiro_venda_dominios` (Mais Diversidade → 13 pessoas); o resto à mão. Falta: o
+    **Igor** que a Adriana citou — há 12 no banco; candidatos: Igor do Amaral Barbosa (Partner, FB5
+    Consultoria), Igor Cozzo (CEO, ABTD), Igor Gomes Menezes (palestrante, People Analytics).
+13. ~~**Pessoas duplicadas entre palestrantes, professores e staff**~~ — fundidas em 23/09 por decisão dela (8
+    fusões; Thiago Barros e Thiago Araújo são duas pessoas; a Mayra "Hnk" não é duplicata: é convidada
+    Heineken). Ficaram, sem decisão: "Thiago dos Santos Barros" (barros.thiago@gmail.com, mesmo telefone do
+    Thiago Barros, pendência `mesmo_telefone_emails_diferentes`); Amanda Aragão e Clarissa Daroit (Mais
+    Diversidade, cada uma com um registro Gmail e um @maisdiversidade); Esabela Cruz (palestrante Gmail ×
+    @maisdiversidade); "Teste Teste" (teste@teste.com.br) ligado aos telefones/e-mails de teste da Adriana.
+    Registro original:
     Adriana Drulla (`307826c1` perfil público + Institute; `24e2874d` adriana@joinmind; talvez `9a506a61`
     "Adriana Campos", adrulla@berkeley.edu), Tamara Myles (`a9388699` × `e2c1a9d0`), Elaine Lizeo
     (`ab6e1fd8` × `de56f363`), Ivana Moreira (`3ad0f45c` × `6d167300` × `ccf822d3` ivana@joinmind),
     Juliana Elorza (`0125988e` × `f798c3ab`), Thiago (`fe1d6390` thiago@ × `a7164a76` taraujo@ ×
     `cd9319e4` gmail), Mayra Andrade (`d3ba2886` mayra@ × `81021d9e` "Hnk" com `contato@joinmind.com.br`).
-    Não afeta a regra (todas já são não-lead), mas a professora e a palestrante aparecem como duas pessoas.
+    (Todas já eram não-lead; a fusão juntou a professora e a palestrante que apareciam como duas pessoas.)
 14. **Especialistas do ecossistema sem pessoa:** 59 dos 66 `ecossistema.palestrantes_especialistas` não têm
     `perfis_publicos`/`mind_id` — se forem palestrantes do Summit, já entram pelo credenciamento; os demais
     só viram não-lead quando ganharem vínculo determinístico (nunca por nome).
@@ -1098,6 +1104,22 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; 
 16. **Fusão e marca manual:** `mind_pessoa_fundir` não junta `relacionamento_mind`; os tipos derivados voltam
     na hora seguinte (as fontes são repontadas para a sobrevivente), mas `parceiro_venda` marcado à mão só
     na absorvida se perde. Juntar os arrays na fusão quando o primeiro parceiro for marcado.
-17. **Contas de teste e nomes com encoding quebrado:** três "ZZ TESTE — apagar" (`@joinmind.com.br`, hoje
-    staff) — apagar é decisão dela; "LÃ¯Â¿Â½dia Ferrari Correa" e "VinÃ¯Â¿Â½cius Muniz" com mojibake no nome.
+17. **Contas de teste e nomes com encoding quebrado:** ~~três "ZZ TESTE — apagar"~~ — apagadas em 23/09 (os
+    contatos continuam no HubSpot com esse nome; o espelho é incremental e não as traz de volta enquanto
+    ninguém as editar lá); "LÃ¯Â¿Â½dia Ferrari Correa", "VinÃ¯Â¿Â½cius Muniz" e "Amanda AragÃ¯Â¿Â½o" com
+    mojibake no nome.
+18. **Espelho diário de contatos do HubSpot travado** (`crm.sync_estado.hubspot_contatos`: status `erro`,
+    `hubspot 400 em /crm/v3/objects/contacts/search`; marca d'água em 09/09, `incremental_cursor` = 10000,
+    última linha espelhada em 20/09). Causa provável: a busca incremental desde 09/09 passa de 10.000
+    resultados — teto da busca do HubSpot — e o 400 vem ao pedir a página depois do 10.000º (o write-back de
+    perfil de 23/09 editou ~2,3 mil contatos, o que só aumenta a janela). Correção no `hubspot-sync` (não
+    versionado aqui): avançar a marca d'água pelo `lastmodifieddate` do último lote em vez de paginar além de
+    10 mil. Até lá, contato novo/editado no HubSpot não chega a `crm.contato_espelho`. Lane de CRM (#42).
+19. **Histórico de IA de quem não é lead:** 84 análises (`intelligence.analise_conversa`, 16 pessoas) e 73
+    memórias de conversa ativas/propostas (interesse, objetivo…) ficaram gravadas de antes da trava; ICP/JTBD
+    já foram limpos. Apagar o resto é decisão dela.
+20. **Credenciamento de patrocinador com CPF repetido:** o ingresso da "Mayra Andrade Jacó Hnk" (camarote
+    Heineken, e-mail contato@) tem o mesmo CPF que a Tamara Myles; o registro do camarote usou dados
+    genéricos (empresa Heineken também no ingresso da Ivana). Conferir na Yazo/Eduzz antes de usar CPF desses
+    ingressos para identidade.
 

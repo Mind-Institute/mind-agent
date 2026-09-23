@@ -83,13 +83,25 @@ venda não é lead e portanto não coletamos JTBD e ICP"*; staff e palestrantes 
 staff = credenciamento `staff_mind`, e-mail `@joinmind.com.br`, `seguranca.equipe`, `mind_admin_users`
 ativos; palestrante = credenciamento `palestrante`, `ecossistema.perfis_publicos` ligado a
 `palestrantes_especialistas`; professor = `institute.programa_pessoas` (formadora, curadoria,
-convidado — o time do Institute que o site publica pelo `ecossistema`); parceiro de venda = sem fonte no
-banco, marca-se à mão. Para quem não é lead: `perfil_projetar` apaga a classificação da própria regra e
+convidado — o time do Institute que o site publica pelo `ecossistema`); parceiro de venda = e-mail (identificador
+ou contato do HubSpot) num domínio de `intelligence.config.parceiro_venda_dominios` (hoje `maisdiversidade.com.br`;
+*"por enquanto qualquer pessoa da Mais Diversidade"*, Adriana 23/09) ou marca à mão. A caixa genérica
+`contato@joinmind.com.br` não faz ninguém staff: a equipe a usa para registrar convidados. Para quem não é lead: `perfil_projetar` apaga a classificação da própria regra e
 marca `rejeitada` a de conversa (cargo e empresa ficam — são fato); o escritor de conversa ignora
 `icp`/`jtbd` (grava o resto); o leitor do Agent não devolve ICP nem jobs; o plano do HubSpot manda
 `nao_lead` e a função **limpa** `icp`, `icp_confianca`, `jtbd` e o resumo do contato — é a única
 exceção à regra "a função nunca apaga valor", pedida por ela. O "antes" de cada limpeza fica no
 registro de última escrita. Voltar a ser lead (tirar o tipo à mão) faz a regra reclassificar pelo cargo.
+
+**Os prompts de IA que geram inteligência sobre a pessoa também não rodam para quem não é lead** (Adriana,
+23/09: *"os prompts que geram inteligência sobre o cliente e lead não rodem para quem é professor, palestrante e
+equipe"*). São dois: a análise pós-conversa (`analisar-conversa`, cron `analise_conversas` a cada 15 min —
+classificador + analisadores de `agentes.prompts`, que gravam `intelligence.analise_conversa`, memórias e
+continuidade) e a reavaliação do Silence (`silence-reavaliar`, cron desligado). Nenhuma das duas está versionada
+aqui; a trava está nas três funções que elas consultam antes de chamar a IA: `analise_pendentes` (fila),
+`analise_montar_contexto` (devolve `{nao_lead: true, transcrito: []}` — sem fala do lead a Edge Function não chama
+a IA) e `silence_claim_pendentes`. O atendimento não muda: concierge, vendedor e router continuam respondendo a
+professor, palestrante, staff e parceiro. Contrato: `tests/analise_nao_lead_contract.sql`.
 
 ## 3. O que foi feito em 23/09
 
@@ -149,6 +161,24 @@ palestrante do HubSpot e backend… professor ou parceiro de venda não é lead"
   escritor e a seção não-lead (check da coluna, atualizador só acrescenta, regra apaga/rejeita e é
   idempotente, escritor ignora ICP/JTBD e grava o resto, leitor sem ICP/jobs, plano `nao_lead`, recorte
   por data, volta a lead). Testes Node do `mapping.ts`: 45.
+
+**Noite de 23/09 — IA fora de quem não é lead, fusões, parceiros e limpeza (decisões da Adriana).**
+
+- `20260923145909`: os prompts de inteligência (análise pós-conversa e Silence) não rodam para não-lead
+  (§2). Antes da trava, a análise ainda rodava para eles: 84 análises de 16 não-leads, a última às 14:55
+  UTC. Contrato `tests/analise_nao_lead_contract.sql` → `ANALISE_NAO_LEAD_OK` em produção.
+- Fusões pela porta única (`mind_fusao_decidir`, 8, 0 erros): Adriana Drulla (3 registros → 1; o nome da
+  sobrevivente, "Adriana Campos", foi corrigido para "Adriana Drulla" — HubSpot, credenciamento e site dizem
+  Drulla), Tamara Myles, Elaine Lizeo, Ivana Moreira (3 → 1), Juliana Elorza e Thiago Araújo (taraujo@ ×
+  "Thiago Araujo Ferreira Barros"). O Thiago Barros de thiago@ **não** foi fundido: CPF e telefone
+  diferentes — é outra pessoa. As sobreviventes herdaram perfil público e papéis do Institute.
+- `20260923150946`: parceiro de venda por domínio (Mais Diversidade → 13 pessoas) e `contato@` fora do
+  staff. HubSpot: 13 contatos, 22 limpezas, 0 erros.
+- Apagadas as 3 contas "ZZ TESTE — apagar" (e os 3 leads de teste do pipeline inbound ligados a elas). A
+  "Mayra Andrade Jacó Hnk" **não** foi apagada: é convidada do camarote Heineken, com ingresso, venda e
+  check-in nos dois dias; era "staff" só pelo `contato@` usado no registro — voltou a lead.
+- Hoje: 15.514 leads; 53 palestrantes, 17 staff, 13 parceiros de venda, 4 professores (o Igor que a
+  Adriana citou como parceiro ainda não foi marcado: há 12 Igors e três candidatos plausíveis).
 
 ## 4. Plano — o que vem, na ordem (autônomo, com os gates marcados)
 
