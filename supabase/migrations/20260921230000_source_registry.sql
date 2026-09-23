@@ -538,7 +538,7 @@ begin
     (actor_user_id, action, resource, record_id, record_label,
      before_data, after_data, request_id)
   values
-    (p_actor_id, 'resolver', 'registry_pendencia', p_id::text,
+    (p_actor_id, 'atualizar', 'registry_pendencia', p_id::text,
      v_antes.tipo || ': ' || v_antes.chave,
      to_jsonb(v_antes),
      jsonb_build_object('status', p_status, 'decisao', coalesce(p_decisao, v_antes.proposta), 'nota', p_nota),
@@ -630,7 +630,7 @@ begin
     (actor_user_id, action, resource, record_id, record_label,
      before_data, after_data, request_id)
   values
-    (p_actor_id, 'ativar', 'registry_fonte', v_novo::text,
+    (p_actor_id, 'criar', 'registry_fonte', v_novo::text,
      v_schema || '.' || v_objeto, null, v_d, p_request_id);
 
   return jsonb_build_object('ok', true, 'fonte_id', v_novo,

@@ -21,7 +21,7 @@
 > mesma causa (pessoa nascida do WhatsApp, ligada ao HubSpot só pelo id do contato, sem o
 > e-mail, e recriada no login do app). `pessoas.pessoas` deixa de ser "espelho de leitura do
 > HubSpot" e vira o registro de todo mundo. Migration
-> `20260923013000_d5_identidade_universal.sql`; passada em `scripts/infra/identidade/`.
+> `20260923024555_d5_identidade_universal.sql`; passada em `scripts/infra/identidade/`.
 >
 > v9 congela quatro decisões da Adriana, tomadas depois que o Summit 2026 acabou e o
 > inventário do banco ficou pronto (`MAPA_SUPABASE_20260921.md`):
@@ -235,12 +235,19 @@ Regras:
 `pessoas.pessoas` com o id que persiste. Toda tabela que fala de pessoa tem `pessoa_id`,
 preenchido pela porta única `mind_identidade_resolver` **antes** da escrita (trigger
 `mind_pessoa_antes_de_escrever`; `mind_pessoa_ligar_tabela` põe uma tabela nova na regra).
-Força dos identificadores: login 4 · WhatsApp, HubSpot, Yazo, credenciamento, Eduzz,
-LearnWorlds 3 · e-mail 2 · **CPF e CNPJ 1 — apoio, nunca decidem sozinhos** (o CPF do
-credenciamento e da Yazo é o do comprador). Nome nunca identifica. Antes de criar: enriquecer
-(`mind_pessoa_enriquecer`, ancorado, nunca cria) e unificar. A pessoa com todos os ids numa
-linha: `pessoas.v_pessoa_360`. Uma pessoa fundida fica com `fundida_em`; o id antigo continua
-resolvendo (`mind_pessoa_canonica`).
+Força dos identificadores (quem reconhece sozinho): login 4 · WhatsApp, HubSpot, Yazo,
+credenciamento, Eduzz, LearnWorlds 3 · e-mail 2 · **CPF e CNPJ 1 — apoio, nunca decidem
+sozinhos** (o CPF do credenciamento e da Yazo é o do comprador). **Precedência (quem vence
+quando discordam — Adriana, 23/09): login > id de terceiro > e-mail > WhatsApp > CPF > CNPJ; e
+o nome veta**: pessoa achada só por telefone/CPF com nome divergente é outra pessoa; só por
+telefone com e-mail divergente é outra pessoa (suspeita se o nome for igual); por e-mail com nome
+claramente diferente não se liga. Nome parecido (grafia, sobrenome a mais/menos, apelido) é o
+mesmo nome (`mind_nomes_compativeis`). Linha comprada por terceiro (e-mail do participante ≠ do
+comprador) não entrega telefone nem CPF. Antes de criar: bater com `pessoas.pessoas`,
+enriquecer (`mind_pessoa_enriquecer`, ancorado, nunca cria) e unificar. A pessoa com todos os
+ids numa linha: `pessoas.v_pessoa_360`. Uma pessoa fundida fica com `fundida_em`; o id antigo
+continua resolvendo (`mind_pessoa_canonica`). Aplicada e executada em produção em 23/09
+(`CHECKPOINT_ATUAL.md`).
 
 Conflito de identidade:
 

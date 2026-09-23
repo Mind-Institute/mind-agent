@@ -973,3 +973,19 @@ Contexto e evidência: `CHECKPOINT_ATUAL.md` §5D e issue #42.
    classificador escolhe só um deles, a conversa não gera análise nenhuma.
 4. Dedupe de memória é por slug do texto: "montar um plano de cultura para 2027" e "montar plano de
    cultura para 2027" viram dois objetivos. Sem consumidor reclamando ainda.
+
+## 19. Espelho literal do HubSpot com histórico de status — IDEIA registrada (23/09/2026, Adriana)
+
+Nas palavras dela: *"em vez de mudar como o HubSpot muda (deletar, adicionar), a gente coloca uma
+coluna de status e diz: o HubSpot adicionou, ou deletou na data X. Eventualmente vamos atingir o
+limite do HubSpot e precisar deletar pessoas lá, mantendo listas aqui para, de quando em quando,
+subir de novo. Um espelho literal, a ponto de que, se eu deletar lá, depois eu consiga subir."*
+
+**Não fazer nada ainda** — é uma ideia para desenhar juntos e depois executar. O que já existe e
+o desenho deve reutilizar: `crm.contato_espelho` (espelho do contato, com `propriedades` jsonb
+inteiro), a migration `hubspot_arquivados_por_objeto` (03/09, já marca objetos arquivados no
+HubSpot), o `mind_sync_estado` e o cron diário de 06:17. O que falta no desenho: (1) o espelho
+deixar de apagar/sobrescrever e passar a **anexar estado** (`ativo`, `arquivado_em`,
+`deletado_em`, `reenviado_em`); (2) a lista de reenvio (quem sobe de volta, quando) e o gate de
+outbound/write-back D1 antes de qualquer upload; (3) com D5, a pessoa continua existindo em
+`pessoas.pessoas` mesmo se o contato sumir do HubSpot — o `pessoa_id` é o elo para ressubir.

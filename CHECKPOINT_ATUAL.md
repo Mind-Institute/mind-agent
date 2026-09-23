@@ -6,18 +6,38 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
-### D5 — identidade universal — 23/09/2026, ESCRITA E PROVADA, NÃO APLICADA
+### D5 — identidade universal — 23/09/2026, APLICADA E PASSADA EXECUTADA EM PRODUÇÃO
 
-Regra #1 em `READ_ME_FIRST.md`. Migration `supabase/migrations/20260923013000_d5_identidade_universal.sql`
-provada duas vezes num Postgres 16 descartável (idempotente) com o contrato
-`tests/d5_identidade_universal_contract.sql`, que reproduz o cenário das 586 duplicatas
-e roda em produção dentro de `begin … rollback`. **Nenhuma mudança foi aplicada na
-produção.** A Adriana roda a passada em `scripts/infra/identidade/` (README lá), na ordem
-A enriquecer → B unificar (só com a decisão dela) → C criar (HubSpot → Eduzz → Blinket →
-Treble → credenciamento → Yazo). Prévia só-leitura da fase A em 23/09: acrescentaria 2.114
-e-mails e 264 WhatsApps a pessoas já ligadas ao HubSpot, daria nome a 2.960, e revelaria 822
-duplicatas (584 `mesmo_email_hubspot_x_login`, 238 `mesmo_telefone_emails_diferentes`).
-Branch `claude/trusting-einstein-pydyqb`, PR #110.
+Regra #1 em `READ_ME_FIRST.md` (regras v2 combinadas com a Adriana na madrugada de 23/09:
+**e-mail + nome/sobrenome vencem; depois WhatsApp; depois CPF; depois CNPJ**; nome parecido é o
+mesmo nome; nome e e-mail distintos = pessoas diferentes inscritas por terceiro; telefone/CPF
+de linha comprada por terceiro ficam de fora; bater sempre com `pessoas.pessoas` antes de criar).
+
+Quatro migrations no ledger de produção, todas provadas antes num Postgres 16 descartável com
+`tests/d5_identidade_universal_contract.sql` (13 cenários, inclusive secretária/colega) e com
+hash das funções conferido byte a byte: `20260923024555` (a porta em toda fonte),
+`20260923033919` (a regra do nome/e-mail), `d5_3_enriquecer_indexado` (fase A por índice) e
+`d5_4_proposta_guarda_a_evidencia_mais_forte`. A passada foi executada pelo Claude, a pedido
+dela ("nada deve ficar comigo, execute"), entre 03:55 e 04:47 UTC:
+
+- **incidente desfeito**: a primeira migration (02:47) deixou o telefone vencer o e-mail; o sync
+  das 02:50 colou 13.205 identificadores a pessoas erradas (colegas inscritos pelo comprador).
+  Triggers desligados às 03:12, tudo apagado e refeito com a regra nova
+  (`scripts/infra/identidade/20_desfazer_janela_2309.sql`);
+- **fase A**: 9.451 pessoas enriquecidas, 0 criadas;
+- **fase C** na ordem dela: HubSpot 13.321/13.321 com pessoa (6.784 criadas, 705 ligadas) ·
+  Eduzz vendas 4.572/4.739 (167 ficaram sem pessoa de propósito: e-mail já é de outra pessoa
+  com nome diferente) · Blinket 4.764/4.765 · Treble 4 ligadas (38 conversas não têm
+  identificador nenhum) · credenciamento 2.577/2.577 · Yazo 2.910/2.910 · Relatório Yazzo
+  2.367/2.415 · pedidos 10/11. `pessoas.pessoas`: 9.451 → ~16.800.
+- **fase B — só a Adriana decide**: fila em `engagement.identidade_fusoes` por `padrao`
+  (`mesmo_id_de_terceiro` e `mesmo_email*` alta; `mesmo_telefone_emails_diferentes` média;
+  `nomes_divergentes`/`mesmo_email_nomes_diferentes` baixa, nunca em bloco). Nada foi fundido.
+
+O sync da Eduzz/credenciamento apaga e regrava as quatro tabelas espelhadas a cada 30 min
+(:20 e :50): o trigger D5 refaz `pessoa_id` a cada sync — funciona, mas custa ~80 s e disputa
+locks com qualquer passada rodando ao mesmo tempo (deadlock em 04:20). Melhoria registrada:
+`eduzz_espelho_gravar` passar a upsert. Branch `claude/trusting-einstein-pydyqb`, PR #110.
 
 ### Avaliação do evento — NO AR desde 18/09/2026
 
