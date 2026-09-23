@@ -1,0 +1,745 @@
+<!--
+  MAPA VIVO DO BANCO DO MIND — a fonte. Editar aqui, não na página publicada.
+
+  O QUE ISTO É
+  Uma página de uma só peça que lê o catálogo do Postgres ao vivo e mostra, schema por
+  schema e tabela por tabela, o que existe, o que está em uso, o que sobra e o que falta —
+  com um consultor acoplado para conversar sobre como evoluir o banco.
+
+  ONDE ELA RODA
+  Publicada como artifact no claude.ai. A página só funciona lá dentro: precisa do
+  conector do Supabase (para ler) e do `sample` (para o consultor), e os dois só existem
+  no runtime do artifact. Abrir este arquivo direto no navegador mostra o layout e avisa
+  que não consegue consultar o banco — é o comportamento correto, não um defeito.
+
+  COMO EVOLUIR
+  1. edite este arquivo;
+  2. republique no MESMO endereço (o artifact é atualizado, não duplicado);
+  3. commit, para que a próxima pessoa parta daqui e não da página.
+  Republicar sem commitar faz a página e a fonte divergirem — foi para evitar isso que
+  este arquivo saiu do diretório temporário e entrou no repositório.
+
+  O QUE ELA LÊ
+  Uma consulta fixa, escrita aqui, sobre `pg_class` / `pg_namespace` / `pg_description` /
+  `pg_proc` mais `count(*)` por tabela. Nenhuma coluna de negócio é lida. Nada é escrito.
+  O consultor NUNCA escreve SQL: ele recebe o resultado da consulta fixa já pronto.
+
+  O QUE ELA SABE ALÉM DO BANCO
+  As constantes DECISOES, AUTORIDADE e REGRAS, mais abaixo, carregam as decisões congeladas
+  (PROJECT_STATE.md v9) e as regras do CLAUDE.md. Elas vão para a tela e para o consultor.
+  Quando uma decisão mudar no repositório, mude aqui também — senão a página aconselha
+  dentro de uma regra que já caiu.
+
+  O OBJETIVO DE CADA TABELA vem do `comment on table` dentro do banco. Onde falta, a página
+  diz que falta, em vez de inventar.
+-->
+<title>Mapa vivo do banco do Mind</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --ground:#F6F7F5; --surface:#FFFFFF; --surface-2:#EDF0ED; --surface-3:#E3E8E4;
+    --ink:#161C19; --ink-2:#55615B; --ink-3:#7D8B85;
+    --line:#DBE1DD; --line-strong:#C2CAC5;
+    --accent:#0E6B57;
+    --uso:#0E6B57;    --uso-bg:#DCEDE7;
+    --parado:#4E6B86; --parado-bg:#DFE8F0;
+    --gate:#96590F;   --gate-bg:#F4E7D4;
+    --espera:#6B4E86; --espera-bg:#E8E1F0;
+    --orfa:#9B3A24;   --orfa-bg:#F6E1DB;
+    --neutro:#6F7C77; --neutro-bg:#E5EAE7;
+  }
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+    --ground:#0C1110; --surface:#141A18; --surface-2:#1A2220; --surface-3:#212B28;
+    --ink:#E7ECE9; --ink-2:#96A39D; --ink-3:#76827D;
+    --line:#25302D; --line-strong:#33423E;
+    --accent:#48BE9F;
+    --uso:#48BE9F;    --uso-bg:#123229;
+    --parado:#7FAAD0; --parado-bg:#152532;
+    --gate:#DDA35A;   --gate-bg:#33240F;
+    --espera:#B39BD8; --espera-bg:#231A33;
+    --orfa:#E08A70;   --orfa-bg:#33170F;
+    --neutro:#8A9792; --neutro-bg:#1E2624;
+  }}
+  :root[data-theme="dark"]{
+    --ground:#0C1110; --surface:#141A18; --surface-2:#1A2220; --surface-3:#212B28;
+    --ink:#E7ECE9; --ink-2:#96A39D; --ink-3:#76827D;
+    --line:#25302D; --line-strong:#33423E;
+    --accent:#48BE9F;
+    --uso:#48BE9F;    --uso-bg:#123229;
+    --parado:#7FAAD0; --parado-bg:#152532;
+    --gate:#DDA35A;   --gate-bg:#33240F;
+    --espera:#B39BD8; --espera-bg:#231A33;
+    --orfa:#E08A70;   --orfa-bg:#33170F;
+    --neutro:#8A9792; --neutro-bg:#1E2624;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink); margin:0;
+    font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif; font-size:15px; line-height:1.55;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px; margin:0 auto; padding-inline:18px; padding-block:0 80px}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+  .num{font-variant-numeric:tabular-nums}
+  button{font-family:inherit; font-size:inherit; cursor:pointer}
+
+  header.top{padding-block:40px 22px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-3); margin:0 0 12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .ao-vivo{display:inline-flex; align-items:center; gap:6px; color:var(--uso)}
+  .ponto{width:7px; height:7px; border-radius:50%; background:var(--uso)}
+  h1{font-size:clamp(27px,5vw,40px); line-height:1.1; font-weight:600; letter-spacing:-.02em;
+     margin:0 0 14px; text-wrap:balance}
+  .thesis{font-size:clamp(15px,2vw,17px); color:var(--ink-2); max-width:62ch; margin:0 0 18px}
+  .thesis b{color:var(--ink); font-weight:600}
+
+  .barra-topo{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:6px}
+  .btn{background:var(--surface); color:var(--ink-2); border:1px solid var(--line-strong);
+    padding:8px 13px; border-radius:2px; font-size:13px}
+  .btn:hover{border-color:var(--ink-3); color:var(--ink)}
+  .btn.primario{background:var(--ink); color:var(--ground); border-color:var(--ink)}
+  .carimbo{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3)}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:1px;
+    background:var(--line); border:1px solid var(--line); margin-block:22px 10px}
+  .stat{background:var(--surface); padding:13px 15px}
+  .stat .k{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:4px}
+  .stat .v{font-size:25px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1}
+  .stat.c-uso .v{color:var(--uso)} .stat.c-parado .v{color:var(--parado)}
+  .stat.c-espera .v{color:var(--espera)} .stat.c-orfa .v{color:var(--orfa)} .stat.c-gate .v{color:var(--gate)}
+
+  /* ---- tela 1: schemas ---- */
+  h2{font-size:19px; font-weight:600; letter-spacing:-.01em; margin:34px 0 5px;
+     display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+  h2 .count{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3); font-weight:400}
+  .lede{color:var(--ink-2); margin:0 0 18px; max-width:66ch}
+
+  .grade{display:grid; grid-template-columns:repeat(auto-fill,minmax(258px,1fr)); gap:1px;
+    background:var(--line); border:1px solid var(--line)}
+  .cartao{background:var(--surface); padding:16px 17px; text-align:left; border:none; width:100%;
+    display:flex; flex-direction:column; gap:7px; min-height:100%}
+  .cartao:hover{background:var(--surface-2)}
+  .cartao:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+  .cartao .nome{font-family:"IBM Plex Mono",monospace; font-size:14px; font-weight:600;
+    letter-spacing:-.01em; color:var(--ink); word-break:break-word}
+  .cartao .papel{font-size:12.5px; color:var(--ink-2); line-height:1.45; flex:1}
+  .cartao .numeros{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3);
+    font-variant-numeric:tabular-nums; display:flex; gap:9px; flex-wrap:wrap}
+  .saude{display:flex; height:4px; background:var(--surface-3); overflow:hidden}
+  .saude i{display:block; height:100%}
+
+  /* ---- tela 2: tabelas do schema ---- */
+  .voltar{background:none; border:none; color:var(--ink-2); padding:0; font-size:13px;
+    display:inline-flex; gap:7px; align-items:center; margin-bottom:16px}
+  .voltar:hover{color:var(--ink)}
+  .cabeca-schema{border-bottom:2px solid var(--ink); padding-bottom:12px; margin-bottom:0}
+  .cabeca-schema h2{margin-top:0}
+  .cabeca-schema .papel{color:var(--ink-2); max-width:66ch; margin:0 0 10px}
+
+  .linha{display:grid; grid-template-columns:minmax(0,1fr) 74px 120px; gap:12px;
+    padding:13px 2px; border-bottom:1px solid var(--line); align-items:start}
+  .linha:hover{background:var(--surface-2)}
+  .l-nome .t{font-family:"IBM Plex Mono",monospace; font-size:13px; word-break:break-word}
+  .l-nome .obj{font-size:12.5px; color:var(--ink-2); margin-top:3px; line-height:1.45; max-width:62ch}
+  .l-nome .obj.falta{color:var(--orfa); font-style:italic}
+  .l-nome .por{font-size:11.5px; color:var(--ink-3); margin-top:5px; line-height:1.4;
+    padding-left:9px; border-left:2px solid var(--line-strong); max-width:60ch}
+  .l-qtd{text-align:right; font-family:"IBM Plex Mono",monospace; font-size:13px;
+    font-variant-numeric:tabular-nums; padding-top:1px}
+  .l-qtd.zero{color:var(--ink-3)}
+  .l-sel{display:flex; flex-direction:column; gap:5px; align-items:flex-end}
+  .pill{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10px;
+    letter-spacing:.06em; text-transform:uppercase; padding:3px 7px; border-radius:2px; white-space:nowrap}
+  .p-uso{background:var(--uso-bg); color:var(--uso)}
+  .p-parado{background:var(--parado-bg); color:var(--parado)}
+  .p-gate{background:var(--gate-bg); color:var(--gate)}
+  .p-espera{background:var(--espera-bg); color:var(--espera)}
+  .p-orfa{background:var(--orfa-bg); color:var(--orfa)}
+  .p-legado{background:var(--neutro-bg); color:var(--neutro)}
+  .micro{font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--ink-3);
+    font-variant-numeric:tabular-nums}
+  @media (max-width:640px){
+    .linha{grid-template-columns:minmax(0,1fr) 74px}
+    .l-sel{grid-column:1/-1; flex-direction:row; align-items:center; justify-content:flex-start; order:3}
+  }
+
+  .caixa{border:1px solid var(--line); background:var(--surface); padding:15px 17px; margin-top:20px}
+  .caixa h3{margin:0 0 9px; font-size:13.5px; font-weight:600; display:flex; gap:8px; align-items:center}
+  .caixa ul{margin:0; padding-left:18px}
+  .caixa li{font-size:13px; color:var(--ink-2); margin-bottom:6px; line-height:1.45}
+  .caixa li:last-child{margin-bottom:0}
+  .caixa li b{color:var(--ink); font-weight:600}
+  .caixa.falta{border-left:3px solid var(--espera)}
+
+  .decisoes{display:grid; gap:1px; background:var(--line); border:1px solid var(--line); margin-bottom:4px}
+  .decisao{display:grid; grid-template-columns:52px 1fr; gap:14px; background:var(--surface); padding:15px 17px}
+  .d-id{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--uso);
+        letter-spacing:.04em; padding-top:1px}
+  .d-t{font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:5px; line-height:1.35}
+  .d-c{margin:0; font-size:13px; color:var(--ink-2); line-height:1.5}
+  .d-c code{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink)}
+  .d-c b{color:var(--ink); font-weight:600}
+  .aut{display:grid; grid-template-columns:1fr auto; gap:6px 10px; align-items:center;
+       padding:7px 0; border-top:1px solid var(--line)}
+  .aut:first-child{border-top:0; padding-top:0}
+  .a-fato{font-size:12.5px; color:var(--ink-2)}
+  .a-onde{grid-column:1/-1; font-size:10.5px; color:var(--ink-3)}
+  @media (max-width:620px){
+    .decisao{grid-template-columns:1fr; gap:6px}
+  }
+  .caixa.sobra{border-left:3px solid var(--orfa)}
+
+  /* ---- consultor ---- */
+  .consultor{border:1px solid var(--line-strong); background:var(--surface); padding:18px; margin-top:34px}
+  .consultor h2{margin:0 0 5px}
+  .campo{display:flex; gap:9px; margin-top:13px; flex-wrap:wrap}
+  #pergunta{flex:1 1 260px; min-width:0; background:var(--ground); color:var(--ink);
+    border:1px solid var(--line-strong); padding:10px 12px; font-size:14px; font-family:inherit; border-radius:2px}
+  #pergunta:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .atalhos{display:flex; gap:6px; flex-wrap:wrap; margin-top:11px}
+  .atalho{background:var(--surface-2); border:1px solid var(--line); color:var(--ink-2);
+    font-size:12px; padding:6px 10px; border-radius:2px}
+  .atalho:hover{border-color:var(--ink-3); color:var(--ink)}
+  #resposta{margin-top:15px; font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-wrap}
+  #resposta:empty{display:none}
+  #resposta b{font-weight:600}
+
+  .aviso{border:1px solid var(--line); background:var(--surface); padding:14px 16px; margin-block:18px;
+    font-size:13.5px; color:var(--ink-2)}
+  .aviso b{color:var(--ink)}
+  .aviso.erro{border-left:3px solid var(--orfa)}
+  .legenda{display:flex; gap:7px 15px; flex-wrap:wrap; font-size:12px; color:var(--ink-2);
+    padding:12px 0 0}
+  .legenda span{display:inline-flex; gap:6px; align-items:center}
+  footer{margin-top:50px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3)}
+  [hidden]{display:none!important}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">
+    <span>Supabase · mind-agent</span>
+    <span class="ao-vivo" id="pulso" hidden><span class="ponto"></span>ao vivo</span>
+  </p>
+  <h1>Mapa vivo do banco do Mind</h1>
+  <p class="thesis">Vinte e um schemas, cento e sessenta tabelas. Esta página <b>lê o banco agora</b> —
+     não é um retrato de ontem. Comece pelas decisões, que dizem para onde o banco vai; depois
+     abra um schema para ver o que cada tabela é, o que está em uso, o que falta e o que não
+     deveria estar ali. No fim, o consultor responde com tudo isso na mão.</p>
+  <div class="barra-topo">
+    <button class="btn primario" id="recarregar">Atualizar do banco</button>
+    <span class="carimbo" id="carimbo">carregando…</span>
+  </div>
+</header>
+
+<div id="alerta"></div>
+<div class="stats" id="stats" hidden></div>
+
+<!-- DECISÕES -->
+<section id="tela-decisoes" hidden>
+  <h2>O que já está decidido <span class="count">v9 · 21/09/2026</span></h2>
+  <p class="lede">O mapa diz o que <b>é</b>. Esta parte diz para onde <b>vai</b> — e é o que separa
+     "consertar o banco" de "mexer no banco". O consultor lá embaixo recebe tudo isto junto
+     com a sua pergunta.</p>
+  <div class="decisoes" id="decisoes"></div>
+  <div class="caixa" id="autoridade-caixa">
+    <h3>Quem manda em cada fato</h3>
+    <p class="micro" style="margin:0 0 10px">O fato bruto continua de quem o observou. D1 decide
+       o andar de cima: a síntese, a leitura consolidada que atravessa várias origens.</p>
+    <div id="autoridade"></div>
+  </div>
+</section>
+
+<!-- TELA 1 -->
+<section id="tela-schemas" hidden>
+  <h2>Os schemas <span class="count">clique para abrir</span></h2>
+  <p class="lede">Um schema é uma casa: agrupa as tabelas de um mesmo assunto. A barra embaixo de cada
+     cartão mostra a proporção do que está em uso, parado, esperando dado ou órfão.</p>
+  <div class="grade" id="grade"></div>
+  <div class="legenda" id="legenda"></div>
+</section>
+
+<!-- TELA 2 -->
+<section id="tela-tabelas" hidden>
+  <button class="voltar" id="voltar">← todos os schemas</button>
+  <div class="cabeca-schema">
+    <h2 id="sch-nome" class="mono"></h2>
+    <p class="papel" id="sch-papel"></p>
+    <div class="micro" id="sch-numeros"></div>
+  </div>
+  <div id="sch-linhas"></div>
+  <div id="sch-caixas"></div>
+</section>
+
+<!-- CONSULTOR -->
+<section class="consultor" id="consultor" hidden>
+  <h2>Pergunte ao mapa</h2>
+  <p class="lede" style="margin-bottom:0">O estado que você está vendo é enviado junto com a pergunta.
+     A resposta sai do banco de agora, não de memória.</p>
+  <div class="campo">
+    <input id="pergunta" type="text" placeholder="ex.: o que eu deveria arrumar primeiro?" autocomplete="off">
+    <button class="btn primario" id="perguntar">Perguntar</button>
+  </div>
+  <div class="atalhos" id="atalhos"></div>
+  <div id="resposta"></div>
+</section>
+
+<footer>
+  <p>Lido do projeto <code class="mono">ymnmotgglsrxmjmonwjz</code> pelo conector Supabase, com as suas
+  credenciais. A consulta é fixa e só lê catálogo do Postgres e <code class="mono">count(*)</code> —
+  nenhuma coluna de negócio é lida, nada é escrito. O objetivo de cada tabela vem do
+  <code class="mono">comment on table</code> dentro do banco; onde falta, a página diz que falta.</p>
+  <p>O consultor recebe o resultado desta consulta já pronto — ele <b>nunca escreve SQL</b> e
+  nunca toca no banco. As decisões e regras que ele usa vêm do repositório, não da memória dele.</p>
+  <p>Fonte desta página: <code class="mono">scripts/infra/mapa-vivo.html</code> no repositório
+  <code class="mono">mind-agent</code>. Para evoluí-la, edite lá e republique neste mesmo endereço.</p>
+</footer>
+</div>
+
+<script>
+const PROJETO = "ymnmotgglsrxmjmonwjz";
+
+const SQL = `with t as (
+  select ns.nspname s, c.relname t, c.oid o, c.relrowsecurity r, coalesce(trim(d.description),'') ob
+  from pg_class c join pg_namespace ns on ns.oid=c.relnamespace
+  left join pg_description d on d.objoid=c.oid and d.objsubid=0
+  where c.relkind='r'
+    and ns.nspname not in ('pg_catalog','information_schema','auth','storage','realtime','vault',
+      'supabase_migrations','supabase_functions','extensions','net','cron','pgsodium','pgsodium_masks',
+      'pgbouncer','graphql','graphql_public','_realtime','_analytics')
+    and ns.nspname not like 'pg\\_%'
+), f as (
+  select p.prosrc from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where p.prokind='f' and (select count(*) from pg_depend dd join pg_extension e on e.oid=dd.refobjid
+    where dd.objid=p.oid and dd.deptype='e')=0
+), v as (
+  select pg_get_viewdef(c.oid) src from pg_class c join pg_namespace ns on ns.oid=c.relnamespace
+  where c.relkind in ('v','m') and ns.nspname not in ('pg_catalog','information_schema','extensions')
+)
+select json_agg(json_build_object('s',s,'t',tb,'n',n,'ob',ob,'r',r,'fn',fn,'vw',vw,'fi',fi,'fo',fo)
+       order by s, n desc)::text as j
+from (
+  select t.s, t.t tb, t.ob, t.r,
+    (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I',t.s,t.t),false,true,'')))[1]::text::bigint n,
+    (select count(*) from f where f.prosrc ~* ('\\m'||t.s||'\\s*\\.\\s*'||t.t||'\\M')) fn,
+    (select count(*) from v where v.src ~* ('\\m'||t.s||'\\.'||t.t||'\\M')) vw,
+    (select count(*) from pg_constraint k where k.confrelid=t.o and k.contype='f') fi,
+    (select count(*) from pg_constraint k where k.conrelid=t.o and k.contype='f') fo
+  from t
+) x;`;
+
+/* ---------------------------------------------------------------
+   Camada de julgamento. Os números vêm do banco; isto é o que os
+   documentos do repositório e as decisões registradas dizem sobre
+   cada casa. Onde não há decisão registrada, não há entrada aqui.
+----------------------------------------------------------------*/
+const SCHEMAS = {
+ pessoas:{ordem:1, papel:"A pessoa canônica: um identificador permanente que todos os canais apontam. WhatsApp, e-mail, HubSpot e login do app resolvem para a mesma linha aqui."},
+ engagement:{ordem:2, papel:"Tudo que acontece entre uma pessoa e o Mind: conversa, mensagem, identidade, sessão, avaliação. É o schema mais movimentado do banco."},
+ intelligence:{ordem:3, papel:"O que se sabe sobre a pessoa depois que ela fala: análise do pós-turno, memória com evidência, fila de retomada. Informa; nunca decide."},
+ crm:{ordem:4, papel:"O espelho local do HubSpot — uma tabela por pipeline ou objeto de lá. Espelho, não fonte autoral: o que nasce fora continua mandando lá fora."},
+ agentes:{ordem:5, papel:"Como o agente pensa: os playbooks, os blocos que o Kit compõe por rota, e a matriz de qual competência vale em qual canal. Mudar comportamento aqui é UPDATE, não deploy."},
+ concierge:{ordem:6, papel:"A configuração do agente do app: avisos da home, flags de capacidade, catálogo de ferramentas, textos prontos e janelas de pesquisa."},
+ summit_2026:{ordem:7, papel:"Tudo que é verdade sobre o Summit 2026: grade, palestrantes, locais e rotas, ofertas, regras comerciais e a base pesquisável."},
+ institute:{ordem:8, papel:"Tudo que é verdade sobre o Institute: programas, encontros ao vivo, ofertas, bônus, condições e FAQ."},
+ dash:{ordem:9, papel:"O que é verdade sobre o Mind Dash. Hoje só a casa da base de conhecimento, praticamente vazia."},
+ catalogo:{ordem:10, papel:"O vocabulário de produto: um código por produto, classificado por vertical. É o que faz CRM, conhecimento e agentes falarem a mesma língua."},
+ checkout:{ordem:11, papel:"O checkout próprio, fora da Eduzz. Hoje só o Institute passa por aqui — pedido, item, comprador e o log cru do gateway."},
+ eduzz:{ordem:12, papel:"Espelho da plataforma de venda: vendas, ingressos, produtos e a tradução curada deles para o vocabulário do Mind."},
+ credenciamento_summit_2026:{ordem:13, papel:"Quem se credenciou no Summit, vindo da Yazo, e a fila do que precisa voltar para lá."},
+ treble:{ordem:14, papel:"O WhatsApp: o estado da janela de 24h por telefone e as travas que impedem reescrever a mesma coisa no HubSpot."},
+ ecossistema:{ordem:15, papel:"Inteligência perene, curada à mão: palestrantes, organizações e referências que valem para os três produtos ao mesmo tempo."},
+ learnworlds:{ordem:16, papel:"A plataforma de curso: em que curso cada programa matricula, e quem já tem acesso liberado."},
+ platform:{ordem:17, papel:"A camada de provedores de modelo, rotas e custo. Desenhada por inteiro e nunca ligada."},
+ public:{ordem:18, papel:"O painel administrativo e o estado dos espelhos que vêm de outros projetos Supabase."},
+ seguranca:{ordem:19, papel:"Quem entra no painel, e os hashes dos segredos do servidor — separados de propósito para que um não autorize o outro."},
+ mind:{ordem:20, papel:"Termos legais versionados e conteúdo institucional."},
+ eventos:{ordem:21, papel:"Base de conhecimento genérica para eventos, fora do Summit. Criada e nunca ocupada."}
+};
+
+// vazia porque uma decisão registrada a mantém assim
+const GATE = {
+ "crm.hubspot_commercial_writeback":"a variável HUBSPOT_COMMERCIAL_WRITEBACK_ENABLED está desligada",
+ "engagement.recovery_dispatch_queue":"o dispatcher está com enabled=false e dry_run=true",
+ "engagement.verificacoes_email":"a flag verificacao_email está desligada",
+ "engagement.contatos":"a flag oferecer_contato está desligada — exige consentimento",
+ "concierge.proativo_fila":"a flag proativo está desligada",
+ "concierge.ciclo_estado":"as flags ciclo_briefing, ciclo_debrief e ciclo_objetivo estão desligadas",
+ "checkout.conversoes_enviadas":"o envio de conversão para plataforma de anúncio está desligado"
+};
+
+// marcada nos documentos do repositório como não propagar
+const LEGADO = {
+ /* crm.pessoa_produtos saiu daqui em 21/09: continua vazia, mas o rótulo "legado"
+    vinha de uma premissa que D1 derrubou. Ela agora aparece como "sem dado" — que é o
+    que ela de fato é — e o conflito está descrito em PORQUE, sem fingir resolvido. */
+ "crm.leads_capturados":"a função mind_lead_capturar não existe mais no banco",
+ "concierge.prompts":"histórico — a casa canônica dos playbooks hoje é agentes.prompts",
+ "intelligence.participante_contexto":"STEP1 e STEP3 proíbem ressuscitar esta casa sem consumidor real",
+ "intelligence.participante_objetivos":"STEP1 e STEP3 proíbem ressuscitar esta casa sem consumidor real",
+ "intelligence.recomendacoes":"STEP1 e STEP3 proíbem ressuscitar esta casa sem consumidor real",
+ "intelligence.perguntas_feitas":"STEP1 e STEP3 proíbem ressuscitar esta casa sem consumidor real"
+};
+
+// por que uma tabela está como está, quando há razão conhecida
+const PORQUE = {
+ "engagement.nps":"A lane de Play nunca entregou o escritor. O executor existe e a allowlist tem registrar_nps, mas a função que grava nunca foi criada.",
+ "engagement.sessao_feedback":"Mesma lane de Play, mesmo motivo.",
+ "engagement.evento_feedback":"Mesma lane de Play, mesmo motivo.",
+ "engagement.feedbacks":"Chave e valor sem contrato. A migration da avaliação do evento rejeitou usá-la de propósito.",
+ "engagement.jornada_sessao":"A jornada dentro do evento nunca foi registrada — a presença real do Summit 2026 está numa planilha da Yazo, fora do banco.",
+ "engagement.jornada_eventos":"Mesma razão da jornada por sessão.",
+ "summit_2026.registrations":"A inscrição real vive hoje em credenciamento e em eduzz.ingressos. Esta é a casa certa e vazia — é para cá que a planilha da Yazo deve vir.",
+ "summit_2026.exhibitors":"Três funções já a consultam; expositores nunca foram cadastrados.",
+ "platform.llm_calls":"Nenhuma chamada de modelo é registrada. Não há como responder quanto custa um turno nem qual rota gasta mais.",
+ "catalogo.ofertas":"A oferta real vive em summit_2026.offers e institute.ofertas. Esta casa foi desenhada para unificar e nunca foi ocupada.",
+ "checkout.cupons":"O cupom do Summit vive em summit_2026.coupons; este atende só o checkout próprio do Institute.",
+ "institute.knowledge_chunks":"Um único pedaço, sem embedding: a busca vetorial do Institute não existe.",
+ "dash.knowledge_chunks":"Um único pedaço, sem embedding: a busca vetorial do Dash não existe.",
+ "crm.pessoa_nps":"O campo de NPS do HubSpot está vazio em todos os 13 mil contatos — não há fonte conectada. A escala 0–10 já está no CHECK; falta o escritor e a decisão de onde perguntar (D4).",
+ "crm.pessoa_produtos":"Conflito aberto. Criada em 29/08 com FK, unique e RLS, nunca recebeu uma linha — e crm.contexto_comercial já a lê. CORE_UNIVERSAL §13 a marca como legado, mas por uma premissa que D1 derrubou. Se ela é a casa do histórico consolidado, quem decide é a Adriana: é a primeira pendência real do registry.",
+ "eventos.knowledge_documents":"Schema de conhecimento genérico, criado e nunca ocupado.",
+ "concierge.config_auditoria":"A auditoria de mudança de configuração nunca gravou uma linha."
+};
+
+// o que falta neste schema, e o que sobra — julgamento, não medição
+const FALTA = {
+ engagement:["O <b>NPS de verdade</b>, com escala 0–10: a casa existe, o escritor não.",
+             "A <b>jornada dentro do evento</b> — o que a pessoa fez no Summit. Hoje o único vestígio são as 636 notas por atividade das duas pesquisas."],
+ summit_2026:["A <b>presença real no Summit 2026</b>, que está numa planilha da Yazo e precisa subir para <code>registrations</code>."],
+ institute:["<b>Histórico de quem fez cada formação.</b> No espelho do HubSpot, zero de 13.321 contatos têm formação registrada."],
+ dash:["<b>Qualquer dado de cliente.</b> Duas linhas no schema inteiro, nenhuma de pessoa."],
+ crm:["A <b>ligação entre venda e produto</b>: 3.565 das 4.731 vendas da Eduzz estão marcadas como não mapeadas, e nenhuma do Institute foi mapeada."],
+ platform:["<b>Observabilidade de custo e latência</b> por turno. A casa existe e está vazia."],
+ pessoas:["Uma <b>projeção do histórico</b> — o que esta pessoa comprou, onde esteve, o que fez. Hoje isso exige cruzar quatro schemas à mão."]
+};
+const SOBRA = {
+ catalogo:["As quatro tabelas de oferta (<code>ofertas</code>, <code>oferta_precos</code>, <code>oferta_inclui</code>, <code>oferta_requer</code>) estão vazias e sem leitor. Ou viram a casa única da oferta, ou saem."],
+ eventos:["O schema inteiro: duas tabelas, zero linhas, criado para um caso que nunca veio. <b>Remoção escrita</b> na migration <code>20260921233000</code>, aguardando merge — quando aplicar, este cartão some sozinho. Não era um <code>DROP</code> de uma linha: cinco funções vivas liam daqui como galho padrão da busca de conhecimento, e foram reescritas antes."],
+ platform:["<code>llm_routes</code>, <code>llm_models</code> e <code>llm_providers</code> têm dado e <b>nenhum leitor no banco</b> — a escolha de modelo vive no código, não aqui."],
+ concierge:["<code>prompts</code> é histórico: a casa canônica é <code>agentes.prompts</code>."]
+};
+
+const ATALHOS = [
+ "O que eu deveria arrumar primeiro?",
+ "Como eu ligo o histórico do cliente de ponta a ponta?",
+ "Onde mora o histórico de um cliente hoje?",
+ "Quero guardar uma informação nova — onde ela entra?",
+ "Que tabelas posso apagar sem medo?",
+ "O que trava o NPS hoje?"
+];
+
+/* As decisões congeladas. Vão para a tela E para o consultor: sem elas ele
+   descreve o banco, mas não sabe para onde o banco deve ir. */
+const DECISOES = [
+ {id:"D1", t:"O Supabase é a fonte da verdade do histórico do cliente",
+  c:"O HubSpot deixa de ser origem e vira destino. A leitura não muda hoje — ligar a escrita para o HubSpot continua atrás do gate. <b>A casa já existe e está vazia:</b> <code>crm.pessoa_produtos</code> foi criada em 29/08, tem FK, unique e RLS, e <code>crm.contexto_comercial</code> já lê ela. Nunca houve escritor. D1 é carga, não redesenho."},
+ {id:"D2", t:"Uma aprovadora: a Adriana. Um executor: o Vinicius",
+  c:"Ele escreve migration, coluna, índice e backfill. Tabela nova, schema novo ou troca de quem manda no fato vão à aprovação antes. Setembro teve 9 tabelas novas em 7 migrations — de um a três itens por semana."},
+ {id:"D3", t:"Summit completo · Institute parcial · Dash fora",
+  c:"Dash sai por ausência de dado: o schema inteiro tem 2 linhas, ambas de documento, nenhuma de pessoa. Entra quando houver cliente. Institute tem oferta e programa, mas o histórico de matrícula ainda não veio do LearnWorlds."},
+ {id:"D4", t:"Ligar NPS de verdade",
+  c:"A escala 0–10 já está no banco, com <code>CHECK</code>, em duas casas vazias de grão diferente: <code>engagement.nps</code> (por participante do evento) e <code>crm.pessoa_nps</code> (por pessoa e produto). Falta o escritor e a decisão de produto de onde perguntar, quando e com que frequência. Nota 0–5 de avaliação de atividade não é NPS."},
+ {id:"D5", t:"Identidade universal: toda linha sobre uma pessoa nasce com pessoa_id",
+  c:"Decisão de 22–23/09 (Regra #1, <code>READ_ME_FIRST.md</code>). <code>pessoas.pessoas.id</code> é o id que persiste, para toda pessoa de qualquer fonte; os identificadores (e-mail, WhatsApp, ids de terceiros; CPF só como apoio) ficam em <code>engagement.identidades</code>. Toda tabela-fonte tem <code>pessoa_id</code> resolvido pela porta única <code>mind_identidade_resolver</code> <b>antes</b> da escrita (trigger). Antes de criar: enriquecer e unificar quem já existe. Duplicata vira proposta; <b>só a Adriana funde</b>, via <code>mind_fusao_decidir</code>. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados e ~900 compradores sem pessoa; 586 duplicatas com uma causa só (pessoa nascida do WhatsApp, ligada ao HubSpot sem o e-mail, recriada no login)."}
+];
+
+/* Quem manda em cada fato. O fato bruto continua de quem o observou;
+   D1 decide o andar de cima, a síntese.
+
+   A régua, corrigida pela Adriana em 21/09: autoridade segue o PROCESSO,
+   não o fornecedor. Eduzz e LearnWorlds observam fato que não
+   conseguimos observar (se liquidou, se assistiu) — autoridade deles de
+   verdade. A Yazo não observa nada nosso: o credenciamento é na nossa
+   porta, pela nossa equipe, e ela é só a ferramenta. */
+const AUTORIDADE = [
+ ["transação, fatura, refund, cupom","eduzz","espelho eduzz.*"],
+ ["presença física no Summit","mind","credenciamento_summit_2026.* — o credenciamento é nosso; a Yazo é a ferramenta, e a planilha de 2026 é o canal de entrada"],
+ ["progresso e acesso no LMS","learnworlds","learnworlds.produtos / acessos"],
+ ["propriedade de contato, estágio de pipeline","hubspot","crm.contato_espelho — o que o time edita lá"],
+ ["histórico consolidado do cliente","mind","crm.pessoa_produtos — VAZIA; é o que D1 inverte"],
+ ["conversa, identidade, memória","mind","engagement.*, pessoas.*"],
+ ["vocabulário de produto, preço, oferta","mind","catalogo.produtos"],
+ ["NPS","mind","engagement.nps e crm.pessoa_nps — ambas vazias"]
+];
+
+/* As regras que o projeto já congelou. O consultor propõe dentro delas. */
+const REGRAS = [
+ "Autoridade segue o processo, não o fornecedor: a pergunta é quem observou o fato, não em que sistema ele está.",
+ "Antes de criar tabela, provar que falta uma casa. Quase sempre não falta.",
+ "Usar casas e taxonomias existentes em vez de inventar vocabulário novo.",
+ "Não transformar hipótese futura em coluna criada por antecipação.",
+ "Mudança estrutural — tabela nova, schema novo, troca de proveniência — precisa do gate da Adriana.",
+ "Preço, checkout, desconto, horário e disponibilidade nunca dependem de busca vetorial como fonte da verdade.",
+ "Espelho não vira segunda fonte autoral: o fato bruto continua de quem o observou.",
+ "Regra #1 (D5): toda tabela que fala de pessoa tem pessoa_id, resolvido ou criado pela porta única antes da escrita; antes de criar, enriquecer e unificar quem já existe; CPF não identifica sozinho; ninguém funde sem a Adriana decidir."
+];
+
+/* ---------- estado ---------- */
+let DADOS = null, SCHEMA_ABERTO = null, mcp = null, sample = null;
+const $ = id => document.getElementById(id);
+const br = n => Number(n).toLocaleString("pt-BR");
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function veredito(r){
+  const chave = r.s + "." + r.t, lido = r.fn > 0 || r.vw > 0;
+  if (GATE[chave])   return {k:"gate",   rot:"por gate",    por:GATE[chave]};
+  if (LEGADO[chave]) return {k:"legado", rot:"legado",      por:LEGADO[chave]};
+  if (r.n > 0 && lido)   return {k:"uso",    rot:"em uso"};
+  if (r.n > 0 && !lido)  return {k:"parado", rot:"sem leitor", por:"Tem dado, e nenhuma função ou view do banco a consulta."};
+  if (r.n === 0 && lido) return {k:"espera", rot:"sem dado",   por:"O leitor existe; o que grava, não."};
+  return {k:"orfa", rot:"órfã", por:"Nem dado, nem leitor, nem escritor."};
+}
+const ROT = {uso:"em uso", parado:"sem leitor", espera:"sem dado", orfa:"órfã", gate:"por gate", legado:"legado"};
+
+/* ---------- carregar ---------- */
+async function carregar(forcar){
+  const alerta = $("alerta");
+  if (!mcp){ alerta.innerHTML = ''; return; }
+  $("carimbo").textContent = "consultando o banco…";
+  try{
+    const res = await mcp.callTool("Supabase","execute_sql",
+      {project_id:PROJETO, query:SQL},
+      {cache:{staleTime: forcar ? 0 : 60000, refresh: !!forcar}});
+    DADOS = extrair(res);
+    if (!Array.isArray(DADOS) || !DADOS.length || !DADOS[0].s)
+      throw {code:"tool_error", message:"a consulta respondeu num formato que esta página não reconhece"};
+    const quando = res.cache ? new Date(res.cache.storedAt) : new Date();
+    $("carimbo").textContent = "lido às " + quando.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) +
+      (res.cache ? " (do cache)" : "");
+    $("pulso").hidden = false;
+    alerta.innerHTML = "";
+    desenhar();
+  }catch(e){
+    $("carimbo").textContent = "não foi possível ler";
+    alerta.innerHTML = '<div class="aviso erro">' + copiaErro(e) + '</div>';
+  }
+}
+
+/* O conector pode devolver a resposta de várias formas: o array de linhas em
+   `payload`, uma string JSON, ou um bloco de texto com o JSON no meio. Esta
+   função desembrulha todas elas e devolve o array de tabelas, ou null. */
+function extrair(res){
+  const vistos = new Set();
+  const tentar = (v, fundo) => {
+    if (v == null || fundo > 12) return null;
+    if (Array.isArray(v)){
+      if (v.length && v[0] && typeof v[0] === "object" && "s" in v[0] && "t" in v[0]) return v;
+      for (const item of v){ const r = tentar(item, fundo+1); if (r) return r; }
+      return null;
+    }
+    if (typeof v === "object"){
+      if (vistos.has(v)) return null;
+      vistos.add(v);
+      for (const chave of ["j","payload","structuredContent","result","content","text","data"]){
+        if (chave in v){ const r = tentar(v[chave], fundo+1); if (r) return r; }
+      }
+      for (const k of Object.keys(v)){ const r = tentar(v[k], fundo+1); if (r) return r; }
+      return null;
+    }
+    if (typeof v === "string"){
+      const s = v.trim();
+      try { const r = tentar(JSON.parse(s), fundo+1); if (r) return r; } catch(e){}
+      const i = s.indexOf('[{"'), f = s.lastIndexOf('}]');
+      if (i >= 0 && f > i){
+        try { return tentar(JSON.parse(s.slice(i, f+2)), fundo+1); } catch(e){}
+      }
+    }
+    return null;
+  };
+  return tentar(res, 0);
+}
+
+function copiaErro(e){
+  const c = e && e.code;
+  if (c === "needs_reauth")          return "<b>A conexão com o Supabase expirou.</b> Reconecte em claude.ai → Configurações → Conectores e atualize esta página.";
+  if (c === "server_not_connected")  return "<b>O conector do Supabase não está ligado nesta conta.</b> Adicione-o em claude.ai → Configurações → Conectores.";
+  if (c === "selection_required")    return "<b>Há mais de um conector Supabase.</b> Escolha qual usar no aviso do Claude e tente de novo.";
+  if (c === "not_in_manifest")       return "<b>O acesso ao Supabase foi recusado para esta página.</b> Recarregue e permita quando for perguntado.";
+  if (c === "blocked_by_policy")     return "<b>A política da organização bloqueia esta consulta.</b>";
+  if (c === "server_unavailable")    return "<b>O Supabase não respondeu.</b> Tente em alguns segundos — é passageiro.";
+  if (c === "tool_error")            return "<b>A consulta foi recusada pelo banco.</b> " + esc(e.message || "");
+  if (c === "not_granted" || c === "capability_disabled")
+                                     return "<b>Esta visualização não pode consultar conectores.</b> Abra a página pelo claude.ai para ver o estado ao vivo.";
+  return "<b>Não foi possível ler o banco.</b> " + esc((e && e.message) || "");
+}
+
+/* ---------- desenhar ---------- */
+function desenhar(){
+  const c = {uso:0,parado:0,espera:0,orfa:0,gate:0,legado:0};
+  DADOS.forEach(r => c[veredito(r).k]++);
+  const linhas = DADOS.reduce((a,r)=>a+Number(r.n),0);
+  const semObj = DADOS.filter(r=>!r.ob).length;
+  $("stats").hidden = false;
+  $("stats").innerHTML =
+    tile("tabelas", DADOS.length) + tile("linhas", br(linhas)) +
+    tile("em uso", c.uso, "uso") + tile("sem leitor", c.parado, "parado") +
+    tile("sem dado", c.espera, "espera") + tile("órfãs", c.orfa, "orfa") +
+    tile("por gate", c.gate, "gate") + tile("sem objetivo", semObj);
+  $("legenda").innerHTML = Object.keys(ROT).map(k =>
+    '<span><span class="pill p-'+k+'">'+ROT[k]+'</span>'+explica(k)+'</span>').join("");
+  desenharDecisoes();
+  if (SCHEMA_ABERTO) abrirSchema(SCHEMA_ABERTO); else telaSchemas();
+  $("consultor").hidden = !sample;
+}
+const tile = (k,v,cls) => '<div class="stat'+(cls?' c-'+cls:'')+'"><span class="k">'+k+'</span><span class="v num">'+v+'</span></div>';
+function explica(k){
+  return {uso:"tem dado e alguém lê", parado:"tem dado, ninguém lê pelo banco",
+    espera:"o leitor existe, o dado não", orfa:"nem dado nem leitor",
+    gate:"vazia por decisão registrada", legado:"documentada como não propagar"}[k];
+}
+
+function desenharDecisoes(){
+  $("decisoes").innerHTML = DECISOES.map(d =>
+    '<div class="decisao"><div class="d-id">'+d.id+'</div>' +
+    '<div><div class="d-t">'+d.t+'</div><p class="d-c">'+d.c+'</p></div></div>').join("");
+  $("autoridade").innerHTML = AUTORIDADE.map(([fato,quem,onde]) =>
+    '<div class="aut"><span class="a-fato">'+esc(fato)+'</span>' +
+    '<span class="pill p-'+(quem==="mind"?"uso":"parado")+'">'+quem+'</span>' +
+    '<span class="a-onde mono">'+esc(onde)+'</span></div>').join("");
+}
+
+function telaSchemas(){
+  SCHEMA_ABERTO = null;
+  $("tela-tabelas").hidden = true; $("tela-schemas").hidden = false;
+  $("tela-decisoes").hidden = false;
+  const por = {};
+  DADOS.forEach(r => (por[r.s] = por[r.s] || []).push(r));
+  const nomes = Object.keys(por).sort((a,b) =>
+    ((SCHEMAS[a]||{}).ordem || 99) - ((SCHEMAS[b]||{}).ordem || 99) || a.localeCompare(b));
+  $("grade").innerHTML = nomes.map(s => {
+    const rs = por[s], tot = rs.reduce((a,r)=>a+Number(r.n),0);
+    const c = {uso:0,parado:0,espera:0,orfa:0,gate:0,legado:0};
+    rs.forEach(r => c[veredito(r).k]++);
+    const barra = ["uso","parado","espera","gate","legado","orfa"].filter(k=>c[k])
+      .map(k => '<i style="width:'+(c[k]/rs.length*100)+'%;background:var(--'+(k==='legado'?'neutro':k)+')"></i>').join("");
+    return '<button class="cartao" data-s="'+s+'">' +
+      '<span class="nome">'+s+'</span>' +
+      '<span class="papel">'+((SCHEMAS[s]||{}).papel || "Sem papel descrito.")+'</span>' +
+      '<span class="numeros"><span>'+rs.length+' tabelas</span><span>'+br(tot)+' linhas</span>' +
+        (c.orfa?'<span style="color:var(--orfa)">'+c.orfa+' órfã'+(c.orfa>1?'s':'')+'</span>':'') +
+      '</span><span class="saude">'+barra+'</span></button>';
+  }).join("");
+  document.querySelectorAll(".cartao").forEach(b =>
+    b.addEventListener("click", () => abrirSchema(b.dataset.s)));
+}
+
+function abrirSchemaDecisoes(){ $("tela-decisoes").hidden = true; }
+function abrirSchema(s){
+  abrirSchemaDecisoes();
+  SCHEMA_ABERTO = s;
+  $("tela-schemas").hidden = true; $("tela-tabelas").hidden = false;
+  window.scrollTo({top:0, behavior:"instant"});
+  const rs = DADOS.filter(r => r.s === s);
+  const tot = rs.reduce((a,r)=>a+Number(r.n),0);
+  const semObj = rs.filter(r=>!r.ob).length, semRls = rs.filter(r=>!r.r).length;
+  $("sch-nome").textContent = s;
+  $("sch-papel").innerHTML = (SCHEMAS[s]||{}).papel || "Sem papel descrito.";
+  $("sch-numeros").textContent = rs.length + " tabelas · " + br(tot) + " linhas"
+    + (semObj ? " · " + semObj + " sem objetivo declarado" : "")
+    + (semRls ? " · " + semRls + " sem RLS" : "");
+  $("sch-linhas").innerHTML = rs.map(r => {
+    const v = veredito(r), chave = r.s + "." + r.t;
+    const por = PORQUE[chave] || v.por;
+    return '<div class="linha"><div class="l-nome">' +
+      '<div class="t">'+r.t+'</div>' +
+      '<div class="obj'+(r.ob?'':' falta')+'">'+(r.ob ? esc(r.ob) : "sem objetivo declarado no banco")+'</div>' +
+      (por ? '<div class="por">'+por+'</div>' : '') +
+      '</div>' +
+      '<div class="l-qtd'+(Number(r.n)===0?' zero':'')+'">'+br(r.n)+'</div>' +
+      '<div class="l-sel"><span class="pill p-'+v.k+'">'+v.rot+'</span>' +
+        '<span class="micro">'+r.fn+' fn · '+r.vw+' view</span></div></div>';
+  }).join("");
+  const caixas = [];
+  if (FALTA[s]) caixas.push('<div class="caixa falta"><h3>O que falta aqui</h3><ul>'+FALTA[s].map(x=>'<li>'+x+'</li>').join("")+'</ul></div>');
+  if (SOBRA[s]) caixas.push('<div class="caixa sobra"><h3>O que sobra aqui</h3><ul>'+SOBRA[s].map(x=>'<li>'+x+'</li>').join("")+'</ul></div>');
+  $("sch-caixas").innerHTML = caixas.join("");
+}
+$("voltar").addEventListener("click", telaSchemas);
+$("recarregar").addEventListener("click", () => carregar(true));
+
+/* ---------- consultor ---------- */
+function resumo(){
+  const l = DADOS.map(r => {
+    const v = veredito(r);
+    return [r.s+"."+r.t, r.n, v.k, r.ob?"objetivo:sim":"objetivo:NAO", "fn:"+r.fn, "view:"+r.vw, r.r?"rls:sim":"rls:NAO"].join(" | ");
+  });
+  return l.join("\n");
+}
+async function perguntar(q){
+  if (!sample || !q.trim() || !DADOS) return;
+  const out = $("resposta");
+  out.textContent = "Pensando…";
+  const instrucao =
+`Você é o arquiteto de dados do Mind, uma startup de saúde mental e performance no trabalho com três produtos: Mind Summit (evento), Mind Institute (formações) e Mind Dash (consultoria B2B). Quem pergunta é a CEO, que entende de negócio e está aprendendo banco de dados.
+
+Seu papel é ajudá-la a entender o banco COMO ELE ESTÁ e decidir COMO EVOLUÍ-LO. Você propõe; quem decide é ela.
+
+=== 1. ESTADO REAL DO BANCO AGORA ===
+Uma linha por tabela:
+tabela | linhas | veredito | tem objetivo declarado | funções que leem | views que leem | tem RLS
+
+Vereditos: uso = tem dado e alguém lê; parado = tem dado e nenhuma função ou view lê; espera = o leitor existe mas não há dado; orfa = nem dado nem leitor; gate = vazia porque uma decisão desligou algo; legado = documentada como não propagar.
+
+${resumo()}
+
+=== 2. DECISÕES JÁ CONGELADAS (v9, 21/09/2026) ===
+${DECISOES.map(d => d.id+" — "+d.t+": "+d.c.replace(/<[^>]+>/g,"")).join("\n")}
+
+=== 3. QUEM MANDA EM CADA FATO ===
+O fato bruto continua de quem o observou; D1 decide a síntese consolidada.
+${AUTORIDADE.map(([f,q2,o]) => f+" -> "+q2+" ("+o+")").join("\n")}
+
+=== 4. REGRAS QUE O PROJETO JÁ CONGELOU ===
+${REGRAS.map(r => "- "+r).join("\n")}
+
+=== COMO RESPONDER ===
+Português do Brasil, direto, sem jargão desnecessário. Cite números reais da lista do item 1 — nunca invente contagem, nome de tabela ou coluna.
+
+Se a pergunta for sobre EVOLUIR o banco (onde guardar algo novo, o que consertar, como ligar uma informação de ponta a ponta):
+1. Primeiro procure uma casa que já existe. Quase sempre existe — diga qual e por quê.
+2. Só proponha tabela nova se nenhuma casa servir, e então diga explicitamente que isso exige o gate da Adriana.
+3. Diga qual regra do item 4 se aplica, quando aplicar.
+4. Separe o que é carga de dado (barato) do que é mudança estrutural (precisa de aprovação).
+5. Termine com o menor próximo passo concreto.
+
+Se a resposta depender de algo que não está aqui, diga o que faltaria saber em vez de chutar. Seja conciso: seis frases para pergunta simples, mais quando a pergunta pedir um caminho ou uma lista.
+
+PERGUNTA: ${q}`;
+  try{
+    await sample(instrucao, {modelTier:"complex", onText:({text}) => { out.textContent = text; }});
+  }catch(e){
+    out.textContent = e && e.code === "rate_limited"
+      ? "Muitas perguntas seguidas. Espere alguns segundos e tente de novo."
+      : e && e.code === "not_granted"
+      ? "Perguntar ao mapa não está disponível nesta visualização."
+      : "Não consegui responder agora. " + ((e && e.message) || "");
+  }
+}
+$("perguntar").addEventListener("click", () => perguntar($("pergunta").value));
+$("pergunta").addEventListener("keydown", e => { if (e.key === "Enter") perguntar(e.target.value); });
+$("atalhos").innerHTML = ATALHOS.map(a => '<button class="atalho">'+a+'</button>').join("");
+document.querySelectorAll(".atalho").forEach(b => b.addEventListener("click", () => {
+  $("pergunta").value = b.textContent; perguntar(b.textContent);
+}));
+
+/* ---------- ligar ---------- */
+$("alerta").innerHTML = '<div class="aviso">Conectando ao banco…</div>';
+(async () => {
+  mcp = await window.claude?.use?.("mcp") ?? null;
+  if (!mcp){
+    $("carimbo").textContent = "sem conexão";
+    $("alerta").innerHTML = '<div class="aviso erro"><b>Esta visualização não consegue consultar o banco.</b> ' +
+      'Abra a página pelo claude.ai, com o conector do Supabase ligado, para ver o estado ao vivo.</div>';
+    return;
+  }
+  carregar(false);
+})();
+(async () => {
+  sample = await window.claude?.use?.("sample") ?? null;
+  if (sample && DADOS) $("consultor").hidden = false;
+})();
+</script>

@@ -93,6 +93,47 @@ detecta → persiste evidência → vira pendência → NÃO faz auto-merge → 
 A pendência vai para `engagement.identidade_fusoes` (263 pendentes hoje), e os identificadores
 da outra pessoa **não são vinculados** — ninguém vê dado de terceiro.
 
+### D5 — identidade universal (23/09/2026)
+
+Regra #1 do sistema (`READ_ME_FIRST.md`): **toda linha sobre uma pessoa nasce ligada à
+pessoa.** O que muda em relação ao texto acima:
+
+- **Espelho passa pela porta única na escrita.** Antes, fonte em lote (HubSpot, Eduzz,
+  credenciamento, Yazo) entrava como espelho e a pessoa era resolvida por junção na leitura.
+  Agora cada tabela-fonte tem `pessoa_id`, `pessoa_criterio` e `pessoa_resolvido_em`, e um
+  trigger `before insert or update` (`mind_pessoa_antes_de_escrever`) chama
+  `mind_identidade_resolver` antes de a linha existir. Falha de identidade não bloqueia a
+  escrita. `mind_pessoa_ligar_tabela(tabela, mapa)` põe uma tabela nova na regra.
+- **Canais novos em `identidades`:** `cpf`, `cnpj`, `credenciamento`, `learnworlds` (além
+  de `yazo` e `eduzz`, que já existiam no CHECK). Força: login 4 · WhatsApp e ids de
+  terceiro 3 · e-mail 2 · **CPF/CNPJ 1** — evidência de apoio; nunca escolhem, criam nem
+  abrem conflito. CPF igual com e-mail, WhatsApp ou nome diferente é pessoa diferente.
+- **Só evidência forte cria pessoa**, e só quando nenhuma pessoa existente está por
+  enriquecer (`pessoas.pessoas.enriquecida_em` nulo): enriquecer e unificar antes de criar.
+- **Todo conflito nasce com proposta** (`identidade_fusoes.padrao`, `proposta`): quem
+  sobrevive (login no app > mais identificadores > mais antiga), confiança, motivo.
+- **Fusão existe, e só por decisão.** `mind_pessoa_fundir` repointa dinamicamente toda FK
+  para `pessoas.pessoas`, mantém a absorvida com `fundida_em` (nenhum id morre) e recusa
+  rodar fora de `mind_fusao_decidir`, que exige a decisão da Adriana — padrão inteiro só
+  para confiança alta; média e baixa linha a linha.
+- **Causa-raiz corrigida em `mind_crm_vincular_pessoa`:** ao ligar um contato do HubSpot à
+  pessoa, o e-mail, os telefones e o nome do contato viram identidade dela. Antes só o id do
+  HubSpot entrava, e a pessoa renascia no próximo login do app (586 duplicatas em 23/09).
+- **`crm.contato_espelho.pessoa_id` deixa de ser legado**: é preenchido pela porta única,
+  como em qualquer tabela-fonte. A leitura canônica continua por `identidades`.
+
+| função | papel |
+|---|---|
+| `public.mind_pessoa_antes_de_escrever()` | trigger das tabelas-fonte: resolve ou cria antes de escrever |
+| `public.mind_pessoa_ligar_tabela(regclass, jsonb)` | põe uma tabela na regra (colunas + trigger) |
+| `public.mind_pessoa_enriquecer(uuid)` | fase A: completa uma pessoa com o que as fontes ligadas sabem; nunca cria |
+| `public.mind_identidade_enriquecer_todas(int, bool)` · `mind_identidade_criar_faltantes(regclass, int, bool)` | motores das fases A e C, em lotes, com simulação |
+| `public.mind_fusao_propor(uuid, uuid, text)` | classifica a duplicata e propõe quem sobrevive |
+| `public.mind_fusao_decidir(text, text, text)` | **o único caminho que funde** (aprovar) ou descarta (rejeitar) |
+| `public.mind_pessoa_fundir(uuid, uuid, text)` | a fusão em si; recusa-se fora de `mind_fusao_decidir` |
+| `public.mind_pessoa_canonica(uuid)` | segue `fundida_em` até a sobrevivente |
+| `pessoas.v_pessoa_360` | a pessoa com todos os ids numa linha |
+
 ### Funções vivas
 
 | função | papel |
@@ -122,8 +163,13 @@ liga a mensagem órfã. Conversa já identificada é **âncora**: ganha de qualq
 
 ### ⚠️ `pessoa_id` legado em tabelas CRM
 
-Algumas tabelas de CRM têm uma coluna `pessoa_id` de origem histórica. **Ela não é caminho
-canônico de leitura e não deve ser propagada para tabelas novas.** Ver §13.
+~~Algumas tabelas de CRM têm uma coluna `pessoa_id` de origem histórica. **Ela não é caminho
+canônico de leitura e não deve ser propagada para tabelas novas.** Ver §13.~~
+
+> **Revisto por D5 (23/09/2026).** A coluna `pessoa_id` passa a ser **obrigatória** em toda
+> tabela que fala de pessoa, preenchida pela porta única antes da escrita. O que continua
+> valendo: a leitura canônica dos identificadores é por `engagement.identidades`, e o
+> `pessoa_id` histórico que **não** passou pela porta é o legado — a passada D5 o refaz.
 
 ### `public.mind_pessoa_fatos(p_pessoa_id uuid) → jsonb`  *(Passo 7)*
 
@@ -219,6 +265,34 @@ por isso pipeline novo é **três linhas de configuração**, não código.
 ## 5. Fontes da verdade comerciais
 
 Esta seção é a que mais custa caro errar.
+
+> **D1 — 21/09/2026, decisão da Adriana: a direção do fluxo está invertida.** O Supabase passa
+> a ser a fonte da verdade do histórico do cliente, e passa a **alimentar** o HubSpot. O HubSpot
+> deixa de ser origem e vira destino.
+>
+> **O que isso muda hoje: nada na leitura.** Enquanto a escrita para o HubSpot não for ligada —
+> e **ligar é write-back operacional material, portanto continua atrás do gate de `AGENTS.md`**
+> — quem responde pelo histórico consolidado continua sendo o contato espelhado, exatamente
+> como descrito abaixo. D1 decide para onde a seta aponta; não autoriza o disparo.
+>
+> **O que isso muda já:** informação nova sobre o cliente nasce no Supabase, não no HubSpot.
+> Curadoria à mão no HubSpot que vire fato — como o histórico de Summit — é dívida a trazer
+> para cá, não padrão a repetir. Quem manda em cada fato, fonte por fonte, é registrado no
+> schema `registry` (§12.11 do `BACKLOG.md`), não deduzido caso a caso.
+
+### D3 — até onde o histórico do cliente vai hoje
+
+Decisão da Adriana, 21/09/2026. **O histórico consolidado cobre três verticais com três
+profundidades diferentes, e prometer paridade seria ficção de dado.**
+
+| vertical | escopo | por quê |
+|---|---|---|
+| **Summit** | **completo** | compra, credenciamento e participação existem como dado |
+| **Institute** | **parcial** | oferta, programa e encontro existem; `institute.programa_pessoas` tem 9 vínculos, e o histórico de matrícula ainda **não** foi trazido do LearnWorlds |
+| **Dash** | **fora** | o schema `dash` inteiro tem 2 linhas, ambas de documento — **nenhuma de pessoa**. Não há histórico de cliente a consolidar |
+
+Dash sai por **ausência de dado**, não por decisão de produto: entra quando houver cliente
+ali. Enquanto não houver, agente, painel e relatório não devem prometer a vertical.
 
 ### Histórico consolidado de compra e participação → **o CONTATO**
 
@@ -1098,8 +1172,23 @@ e-mail e, quando inequívoco, WhatsApp. `mind_credenciamento_fatos` é a porta i
 leitura para agentes; nunca usa nome como identidade e nunca expõe dados do comprador. A coluna
 `password` da origem **não** é espelhada — o corte é feito na porta do projeto de origem.
 
-> Não existe ainda uma source-of-truth definitiva entre Eduzz, credenciamento e HubSpot além
-> das decisões já tomadas acima. Não inventar uma.
+> ~~Não existe ainda uma source-of-truth definitiva entre Eduzz, credenciamento e HubSpot além
+> das decisões já tomadas acima. Não inventar uma.~~
+>
+> **Revogado em 21/09/2026 por D1** (§5). A regra existia porque ninguém tinha decidido quem
+> manda; agora alguém decidiu. **O Mind manda no histórico consolidado do cliente**, e cada
+> origem externa é autoridade apenas **sobre o fato que ela própria observa** — a Eduzz sobre
+> a liquidação do pagamento, o LearnWorlds sobre o progresso no curso. Nenhuma delas manda no
+> consolidado.
+>
+> **A presença no Summit é nossa, não da Yazo** (correção da Adriana, 21/09). O credenciamento
+> acontece na nossa porta, no nosso evento, pela nossa equipe; a Yazo é a ferramenta que o
+> opera, e a planilha de 2026 é o canal de entrada, não o dono do fato. **Autoridade segue o
+> processo, não o fornecedor** — a régua completa está em `PROJECT_STATE.md` §8.
+>
+> **A proibição de inventar continua valendo em outra forma:** autoridade por fonte não se
+> deduz no código que consome — ela é **declarada** em `registry.fontes` e mudá-la é decisão
+> da Adriana, não do consumidor. Fonte sem classificação vira pendência; não vira palpite.
 
 ### Espelhos de outros projetos Supabase
 
@@ -1113,14 +1202,28 @@ Encanamento único: `public.espelho_estado` + `espelho_config` / `espelho_gravar
 
 - **`pessoas.pessoas.hubspot_id`** é projeção legada de conveniência. Diverge da identidade e
   aponta para contato inexistente em alguns casos. **Nunca é caminho de leitura.**
-- **`pessoa_id` em tabelas CRM** não é caminho canônico de leitura e **não deve ser propagado
-  para tabelas novas**.
+- ~~**`pessoa_id` em tabelas CRM** não é caminho canônico de leitura e **não deve ser propagado
+  para tabelas novas**.~~ **Invertido por D5 (23/09/2026):** toda tabela que fala de pessoa
+  tem `pessoa_id`, preenchido pela porta única antes da escrita (§3, "D5"). Legado é o
+  `pessoa_id` gravado por fora da porta; a passada D5 o refaz.
 - **`public.mind_espelho_ligar()`** ainda contém blocos legados que preenchem `pessoa_id` em
   tabelas históricas via `crm.contato_espelho.pessoa_id`. **É legado conhecido, não padrão
   arquitetural** — não replicar em tabela nova. (Foi feito uma vez para
   `crm.empenho_summit_2026` e revertido.)
 - **`crm.buscar_pessoa`** não é a interface canônica do novo Core.
 - **`crm.pessoa_produtos`** está vazia e **não é fonte independente** da verdade comercial.
+  > **Em conflito com D1 desde 21/09/2026 — não resolvido aqui.** Esta linha foi escrita
+  > quando o HubSpot era a origem: nesse mundo, uma tabela local consolidada só podia ser
+  > cópia, nunca fonte. **D1 inverte a direção**, e com ela a premissa da linha.
+  >
+  > Os fatos, sem conclusão: a tabela tem FK para `pessoas.pessoas` e `catalogo.produtos`,
+  > UNIQUE `(pessoa, produto)`, RLS ligada e **0 linhas**; `crm.contexto_comercial` **já a
+  > lê**, junto com `crm.pessoa_nps`. Ou seja, o leitor do consolidado local já existe.
+  >
+  > **Proposta, não decisão:** é ela a casa do histórico consolidado que D1 pede. Quem
+  > decide é a Adriana (**D2**), e a pergunta entra como pendência no `registry` — é o
+  > primeiro caso real que a Inbox vai carregar. Até lá, **valem as duas coisas**: a tabela
+  > continua não sendo lida como fonte, e ninguém cria uma tabela nova para o mesmo fim.
 - **Documentação target antiga**, removida nesta faxina, não deve reaparecer como requisito.
   Entidades como `people.people`, `catalog.products` ou `commercial.orders` **não existem** e
   não são alvo.

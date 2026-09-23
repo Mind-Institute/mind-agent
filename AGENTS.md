@@ -13,6 +13,7 @@ Se você entrou sem contexto, **não comece propondo solução**.
 
 Leia nesta ordem:
 
+0. **`READ_ME_FIRST.md`** — a Regra #1 (D5): toda linha sobre uma pessoa nasce ligada à pessoa, pela porta única, antes da escrita.
 1. **`CHECKPOINT_ATUAL.md`** — ponto exato de retomada: lanes, PRs, HEADs, dependências, pendências e próxima ação.
 2. **`PROJECT_STATE.md`** — arquitetura congelada, runtime, gates e decisões que não podem ser reabertas sem fato novo material.
 3. **`GO_LIVE_PARALLEL_20260830.md`** — ownership das lanes e ordem de integração/deploy.
@@ -44,6 +45,20 @@ Nunca transforme memória de conversa em fato do sistema quando puder verificar.
 ### Adriana
 
 Dona de produto/negócio e dos gates sensíveis. **Não é gerente de transporte entre agentes.**
+
+Desde **D2** (21/09/2026), é também a **única aprovadora de mudança estrutural de banco**:
+fonte nova, casa nova, mudança de proveniência e o gate do §8 deste documento.
+
+### Vinicius
+
+**Dono da execução do banco.** Escreve migration, coluna, índice, constraint e backfill.
+
+Dentro de casa existente e comentada, executa sem passar por aprovação. O que muda estrutura
+— tabela nova, schema novo, troca de quem manda no fato — vai à Adriana antes, pela Inbox
+(§12.11 do `BACKLOG.md`), não por conversa. **Ele executa, ela aprova.**
+
+O limite existe para proteger o tempo dela, não para frear ele: a régua separa mudança que
+muda o que o sistema afirma ser verdade de mudança que não muda.
 
 ### ChatGPT arquiteto/supervisor
 
@@ -237,6 +252,8 @@ Exigem gate explícito da Adriana antes da execução perigosa:
 - alteração destrutiva/irreversível de dados;
 - auth/RLS/security/secrets/identidade;
 - mudança de source of truth;
+- **mudança estrutural de banco: tabela nova, schema novo, mudança de proveniência** (D2);
+- **criar pessoa fora da porta única, ou fundir pessoas** — fusão só por `mind_fusao_decidir`, decisão da Adriana (D5);
 - outbound/disparo, incluindo ativar cron de envio;
 - write-back material em CRM quando altera estado operacional sem contrato já aprovado;
 - mudança material de comportamento de produto não congelada.

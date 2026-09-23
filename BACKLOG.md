@@ -666,10 +666,32 @@ Fluxo futuro aprovado:
 
 `AUTO-DISCOVERY → pending → proposta de classificação → aprovação humana → Source Registry → Kit Loader`.
 
-**Não construir agora** o frontend nem o cron/autodiscovery completo. O futuro frontend deve ser
-uma **Inbox da Intelligence**, não uma tela técnica: mostrar o que apareceu, o conceito provável,
+~~**Não construir agora** o frontend nem o cron/autodiscovery completo.~~ **Revogado em
+21/09/2026 pela Adriana** — ver nota abaixo. O frontend deve ser uma **Inbox da
+Intelligence**, não uma tela técnica: mostrar o que apareceu, o conceito provável,
 produto/scope, natureza (SOURCE/MIRROR/LOCAL_AUTHORITATIVE/DERIVED), autoridade e permitir
 `APROVAR / AJUSTAR / IGNORAR`.
+
+> **Revogação de 21/09/2026 — a razão expirou.**
+>
+> O "não construir agora" existia para que a Inbox não atrasasse o go-live do Vendedor e
+> do Concierge para o Summit — é por isso que ele aparecia sob *"o que não sequestra o
+> caminho crítico"* em `PROJECT_STATE.md` e sob *"NÃO reabrir agora"* em
+> `CHECKPOINT_ATUAL.md`. **O Summit 2026 já aconteceu.** A interdição protegia um prazo
+> que passou, e mantê-la escrita faria a próxima pessoa a ler achar que a decisão ainda
+> tem base.
+>
+> Entra pela válvula que `GO_LIVE_VENDEDOR_CONCIERGE_20260830.md:689` já previa: *"Se
+> algum desses itens virar bloqueio real, ele volta pelo ritual normal e entra pela menor
+> mudança necessária."*
+>
+> Uma advertência que a revogação **não** apaga, e que o desenho tem de responder: este
+> padrão de fila com decisão humana já foi construído três vezes aqui e **nenhuma das três
+> tem tela** — `engagement.identidade_fusoes` com 1.604 pendências, `intelligence.recovery_inbox`
+> com 520 acionáveis e nada enviado, e `engagement.recovery_dispatch_queue`, cujo estado
+> `approved` está no CHECK e nunca foi escrito por linha nenhuma de código. Construir mais
+> backend de fila sem a superfície onde alguém decide é repetir o erro. **A tela não é a
+> fase 2; é a entrega.**
 
 O `Source Registry + Kit Loader mínimo` que destrava o vendedor é **trabalho corrente do roadmap,
 não item adiado deste backlog**. O que fica aqui é a automação/UX posterior.
@@ -951,3 +973,19 @@ Contexto e evidência: `CHECKPOINT_ATUAL.md` §5D e issue #42.
    classificador escolhe só um deles, a conversa não gera análise nenhuma.
 4. Dedupe de memória é por slug do texto: "montar um plano de cultura para 2027" e "montar plano de
    cultura para 2027" viram dois objetivos. Sem consumidor reclamando ainda.
+
+## 19. Espelho literal do HubSpot com histórico de status — IDEIA registrada (23/09/2026, Adriana)
+
+Nas palavras dela: *"em vez de mudar como o HubSpot muda (deletar, adicionar), a gente coloca uma
+coluna de status e diz: o HubSpot adicionou, ou deletou na data X. Eventualmente vamos atingir o
+limite do HubSpot e precisar deletar pessoas lá, mantendo listas aqui para, de quando em quando,
+subir de novo. Um espelho literal, a ponto de que, se eu deletar lá, depois eu consiga subir."*
+
+**Não fazer nada ainda** — é uma ideia para desenhar juntos e depois executar. O que já existe e
+o desenho deve reutilizar: `crm.contato_espelho` (espelho do contato, com `propriedades` jsonb
+inteiro), a migration `hubspot_arquivados_por_objeto` (03/09, já marca objetos arquivados no
+HubSpot), o `mind_sync_estado` e o cron diário de 06:17. O que falta no desenho: (1) o espelho
+deixar de apagar/sobrescrever e passar a **anexar estado** (`ativo`, `arquivado_em`,
+`deletado_em`, `reenviado_em`); (2) a lista de reenvio (quem sobe de volta, quando) e o gate de
+outbound/write-back D1 antes de qualquer upload; (3) com D5, a pessoa continua existindo em
+`pessoas.pessoas` mesmo se o contato sumir do HubSpot — o `pessoa_id` é o elo para ressubir.

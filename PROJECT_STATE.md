@@ -3,7 +3,51 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v8 — 04/09/2026.**
+> **Versão do checkpoint arquitetural: v10 — 23/09/2026.**
+>
+> **v10 acrescenta D5 — identidade universal.** Nas palavras da Adriana (22–23/09): *"o
+> número de identidade único do sistema deve existir para todas as pessoas e, quando uma
+> pessoa nova chegar por qualquer lugar, deve procurar por ela e, se não achar, criar novo
+> ID — senão vai ficar uma porção de coisas soltas"*; *"toda tabela que tem pessoas deve ter
+> obrigatoriamente o ID da pessoa: resolver ID ou criar antes de escrever a pessoa no
+> sistema, sempre"*; *"antes de criar qualquer pessoa deve enriquecer as pessoas que já
+> existem com os dados que são usados para identidade dela, para não duplicar, e caso já
+> esteja duplicado unifique"*; *"antes de fundir deve sempre confirmar comigo"*; e sobre CPF:
+> *"CPF igual mas e-mail, WhatsApp ou nome diferente = pessoa diferente; muitas vezes é do
+> comprador ou porta-voz; mesmo assim pode servir para resolver conflitos; na dúvida
+> perguntar e não unificar"*. A forma operacional está em **`READ_ME_FIRST.md`** (Regra #1) e
+> em §7. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados do Summit e ~900
+> compradores da Eduzz sem pessoa; **586 duplicatas** entre credenciados e CRM, todas com a
+> mesma causa (pessoa nascida do WhatsApp, ligada ao HubSpot só pelo id do contato, sem o
+> e-mail, e recriada no login do app). `pessoas.pessoas` deixa de ser "espelho de leitura do
+> HubSpot" e vira o registro de todo mundo. Migration
+> `20260923024555_d5_identidade_universal.sql`; passada em `scripts/infra/identidade/`.
+>
+> v9 congela quatro decisões da Adriana, tomadas depois que o Summit 2026 acabou e o
+> inventário do banco ficou pronto (`MAPA_SUPABASE_20260921.md`):
+>
+> **D1 — o Supabase passa a ser a fonte da verdade do histórico do cliente, e passa a
+> alimentar o HubSpot.** Nas palavras dela: *"o HubSpot estava com essa informação primária
+> antes da gente. Só que agora a gente já tem o espelho da Eduzz. A gente recebe a informação
+> da Eduzz ou de quem é o checkout, e a gente também é quem recebe a informação da Yazo sobre
+> quem foi. É a gente que precisa organizar nossa inteligência para entender, inclusive, como
+> alimentar o HubSpot."* Isto **inverte** a §5 de `docs/CORE_UNIVERSAL.md` e substitui o
+> parágrafo que dizia "não inventar uma". Ver §8 abaixo para a tabela de quem manda em cada
+> fato. O HubSpot deixa de ser origem e vira destino; **ligar a escrita continua atrás do
+> gate existente** — D1 decide a direção do fluxo, não autoriza o disparo.
+>
+> **D2 — um único aprovador: a Adriana. O Vinicius é o dono da execução do banco.** Ver §3.
+>
+> **D3 — escopo do histórico do cliente:** Summit completo, Institute parcial, **Dash
+> declarado fora** enquanto não houver dado de cliente ali (hoje são 2 linhas no schema
+> inteiro, nenhuma de pessoa). Prometer as três verticais hoje seria ficção de dado.
+>
+> **D4 — ligar NPS de verdade**, separado das notas 0–5 das avaliações do Summit, que
+> continuam não sendo NPS. **A escala 0–10 já está no banco**, com `CHECK` em duas casas de
+> grão diferente e ambas vazias: `engagement.nps` (por participante do evento) e
+> `crm.pessoa_nps` (por pessoa e produto). O que falta não é tabela nem constraint — é o
+> **escritor** e a **decisão de produto** de onde perguntar, quando e com que frequência.
+> Sem ela, escritor pronto e tabela vazia. Ver §8.
 >
 > v8 congela o atalho comercial estreito do Treble, criado por causa da latência medida do
 > Router: B2C é padrão; B2B de ingressos exige destino corporativo e mais de uma pessoa;
@@ -63,12 +107,15 @@ Mudança pequena não vira revalidação ampla. Testar o que mudou e regressões
 
 ---
 
-## 3. Modo operacional vigente — v6
+## 3. Modo operacional vigente — v9
 
-- **Adriana** = dona de produto/negócio e dos gates sensíveis.
+- **Adriana** = dona de produto/negócio e dos gates sensíveis. Por **D2**, é também a **única aprovadora** de mudança estrutural de banco: fonte nova, casa nova, mudança de proveniência e o gate de `AGENTS.md:234`.
+- **Vinicius** = **dono da execução do banco**. Escreve migration, coluna, índice, constraint e backfill no dia a dia. Dentro de casa existente e comentada, executa sem passar pela aprovação; o que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai para a Adriana antes. Ele executa, ela aprova.
 - **ChatGPT arquiteto/supervisor** = mantém o modelo mental, verifica GitHub/Supabase, fecha a menor mudança, coordena lanes, revisa PRs/testes, decide ordem de integração, mergeia quando permitido e registra checkpoints.
 - **Claude Code** = investigador/executor escopado em branch `claude/...`; implementa o chunk fechado, testa o afetado, reporta evidência; não amplia escopo e não mergeia sozinho.
 - **GitHub** = memória compartilhada e barramento entre lanes. Coordenação deve ir direto às issues/PRs, evitando Adriana como transporte humano.
+
+> **Por que D2 é sustentável.** Descontada a carga histórica de agosto (120 tabelas em 3 migrations, o stub que criou o banco), setembro/2026 teve **9 tabelas novas em 7 migrations** — menos de uma por semana. A fila de aprovação da Adriana recebe de um a três itens por semana. Se esse volume subir de forma persistente, a decisão de aprovador único é que precisa ser revista — não a régua.
 
 Workflow:
 
@@ -184,10 +231,29 @@ Regras:
 
 `pessoas.pessoas.id` é a `pessoa_id` canônica. HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
 
+**D5 (23/09/2026) — identidade universal.** Toda pessoa, de qualquer fonte, existe em
+`pessoas.pessoas` com o id que persiste. Toda tabela que fala de pessoa tem `pessoa_id`,
+preenchido pela porta única `mind_identidade_resolver` **antes** da escrita (trigger
+`mind_pessoa_antes_de_escrever`; `mind_pessoa_ligar_tabela` põe uma tabela nova na regra).
+Força dos identificadores (quem reconhece sozinho): login 4 · WhatsApp, HubSpot, Yazo,
+credenciamento, Eduzz, LearnWorlds 3 · e-mail 2 · **CPF e CNPJ 1 — apoio, nunca decidem
+sozinhos** (o CPF do credenciamento e da Yazo é o do comprador). **Precedência (quem vence
+quando discordam — Adriana, 23/09): login > id de terceiro > e-mail > WhatsApp > CPF > CNPJ; e
+o nome veta**: pessoa achada só por telefone/CPF com nome divergente é outra pessoa; só por
+telefone com e-mail divergente é outra pessoa (suspeita se o nome for igual); por e-mail com nome
+claramente diferente não se liga. Nome parecido (grafia, sobrenome a mais/menos, apelido) é o
+mesmo nome (`mind_nomes_compativeis`). Linha comprada por terceiro (e-mail do participante ≠ do
+comprador) não entrega telefone nem CPF. Antes de criar: bater com `pessoas.pessoas`,
+enriquecer (`mind_pessoa_enriquecer`, ancorado, nunca cria) e unificar. A pessoa com todos os
+ids numa linha: `pessoas.v_pessoa_360`. Uma pessoa fundida fica com `fundida_em`; o id antigo
+continua resolvendo (`mind_pessoa_canonica`). Aplicada e executada em produção em 23/09
+(`CHECKPOINT_ATUAL.md`).
+
 Conflito de identidade:
 
 ```text
-detecta → persiste evidência → pendência idempotente → NÃO auto-merge → resolução humana
+detecta → persiste evidência → pendência idempotente com PROPOSTA (padrão, quem sobrevive)
+→ NÃO auto-merge → decisão da Adriana em mind_fusao_decidir (bloco só para confiança alta)
 ```
 
 ### Intelligence
@@ -227,6 +293,78 @@ Proveniência canônica:
 - `UNKNOWN`.
 
 Antes de declarar lacuna, procurar fontes acessíveis relevantes. “Não está no mind-agent” não significa “não existe no ecossistema Mind”.
+
+### Quem manda em cada fato — D1, 21/09/2026
+
+A regra acima não muda: **o fato bruto continua pertencendo a quem o observou.** O que D1
+decide é o andar de cima — quem responde pela **síntese**, a leitura consolidada do cliente
+que atravessa várias origens. Essa é do Mind.
+
+| fato | autoridade | onde mora aqui | nota |
+|---|---|---|---|
+| transação, fatura, refund, cupom | `eduzz` | espelho `eduzz.*` | quem processa o pagamento é quem sabe se ele aconteceu |
+| presença física no Summit | **`mind`** | `credenciamento_summit_2026.*` | **quem manda é o credenciamento, não a Yazo** — ver a regra abaixo. 2026 ainda entra por planilha; virar carga é obra, não decisão |
+| progresso e acesso no LMS | `learnworlds` | `learnworlds.produtos` / `acessos` | o LMS sabe o que a pessoa assistiu; nós sabemos a que ela tem direito |
+| propriedade de contato e estágio de pipeline | `hubspot` | `crm.contato_espelho`, `crm.sync_estado` | continua origem **do que o time comercial edita lá** |
+| **histórico consolidado do cliente com o Mind** | **`mind`** | `crm.pessoa_produtos` — **vazia** | **é isto que D1 inverte**; ver abaixo |
+| conversa, identidade, memória, estado do agente | `mind` | `engagement.*`, `pessoas.*` | sempre foi nosso |
+| vocabulário de produto, preço e oferta | `mind` | `catalogo.produtos` | §6 de `docs/CORE_UNIVERSAL.md` |
+| NPS do evento | `mind` | `engagement.nps` — **vazia** | por participante; `CHECK (nota 0–10)` já existe |
+| NPS por produto | `mind` | `crm.pessoa_nps` — **vazia** | por `(pessoa, produto)`; `CHECK (nota 0–10)` já existe |
+
+**Como ler esta tabela.** Autoridade não é sobre onde o dado está guardado — é sobre quem
+ganha quando duas casas discordam. Um espelho pode ser a cópia mais completa e ainda assim
+não mandar no fato.
+
+> **A regra que decide as linhas duvidosas — correção da Adriana, 21/09/2026.**
+> **Autoridade segue o processo, não o fornecedor.**
+>
+> A pergunta certa não é *"em que sistema esse dado está?"*, é *"quem observou o fato?"*.
+>
+> - A Eduzz **observa um fato que nós não conseguimos observar**: se o pagamento liquidou.
+>   Mesma coisa para o LearnWorlds e o progresso no vídeo. Nesses casos a autoridade é deles
+>   de verdade — trocar de fornecedor muda quem observa.
+> - A Yazo **não observa nada nosso**: o credenciamento acontece na nossa porta, no nosso
+>   evento, pela nossa equipe. A Yazo é a ferramenta que usamos para operá-lo — daria para
+>   ter feito no papel. **Quem manda na presença é o credenciamento, e o credenciamento é
+>   nosso.** Trocar a Yazo por outro sistema no ano que vem não move a autoridade.
+>
+> O erro que esta regra corrige era meu, e é o erro fácil: confundir *onde o arquivo está*
+> com *de quem é o fato*. A planilha da Yazo é o canal de entrada de 2026, não o dono.
+>
+> **A mesma régua aponta para o HubSpot, e vale dizer em voz alta:** o time comercial edita
+> lá, mas o processo comercial é nosso — nenhum fato nasce no HubSpot por observação dele.
+> Isso **reforça D1** em vez de contrariá-la: o HubSpot está na tabela acima como origem do
+> que o time edita hoje, que é o estado transitório honesto, não uma autoridade de direito.
+> Quando a inversão de D1 for ligada, essa linha cai sozinha.
+
+> **A casa que D1 pede já existe — e está vazia.** `crm.pessoa_produtos` (`pessoa_id`,
+> `produto_codigo`, `categoria`, `tipo_entrada`, `papel`, `quantidade`, `sincronizado_em`),
+> com FK para `pessoas.pessoas` e `catalogo.produtos`, UNIQUE `(pessoa, produto)` e RLS
+> ligada, foi criada em 29/08/2026 e **nunca recebeu uma linha**. O comentário original dela
+> já dizia a que veio: *"O que cada pessoa já adquiriu… Conversável: a pessoa pode perguntar
+> sobre a própria compra."*
+>
+> Mais: **`crm.contexto_comercial` já lê essa tabela** — e também `crm.pessoa_nps`. A função
+> que entrega contexto comercial ao agente foi escrita contra o consolidado local, não contra
+> o espelho do HubSpot. **A arquitetura de D1 já estava no banco; o que nunca houve foi
+> escritor.**
+>
+> Isso muda o tamanho de D1: não é redesenho, é **carga**. E confirma a regra de
+> `CLAUDE.md` — antes de criar tabela, prove que falta uma casa. Aqui não falta.
+>
+> **Mas há um conflito aberto, e ele não se resolve por dedução.** `docs/CORE_UNIVERSAL.md`
+> §13 lista `crm.pessoa_produtos` como legado — *"não é fonte independente da verdade
+> comercial"*. A linha estava certa no mundo em que o HubSpot era a origem; D1 derruba essa
+> premissa, não a linha. Que essa passe a ser a casa do consolidado é **proposta**, e
+> proposta não decide: vai à Adriana como pendência (**D2**), e é o primeiro caso real do
+> `registry`. Enquanto não houver decisão, valem as duas coisas — a tabela não é lida como
+> fonte, e ninguém cria outra para o mesmo fim.
+
+**Esta tabela é o resumo, não o registro.** A classificação viva, fonte por fonte, mora em
+`registry.fontes` (§12.11 do `BACKLOG.md`). Quando as duas divergirem, o banco está certo e
+este documento está velho. Mudar autoridade de uma fonte é decisão da Adriana (**D2**),
+registrada como pendência — não patch de quem consome.
 
 ---
 
@@ -425,7 +563,8 @@ Trabalho independente pode ocorrer em paralelo. Integração respeita dependênc
 Não abrir agora sem bloqueio real:
 
 - completar toda a Intelligence;
-- Intelligence Inbox/autodiscovery completo;
+- ~~Intelligence Inbox/autodiscovery completo~~ — **liberado em 21/09/2026**: esta linha
+  protegia o prazo do Summit, que já aconteceu. Ver a revogação em `BACKLOG.md` §12.11;
 - taxonomia de conceitos sem consumidor;
 - RAG/vector por elegância;
 - limpeza ampla de legado;
