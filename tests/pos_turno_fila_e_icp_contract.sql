@@ -25,7 +25,7 @@ values ('09030000-0000-4000-8000-000000000001',
 
 -- A: substantiva, mais ANTIGA. B: substantiva, mais RECENTE. C: o lead só mandou
 -- mídia (conteudo null). D: já analisada até a última mensagem.
-insert into engagement.conversas (id, participante_id, canal, agente, iniciada_em, ultima_atividade)
+insert into engagement.conversas (id, mind_id, canal, agente, iniciada_em, ultima_atividade)
 values
  ('09030000-0000-4000-8000-0000000000a1','09030000-0000-4000-8000-000000000001',
   'mindagent-web','mindagent-chat', now() - interval '1 hour', now() - interval '1 hour'),
@@ -36,7 +36,7 @@ values
  ('09030000-0000-4000-8000-0000000000d1','09030000-0000-4000-8000-000000000001',
   'whatsapp','treble', now() - interval '2 hours', now() - interval '2 hours');
 
-insert into engagement.mensagens (id, conversa_id, participante_id, papel, conteudo, origem, criado_em)
+insert into engagement.mensagens (id, conversa_id, mind_id, papel, conteudo, origem, criado_em)
 values
  ('09030000-0000-4000-8000-0000000000e1','09030000-0000-4000-8000-0000000000a1',
   '09030000-0000-4000-8000-000000000001','lead','Sou HRBP e preciso desenvolver os gestores que apoio.','conversa', now() - interval '1 hour'),
@@ -48,7 +48,7 @@ values
   '09030000-0000-4000-8000-000000000001','lead','Quanto custa o ingresso?','treble', now() - interval '2 hours');
 
 insert into intelligence.analise_conversa
-  (id, conversa_id, participante_id, analisador, funcao, dados, prompt_versao,
+  (id, conversa_id, mind_id, analisador, funcao, dados, prompt_versao,
    ultima_mensagem_analisada_id, conversa_atualizada_ate)
 values
  ('09030000-0000-4000-8000-0000000000f4','09030000-0000-4000-8000-0000000000d1',
@@ -107,7 +107,7 @@ begin
   -- 2a. slot vazio: medium entra ativa, com a confiança 0,70 exposta.
   n := public.analise_projetar_memoria(p, 'analise_concierge', jsonb_build_array(item), a);
   select string_agg(status||':'||(valor->>'text')||':'||confianca, ' | ' order by status) into r
-  from intelligence.participante_memoria where participante_id = p and chave = 'icp_atual';
+  from intelligence.participante_memoria where mind_id = p and chave = 'icp_atual';
   if n <> 1 or r is distinct from 'ativa:People Leader / Business Partner:0.70' then
     raise exception 'CONTRATO 2a: medium no slot vazio devia virar ativa 0.70, veio n=% r=%', n, r;
   end if;
@@ -116,7 +116,7 @@ begin
   n := public.analise_projetar_memoria(p, 'analise_concierge',
          jsonb_build_array(item || jsonb_build_object('value','CEO / C-Suite')), a);
   select string_agg(status||':'||(valor->>'text'), ' | ' order by status) into r
-  from intelligence.participante_memoria where participante_id = p and chave = 'icp_atual';
+  from intelligence.participante_memoria where mind_id = p and chave = 'icp_atual';
   if n <> 0 or r is distinct from 'ativa:People Leader / Business Partner' then
     raise exception 'CONTRATO 2b: medium não pode derrubar ICP ativo, veio n=% r=%', n, r;
   end if;
@@ -125,7 +125,7 @@ begin
   n := public.analise_projetar_memoria(p, 'analise_concierge',
          jsonb_build_array(item || jsonb_build_object('value','CHRO / VP de Pessoas','confidence','high')), a);
   select string_agg(status||':'||(valor->>'text'), ' | ' order by status) into r
-  from intelligence.participante_memoria where participante_id = p and chave = 'icp_atual';
+  from intelligence.participante_memoria where mind_id = p and chave = 'icp_atual';
   if n <> 1 or r is distinct from 'ativa:CHRO / VP de Pessoas | substituida:People Leader / Business Partner' then
     raise exception 'CONTRATO 2c: high devia substituir o ativo, veio n=% r=%', n, r;
   end if;

@@ -14,8 +14,8 @@ select f.id as pendencia, f.padrao, f.proposta->>'confianca' as confianca, f.pro
        s.primeiro_nome || ' ' || coalesce(s.sobrenome, '') as sobrevive_nome, s.email as sobrevive_email, s.whatsapp as sobrevive_whatsapp, s.canais as sobrevive_canais,
        a.primeiro_nome || ' ' || coalesce(a.sobrenome, '') as absorvida_nome, a.email as absorvida_email, a.whatsapp as absorvida_whatsapp, a.canais as absorvida_canais
   from engagement.identidade_fusoes f
-  join pessoas.v_pessoa_360 s on s.pessoa_id = (f.proposta->>'sobrevive')::uuid
-  join pessoas.v_pessoa_360 a on a.pessoa_id = (f.proposta->>'absorvida')::uuid
+  join pessoas.v_pessoa_360 s on s.mind_id = (f.proposta->>'sobrevive')::uuid
+  join pessoas.v_pessoa_360 a on a.mind_id = (f.proposta->>'absorvida')::uuid
  where f.status = 'pendente' and f.padrao = 'mesmo_telefone_emails_diferentes'   -- <- troque aqui
  order by f.criado_em
  limit 200;

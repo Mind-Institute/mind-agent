@@ -229,10 +229,10 @@ Regras:
 
 ### Pessoa
 
-`pessoas.pessoas.id` é a `pessoa_id` canônica. HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
+`pessoas.pessoas.id` é o **Mind ID** canônico; em toda outra tabela a coluna chama-se `mind_id` (D6). HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
 
 **D5 (23/09/2026) — identidade universal.** Toda pessoa, de qualquer fonte, existe em
-`pessoas.pessoas` com o id que persiste. Toda tabela que fala de pessoa tem `pessoa_id`,
+`pessoas.pessoas` com o id que persiste. Toda tabela que fala de pessoa tem `mind_id`,
 preenchido pela porta única `mind_identidade_resolver` **antes** da escrita (trigger
 `mind_pessoa_antes_de_escrever`; `mind_pessoa_ligar_tabela` põe uma tabela nova na regra).
 Força dos identificadores (quem reconhece sozinho): login 4 · WhatsApp, HubSpot, Yazo,
@@ -248,6 +248,13 @@ enriquecer (`mind_pessoa_enriquecer`, ancorado, nunca cria) e unificar. A pessoa
 ids numa linha: `pessoas.v_pessoa_360`. Uma pessoa fundida fica com `fundida_em`; o id antigo
 continua resolvendo (`mind_pessoa_canonica`). Aplicada e executada em produção em 23/09
 (`CHECKPOINT_ATUAL.md`).
+
+**D6 (23/09/2026) — o ID universal chama-se `mind_id`.** Pedido da Adriana ("renomeie a coluna como
+universal MIND ID"). Em toda tabela que fala de pessoa a coluna do ID universal é `mind_id`
+(antes `pessoa_id`/`participante_id`/`participant_id`/`person_id`); as companheiras da Regra #1 são
+`mind_id_criterio` e `mind_id_resolvido_em`. O que não muda: as chaves dos payloads das funções
+(`pessoa_id`, `participante_id` em jsonb e em `returns table`) e os nomes de saída das views `api.*` — são
+contrato de API lido pelas Edge Functions e pelo app. `pessoas.v_pessoa_360` passa a expor `mind_id`.
 
 Conflito de identidade:
 

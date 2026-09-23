@@ -27,7 +27,7 @@
 --      perfil do WhatsApp compatível. Resultado: 337 zerados, 1.746 mantidos com
 --      apoio, 76 pré-existentes mantidos.
 --   As linhas das quatro tabelas não precisaram de nada: o sync das 03:20 já as
---   tinha regravado sem pessoa_id (triggers desligados entre 03:12 e 03:39).
+--   tinha regravado sem mind_id (triggers desligados entre 03:12 e 03:39).
 --
 -- Resultado conferido depois: identidades voltaram a 3.258 e-mails, 5.616
 -- WhatsApps, 5.589 HubSpot (5.533 + 56 recuperados das colunas da pessoa), 4.017
@@ -38,18 +38,18 @@ begin;
 select set_config('mind.d5_pular_trigger', '1', true);
 
 create temp table d5_undo_ids as
-  select id, pessoa_id, canal, identificador from engagement.identidades
+  select id, mind_id, canal, identificador from engagement.identidades
    where criado_em >= '2026-09-23 02:50:00+00' and criado_em < '2026-09-23 02:51:00+00';
 
 create temp table d5_undo_pessoas as
   select p.id, p.primeiro_nome, p.sobrenome, p.email, p.whatsapp,
-    exists (select 1 from engagement.identidades i where i.pessoa_id = p.id and i.canal = 'auth_user') as tem_login,
-    exists (select 1 from crm.contato_espelho c where c.pessoa_id = p.id and coalesce(c.firstname,'') <> ''
+    exists (select 1 from engagement.identidades i where i.mind_id = p.id and i.canal = 'auth_user') as tem_login,
+    exists (select 1 from crm.contato_espelho c where c.mind_id = p.id and coalesce(c.firstname,'') <> ''
               and public.mind_nomes_compativeis(concat_ws(' ', c.firstname, c.lastname), concat_ws(' ', p.primeiro_nome, p.sobrenome))) as hubspot_apoia,
-    exists (select 1 from engagement.conversas v where v.participante_id = p.id and coalesce(v.nome_contato,'') <> ''
+    exists (select 1 from engagement.conversas v where v.mind_id = p.id and coalesce(v.nome_contato,'') <> ''
               and public.mind_nomes_compativeis(v.nome_contato, concat_ws(' ', p.primeiro_nome, p.sobrenome))) as whatsapp_apoia,
     exists (select 1 from d5_undo_ids u
-             where u.pessoa_id = p.id and (
+             where u.mind_id = p.id and (
                exists (select 1 from eduzz.ingressos r where lower(btrim(r.participante)) = lower(btrim(concat_ws(' ', p.primeiro_nome, p.sobrenome)))
                          and (lower(btrim(r.email)) = u.identificador or r.telefone_norm = u.identificador or r.cod_participante = u.identificador or regexp_replace(coalesce(r.cpf_cnpj,''), '\D', '', 'g') = u.identificador))
             or exists (select 1 from eduzz.vendas r where lower(btrim(r.cliente_nome)) = lower(btrim(concat_ws(' ', p.primeiro_nome, p.sobrenome)))
@@ -62,9 +62,9 @@ create temp table d5_undo_pessoas as
  where p.atualizado_em >= '2026-09-23 02:50:00+00' and p.atualizado_em < '2026-09-23 02:51:00+00';
 
 update pessoas.pessoas p set email = null, atualizado_em = now()
- where p.email is not null and exists (select 1 from d5_undo_ids u where u.canal = 'email' and u.pessoa_id = p.id and u.identificador = lower(p.email));
+ where p.email is not null and exists (select 1 from d5_undo_ids u where u.canal = 'email' and u.mind_id = p.id and u.identificador = lower(p.email));
 update pessoas.pessoas p set whatsapp = null, atualizado_em = now()
- where p.whatsapp is not null and exists (select 1 from d5_undo_ids u where u.canal = 'whatsapp' and u.pessoa_id = p.id and u.identificador = p.whatsapp);
+ where p.whatsapp is not null and exists (select 1 from d5_undo_ids u where u.canal = 'whatsapp' and u.mind_id = p.id and u.identificador = p.whatsapp);
 
 update pessoas.pessoas p set primeiro_nome = null, sobrenome = null, atualizado_em = now()
   from d5_undo_pessoas u
@@ -82,8 +82,8 @@ commit;
 -- Os carimbos foram zerados sem disparar o trigger; o sync seguinte os refaz limpos.
 begin;
 select set_config('mind.d5_pular_trigger', '1', true);
-update eduzz.ingressos set pessoa_id = null, pessoa_criterio = null, pessoa_resolvido_em = null where pessoa_resolvido_em is not null;
-update eduzz.vendas set pessoa_id = null, pessoa_criterio = null, pessoa_resolvido_em = null where pessoa_resolvido_em is not null;
-update credenciamento_summit_2026.participantes set pessoa_id = null, pessoa_criterio = null, pessoa_resolvido_em = null where pessoa_resolvido_em is not null;
-update credenciamento_summit_2026.yazo_espelho set pessoa_id = null, pessoa_criterio = null, pessoa_resolvido_em = null where pessoa_resolvido_em is not null;
+update eduzz.ingressos set mind_id = null, mind_id_criterio = null, mind_id_resolvido_em = null where mind_id_resolvido_em is not null;
+update eduzz.vendas set mind_id = null, mind_id_criterio = null, mind_id_resolvido_em = null where mind_id_resolvido_em is not null;
+update credenciamento_summit_2026.participantes set mind_id = null, mind_id_criterio = null, mind_id_resolvido_em = null where mind_id_resolvido_em is not null;
+update credenciamento_summit_2026.yazo_espelho set mind_id = null, mind_id_criterio = null, mind_id_resolvido_em = null where mind_id_resolvido_em is not null;
 commit;

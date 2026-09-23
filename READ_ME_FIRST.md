@@ -15,18 +15,19 @@ Nas palavras da Adriana:
 
 Na forma operacional:
 
-1. **O ID universal é `pessoas.pessoas.id`.** Uma linha por pessoa, de qualquer fonte —
+1. **O ID universal é `pessoas.pessoas.id` — o Mind ID.** Em toda outra tabela ele mora na coluna
+   `mind_id` (D6, 23/09/2026; antes `pessoa_id`/`participante_id`). Uma linha por pessoa, de qualquer fonte —
    HubSpot, Eduzz, Blinket, credenciamento, Yazo, checkout, WhatsApp, app. Ele persiste:
    uma pessoa absorvida por fusão continua existindo, apontando para a sobrevivente
    (`fundida_em`), e o id antigo continua resolvendo (`mind_pessoa_canonica`).
-2. **Toda tabela que fala de pessoa tem `pessoa_id`** (mais `pessoa_criterio` e
-   `pessoa_resolvido_em`). Se a tabela é nova, ela entra na regra com uma chamada:
+2. **Toda tabela que fala de pessoa tem `mind_id`** (mais `mind_id_criterio` e
+   `mind_id_resolvido_em`). Se a tabela é nova, ela entra na regra com uma chamada:
    `select mind_pessoa_ligar_tabela('schema.tabela', '{"emails":["email"],"telefones":["whatsapp"],"nome":["nome"]}')`.
 3. **Resolver ou criar ANTES de escrever.** Um trigger `before insert or update` em cada
    tabela-fonte passa a linha pela **porta única** `mind_identidade_resolver`: procura os
    hints em `engagement.identidades`, liga à pessoa que achar, cria a pessoa se não achar
    ninguém e houver hint forte. Falha de identidade nunca bloqueia a escrita: a linha entra
-   e `pessoa_criterio` diz por quê ficou sem pessoa.
+   e `mind_id_criterio` diz por quê ficou sem pessoa.
 4. **Antes de criar qualquer pessoa: enriquecer e unificar quem já existe.** Enquanto
    houver pessoa que a fase A ainda não completou, a porta só liga — não cria.
 5. **Ninguém funde sem a Adriana decidir.** Duplicata vira proposta (`identidade_fusoes`,
@@ -70,7 +71,7 @@ id. Sem isso, uma compradora da Vale recebeu os e-mails de cinco colegas (medido
 **Antes de criar qualquer pessoa, bater com `pessoas.pessoas`**: a porta procura em
 `engagement.identidades` e nas colunas da própria pessoa (e-mail, WhatsApp, hubspot_id); só cria
 quando existe identificador forte **livre** — nunca quando todos já são de gente que a regra do
-nome recusou (a linha fica sem pessoa, com o motivo em `pessoa_criterio`).
+nome recusou (a linha fica sem pessoa, com o motivo em `mind_id_criterio`).
 
 Regras já combinadas (23/09):
 
@@ -84,7 +85,9 @@ Regras já combinadas (23/09):
   telefone), não a última registrada.
 
 Ainda por combinar juntos: se id da Yazo repetido entre edições de Summit conta como a mesma
-pessoa; o nome da coluna do ID universal nas tabelas (hoje `pessoa_id`/`participante_id`).
+pessoa. Decidido em 23/09 (D6): a coluna do ID universal chama-se `mind_id` em toda tabela; as chaves
+dos payloads das funções (`pessoa_id`, `participante_id` em jsonb) e os nomes de saída das views `api.*`
+são contrato de API e ficam.
 
 ## A passada de acerto (uma vez), na ordem da Adriana
 
@@ -92,7 +95,7 @@ pessoa; o nome da coluna do ID universal nas tabelas (hoje `pessoa_id`/`particip
 |---|---|---|
 | **A — enriquecer** | cada pessoa em `pessoas.pessoas` recebe todos os hints que as fontes já ligadas a ela conhecem (e-mail, telefone e nome do contato do HubSpot; ids do credenciamento, da Yazo, da Eduzz). Nunca cria pessoa. O que já é de outra pessoa vira proposta | Adriana |
 | **B — unificar** | as propostas, agrupadas por padrão, são decididas: aprovar (funde) ou rejeitar. Só confiança alta em bloco | Adriana |
-| **C — criar** | as tabelas de entrada, nesta ordem — **HubSpot → Eduzz → Blinket → conversas do Treble → credenciamento → Yazo** — ganham `pessoa_id` em toda linha; quem não existe, depois de procurado, é criado | Adriana |
+| **C — criar** | as tabelas de entrada, nesta ordem — **HubSpot → Eduzz → Blinket → conversas do Treble → credenciamento → Yazo** — ganham `mind_id` em toda linha; quem não existe, depois de procurado, é criado | Adriana |
 
 Scripts numerados em `scripts/infra/identidade/`. Contrato que prova as promessas:
 `tests/d5_identidade_universal_contract.sql`. Migration: `supabase/migrations/20260923024555_d5_identidade_universal.sql`.

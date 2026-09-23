@@ -62,7 +62,7 @@ seguem como arquitetura congelada, não código.
 
 ## 3. Identidade canônica
 
-**`pessoas.pessoas.id` é o `pessoa_id` canônico e permanente.** (2.940 pessoas)
+**`pessoas.pessoas.id` é o Mind ID canônico e permanente** (coluna `mind_id` nas demais tabelas — D6). (2.940 pessoas)
 
 `pessoas.pessoas` é o **eixo de identidade**, não um perfil completo. O que sabemos *sobre* a
 pessoa mora em `crm.*` (o que o CRM sabe) e em `intelligence.*` (o que o agente aprendeu).
@@ -100,7 +100,7 @@ pessoa.** O que muda em relação ao texto acima:
 
 - **Espelho passa pela porta única na escrita.** Antes, fonte em lote (HubSpot, Eduzz,
   credenciamento, Yazo) entrava como espelho e a pessoa era resolvida por junção na leitura.
-  Agora cada tabela-fonte tem `pessoa_id`, `pessoa_criterio` e `pessoa_resolvido_em`, e um
+  Agora cada tabela-fonte tem `mind_id`, `mind_id_criterio` e `mind_id_resolvido_em`, e um
   trigger `before insert or update` (`mind_pessoa_antes_de_escrever`) chama
   `mind_identidade_resolver` antes de a linha existir. Falha de identidade não bloqueia a
   escrita. `mind_pessoa_ligar_tabela(tabela, mapa)` põe uma tabela nova na regra.
@@ -478,9 +478,9 @@ O estado solto da venda (intent, objeção, needs_human, checkout, desfecho) fic
 
 ### O histórico é PESSOA-WIDE, não conversa-escopo
 
-`participante_id` é o nome legado da coluna em `conversas` e `mensagens`, mas tem **FK real para
-`pessoas.pessoas`** (verificado: zero órfãos). É o `pessoa_id` canônico. Não se cria uma coluna
-`pessoa_id` duplicada.
+`mind_id` é a coluna em `conversas` e `mensagens` (chamava-se `participante_id` até D6, 23/09/2026), com
+**FK real para `pessoas.pessoas`** (verificado: zero órfãos). É o Mind ID canônico. Não se cria uma coluna
+duplicada. As chaves dos payloads (`pessoa_id` em jsonb) são contrato de API e não mudaram.
 
 1.926 das 2.939 pessoas com histórico têm **mais de uma conversa** (máximo: 10 conversas,
 110 mensagens). Qualquer coletor preso à conversa atual perde a maior parte da história — por

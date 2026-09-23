@@ -443,8 +443,8 @@ const DECISOES = [
   c:"Dash sai por ausência de dado: o schema inteiro tem 2 linhas, ambas de documento, nenhuma de pessoa. Entra quando houver cliente. Institute tem oferta e programa, mas o histórico de matrícula ainda não veio do LearnWorlds."},
  {id:"D4", t:"Ligar NPS de verdade",
   c:"A escala 0–10 já está no banco, com <code>CHECK</code>, em duas casas vazias de grão diferente: <code>engagement.nps</code> (por participante do evento) e <code>crm.pessoa_nps</code> (por pessoa e produto). Falta o escritor e a decisão de produto de onde perguntar, quando e com que frequência. Nota 0–5 de avaliação de atividade não é NPS."},
- {id:"D5", t:"Identidade universal: toda linha sobre uma pessoa nasce com pessoa_id",
-  c:"Decisão de 22–23/09 (Regra #1, <code>READ_ME_FIRST.md</code>). <code>pessoas.pessoas.id</code> é o id que persiste, para toda pessoa de qualquer fonte; os identificadores (e-mail, WhatsApp, ids de terceiros; CPF só como apoio) ficam em <code>engagement.identidades</code>. Toda tabela-fonte tem <code>pessoa_id</code> resolvido pela porta única <code>mind_identidade_resolver</code> <b>antes</b> da escrita (trigger). Antes de criar: enriquecer e unificar quem já existe. Duplicata vira proposta; <b>só a Adriana funde</b>, via <code>mind_fusao_decidir</code>. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados e ~900 compradores sem pessoa; 586 duplicatas com uma causa só (pessoa nascida do WhatsApp, ligada ao HubSpot sem o e-mail, recriada no login)."}
+ {id:"D5", t:"Identidade universal: toda linha sobre uma pessoa nasce com mind_id",
+  c:"Decisão de 22–23/09 (Regra #1, <code>READ_ME_FIRST.md</code>). <code>pessoas.pessoas.id</code> é o id que persiste, para toda pessoa de qualquer fonte; os identificadores (e-mail, WhatsApp, ids de terceiros; CPF só como apoio) ficam em <code>engagement.identidades</code>. Toda tabela-fonte tem <code>mind_id</code> (D6) resolvido pela porta única <code>mind_identidade_resolver</code> <b>antes</b> da escrita (trigger). Antes de criar: enriquecer e unificar quem já existe. Duplicata vira proposta; <b>só a Adriana funde</b>, via <code>mind_fusao_decidir</code>. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados e ~900 compradores sem pessoa; 586 duplicatas com uma causa só (pessoa nascida do WhatsApp, ligada ao HubSpot sem o e-mail, recriada no login)."}
 ];
 
 /* Quem manda em cada fato. O fato bruto continua de quem o observou;
@@ -475,7 +475,7 @@ const REGRAS = [
  "Mudança estrutural — tabela nova, schema novo, troca de proveniência — precisa do gate da Adriana.",
  "Preço, checkout, desconto, horário e disponibilidade nunca dependem de busca vetorial como fonte da verdade.",
  "Espelho não vira segunda fonte autoral: o fato bruto continua de quem o observou.",
- "Regra #1 (D5): toda tabela que fala de pessoa tem pessoa_id, resolvido ou criado pela porta única antes da escrita; antes de criar, enriquecer e unificar quem já existe; CPF não identifica sozinho; ninguém funde sem a Adriana decidir."
+ "Regra #1 (D5): toda tabela que fala de pessoa tem mind_id (D6: o nome da coluna do ID universal), resolvido ou criado pela porta única antes da escrita; antes de criar, enriquecer e unificar quem já existe; CPF não identifica sozinho; ninguém funde sem a Adriana decidir."
 ];
 
 /* ---------- estado ---------- */
