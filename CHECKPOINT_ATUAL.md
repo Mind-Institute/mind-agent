@@ -47,6 +47,15 @@ exercida por ela).
   01:36). A parte de empresa agora delega para `crm.empresa_participantes_summit_2026_gravar`; cargo e ICP
   sem mudança. Ensaio após o ajuste: 0 empresas a mudar.
 
+- **Lusha + registro de empresas (24/09, 02:20 UTC; ledger `020853`, `021415`, `021452`, `021730`):**
+  `crm.empresa_lusha` (838 empresas sem porte/setor consultadas sem reveal, ~36 créditos; 674 achadas;
+  328 aceitas por `crm.v_empresa_lusha_aceita`: domínio bateu, ou nome equivalente + mesma 1ª palavra +
+  sede no Brasil + nome não genérico). `intelligence.setor_macro` traduz HubSpot/Lusha para 19 setores.
+  **`pessoas.empresas`** (pedido/aprovação da Adriana, D2): registro de empresas do Mind — 4.051 do espelho
+  (`pessoas.empresas_sincronizar_espelho`, cron :42 a cada 6 h), 798 novas do credenciamento, 326
+  enriquecidas pela Lusha; `pessoas.pessoas.empresa_id` liga 2.007 participantes. **Write-back no HubSpot
+  ainda não feito**: 798 a criar (muitas genéricas/pessoa física) + 69 a atualizar → gate da Adriana.
+
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
 
 Pedidos da Adriana (23/09, manhã): *"crie essas duas tabelas na intelligence"*, *"colocar todas as

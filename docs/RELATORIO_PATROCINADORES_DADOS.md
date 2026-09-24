@@ -5,6 +5,14 @@
 > **presentes**. Cada % traz o denominador; onde a cobertura é parcial, isso está dito.
 > Plano e lacunas: `docs/PLANO_RELATORIO_PATROCINADORES.md`.
 
+
+> **Atualização (24/09, 02:40 UTC):** porte e setor completados pela Lusha e setores traduzidos para 19
+> setores em português (`intelligence.setor_macro`). Porte agora cobre **62%** dos presentes (HubSpot 790 +
+> Lusha 387); **40%** dos presentes com porte conhecido (sem patrocinadores) estão em empresas com +1.000
+> funcionários e **27%** em +5.000 (o 47% abaixo era só HubSpot, enviesado para empresas grandes).
+> Beiersdorf conta como delegação (BDF Nivea + Beiersdorf = 19). NPS adaptado (nota 0–5 × 2): **61**, média
+> 8,9 de 10, 64 respondentes. Versão visual e atualizada: página "Audiência Mind Summit 2026".
+
 ## 1. Dimensão do Mind Summit
 
 | | |
