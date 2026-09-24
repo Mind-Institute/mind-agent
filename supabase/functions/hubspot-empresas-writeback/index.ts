@@ -41,8 +41,30 @@ Deno.serve(async (req: Request) => {
   if (!url || !chave) return json(500, { ok: false, erro: "ambiente do supabase incompleto" });
   const db = createClient(url, chave, { auth: { persistSession: false } });
 
-  let pedido: { executar?: boolean } = {};
+  let pedido: { executar?: boolean; associar?: boolean } = {};
   if (req.method === "POST") pedido = await req.json().catch(() => ({}));
+
+  // Modo associar (24/09/2026): contato sem company no HubSpot ganha a company que já existe lá para a
+  // sua empresa em pessoas.pessoas. Só aditivo; o plano (pessoas.empresas_hubspot_associar_pares) não
+  // traz contato já associado a outra company.
+  if (pedido.associar) {
+    const { data: pares, error } = await db.rpc("mind_empresas_hubspot_associar_pares", {});
+    if (error) return json(500, { ok: false, erro: `pares: ${error.message}` });
+    const lista = ((pares as Array<{ mind_id: string; contato: string; company: string }>) ?? []);
+    if (!pedido.executar) return json(200, { ok: true, ensaio: true, associar: lista.length });
+    const feitos: typeof lista = [];
+    const erros: string[] = [];
+    for (let i = 0; i < lista.length; i += 100) {
+      const lote = lista.slice(i, i + 100);
+      const r = await hubspot("/crm/v4/associations/contacts/companies/batch/associate/default", token, {
+        inputs: lote.map((p) => ({ from: { id: String(p.contato) }, to: { id: String(p.company) } })),
+      });
+      if (r.status >= 200 && r.status < 300) feitos.push(...lote);
+      else erros.push(`HTTP ${r.status}: ${JSON.stringify(r.dados).slice(0, 300)}`);
+    }
+    const { data: reg, error: erroReg } = await db.rpc("mind_empresas_hubspot_associar_registrar", { p_pares: feitos });
+    return json(200, { ok: true, associados: feitos.length, erros, registro: erroReg ? { erro: erroReg.message } : reg });
+  }
 
   const { data: plano, error: erroPlano } = await db.rpc("mind_empresas_hubspot_plano", {});
   if (erroPlano) return json(500, { ok: false, erro: `plano: ${erroPlano.message}` });
