@@ -298,6 +298,20 @@ Deno.serve(async (req: Request) => {
           else erros.push({ status: x.status, dados: x.dados });
         }
         Object.assign(r, { itens: itens.length, contatos: alvo.size, atualizados: ok, sem_mudanca: alvo.size - updates.length, sem_contato: semContato, erros: erros.slice(0, 20) });
+      } else if (op.tipo === "opcoes") {
+        // Acrescenta opções a uma propriedade de múltipla escolha que já existe (nunca remove nem renomeia).
+        const objeto = String(op.objeto ?? "contacts"), nome = String(op.propriedade);
+        const novas = op.novas as Array<{ label: string; value: string }>;
+        const atual = await api("GET", `/crm/v3/properties/${objeto}/${nome}`);
+        if (!atual.ok) throw new Error(`propriedade ${nome}: HTTP ${atual.status}`);
+        const opcoes = (atual.dados?.options as Array<Record<string, unknown>>) ?? [];
+        await copia(objeto, `opcoes ${nome}`, { propriedade: nome, options: opcoes });
+        const existe = new Set(opcoes.map((o) => String(o.value)));
+        const acrescentar = novas.filter((n) => !existe.has(n.value))
+          .map((n, i) => ({ label: n.label, value: n.value, displayOrder: opcoes.length + i, hidden: false }));
+        const x = acrescentar.length === 0 ? { ok: true, status: 200 } :
+          await api("PATCH", `/crm/v3/properties/${objeto}/${nome}`, { options: [...opcoes, ...acrescentar] });
+        Object.assign(r, { propriedade: nome, acrescentadas: x.ok ? acrescentar.map((a) => a.value) : [], status: x.status, erro: x.ok ? null : (x as { dados?: unknown }).dados });
       } else {
         r.erro = "tipo desconhecido";
       }
