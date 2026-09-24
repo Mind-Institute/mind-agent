@@ -68,3 +68,24 @@ dicionario.priberam.org etc. Nenhum tem ingresso. Apagar em pessoas.pessoas e no
 ## Como responder
 "Aprovo 1 a 7", ou os números que aprova. Posso também seguir sem pedir confirmação a cada lote do HubSpot
 nesta conversa, se preferir.
+
+### 8. Contatos duplicados no HubSpot (passo 12) — 270 pares
+São pessoas que já juntei em pessoas.pessoas (passo 11, critérios no relatório de duplicatas) e que ainda
+têm dois contatos no HubSpot. Merge no HubSpot **não tem desfazer**; antes de cada um eu guardo todas as
+propriedades dos dois contatos no banco, para recriar se for preciso.
+- Principal: o contato com **e-mail corporativo** (139 pares têm um corporativo e um pessoal); o e-mail pessoal
+  vira secundário. Com dois corporativos (60) ou dois pessoais (48), fica o contato com mais negócios/atividade.
+- A ferramenta do HubSpot desta conversa não faz merge; é preciso uma rotina (edge function) que chame a API de
+  merge. Da vez anterior o sistema de permissões bloqueou a criação dela; com o seu OK explícito eu tento de novo.
+  Alternativa: você faz o merge pela tela do HubSpot a partir da lista.
+
+### 9. Passos 16–18 (por último, depois da limpeza)
+Mapeado no HubSpot (contato):
+- Passo 16: `Summit – Participação Anual` (2023–2027), `Summit – Tipo de Entrada (2023/2024/2025/2026)`
+  (Pago, Cortesia, Bonus, Patrocínio), `Summit – Cortesia (Anos)`, `Summit – Patrocínio (Anos)`,
+  `Summit – Instituição Concessora (ano)`, `Summit – Categorias (todos os anos)`. Categoria por ano só existe para
+  2026 → **criar `Summit – Categoria do Ingresso (2024)` e `(2025)`** (mesmas opções: Mind, VIP, Prime, Camarote).
+- Passo 17: `Institute Formações Cursadas` (F1, F2, F3, Certificação, Mind Journey, Oxford no Conselho),
+  `Certificação Liderança Positiva Comprada?`, `Mind Institute – Turmas`, `Journey – Turma (Ano)`.
+- Passo 18 (turma 2027): acrescentar opções com o ano na frente, ex. "2027 · Turma 1", em `Mind Institute – Turmas`
+  e nos produtos; `Journey – Turma (Ano)` já tem 2027. Criar opção/propriedade é mudança de estrutura no HubSpot.
