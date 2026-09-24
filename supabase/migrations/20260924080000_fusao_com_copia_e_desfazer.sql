@@ -45,7 +45,10 @@ declare f engagement.identidade_fusoes%rowtype; v_snap uuid; v_r jsonb;
 begin
   select * into f from engagement.identidade_fusoes where id = p_fusao_id and status = 'pendente' and proposta is not null;
   if f.id is null then return jsonb_build_object('ok', false, 'motivo', 'proposta_nao_pendente'); end if;
-  v_snap := public.mind_fusao_snapshot((f.proposta->>'sobrevive')::uuid, (f.proposta->>'absorvida')::uuid);
+  -- par já fundido (proposta repetida): não tira cópia, só deixa a porta registrar
+  if not exists (select 1 from pessoas.pessoas p where p.id = (f.proposta->>'absorvida')::uuid and p.fundida_em is not null) then
+    v_snap := public.mind_fusao_snapshot((f.proposta->>'sobrevive')::uuid, (f.proposta->>'absorvida')::uuid);
+  end if;
   v_r := public.mind_fusao_decidir(p_fusao_id::text, 'aprovar', p_quem);
   return jsonb_build_object('ok', (v_r->>'fundidas')::int = 1, 'snapshot', v_snap, 'resultado', v_r);
 end $$;
@@ -57,8 +60,11 @@ declare
   s record; t jsonb; r jsonb; v_sob uuid; v_abs_antes jsonb; v_sob_antes jsonb; v_pk text[]; v_where text; v_cols text;
   v_voltaram int := 0; v_reinseridas int := 0; v_n int; c text;
 begin
+  -- a cópia de ANTES da fusão (uma aprovação repetida do mesmo par não tira cópia, mas cópias antigas podem existir)
   select * into s from public.mind_admin_audit
-   where resource = 'fusao_snapshot' and record_id = p_absorvida::text order by occurred_at desc limit 1;
+   where resource = 'fusao_snapshot' and record_id = p_absorvida::text
+     and before_data->'absorvida'->>'fundida_em' is null
+   order by occurred_at desc limit 1;
   if s.id is null then return jsonb_build_object('ok', false, 'motivo', 'sem_copia'); end if;
   v_sob := (s.after_data->>'sobrevive_id')::uuid;
   v_abs_antes := s.before_data->'absorvida';
