@@ -108,5 +108,5 @@ Staff, palestrantes, professores e parceiros de venda não são leads e não tê
 - rótulos e opções: `intelligence.icp` (editar o catálogo alinha o HubSpot sozinho);
 - contrato que prova a regra: `tests/icp_por_cargo_digitacao_contract.sql`.
 
-A reclassificação roda sozinha de hora em hora (`perfil_projetar_horario`, hh:36, que termina gravando
-`pessoas.pessoas`) e o HubSpot é atualizado logo depois (`hubspot_perfil_writeback_horario`, hh:41).
+A reclassificação roda **uma vez por dia** (`perfil_projetar_horario`, 06:50 UTC, que termina gravando
+`pessoas.pessoas`) e o HubSpot é atualizado logo depois (`hubspot_perfil_writeback_horario`, 06:55 UTC).
