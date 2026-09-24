@@ -6,6 +6,13 @@
 > Plano e lacunas: `docs/PLANO_RELATORIO_PATROCINADORES.md`.
 
 
+> **Recalculado (24/09, 03:25 UTC):** a página inteira foi refeita com uma regra única, em
+> `docs/sql/relatorio_patrocinadores_base.sql` + `docs/sql/relatorio_patrocinadores_numeros.sql`: empresa agrupada
+> por domínio/sigla/unidade em todas as seções; porte e setor da pessoa = do grupo; "sem patrocinadores" = sem as
+> pessoas das empresas patrocinadoras. Resultado: 1.716 presentes com empresa (90%), **1.084 empresas**, 585 com
+> porte; **39%** dos presentes com porte conhecido (959, sem patrocinadores) em empresas com +1.000 funcionários e
+> 27% com +5.000; 29 empresas com 5+ pessoas.
+
 > **Atualização (24/09, 03:30 UTC), pedidos da Adriana na página:**
 > - **Área:** "Outras áreas de negócio" (382) foi quebrada (`intelligence.area_por_cargo`, migration
 >   `20260924030426`). Cargos de áreas existentes voltaram para a área certa; áreas novas: SMS/segurança/ESG,
