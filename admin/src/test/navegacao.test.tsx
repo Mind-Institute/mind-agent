@@ -5,14 +5,14 @@ import { renderizarPainel } from './utils';
 import { ITENS_NAVEGACAO } from '@/routes/navegacao';
 
 describe('navegação', () => {
-  it('mostra os dezenove módulos do menu lateral', async () => {
+  it('mostra os dezessete módulos do menu lateral', async () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO).toHaveLength(19);
+    expect(ITENS_NAVEGACAO).toHaveLength(17);
     for (const item of ITENS_NAVEGACAO) {
-      /* NOME INTEIRO, e não pedaço: "Evento" e "Avaliação do evento" são
-         dois itens do menu, e um regex solto casa com os dois. */
+      /* NOME INTEIRO, e não pedaço: um regex solto pode casar com mais
+         de um item do menu. */
       expect(
         within(menu).getByRole('link', { name: (nome) => nome.trim() === item.rotulo }),
       ).toBeVisible();

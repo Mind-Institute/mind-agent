@@ -20,8 +20,7 @@
     "test:admin": "npm run test --prefix admin",
     "test:guardrail": "node tests/vendedor_guardrail_preco.mjs",
     "test:vendedor": "node tests/vendedor_summit_smoke.mjs",
-    "deploy": "wrangler deploy",
-    "relatorio:avaliacao": "node scripts/relatorio-avaliacao.mjs"
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "pdfkit": "0.17.2",

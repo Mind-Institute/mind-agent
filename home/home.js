@@ -76,18 +76,6 @@ export function montarHome(raiz, aoAgir, contexto) {
     if (b.daSessao && ctx.sessaoDoInsight) {
       return { ...b, selo: ctx.sessaoDoInsight, cta: b.ctaComSessao || b.cta };
     }
-    /* A avaliação só existe quando o servidor diz que existe. `oculto` é
-       o padrão do bloco, então pesquisa desligada, fora do ar ou sem
-       resposta do servidor deixa a home exatamente como ela é hoje. */
-    if (b.daAvaliacao) {
-      return ctx.avaliacao ? { ...b, ...ctx.avaliacao } : { ...b, estado: 'oculto' };
-    }
-    /* A pesquisa do evento inteiro segue a mesma regra, com o próprio
-       estado: são duas pesquisas, e uma não fala pela outra. */
-    if (b.daAvaliacaoDoEvento) {
-      return ctx.avaliacaoEvento
-        ? { ...b, ...ctx.avaliacaoEvento } : { ...b, estado: 'oculto' };
-    }
     return b;
   });
 

@@ -48,10 +48,6 @@ const DO_CHAT = [
   'chat-service.js',
   /* Os componentes da home V3 */
   'home',
-  /* As duas pesquisas — a do dia e a do evento inteiro: telas, as peças
-     que elas dividem, o serviço e a folha de estilo própria. A pasta
-     inteira entra, então tela nova ali não exige mexer aqui. */
-  'avaliacao',
   'assets',
   'dados',
 ];

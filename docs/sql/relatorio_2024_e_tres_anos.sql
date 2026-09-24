@@ -69,8 +69,8 @@ select jsonb_build_object(
 -- 13 · Pesquisas. 2024, 2025 e 2026: engagement.pesquisa_summit_2024/2025/2026, mesmas perguntas lado a lado em
 -- engagement.v_pesquisa_summit_comparativo. Avaliações do app de 2026 (evento + dia), escala 1 a 5, logo abaixo.
 select * from engagement.v_pesquisa_summit_comparativo order by ano;
-with r as (select mind_id, nota_relevancia, nota_programacao from engagement.avaliacao_do_evento
-           union all select mind_id, nota_relevancia, nota_programacao from engagement.avaliacao_do_dia)
+with r as (select mind_id, nota_relevancia, nota_programacao from engagement.pesquisa_summit_2026
+            where origem in ('app_evento', 'app_dia'))
 select count(*) avaliacoes, count(distinct public.mind_pessoa_canonica(mind_id)) pessoas,
        round(avg(nota_relevancia), 2) relevancia, round(avg(nota_programacao), 2) programacao,
        round(100.0 * count(*) filter (where nota_relevancia >= 4) / nullif(count(nota_relevancia), 0), 1) pct_relevancia_4_5,
