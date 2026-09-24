@@ -1,6 +1,6 @@
 # HubSpot — limpeza e correções para aprovar (passos 6 e 10)
 
-Status: **aguardando aprovação da Adriana.** O lado do banco (pessoas.pessoas) já foi limpo e auditado
+Status: **aprovado pela Adriana em 24/09 ("aprovado 1 a 9") e executado no mesmo dia** — resultado no fim deste documento. O lado do banco (pessoas.pessoas) já foi limpo e auditado
 (`mind_admin_audit`, resources `pessoas_email_typo`, `pessoas_empresa_dominio`, `pessoas_empresa_sujeira`,
 `pessoas_cargo_hubspot`, `pessoas_icp_hubspot`). A ferramenta do HubSpot pede confirmação a cada escrita, por
 isso tudo o que mexe no HubSpot está reunido aqui.
@@ -90,3 +90,26 @@ Mapeado no HubSpot (contato):
 ## Como responder
 "Aprovo 1 a 9", ou os números que aprova. Posso também seguir sem pedir confirmação a cada lote do HubSpot
 nesta conversa, se preferir.
+
+## Resultado (24/09/2026)
+
+Tudo pela edge function `hubspot-limpeza` (lotes em `mind_admin_audit`: resource `hubspot_limpeza_lote`; cópia antes de
+cada mudança em `hubspot_snapshot`; resultado em `hubspot_limpeza_resultado`). Nenhuma falha.
+
+| Item | Feito |
+|---|---|
+| 1 | 8 companies de provedor: domínio apagado (Apple → apple.com); 81 contatos e 113 negócios desassociados |
+| 2 | 15 companies-sujeira arquivadas. **Outly era empresa real** (camila.lima@outly.com.br): recriada (58576015934) e a contato reassociada |
+| 3 | 6 companies renomeadas (também em pessoas.empresas e no campo empresa das pessoas ligadas) |
+| 4 | campo "Empresa" limpo em 113 contatos |
+| 5 | 14 e-mails com typo corrigidos (+3 na reconferência) |
+| 6 | 147 contatos criados; marketing para quem é cliente/participante/lead, não-marketing só para quem veio só por cortesia ou patrocínio (regra da Adriana) |
+| 7 | 22 contatos de teste arquivados no HubSpot; 28 cadastros de teste apagados de pessoas.pessoas com cópia (`pessoa_apagada_snapshot`). Ficaram os testes com venda registrada e os 2 que vêm da Yazo |
+| 8 | 406 merges (353 pessoas), e-mail corporativo principal. 6 pessoas com contatos de pessoas diferentes presos no mesmo mind_id **não** foram fundidas: Cristina Rocha × Antonio Carlos Rossi, Robson Ramos × Acyr Sigolo, Cris de Sá × Alexandro Sa, Amanda Moreira Gomes × Letícia Carolina do Nascimento, Ana Carolina Nunes Monteiro × Juliana Fernandes Duarte, Maria Valéria Barroso × Spark (empresa) — pedem separação em pessoas.pessoas |
+| 9 / passo 16 | 5.340 contatos: anos do Summit, categoria por ano e tipo de entrada somados ao que havia (2.510 mudaram) |
+| passo 17 | produtos do Institute de 2025 (F1, F2, F3, Certificação, Mind Journey, Oxford) em `formacao__produtos_comprados` |
+| passo 18 | 6 opções "2027 · …" em `formacao__produtos_comprados` e "2027 · Turma 1" em `institute__turmas`; 187 contatos marcados nos passos 17–18 |
+
+Reconferência: 3 e-mails com typo, 96 nomes com acento quebrado (recuperados de HubSpot/Eduzz/Yazo), 1 sobrenome
+ofensivo apagado, cargo "Nenhum" apagado; pessoas.empresas acompanha os itens 1–3 (sem domínio de provedor).
+Nenhum e-mail, WhatsApp ou hubspot_id repetido em pessoas.pessoas.
