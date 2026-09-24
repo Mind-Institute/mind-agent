@@ -40,9 +40,12 @@ cargo é comparada com ele (`intelligence.cargo_corrigir_digitacao`: mesma prime
 "coodenador", "Pscióloga". Profissões (advogada, jornalista, engenheiro, economista…) viram
 `analista_nao_rh`; `outros` fica só para quem está fora do mercado ou não escreveu um cargo (Adriana,
 24/09). Regra completa: `REGRA_ICP_POR_CARGO.md` na raiz. Contrato: `tests/icp_por_cargo_digitacao_contract.sql`.
-Fonte do cargo, por prioridade: credenciamento (Yazo) → conversa (`cargo_atual` do analisador) →
-espelho do HubSpot → `pessoas.pessoas`. ICP marcado à mão no HubSpot vence — mas o valor que o próprio
-Mind escreveu lá (registrado em `mind_admin_audit`) não conta como manual.
+Fonte do cargo, por prioridade (Adriana, 24/09): credenciamento (relatório e espelho da Yazo) → espelho
+do HubSpot → conversa (`cargo_atual` do analisador) → `pessoas.pessoas`. O cargo do credenciamento
+sobrescreve qualquer dado antigo, inclusive ICP marcado à mão no HubSpot; sem credenciamento, ICP marcado
+à mão no HubSpot vence — mas o valor que o próprio Mind escreveu lá (registrado em `mind_admin_audit`) não
+conta como manual. O resultado final mora em `pessoas.pessoas.icp`/`icp_fonte` e é dali que o HubSpot lê
+(`REGRA_ICP_POR_CARGO.md`).
 
 **JTBD** (`intelligence.perfil_evidencias` → `intelligence.perfil_projetar`): uma linha por evidência,
 depois agregada por job: confiança = maior evidência + 0,05 por evidência extra que não seja reserva
@@ -67,8 +70,8 @@ aperta; memória de conversa nunca é tocada.
 
 Regras de convivência: memória de conversa (`analise_*`) nunca é derrubada pela regra — quando
 divergem, a regra entra como `proposta`; a conversa grava a própria linha (o escritor não pisa na
-linha da regra) e, se entra ativa, a da regra cede; ICP marcado à mão no HubSpot vence (a regra não
-escreve); rodar de novo é idempotente e **só carimba `atualizado_em` no que mudou** — esse carimbo é o
+linha da regra) e, se entra ativa, a da regra cede; ICP marcado à mão no HubSpot vence quando o cargo não veio
+do credenciamento (a regra não escreve); rodar de novo é idempotente e **só carimba `atualizado_em` no que mudou** — esse carimbo é o
 sinal que o write-back horário usa.
 
 **Cargo e empresa no HubSpot** (`mapping.ts`): preenche vazio; quando já há valor, compara pela

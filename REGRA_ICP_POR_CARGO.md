@@ -69,12 +69,29 @@ Texto vazio ou recusa ("nenhum", "n/a", "x", "outros") não recebe ICP.
 Aceita siglas e abreviações (coord, ger, dir, supte, HRD, NR-1, SST) e cargos em inglês. Cargo que é
 só um nível ("Gerente", "Diretora") entra com confiança 0,55 em vez de 0,70.
 
-## De onde vem o cargo
+## De onde vem o cargo e o ICP (decisão de 24/09)
 
-Por prioridade: o que a pessoa escreveu no **credenciamento** (relatório consolidado da Yazo,
-`credenciamento_summit_2026."Relatorio Yazzo Consolidado"`) → o que ela disse em **conversa** →
-o cargo do **HubSpot** → `pessoas.pessoas`. ICP marcado à mão no HubSpot por alguém do time vence
-sempre.
+Por prioridade, a primeira fonte que tiver algo vence:
+
+1. **O que a pessoa escreveu no credenciamento do Summit 2026**: relatório consolidado da Yazo e, na
+   falta, o espelho vivo da Yazo (`credenciamento_summit_2026.v_cargo_declarado`). Passa pela regra
+   acima e **sobrescreve qualquer dado antigo**, inclusive ICP marcado à mão no HubSpot.
+2. **O HubSpot**: a propriedade ICP, se preenchida; senão o cargo (`jobtitle`) pela regra.
+3. **O resto do sistema**: ICP ou cargo dito em conversa (concierge, WhatsApp); por último o cargo que
+   já estava no cadastro.
+
+"Outros" de uma fonte só fica quando nenhuma fonte seguinte tem algo melhor.
+
+## Onde isso fica gravado
+
+- `pessoas.pessoas.cargo`: o cargo pela mesma ordem;
+- `pessoas.pessoas.icp`: o código do ICP; `icp_fonte` diz de onde veio (`credenciamento`,
+  `hubspot_icp`, `hubspot_cargo`, `conversa`, `conversa_cargo`, `cadastro`); `icp_confianca` é a
+  confiança da regra (nulo quando o ICP veio pronto do HubSpot ou da conversa);
+- **HubSpot** (`jobtitle`, `icp`, `icp_confianca`): lê de `pessoas.pessoas`. Quando a fonte é o
+  credenciamento, a escrita sobrescreve o que estiver lá, mesmo editado por alguém do time; nos outros
+  casos só preenche vazio e nunca apaga escolha humana. Continuam de fora valor que parece URL/e-mail/
+  headline e a mesma coisa escrita de outro jeito.
 
 ## Quem não recebe ICP
 
@@ -86,8 +103,10 @@ Staff, palestrantes, professores e parceiros de venda não são leads e não tê
 - a regra: `intelligence.icp_por_cargo(cargo, empresa)` (migrations
   `20260924010000_icp_por_cargo_tolera_digitacao.sql` e `20260924020000_icp_por_cargo_profissoes.sql`);
 - o vocabulário da correção de digitação: `intelligence.cargo_corrigir_digitacao`;
+- a ordem das fontes e a gravação em `pessoas.pessoas`: `intelligence.perfil_gravar_pessoas`;
+- o que vai para o HubSpot: `public.mind_hubspot_perfil_plano` e `supabase/functions/hubspot-perfil-writeback/mapping.ts`;
 - rótulos e opções: `intelligence.icp` (editar o catálogo alinha o HubSpot sozinho);
 - contrato que prova a regra: `tests/icp_por_cargo_digitacao_contract.sql`.
 
-A reclassificação roda sozinha de hora em hora (`perfil_projetar_horario`, hh:36) e o HubSpot é
-atualizado logo depois (`hubspot_perfil_writeback_horario`, hh:41).
+A reclassificação roda sozinha de hora em hora (`perfil_projetar_horario`, hh:36, que termina gravando
+`pessoas.pessoas`) e o HubSpot é atualizado logo depois (`hubspot_perfil_writeback_horario`, hh:41).
