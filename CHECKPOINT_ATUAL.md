@@ -53,8 +53,13 @@ exercida por ela).
   sede no Brasil + nome não genérico). `intelligence.setor_macro` traduz HubSpot/Lusha para 19 setores.
   **`pessoas.empresas`** (pedido/aprovação da Adriana, D2): registro de empresas do Mind — 4.051 do espelho
   (`pessoas.empresas_sincronizar_espelho`, cron :42 a cada 6 h), 798 novas do credenciamento, 326
-  enriquecidas pela Lusha; `pessoas.pessoas.empresa_id` liga 2.007 participantes. **Write-back no HubSpot
-  ainda não feito**: 798 a criar (muitas genéricas/pessoa física) + 69 a atualizar → gate da Adriana.
+  enriquecidas pela Lusha; `pessoas.pessoas.empresa_id` liga 2.007 participantes.
+- **Write-back de empresas no HubSpot (24/09, 02:36 UTC; Edge Function `hubspot-empresas-writeback` v1,
+  `public.mind_empresas_hubspot_disparar(p_executar)`, ensaio por padrão):** aprovação da Adriana ("criar só as
+  que têm domínio corporativo ou porte confirmado, e atualizar as existentes"). **98 companies criadas, 59
+  atualizadas (só campos vazios), 103 contatos associados, 0 falhas.** Ficam para revisão: 197 cujo domínio já
+  é de uma company do HubSpot (aliases) e 32 com nome/domínio que não combinam. Setor: HubSpot vence a Lusha;
+  consultoria aberta em 5 (`intelligence.setor_detalhe`). Ledger `023002`–`023805`.
 
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
 
