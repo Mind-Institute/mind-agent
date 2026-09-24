@@ -34,6 +34,11 @@ L&D, saúde corporativa → gestor ou CHRO) → saúde → RH (consultor de RH, 
 consultor/coach → academia → fundador/sócio → C-suite e executivo público (secretário de estado,
 prefeito) → diretor → gestor → analista → outros. Aceita siglas e abreviações (coord, ger, dir, supte,
 HRD, NR-1, SST). Cargo que é só um nível ("Gerente", "Diretora") entra com confiança 0,55 em vez de 0,70.
+**Erro de digitação** (24/09): quando nada casa, cada palavra fora de um vocabulário fechado de nomes de
+cargo é comparada com ele (`intelligence.cargo_corrigir_digitacao`: mesma primeira letra; distância 1 até
+8 letras, 2 a partir de 9) e a regra roda de novo — "dirrtor", "Diretorna", "emoresaria", "funder",
+"coodenador", "Pscióloga". Profissões fora do vocabulário (advogada, jornalista, engenheiro, economista)
+continuam `outros` (Adriana, 24/09). Contrato: `tests/icp_por_cargo_digitacao_contract.sql`.
 Fonte do cargo, por prioridade: credenciamento (Yazo) → conversa (`cargo_atual` do analisador) →
 espelho do HubSpot → `pessoas.pessoas`. ICP marcado à mão no HubSpot vence — mas o valor que o próprio
 Mind escreveu lá (registrado em `mind_admin_audit`) não conta como manual.
