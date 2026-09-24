@@ -6,6 +6,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // O cron chama uma fonte por vez e cada fonte recebe seu proprio processo.
 const ORCAMENTO_MS = 45_000;
 const PAGINA = 100;
+const LOTE_GRAVAR = 25;
 
 type Fonte =
   | "hubspot_contatos"
@@ -422,10 +423,12 @@ Deno.serve(async (req: Request) => {
           };
         });
 
-        if (registros.length > 0) {
+        // Em lotes: cada linha passa pela porta de identidade (D5) e 100 de uma vez chegavam a
+        // estourar o statement_timeout de 8 s do PostgREST.
+        for (let i = 0; i < registros.length; i += LOTE_GRAVAR) {
           const { data: res, error } = await db.rpc("mind_espelho_gravar", {
             p_fonte: fonte,
-            p_registros: registros,
+            p_registros: registros.slice(i, i + LOTE_GRAVAR),
           });
           if (error) throw new Error(`gravar: ${error.message}`);
           gravados += Number((res as { gravados?: number })?.gravados ?? 0);
