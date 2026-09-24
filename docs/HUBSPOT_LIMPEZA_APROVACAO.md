@@ -65,9 +65,6 @@ no plano do HubSpot. Proposta: criar como **não-marketing**.
 E-mails @example.com, @teste.com.br, *.invalid, *.test, notificações (Notion, Miro, Wix, Facebook),
 dicionario.priberam.org etc. Nenhum tem ingresso. Apagar em pessoas.pessoas e no HubSpot (irreversível no banco).
 
-## Como responder
-"Aprovo 1 a 7", ou os números que aprova. Posso também seguir sem pedir confirmação a cada lote do HubSpot
-nesta conversa, se preferir.
 
 ### 8. Contatos duplicados no HubSpot (passo 12) — 270 pares
 São pessoas que já juntei em pessoas.pessoas (passo 11, critérios no relatório de duplicatas) e que ainda
@@ -89,3 +86,7 @@ Mapeado no HubSpot (contato):
   `Certificação Liderança Positiva Comprada?`, `Mind Institute – Turmas`, `Journey – Turma (Ano)`.
 - Passo 18 (turma 2027): acrescentar opções com o ano na frente, ex. "2027 · Turma 1", em `Mind Institute – Turmas`
   e nos produtos; `Journey – Turma (Ano)` já tem 2027. Criar opção/propriedade é mudança de estrutura no HubSpot.
+
+## Como responder
+"Aprovo 1 a 9", ou os números que aprova. Posso também seguir sem pedir confirmação a cada lote do HubSpot
+nesta conversa, se preferir.
