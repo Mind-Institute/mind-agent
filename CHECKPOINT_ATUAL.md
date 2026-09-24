@@ -6,6 +6,38 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### Empresa dos participantes do Summit 2026 + espelho de Companies do HubSpot — 24/09/2026, EM PRODUÇÃO
+
+Pedido da Adriana (24/09, madrugada): *"verifique se todos os atendentes do Summit 2026 têm empresa
+associada"* — regra: 1 empresa declarada no `"Relatorio Yazzo Consolidado"` (vence) → 2 domínio do
+e-mail corporativo → 3 contato do HubSpot associado a uma company → 4 checar no espelho do HubSpot e
+**usar o nome da company de lá, sem criar nem duplicar** → 5 gravar em `pessoas.pessoas.empresa`.
+E, no meio: *"crie sim em schema CRM, faça um espelho das empresas… que estão hoje no HubSpot"* (D2
+exercida por ela).
+
+- **Espelho novo:** `crm.empresa_espelho` (4.424 companies = total do HubSpot; colunas de setor,
+  funcionários, receita, cidade, contatos/negócios associados + `propriedades` com tudo;
+  `nome_chave` = `intelligence.texto_chave(name, true)`). Entrou no motor existente: fonte
+  `hubspot_empresas` em `crm.sync_estado`, `companies` em `mind_espelho_remover_objeto`, Edge
+  Function `hubspot-sync` **v23** (fonte nova + `CHAVE_DO_OBJETO`; código agora versionado em
+  `supabase/functions/hubspot-sync/`), cron `hubspot-empresas-diario` (`32 */6 * * *`). Ledger `20260924002737`.
+- **Regra:** `crm.empresa_participantes_summit_2026()` (leitura) e `…_gravar(p_gravar)` (ensaio por
+  padrão; gravação deixa antes/depois em `mind_admin_audit`, resource `pessoas_empresa_summit_2026`).
+  Casamento com o HubSpot: mesma chave de nome → nome compatível com a company associada ao contato
+  ou do domínio → grafia quase igual (≥0,8 e mesma primeira palavra). Domínio usa o **consenso** dos
+  colegas do mesmo domínio (Heineken, não "HNK BR Indústria de Bebidas"). Fonte inferida (e-mail,
+  HubSpot) não sobrescreve empresa diferente que já existia → `preservados`. Ledger `004435`, `004813`, `005201`.
+- **Executado (00:52 UTC):** 2.421 participantes (Yazo ∪ `participantes` ativos, pessoa canônica):
+  **2.022 com empresa** (Yazo 1.698 · e-mail 266 · HubSpot 58), **1.104 casadas com uma company do
+  HubSpot**, 918 com empresa que não existe no HubSpot (ficou o nome declarado), **399 sem nenhuma
+  fonte** (344 webmail sem empresa declarada nem contato associado, 28 sem e-mail, 27 domínio
+  corporativo sem par). 817 linhas gravadas; 1 preservada (e-mail `berkeley.edu` × "Mind").
+  Reexecução = 0 mudanças.
+- **Para revisar (duplicatas/aliases no HubSpot, não resolvidos aqui):** "BDF Nivea" (8, declarado) ×
+  "Beiersdorf Ind e com Ltda." (13); "Editora Sextante" (6) × "GMT Editores Ltda"; "Faculdade BP" ×
+  "Real e Benemérita Associação Portuguesa de Beneficência"; "Heineken" × "HNK BR Indústria de Bebidas"
+  como duas companies no HubSpot. 48 linhas da Yazo seguem sem `mind_id` (não entram em `pessoas`).
+
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
 
 Pedidos da Adriana (23/09, manhã): *"crie essas duas tabelas na intelligence"*, *"colocar todas as
