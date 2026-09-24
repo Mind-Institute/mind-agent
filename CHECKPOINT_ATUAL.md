@@ -38,6 +38,15 @@ exercida por ela).
   "Real e Benemérita Associação Portuguesa de Beneficência"; "Heineken" × "HNK BR Indústria de Bebidas"
   como duas companies no HubSpot. 48 linhas da Yazo seguem sem `mind_id` (não entram em `pessoas`).
 
+- **Relatório de patrocinadores (24/09, 01:40 UTC):** base `intelligence.v_relatorio_patrocinador_audiencia`
+  (1 linha por pessoa da audiência, sem palestrantes/staff; presença, ingresso, patrocinador de origem,
+  senioridade/área por `intelligence.senioridade_por_cargo`/`area_por_cargo` sobre cargo + ICP, empresa com
+  setor/porte do espelho, engajamento Yazo). Números em `docs/RELATORIO_PATROCINADORES_DADOS.md`. Ledger `013841`.
+- **Colisão corrigida (ledger `014238`):** `perfil_projetar_todos` (cron :36) passou a chamar
+  `perfil_gravar_pessoas`, que regravava a grafia da Yazo em `pessoas.empresa` (285 linhas desfeitas às
+  01:36). A parte de empresa agora delega para `crm.empresa_participantes_summit_2026_gravar`; cargo e ICP
+  sem mudança. Ensaio após o ajuste: 0 empresas a mudar.
+
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
 
 Pedidos da Adriana (23/09, manhã): *"crie essas duas tabelas na intelligence"*, *"colocar todas as
