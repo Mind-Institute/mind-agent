@@ -284,3 +284,12 @@ Para as páginas por patrocinador ainda faltam:
 - Senioridade e área saem do cargo declarado e da regra de ICP, sem IA. "Outras áreas de negócio" reúne cargos que não dizem a área (ex.: "Diretora").
 - Aliases a decidir antes da versão final: BDF Nivea × Beiersdorf; Sextante × GMT Editores; Faculdade BP × Beneficência Portuguesa; Senac SP (dois nomes).
 - Trocas de contato: número informado pela Yazo; pode contar os dois lados de cada troca.
+
+## Seções 9–11: Mind Summit 2025 e comparação (24/09/2026)
+
+- Base 2025 = inscritos com ingresso "Atribuído" em `eduzz.ingressos` (contas `mind_dash` + `ef`), sem
+  staff/palestrantes. Não há presença de 2025 na base, então a comparação 2025 × 2026 usa inscritos nos
+  dois anos (2026: `credenciamento_summit_2026.controle_de_inscritos_e_presenca`, `valido_no_mind = 'sim'`).
+- Empresa, porte e setor pelo mesmo método nos dois anos (pessoas.empresas → HubSpot → Lusha); mesma regra
+  de grupo de empresa das seções 3 e 4. SQL: `docs/sql/relatorio_2025_numeros.sql`.
+- Versão preliminar: recalcular depois da limpeza (typos de e-mail, empresas-sujeira, duplicatas).
