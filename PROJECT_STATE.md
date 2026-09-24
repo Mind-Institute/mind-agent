@@ -36,7 +36,7 @@
 > fato. O HubSpot deixa de ser origem e vira destino; **ligar a escrita continua atrás do
 > gate existente** — D1 decide a direção do fluxo, não autoriza o disparo.
 >
-> **D2 — um único aprovador: a Adriana. O Vinicius é o dono da execução do banco.** Ver §3.
+> **D2 — uma única aprovadora e executora do banco: a Adriana.** Ver §3.
 >
 > **D3 — escopo do histórico do cliente:** Summit completo, Institute parcial, **Dash
 > declarado fora** enquanto não houver dado de cliente ali (hoje são 2 linhas no schema
@@ -109,8 +109,7 @@ Mudança pequena não vira revalidação ampla. Testar o que mudou e regressões
 
 ## 3. Modo operacional vigente — v9
 
-- **Adriana** = dona de produto/negócio e dos gates sensíveis. Por **D2**, é também a **única aprovadora** de mudança estrutural de banco: fonte nova, casa nova, mudança de proveniência e o gate de `AGENTS.md:234`.
-- **Vinicius** = **dono da execução do banco**. Escreve migration, coluna, índice, constraint e backfill no dia a dia. Dentro de casa existente e comentada, executa sem passar pela aprovação; o que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai para a Adriana antes. Ele executa, ela aprova.
+- **Adriana** = dona de produto/negócio e dos gates sensíveis. Por **D2**, é a **única aprovadora e a única executora** de mudança de banco: migration, coluna, índice, constraint, backfill, fonte nova, casa nova, mudança de proveniência e o gate de `AGENTS.md:234`. Agentes preparam; ela decide e executa.
 - **ChatGPT arquiteto/supervisor** = mantém o modelo mental, verifica GitHub/Supabase, fecha a menor mudança, coordena lanes, revisa PRs/testes, decide ordem de integração, mergeia quando permitido e registra checkpoints.
 - **Claude Code** = investigador/executor escopado em branch `claude/...`; implementa o chunk fechado, testa o afetado, reporta evidência; não amplia escopo e não mergeia sozinho.
 - **GitHub** = memória compartilhada e barramento entre lanes. Coordenação deve ir direto às issues/PRs, evitando Adriana como transporte humano.

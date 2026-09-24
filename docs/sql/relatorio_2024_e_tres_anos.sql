@@ -66,9 +66,9 @@ select jsonb_build_object(
              from (select * from e where anos @> '{2024,2025,2026}' order by n24 + n25 + n26 desc limit 25) z)
 ) r;
 
--- 13 · Pesquisas. 2024 e 2025: engagement.pesquisa_summit_2024/2025 (mesmas perguntas lado a lado em
--- engagement.v_pesquisa_summit_2024_2025). 2026: avaliações do app (evento + dia), escala 1 a 5.
-select * from engagement.v_pesquisa_summit_2024_2025 order by ano;
+-- 13 · Pesquisas. 2024, 2025 e 2026: engagement.pesquisa_summit_2024/2025/2026, mesmas perguntas lado a lado em
+-- engagement.v_pesquisa_summit_comparativo. Avaliações do app de 2026 (evento + dia), escala 1 a 5, logo abaixo.
+select * from engagement.v_pesquisa_summit_comparativo order by ano;
 with r as (select mind_id, nota_relevancia, nota_programacao from engagement.avaliacao_do_evento
            union all select mind_id, nota_relevancia, nota_programacao from engagement.avaliacao_do_dia)
 select count(*) avaliacoes, count(distinct public.mind_pessoa_canonica(mind_id)) pessoas,
