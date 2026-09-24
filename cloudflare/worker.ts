@@ -5,10 +5,10 @@
 
      /        → Mind Agent, o chat público (estático, sem rota de cliente)
      /admin/  → Painel Admin (SPA com BrowserRouter)
-     avaliacao.mindsummit.com.br → só a pesquisa, e nada mais
+     avaliacao.mindsummit.com.br → 404 em tudo (a pesquisa avulsa foi apagada)
 
    O Worker atende TODOS os caminhos (`run_worker_first` no
-   `wrangler.jsonc`). Era só `/admin` antes; ampliou porque a decisão do
+   `wrangler.jsonc`). Era só `/admin` antes; ampliou porque a trava do
    domínio da pesquisa depende de olhar o Host, e o pipeline de assets
    não olha.
 
@@ -25,8 +25,8 @@
    `OPENAI_API_KEY`) ficam nas Edge Functions do Supabase. */
 
 import {
-  INDICE_PAINEL, PAGINA_DA_PESQUISA,
-  decidirAntes, decidirApos404, decidirNaPesquisa, ehDaPesquisa, ehDoPainel,
+  INDICE_PAINEL,
+  decidirAntes, decidirApos404, ehDaPesquisa, ehDoPainel,
 } from './roteamento.js';
 
 export interface Env {
@@ -40,56 +40,16 @@ export default {
     const url = new URL(request.url);
 
     /* ============================================================
-       O DOMÍNIO DA PESQUISA
+       O DOMÍNIO DA PESQUISA, DESLIGADO
        ============================================================
-       Vem ANTES de tudo, inclusive do painel: em
-       `avaliacao.mindsummit.com.br` não existe app do evento, agente nem
-       /admin. O que não está na lista de permissão é 404 — e é lista de
-       permissão justamente para o arquivo que alguém acrescentar amanhã
-       não vazar sozinho para cá. */
+       Vem ANTES de tudo, inclusive do painel: a pesquisa avulsa foi
+       apagada, e enquanto `avaliacao.mindsummit.com.br` apontar para cá
+       nada pode ser servido nele — nem a home, nem /admin/. */
     if (ehDaPesquisa(url.hostname)) {
-      const decisao = decidirNaPesquisa(url.pathname);
-
-      if (decisao.tipo === 'recusado') {
-        return new Response('Não encontrado.', {
-          status: 404,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-        });
-      }
-
-      if (decisao.tipo === 'pesquisa') {
-        /* A URL do navegador NÃO muda: a pessoa continua vendo o
-           endereço que recebeu, e não um `/avaliacao.html` que ela não
-           pediu. Por isso busca-se a página e devolve-se o conteúdo, em
-           vez de redirecionar.
-
-           E É PRECISO SEGUIR UM REDIRECIONAMENTO AQUI DENTRO. O pipeline
-           de assets serve `avaliacao.html` em `/avaliacao` e responde
-           307 para o caminho com extensão (`html_handling`). Repassar
-           esse 307 mandava o navegador para `/avaliacao`, que voltava
-           por este mesmo caminho e recebia outro 307 — laço, e a página
-           nunca aparecia. Foi o que aconteceu no primeiro deploy. */
-        const pagina = new URL(PAGINA_DA_PESQUISA, url.origin);
-        let resposta = await env.ASSETS.fetch(new Request(pagina, request));
-
-        const destino = resposta.headers.get('Location');
-        if (resposta.status >= 300 && resposta.status < 400 && destino) {
-          /* Uma vez só, e sempre na nossa origem: seguir cegamente o que
-             vier no cabeçalho seria deixar o destino ser escolhido por
-             outro. */
-          const seguinte = new URL(destino, url.origin);
-          seguinte.protocol = url.protocol;
-          seguinte.host = url.host;
-          resposta = await env.ASSETS.fetch(new Request(seguinte, request));
-        }
-
-        return new Response(resposta.body, {
-          status: resposta.status,
-          headers: resposta.headers,
-        });
-      }
-
-      return env.ASSETS.fetch(request);
+      return new Response('Não encontrado.', {
+        status: 404,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
     }
 
     if (request.method === 'GET' && /^\/c\/[0-9a-f-]{36}$/i.test(url.pathname)) {
@@ -111,7 +71,7 @@ export default {
 
     /* O FALLBACK DE SPA É SÓ DO PAINEL, e agora isso precisa estar
        ESCRITO. Antes quem garantia era o `run_worker_first`, que só
-       chamava o Worker em `/admin`; para o domínio da pesquisa existir,
+       chamava o Worker em `/admin`; para o domínio da pesquisa ser travado,
        o Worker passou a ser a porta de tudo — e sem esta linha
        `/qualquer-coisa` no chat passaria a devolver o painel em vez de
        404, que é exatamente o que o comentário do wrangler prometia

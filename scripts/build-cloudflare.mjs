@@ -37,9 +37,6 @@ const BUILD_ADMIN = join(RAIZ, 'admin', 'dist');
 const DO_CHAT = [
   /* Central do Evento — a home */
   'index.html',
-  /* A pesquisa sozinha, servida em avaliacao.mindsummit.com.br. O Worker
-     decide pelo Host; aqui ela só precisa existir no disco. */
-  'avaliacao.html',
   'styles.css',
   'app.js',
   /* Importado por `app.js` no topo. Sem ele o módulo inteiro não

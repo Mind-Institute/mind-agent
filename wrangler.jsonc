@@ -42,11 +42,11 @@
 
     // O WORKER É A PORTA DE TUDO, e não só do painel. Antes era só
     // "/admin", "/admin/*" e "/c/*"; ampliou por causa do domínio
-    // avaliacao.mindsummit.com.br, que aponta para este mesmo Worker e
-    // precisa servir SÓ a pesquisa. Essa decisão depende de olhar o
-    // Host, e o pipeline de assets não olha: sem passar pelo Worker, a
-    // raiz daquele domínio é servida direto e entrega o app inteiro —
-    // conferido, era o que acontecia.
+    // avaliacao.mindsummit.com.br, que aponta para este mesmo Worker. A
+    // pesquisa avulsa que ele servia foi apagada, e o Worker devolve 404
+    // em tudo naquele domínio. Essa trava depende de olhar o Host, e o
+    // pipeline de assets não olha: sem passar pelo Worker, a raiz daquele
+    // domínio é servida direto e entrega o app inteiro.
     //
     // O QUE ISSO PODIA QUEBRAR, e não quebra: o recorte antigo era o que
     // mantinha o fallback de SPA restrito ao painel — o chat não tem
