@@ -6,6 +6,20 @@
 > Plano e lacunas: `docs/PLANO_RELATORIO_PATROCINADORES.md`.
 
 
+> **Atualização (24/09, 03:30 UTC), pedidos da Adriana na página:**
+> - **Área:** "Outras áreas de negócio" (382) foi quebrada (`intelligence.area_por_cargo`, migration
+>   `20260924030426`). Cargos de áreas existentes voltaram para a área certa; áreas novas: SMS/segurança/ESG,
+>   Serviço público, Administrativo/Secretariado, Relações institucionais; "Liderança sem área informada" (151)
+>   para cargos só com nível ("Diretora", "Gerente"); sobram 46 em "Outras funções".
+> - **Delegações e empresas:** empresas agrupadas pelo domínio de e-mail corporativo + regras de
+>   unidade/sigla (Senac, Sefaz SP, Beiersdorf, Sebrae, USP, PMSP). Resultado: **1.091 empresas** (antes
+>   1.138); Sefaz SP 13, Lubrin 12, Sebrae 7, Motiva 6 passaram a aparecer somadas. Empresas com porte: 590
+>   (+10.000: 83; 5.001–10.000: 22).
+> - **Dimensão, visão 2:** sem as 251 cortesias que não vieram em nenhum dia → 2.110 inscritos, **90%** de
+>   comparecimento (visão 1: 2.361, 80%).
+> - **Satisfação:** NPS adaptado retirado da página; fica a nota média 9/10 (64 avaliações).
+> - **Conteúdo:** 57 sessões (lançamentos fora; abertura e entrevista contadas como palestras), 56,7 h.
+
 > **Atualização (24/09, 02:40 UTC):** porte e setor completados pela Lusha e setores traduzidos para 19
 > setores em português (`intelligence.setor_macro`). Porte agora cobre **62%** dos presentes (HubSpot 790 +
 > Lusha 387); **40%** dos presentes com porte conhecido (sem patrocinadores) estão em empresas com +1.000
