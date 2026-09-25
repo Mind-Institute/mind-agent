@@ -240,6 +240,7 @@ Antes de mergear/publicar:
 - confira o mecanismo real daquele componente;
 - diferencie migration/app/Cloudflare de Edge Function Supabase;
 - confira o `CHECKPOINT_ATUAL.md` para o boundary vigente;
+- em migration com função: `revoke all ... from public, anon, authenticated` e `grant` só para quem chama — função nova já nasce sem EXECUTE para visitante (25/09);
 - depois do deploy, verifique somente o efeito diretamente afetado.
 
 Exigem gate explícito da Adriana antes da execução perigosa:

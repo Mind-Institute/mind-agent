@@ -50,6 +50,21 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   A equipe do Mind está em `pessoas.pessoas.relacionamento_mind` (15 pessoas `staff`, 14 com e-mail
   `@joinmind.com.br` em `engagement.identidades`) — ser staff não dá acesso ao painel; quem dá é
   `mind_admin_users`, por `user_id`.
+- **Permissões de função — EXECUTADO (decisão dela, 25/09).** As 19 funções internas das filas
+  (`silence_*`, `summit_*` de status/contato, `treble_*` de evento/status) e `espelho_para_mind` passaram
+  a ser só do `service_role` (ledger `20260925201217`, arquivo com o mesmo número e md5). Quem as chama
+  é o próprio sistema (chave secreta e os jobs `treble_status_dia`/`treble_status_noite`); nada mais
+  dependia delas, e as chamadas do sistema seguiram em 200 depois da troca. **Função nova nasce sem
+  EXECUTE para PUBLIC** (padrão global do postgres): a migration concede explicitamente a quem chama.
+  Contrato `tests/permissoes_funcoes_contract.sql` → `PERMISSOES_OK`. Abertas de propósito continuam:
+  `mind_origem`, `mind_utm_registrar` e `mind_fusao_decidir` (esta confere admin/aprovador por dentro).
+- **Segredo do espelho de vendas — trocado (25/09).** O par `intelligence.config.vendas_espelho_segredo`
+  (aqui) ↔ `mind_agent_espelho_segredo` (Vault do `mind-summit-vendas-dashboard`) ganhou valor novo,
+  gerado no banco e levado de um projeto ao outro por `pg_net`, sem passar pela conversa; a porta
+  temporária da troca foi apagada. Sessões antigas da conta admin encerradas.
+- **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
+  o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
+  toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
 - **Próximo:** decidir o login com Google (provedor no
   Supabase, app OAuth do Google Workspace e como liberar a equipe por e-mail) · D2 da casa das ofertas.
 
