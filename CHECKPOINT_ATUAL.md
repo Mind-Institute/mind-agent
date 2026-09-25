@@ -56,8 +56,12 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   é o próprio sistema (chave secreta e os jobs `treble_status_dia`/`treble_status_noite`); nada mais
   dependia delas, e as chamadas do sistema seguiram em 200 depois da troca. **Função nova nasce sem
   EXECUTE para PUBLIC** (padrão global do postgres): a migration concede explicitamente a quem chama.
-  Contrato `tests/permissoes_funcoes_contract.sql` → `PERMISSOES_OK`. Abertas de propósito continuam:
-  `mind_origem`, `mind_utm_registrar` e `mind_fusao_decidir` (esta confere admin/aprovador por dentro).
+  Contrato `tests/permissoes_funcoes_contract.sql` → `PERMISSOES_OK`. Pedido dela, na sequência: as duas
+  portas do site, `mind_origem` e `mind_utm_registrar`, também fecharam (ledger `20260925212628`; sem uso:
+  `engagement.utm_sessoes` parou em 22/08). Aberta de propósito ficou só `mind_fusao_decidir`, que confere
+  admin/aprovador por dentro. No `mind-summit-vendas-dashboard` (fora deste git), as 4 funções do espelho
+  de lá (`espelho_blinket_*` e `espelho_cupons_*`, fire e load) passaram a ser só do sistema (ledger de lá
+  `20260925212819`); os jobs delas rodam como o dono e seguem iguais.
 - **Segredo do espelho de vendas — trocado (25/09).** O par `intelligence.config.vendas_espelho_segredo`
   (aqui) ↔ `mind_agent_espelho_segredo` (Vault do `mind-summit-vendas-dashboard`) ganhou valor novo,
   gerado no banco e levado de um projeto ao outro por `pg_net`, sem passar pela conversa; a porta

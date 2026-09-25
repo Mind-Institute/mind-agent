@@ -1,6 +1,7 @@
 -- Contrato: funções internas só do service_role, e função nova nasce fechada.
 --
--- Migration: supabase/migrations/*_funcoes_internas_so_service_role.sql.
+-- Migrations: supabase/migrations/*_funcoes_internas_so_service_role.sql e
+-- *_portas_do_site_so_service_role.sql.
 -- Roda numa transação e termina em rollback: as funções de teste somem junto.
 -- Sucesso é o erro `PERMISSOES_OK: ...`; qualquer outro erro é quebra.
 
@@ -41,6 +42,27 @@ begin
     raise exception 'esperava as 19 funcoes internas, achei %', v_n;
   end if;
 
+  -- 1b. As duas portas do site, fechadas a pedido da Adriana (sem uso desde 22/08).
+  v_n := 0;
+  foreach v_nome in array array['mind_origem', 'mind_utm_registrar'] loop
+    for v_fn in
+      select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = v_nome
+    loop
+      if has_function_privilege('anon', v_fn, 'execute')
+         or has_function_privilege('authenticated', v_fn, 'execute') then
+        raise exception 'ABERTA: public.% executa para visitante', v_nome;
+      end if;
+      if not has_function_privilege('service_role', v_fn, 'execute') then
+        raise exception 'QUEBRADA: service_role perdeu public.%', v_nome;
+      end if;
+      v_n := v_n + 1;
+    end loop;
+  end loop;
+  if v_n <> 2 then
+    raise exception 'esperava as 2 portas do site, achei %', v_n;
+  end if;
+
   -- 2. O espelho deste projeto, quando existe, também é só do sistema.
   for v_fn in
     select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -75,7 +97,7 @@ begin
     raise exception 'QUEBRADA: grant explicito para anon nao abriu a funcao';
   end if;
 
-  raise exception 'PERMISSOES_OK: 19 funcoes internas so do service_role; espelho fechado; funcao nova nasce fechada em public e api';
+  raise exception 'PERMISSOES_OK: 19 funcoes internas e 2 portas do site so do service_role; espelho fechado; funcao nova nasce fechada em public e api';
 end
 $$;
 
