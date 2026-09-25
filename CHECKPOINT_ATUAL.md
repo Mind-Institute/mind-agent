@@ -6,44 +6,52 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
-### Summit fora de venda · ofertas do Mind no painel do agente · Join no mesmo banco — 25/09/2026
+### Catálogo no painel · Summit fora de venda · Join no mesmo banco — 25/09/2026
 
 Da Adriana (25/09): *"O Summit não tá mais à venda. Pode parar de copiar a cada 30 minutos."* ·
-*"Eu vou matar esses projetos do Summit que estão fora desse banco"* · *"As ofertas do instituto
-precisam ser todas as ofertas do Mind. Vão ser manipuladas a partir de um painel de admin ligado ao
-agente aqui."*
+*"As ofertas do instituto precisam ser todas as ofertas do Mind. Vão ser manipuladas a partir de um
+painel de admin ligado ao agente aqui."* · *"comece a tela de catálogo primeiro"* · *"vou querer editar
+no frontend e essa edição ir para o backend quando eu quiser salvar"* · *"o git deve ser o git do mind
+agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
 
-- **Executado:** job `mindagent-sync-precos` desligado (`active = false`, não apagado). Ledger
-  `20260925181108` (`summit_fora_de_venda_desliga_copia_de_precos`), arquivo no repo com o mesmo número
-  e o mesmo SQL. `summit_2026.offers` e `commercial_rules` ficam congelados. As 3 linhas do Lote 7
-  seguem `ativo`/`publico` como sobra da cópia, mas a janela fechou em 16/09 23h59 e
-  `mind_kit_ofertas` só entrega janela aberta: nada do Summit chega ao agente. A Edge Function
-  `mindagent-sync-precos` continua publicada, sem chamador.
+- **Catálogo no painel — EM PRODUÇÃO no banco e na função; a tela sai no merge.** `/catalogo` no
+  `admin/` lê e edita `catalogo.produtos`. Banco: `mind_admin_read_catalogo` e
+  `mind_admin_mutate_catalogo` (ledger `20260925183716`, arquivo com o mesmo número e md5), só
+  `service_role` executa; papel conferido de novo, versão obrigatória (409 em conflito), antes/depois em
+  `mind_admin_audit` (`resource = 'products'`); `codigo` (chave de 13 tabelas) e `schema_dados` não se
+  editam; nada se cria nem se apaga. Contrato `tests/catalogo_painel_contract.sql` → `CATALOGO_OK`
+  (rodado em produção, sem rastro). Edge Function nova `mindagent-catalogo` **v2 viva = o código do
+  repo**, `verify_jwt = false` (valida a sessão por dentro, como a `mindagent-home`); conferida pelo
+  `pg_net`: `health` 200, sem login 401, origem estranha 403, token falso 401. A tela manda ao banco só
+  o que mudou (a janela de venda guarda segundos). Painel: 218/218 testes, build Cloudflare verde.
+- **Summit fora de venda — executado.** Jobs `mindagent-sync-precos` (30 min, ledger `20260925181108`)
+  e `mindagent-sync-disponibilidade-diaria` (21h, ledger `20260925182409`) desligados, não apagados. As
+  3 linhas do Lote 7 passaram a `ativo = false`, `publico = false`. Nenhuma oferta do Summit ativa.
+- **Projetos do Summit fora deste banco — decisão dela:** `mind-summit-vendas-dashboard` **nunca
+  apagar** (pode virar "mind financeiro"; renomear não quebra nada, este banco usa o ref
+  `tkludhksqcnhhpgqyfqq`) — é a única conta com token válido da Eduzz e a origem do
+  `eduzz-espelho-sync`, por onde entram as vendas do Institute (30 desde 18/09). `app-palestrantes` e
+  `convites-temporario` ficam. O site do Summit fica no ar como está. `mind-summit-propostas`: **deixar
+  inativo, não apagar** — **não pausado ainda**: o site do Summit ainda chama a função `site-lote` dele
+  (10 vezes em 24 h, de um worker Cloudflare) e a `pricing` foi aberta por navegadores; pausar faz essas
+  chamadas falharem. Espera o ok dela.
 - **Decidido (produto):** o painel único é o `admin/` deste repo, servido pelo worker `mind-agent`. O
-  modelo de oferta do Institute (`institute.ofertas`, bônus, bumps, `api.criar_oferta`/`api.salvar_oferta`)
-  vira o de todas as ofertas do Mind. **Onde ele mora** — generalizar `institute.ofertas` por
-  `produto_codigo` ou ocupar `catalogo.ofertas`, hoje vazia — é troca de autoridade: D2 antes de
-  implementar.
-- **Verificado — Join:** `joinmind.com.br` e `mindinstitute` usam este projeto (`ymnmotgglsrxmjmonwjz`
-  em `NEXT_PUBLIC_SUPABASE_URL` nos dois `wrangler.jsonc`). O `/admin` do joinmind (Next.js) está no
-  código publicado, mas não está em uso: a única conta de `seguranca.equipe` (a mesma de
-  `mind_admin_users`) não é a da Adriana e entrou pela última vez em 17/09; nas últimas 24 h só houve
-  acesso sem login (401, robôs); 7 das 9 telas servem o checkout próprio, desligado desde 16/09 (0
-  cupons cadastrados; 11 pedidos, 5 de teste); a última mudança de oferta (21/09) foi SQL direto
-  (`db/048`–`049` do joinmind), não o painel.
-- **Antes de apagar projetos do Summit — o que este banco usa deles:**
-  - `mind-summit-propostas`: só o job acima. **Pode apagar.**
-  - `mind-summit-vendas-dashboard`: **não é só Summit.** É a única conta com token válido da Eduzz e a
-    origem do `eduzz-espelho-sync` (a cada 30 min: `eduzz.vendas`, blinket, credenciamento/Yazo;
-    diário: `receitas` → `vendasdiretas.espelho`). Desde 18/09 entraram por ali 30 vendas do Institute
-    e 0 do Summit. Apagar corta as vendas do Institute neste banco; antes, é preciso um token Eduzz
-    próprio aqui.
-  - `app-palestrantes`, `convites-temporario`: nenhuma referência neste banco nem neste repo.
-  - O site `mindsummit.com.br` é lido todo dia às 21h por `mindagent-sync-disponibilidade-diaria`, e
-    `avaliacao.mindsummit.com.br` aponta para o worker `mind-agent`: tirar o site ou o domínio faz o job
-    falhar e a pesquisa sair do ar.
-- **Próximo:** D2 da casa das ofertas → tela de produtos e ofertas no `admin/` (leitura primeiro) →
-  uma lista de equipe só (gate de acesso).
+  modelo de oferta do Institute vira o de todas as ofertas do Mind; **onde ele mora** (generalizar
+  `institute.ofertas` por `produto_codigo` ou ocupar `catalogo.ofertas`, hoje vazia) é troca de
+  autoridade — D2 antes de implementar. Docs (`CLAUDE.md`, `AGENTS.md`, `PROJECT_STATE.md`, mapa vivo):
+  D2 continua com ela como única aprovadora; a atribuição de execução ao Vinicius saiu.
+- **Verificado — Join:** `joinmind.com.br` e `mindinstitute` usam este projeto (`ymnmotgglsrxmjmonwjz`).
+  O `/admin` do joinmind está no código publicado, mas não está em uso: a única conta da equipe não é a
+  da Adriana (último login 17/09), nas últimas 24 h só houve acesso sem login (401), 7 das 9 telas servem
+  o checkout próprio, desligado desde 16/09, e a última mudança de oferta (21/09) foi SQL direto.
+- **Auditoria de acesso (login com Google — auditar antes, implementar depois):** 4.156 usuários de
+  login, 4.155 anônimos (o app); **uma** conta com e-mail e senha, a única de `mind_admin_users` e de
+  `seguranca.equipe`. Nenhuma identidade Google. A Adriana não tem conta própria neste projeto.
+  A equipe do Mind está em `pessoas.pessoas.relacionamento_mind` (15 pessoas `staff`, 14 com e-mail
+  `@joinmind.com.br` em `engagement.identidades`) — ser staff não dá acesso ao painel; quem dá é
+  `mind_admin_users`, por `user_id`.
+- **Próximo:** ok dela sobre pausar o `mind-summit-propostas` · decidir o login com Google (provedor no
+  Supabase, app OAuth do Google Workspace e como liberar a equipe por e-mail) · D2 da casa das ofertas.
 
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
 

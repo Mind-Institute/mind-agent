@@ -15,6 +15,10 @@ demonstração.**
   `GET /admin/me`, validado no backend.
 - **Reais, em leitura e escrita:** visão geral, evento, programação,
   palestrantes, espaços e temas (temas só em leitura).
+- **Catálogo, real em leitura e edição:** os produtos de `catalogo.produtos`,
+  pela Edge Function `mindagent-catalogo` — a origem de tudo. Salvar manda
+  para o banco só o que mudou; `codigo` e `schema_dados` não se editam; criar
+  e arquivar produto ainda não existem. Ver [Catálogo](#catálogo).
 - **Ainda em memória:** rotas, estandes, ofertas, conteúdo institucional,
   documentos, conversas, perguntas sem resposta, usuários e auditoria.
 
@@ -140,6 +144,7 @@ segunda a partir da primeira, e nunca lê `user_metadata`.
 | `/espacos` · `/espacos/:id` | Espaços |
 | `/rotas` · `/rotas/:id` | Rotas |
 | `/estandes` · `/estandes/:id` | Estandes |
+| `/catalogo` · `/catalogo/:id` | Catálogo de produtos |
 | `/ofertas` · `/ofertas/:id` | Ingressos e ofertas |
 | `/conteudo` · `/conteudo/:id` | Conteúdo da Mind |
 | `/documentos` · `/documentos/:id` | FAQ e documentos |
@@ -301,6 +306,7 @@ Três implementações:
   | `speakers` | HTTP | list, get, create, update, publish, archive |
   | `spaces` | HTTP | list, get, create, update, archive |
   | `themes` | HTTP | list (somente leitura) |
+  | `products` | HTTP, na `mindagent-catalogo` | list, get, update |
   | todos os outros | mock | tudo |
 
   Duas garantias que valem mais que o roteamento em si:
@@ -325,6 +331,31 @@ verificar que o token chega ao header e que o 401 volta para o login.
 
 O nome do recurso (`sessions`, `spaces`, `offers`…) é o mesmo na URL da futura
 Edge Function e na chave do TanStack Query. Um nome, escrito num lugar só.
+
+## Catálogo
+
+`/catalogo` espelha `catalogo.produtos` — um registro por produto do Mind, o
+vocabulário que CRM, conhecimento e agentes referenciam — e edita o que já
+existe.
+
+| Camada | Onde |
+|---|---|
+| Tela | `src/pages/catalogo.tsx` (listagem + drawer de edição) |
+| Regras da tela | `src/lib/catalogo.ts` — fuso de Brasília na janela de venda, e o recorte do que mudou |
+| Contrato | `src/contracts/product.ts` |
+| API | `supabase/functions/mindagent-catalogo` — `GET /admin/products`, `GET`/`PATCH /admin/products/:id` |
+| Banco | `mind_admin_read_catalogo` e `mind_admin_mutate_catalogo` (migration `20260925183716`); contrato em `tests/catalogo_painel_contract.sql` |
+
+Três regras seguram a edição:
+
+- **Só vai para o banco o que mudou.** A janela de venda guarda segundos
+  (`02:59:59`); regravar o formulário inteiro arredondaria o que ninguém tocou e
+  sujaria a auditoria.
+- **`codigo` e `schema_dados` não se editam.** O código é a chave de 13 tabelas
+  de outros schemas. A tela mostra os dois travados, e o banco recusa de novo.
+- **Mesmas garantias das outras escritas:** papel conferido na função e no banco
+  (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
+  diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
 
 ## Dados simulados
 
@@ -378,6 +409,7 @@ Modelo em `.env.example`; copie para `.env.local` e preencha localmente.
 | `VITE_ADMIN_DATA_MODE` | `mock`, `hybrid` (padrão quando há URL) ou `http`. |
 | `VITE_SUPABASE_URL` | Projeto Supabase, para o Auth. Vazio = painel abre sem login. |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publicável (`sb_publishable_…`/anon). Pública por design, depende de RLS. |
+| `VITE_CATALOGO_API_BASE_URL` | Opcional. Raiz da `mindagent-catalogo`; vazia, sai de `VITE_SUPABASE_URL` + `/functions/v1/mindagent-catalogo`. |
 
 **Toda variável `VITE_*` é embutida no bundle e é pública por definição.** Por
 isso só cabem aí URL e chave publicável. `service_role`, secret key e chave de

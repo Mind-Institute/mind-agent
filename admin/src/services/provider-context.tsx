@@ -17,6 +17,12 @@ import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
      é separada. Ausente, avisos e visualização ficam em memória; e em
      modo `http` ela não participa, porque a API do evento não conhece
      essas rotas.
+   - o catálogo fala com a `mindagent-catalogo`, outra função separada.
+     O endereço é `VITE_CATALOGO_API_BASE_URL` quando existe; sem ela, sai
+     do próprio `VITE_SUPABASE_URL` — a função mora no mesmo projeto em
+     que o login já confia, no caminho fixo `/functions/v1/`. Sem nenhum
+     dos dois, o catálogo fica em memória. Como a Home, não participa do
+     modo `http`.
    - com a URL, `VITE_ADMIN_DATA_MODE` escolhe entre `mock`, `hybrid`
      (núcleo do evento na API, módulos de apoio em memória — quais são
      quais está em `RECURSOS_REAIS`) e `http` (tudo na API). Ausente, o
@@ -65,7 +71,28 @@ export function criarProvedorPadrao(opcoes: OpcoesFabrica = {}): AdminDataProvid
       })
     : undefined;
 
-  return new HybridAdminDataProvider(http, new MockAdminDataProvider(), home);
+  const baseCatalogo = enderecoDoCatalogo();
+  const catalogo = baseCatalogo
+    ? new HttpAdminDataProvider({
+        baseUrl: baseCatalogo,
+        obterToken: opcoes.obterToken,
+        chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        aoNaoAutorizado: opcoes.aoNaoAutorizado,
+      })
+    : undefined;
+
+  return new HybridAdminDataProvider(http, new MockAdminDataProvider(), home, catalogo);
+}
+
+/** Onde mora a `mindagent-catalogo`. Ver o cabeçalho deste arquivo. */
+export function enderecoDoCatalogo(
+  explicito = import.meta.env.VITE_CATALOGO_API_BASE_URL,
+  supabaseUrl = import.meta.env.VITE_SUPABASE_URL,
+): string | null {
+  const direto = explicito?.trim();
+  if (direto) return direto.replace(/\/+$/, '');
+  const projeto = supabaseUrl?.trim().replace(/\/+$/, '');
+  return projeto ? `${projeto}/functions/v1/mindagent-catalogo` : null;
 }
 
 const Contexto = createContext<AdminDataProvider | null>(null);
