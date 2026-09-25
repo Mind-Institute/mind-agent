@@ -18,7 +18,14 @@ export interface OpcoesSupabase {
   chavePublicavel: string;
   /** Trocável nos testes; em produção é o `localStorage`. */
   storage?: Storage;
+  /** Para onde o Google devolve a pessoa. Precisa estar nas Redirect URLs do Supabase. */
+  redirecionarPara?: string;
 }
+
+/* Só contas do Workspace da Mind. O `hd` faz o Google mostrar só elas;
+   quem garante é o app de login "Interno" do Workspace e, de novo, o
+   banco (`mind_admin_vincular_login`). */
+const DOMINIO_GOOGLE = 'joinmind.com.br';
 
 /** `Session` do Supabase → o mínimo que o painel usa. */
 function paraSessaoAuth(sessao: Session | null): SessaoAuth | null {
@@ -67,9 +74,11 @@ export function criarPortaSupabase(opcoes: OpcoesSupabase): PortaAutenticacao {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      /* O painel não usa magic link nesta etapa; ler a URL atrás de
-         token só criaria caminho para confusão. */
-      detectSessionInUrl: false,
+      /* A volta do Google traz um `?code=` que só vira sessão com o
+         verificador guardado neste navegador na ida (PKCE). Um código
+         colado de fora não abre nada. Magic link o painel não usa. */
+      flowType: 'pkce',
+      detectSessionInUrl: true,
       storageKey: 'mindagent-admin-auth',
       ...(opcoes.storage ? { storage: opcoes.storage } : {}),
     },
@@ -78,6 +87,10 @@ export function criarPortaSupabase(opcoes: OpcoesSupabase): PortaAutenticacao {
   return {
     async obterSessao() {
       const { data, error } = await cliente.auth.getSession();
+      /* A volta do Google já foi trocada por sessão aqui (`getSession`
+         espera a inicialização). O `code` sai do endereço para não ficar
+         no histórico nem ir junto num print. */
+      limparCodigoDaUrl();
       if (error) throw traduzirErro(error);
       return paraSessaoAuth(data.session);
     },
@@ -99,6 +112,17 @@ export function criarPortaSupabase(opcoes: OpcoesSupabase): PortaAutenticacao {
       return sessao;
     },
 
+    async entrarComGoogle() {
+      const { error } = await cliente.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: opcoes.redirecionarPara,
+          queryParams: { hd: DOMINIO_GOOGLE, prompt: 'select_account' },
+        },
+      });
+      if (error) throw traduzirErro(error);
+    },
+
     async sair() {
       const { error } = await cliente.auth.signOut();
       /* Sessão que já não existe no servidor não é falha de logout:
@@ -112,10 +136,28 @@ export function criarPortaSupabase(opcoes: OpcoesSupabase): PortaAutenticacao {
   };
 }
 
+/** Tira `code`, `error` e `error_description` da barra de endereço, sem recarregar. */
+function limparCodigoDaUrl() {
+  if (typeof window === 'undefined') return;
+  const endereco = new URL(window.location.href);
+  let mudou = false;
+  for (const chave of ['code', 'error', 'error_code', 'error_description']) {
+    if (endereco.searchParams.has(chave)) {
+      endereco.searchParams.delete(chave);
+      mudou = true;
+    }
+  }
+  if (mudou) window.history.replaceState(window.history.state, '', endereco.toString());
+}
+
 /** Cria a porta a partir do ambiente. `null` quando não configurado. */
 export function criarPortaSupabaseDoAmbiente(): PortaAutenticacao | null {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
   const chave = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !chave) return null;
-  return criarPortaSupabase({ url, chavePublicavel: chave });
+  /* O Google devolve para a raiz do painel (`/admin/`), no mesmo
+     endereço em que a pessoa está — produção ou preview. */
+  const redirecionarPara =
+    typeof window === 'undefined' ? undefined : `${window.location.origin}${import.meta.env.BASE_URL}`;
+  return criarPortaSupabase({ url, chavePublicavel: chave, redirecionarPara });
 }

@@ -14,6 +14,9 @@ interface ImportMetaEnv {
   /** Raiz da Edge Function do catálogo (`mindagent-catalogo`). Vazia =
    *  sai de `VITE_SUPABASE_URL`, ver `enderecoDoCatalogo()`. */
   readonly VITE_CATALOGO_API_BASE_URL?: string;
+  /** Raiz da Edge Function `mindagent-acesso` (primeiro login com Google). Sem ela, o endereço
+   *  sai de `VITE_SUPABASE_URL`, ver `enderecoDoAcesso()`. */
+  readonly VITE_ACESSO_API_BASE_URL?: string;
   /** Onde o app do participante é servido, para a prévia das telas.
    *  Vazio em produção = a raiz, que é onde o app vive no mesmo worker. */
   readonly VITE_APP_BASE_URL?: string;

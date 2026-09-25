@@ -410,6 +410,7 @@ Modelo em `.env.example`; copie para `.env.local` e preencha localmente.
 | `VITE_SUPABASE_URL` | Projeto Supabase, para o Auth. Vazio = painel abre sem login. |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publicável (`sb_publishable_…`/anon). Pública por design, depende de RLS. |
 | `VITE_CATALOGO_API_BASE_URL` | Opcional. Raiz da `mindagent-catalogo`; vazia, sai de `VITE_SUPABASE_URL` + `/functions/v1/mindagent-catalogo`. |
+| `VITE_ACESSO_API_BASE_URL` | Opcional. Raiz da `mindagent-acesso` (primeiro login com Google); vazia, sai de `VITE_SUPABASE_URL` + `/functions/v1/mindagent-acesso`. |
 
 **Toda variável `VITE_*` é embutida no bundle e é pública por definição.** Por
 isso só cabem aí URL e chave publicável. `service_role`, secret key e chave de
@@ -509,6 +510,33 @@ frontend se autorizando sozinho.
 O token é renovado sob demanda: `obterToken()` devolve o token atual e, faltando
 menos de 60 segundos para o vencimento, pede um novo ao Supabase — em vez de
 mandar um token morto e derrubar a sessão da pessoa no meio de uma edição.
+
+### Admins do sistema: entrar com o Google da Mind
+
+Decisão da Adriana (25/09/2026): o painel é dos **admins deste sistema**. A lista
+é `mind_admin_users` **por Mind ID** — a pessoa tem que existir antes e estar
+marcada como equipe (`staff` em `pessoas.relacionamento_mind`); a lista nunca
+cria pessoa (migration `20260925232508`, contrato
+`tests/admins_do_sistema_contract.sql` → `ADMINS_OK`).
+
+1. **"Entrar com o Google da Mind"** — `signInWithOAuth` com PKCE e
+   `hd=joinmind.com.br`. O app de login no Google é "Interno" do Workspace: conta
+   de fora nem passa pelo Google.
+2. **A volta** — o `?code=` vira sessão só com o verificador guardado neste
+   navegador na ida, e sai do endereço logo depois.
+3. **Primeiro login** — `/admin/me` ainda não conhece a conta (403). O painel
+   chama uma vez `POST /admin/vincular` na `mindagent-acesso`, e o banco
+   (`mind_admin_vincular_login`) liga a conta à pessoa: Google, e-mail verificado
+   @joinmind.com.br, uma pessoa só com esse e-mail, acesso ativo e marca de
+   equipe. Aí `/admin/me` é chamado de novo. Recusa do banco aparece com a frase
+   dele, sem nova tentativa.
+
+E-mail e senha continuam na tela durante a transição; saem quando todos
+entrarem pelo Google.
+
+Para o Google devolver a pessoa ao painel, o endereço precisa estar em
+**Authentication → URL Configuration → Redirect URLs** do Supabase — produção
+(`…/admin/`) e previews (`https://*-mind-agent.adriana-3eb.workers.dev/admin/**`).
 
 ### Estados tratados
 

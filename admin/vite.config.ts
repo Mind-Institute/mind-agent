@@ -59,6 +59,8 @@ export default defineConfig({
       /* O catálogo deriva o endereço de `VITE_SUPABASE_URL`; zerado acima,
          esta também precisa estar vazia para nenhum teste sair para a rede. */
       VITE_CATALOGO_API_BASE_URL: '',
+      /* O primeiro login com Google também deriva de `VITE_SUPABASE_URL`. */
+      VITE_ACESSO_API_BASE_URL: '',
       /* Sem endereço do app, a prévia das telas mostra o aviso de
          configuração em vez de montar um `iframe` — que no jsdom tentaria
          buscar a página de verdade. */

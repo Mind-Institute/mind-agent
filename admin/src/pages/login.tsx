@@ -92,6 +92,27 @@ export function PaginaLogin() {
           </Alert>
         ) : null}
 
+        {sessao.podeEntrarComGoogle ? (
+          <div className="space-y-2 rounded-lg border bg-card p-5">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={sessao.carregandoLogin}
+              onClick={() => void sessao.entrarComGoogle().catch(() => undefined)}
+            >
+              {sessao.carregandoLogin ? <Salvando /> : <LogIn />}
+              Entrar com o Google da Mind
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Só para admins do sistema, com a conta @joinmind.com.br.
+            </p>
+          </div>
+        ) : null}
+
+        {sessao.podeEntrarComGoogle ? (
+          <p className="text-center text-xs text-muted-foreground">ou, por enquanto, com e-mail e senha</p>
+        ) : null}
+
         <form
           onSubmit={formulario.handleSubmit(enviar)}
           className="space-y-4 rounded-lg border bg-card p-5"

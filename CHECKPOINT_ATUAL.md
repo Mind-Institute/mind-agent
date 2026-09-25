@@ -66,6 +66,27 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   (aqui) ↔ `mind_agent_espelho_segredo` (Vault do `mind-summit-vendas-dashboard`) ganhou valor novo,
   gerado no banco e levado de um projeto ao outro por `pg_net`, sem passar pela conversa; a porta
   temporária da troca foi apagada. Sessões antigas da conta admin encerradas.
+- **Admins do sistema por Mind ID — banco e função no ar; o login Google espera a configuração dela.**
+  Da Adriana (25/09): *"não é backoffice mas admins deste sistema e daí sim podemos fazer por Mind ID e
+  sempre antes de colocar a pessoa ela deve existir como um Mind ID e em Mind ID da equipe tem que poder
+  marcar equipe para não confundir com lead"*; e, antes, *"mesmo banco, porta própria"*.
+  - `mind_admin_users` ganhou `mind_id` (ledger `20260925232508`, arquivo com o mesmo número e md5):
+    a pessoa tem que existir, não pode ser fundida e, com acesso ativo, tem que estar marcada como
+    equipe (`staff` em `relacionamento_mind`, a marca de 23/09). A lista nunca cria pessoa. `user_id`
+    fica vazio até o primeiro login; chave nova `id`. A conta genérica antiga (sem pessoa) vale até o
+    Google entrar e depois sai.
+  - `mind_admin_vincular_login` (só `service_role`) liga a conta no primeiro login: Google, e-mail
+    verificado @joinmind.com.br, uma pessoa só com esse e-mail, acesso ativo e equipe; o login vira
+    identidade pela porta única, sem criar pessoa. Contrato `tests/admins_do_sistema_contract.sql` →
+    `ADMINS_OK` (12 casos, rodado em produção, sem rastro).
+  - A Adriana é a primeira admin, pelo Mind ID. Edge Function nova `mindagent-acesso`
+    (`POST /admin/vincular`), **v1 viva = o código do repo**, conferida pelo `pg_net`. Painel: botão
+    "Entrar com o Google da Mind" (PKCE, `hd=joinmind.com.br`); 403 em `/admin/me` → vincula uma vez
+    → `/admin/me` de novo. Painel 223/223, raiz 419/419, build verde.
+  - **Falta (dela):** app de login "Interno" no Google Workspace; Client ID e Secret colados no
+    provedor Google do Supabase; Redirect URLs do painel (produção e previews). Depois: tirar e-mail e
+    senha do painel, apagar a conta genérica, aposentar `seguranca.equipe` e o admin antigo do Join,
+    endereço próprio do painel e a tela "Admins do sistema" para ela dar e tirar acesso.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
