@@ -34,7 +34,7 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `convites-temporario` ficam. O site do Summit fica no ar como está. `mind-summit-propostas`: **deixar
   inativo, não apagar** — **não pausado ainda**: o site do Summit ainda chama a função `site-lote` dele
   (10 vezes em 24 h, de um worker Cloudflare) e a `pricing` foi aberta por navegadores; pausar faz essas
-  chamadas falharem. Espera o ok dela.
+  chamadas falharem. Decisão dela (25/09): não mexer nele por enquanto.
 - **Decidido (produto):** o painel único é o `admin/` deste repo, servido pelo worker `mind-agent`. O
   modelo de oferta do Institute vira o de todas as ofertas do Mind; **onde ele mora** (generalizar
   `institute.ofertas` por `produto_codigo` ou ocupar `catalogo.ofertas`, hoje vazia) é troca de
@@ -50,7 +50,7 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   A equipe do Mind está em `pessoas.pessoas.relacionamento_mind` (15 pessoas `staff`, 14 com e-mail
   `@joinmind.com.br` em `engagement.identidades`) — ser staff não dá acesso ao painel; quem dá é
   `mind_admin_users`, por `user_id`.
-- **Próximo:** ok dela sobre pausar o `mind-summit-propostas` · decidir o login com Google (provedor no
+- **Próximo:** decidir o login com Google (provedor no
   Supabase, app OAuth do Google Workspace e como liberar a equipe por e-mail) · D2 da casa das ofertas.
 
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
