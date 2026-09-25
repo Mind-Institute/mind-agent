@@ -49,16 +49,12 @@ Dona de produto/negócio e dos gates sensíveis. **Não é gerente de transporte
 Desde **D2** (21/09/2026), é também a **única aprovadora de mudança estrutural de banco**:
 fonte nova, casa nova, mudança de proveniência e o gate do §8 deste documento.
 
-### Vinicius
+Dentro de casa existente e comentada, a mudança de banco segue sem passar pela aprovação dela.
+O que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai a ela
+antes, pela Inbox (§12.11 do `BACKLOG.md`), não por conversa.
 
-**Dono da execução do banco.** Escreve migration, coluna, índice, constraint e backfill.
-
-Dentro de casa existente e comentada, executa sem passar por aprovação. O que muda estrutura
-— tabela nova, schema novo, troca de quem manda no fato — vai à Adriana antes, pela Inbox
-(§12.11 do `BACKLOG.md`), não por conversa. **Ele executa, ela aprova.**
-
-O limite existe para proteger o tempo dela, não para frear ele: a régua separa mudança que
-muda o que o sistema afirma ser verdade de mudança que não muda.
+O limite existe para proteger o tempo dela: a régua separa mudança que muda o que o sistema
+afirma ser verdade de mudança que não muda.
 
 ### ChatGPT arquiteto/supervisor
 
