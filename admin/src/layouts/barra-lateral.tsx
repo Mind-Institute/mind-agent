@@ -18,9 +18,9 @@ export function BarraLateral({ aoNavegar }: { aoNavegar?: () => void }) {
       <div className="mb-3 flex items-center gap-2.5 px-2 py-1">
         <img src={simboloMind} alt="" className="size-7" />
         <div className="leading-tight">
-          <p className="text-sm font-black tracking-tight">Mind Agent</p>
+          <p className="text-sm font-black tracking-tight">Mind Intelligence</p>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Administração
+            Admin
           </p>
         </div>
       </div>

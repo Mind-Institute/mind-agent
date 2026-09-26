@@ -1,9 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router-dom';
 import { AdminLayout } from '@/layouts/admin-layout';
 import { PaginaCatalogo } from '@/pages/catalogo';
-import { PaginaConfiguracoes } from '@/pages/configuracoes';
-import { PaginaAvaliacaoDoDia } from '@/pages/avaliacao-do-dia';
-import { PaginaAvaliacaoDoEvento } from '@/pages/avaliacao-do-evento';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -29,10 +26,6 @@ export const rotasAdmin: RouteObject[] = [
       { path: 'catalogo', element: <PaginaCatalogo /> },
       { path: 'catalogo/:id', element: <PaginaCatalogo /> },
 
-      { path: 'avaliacao-do-dia', element: <PaginaAvaliacaoDoDia /> },
-      { path: 'avaliacao-do-evento', element: <PaginaAvaliacaoDoEvento /> },
-
-      { path: 'configuracoes', element: <PaginaConfiguracoes /> },
 
       { path: '*', element: <PaginaNaoEncontrada /> },
     ],

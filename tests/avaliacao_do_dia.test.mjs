@@ -25,7 +25,6 @@ const migracao = lerFonte(
   new URL('../supabase/migrations/20260916210000_avaliacao_do_dia.sql', import.meta.url));
 const tela = lerFonte(new URL('../avaliacao/avaliacao.js', import.meta.url));
 const servico = lerFonte(new URL('../avaliacao/servico.js', import.meta.url));
-const csv = lerFonte(new URL('../admin/src/features/avaliacao-do-dia/csv.ts', import.meta.url));
 const estilo = lerFonte(new URL('../avaliacao/avaliacao.css', import.meta.url));
 const build = lerFonte(new URL('../scripts/build-cloudflare.mjs', import.meta.url));
 const configApp = lerFonte(new URL('../config.js', import.meta.url));
@@ -546,32 +545,10 @@ test('o módulo entra no build e o CSS não alcança outra tela', () => {
    O CSV DO PAINEL
    ============================================================ */
 
-test('o CSV protege acento, quebra de linha e fórmula', () => {
-  assert.match(csv, /String\.fromCharCode\(0xfeff\)/,
-    'sem BOM o Excel no Windows quebra os acentos');
-  assert.match(csv, /return BOM \+ corpo/);
-  assert.match(csv, /replace\(\/"\/g, '""'\)/, 'aspas internas viram duas, como no RFC 4180');
-  assert.match(csv, /PERIGOSOS = \/\^\[=\+\\-@\\t\\r\]\//,
-    'texto começando com = + - @ tab ou CR é executado como fórmula');
-  assert.match(csv, /`'\$\{texto\}`/);
-  assert.match(csv, /join\(';'\)/);
-});
-
-test('atividade sem avaliação não vira média zero na planilha', () => {
-  const pagina = lerFonte(new URL('../admin/src/pages/avaliacao-do-dia.tsx', import.meta.url));
-  assert.match(pagina, /a\.media === null \? '' : a\.media/);
-  assert.match(pagina, /Sem avaliações/);
-  /* Média sem amostra ao lado mente por omissão. */
-  const kpis = lerFonte(new URL('../admin/src/features/avaliacao-do-dia/kpis.tsx', import.meta.url));
-  assert.match(kpis, /nota\.amostra === 0/);
-  assert.match(kpis, /respostas/);
-});
-
-test('taxa de participação fica de fora enquanto não houver denominador', () => {
-  const pagina = lerFonte(new URL('../admin/src/pages/avaliacao-do-dia.tsx', import.meta.url));
-  assert.ok(!/taxa de participação/i.test(pagina.replace(/\/\*[\s\S]*?\*\//g, '')),
-    'nenhum KPI de participação fora dos comentários');
-});
+/* O relatório da pesquisa saiu do painel em 26/09/2026 (a Adriana tirou
+   Atendimento do Mind Intelligence Admin). Os testes que liam as telas dele
+   — CSV, média sem amostra, taxa de participação — saíram junto; a pesquisa
+   do participante e a Edge seguem cobertas aqui. */
 
 test('o rádio invisível rola junto com o formulário', () => {
   /* O DEFEITO QUE ISTO TRAVA, medido em 16/09 num Chrome de desktop:
