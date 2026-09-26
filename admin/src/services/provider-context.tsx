@@ -5,6 +5,7 @@ import type { AdminDataProvider } from './admin-data-provider';
 import { MockAdminDataProvider } from './mock-admin-data-provider';
 import { HttpAdminDataProvider, type ProvedorDeToken } from './http-admin-data-provider';
 import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
+import { enderecoDoAcesso } from './perfil-admin';
 
 /* ============================================================
    ESCOLHA DA IMPLEMENTAÇÃO
@@ -13,20 +14,17 @@ import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
 
    - sem `VITE_ADMIN_API_BASE_URL` → `mock`, sempre. Sem endereço o
      painel não inventa um.
-   - `VITE_HOME_API_BASE_URL` é a Edge Function do módulo Home V3, que
-     é separada. Ausente, avisos e visualização ficam em memória; e em
-     modo `http` ela não participa, porque a API do evento não conhece
-     essas rotas.
    - o catálogo fala com a `mindagent-catalogo`, outra função separada.
      O endereço é `VITE_CATALOGO_API_BASE_URL` quando existe; sem ela, sai
      do próprio `VITE_SUPABASE_URL` — a função mora no mesmo projeto em
      que o login já confia, no caminho fixo `/functions/v1/`. Sem nenhum
-     dos dois, o catálogo fica em memória. Como a Home, não participa do
-     modo `http`.
+     dos dois, o catálogo fica em memória. Não participa do modo `http`.
+   - os admins do sistema falam com a `mindagent-acesso`, pelo mesmo
+     caminho (`VITE_ACESSO_API_BASE_URL` ou o `VITE_SUPABASE_URL`) — é a
+     função que já liga a conta Google no primeiro login.
    - com a URL, `VITE_ADMIN_DATA_MODE` escolhe entre `mock`, `hybrid`
-     (núcleo do evento na API, módulos de apoio em memória — quais são
-     quais está em `RECURSOS_REAIS`) e `http` (tudo na API). Ausente, o
-     padrão é `hybrid`, o estado desta etapa. */
+     (o catálogo real, na `mindagent-catalogo`) e `http` (tudo na
+     `mindagent-admin`). Ausente, o padrão é `hybrid`, o de produção. */
 
 export type ModoDados = 'mock' | 'http' | 'hybrid';
 
@@ -52,36 +50,30 @@ export function criarProvedorPadrao(opcoes: OpcoesFabrica = {}): AdminDataProvid
   const modo = modoConfigurado();
   if (modo === 'mock' || !base) return new MockAdminDataProvider();
 
-  const http = new HttpAdminDataProvider({
-    baseUrl: base,
-    obterToken: opcoes.obterToken,
-    chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-    aoNaoAutorizado: opcoes.aoNaoAutorizado,
-  });
+  if (modo === 'http') {
+    return new HttpAdminDataProvider({
+      baseUrl: base,
+      obterToken: opcoes.obterToken,
+      chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      aoNaoAutorizado: opcoes.aoNaoAutorizado,
+    });
+  }
 
-  if (modo === 'http') return http;
+  const conectar = (baseUrl: string | null) =>
+    baseUrl
+      ? new HttpAdminDataProvider({
+          baseUrl,
+          obterToken: opcoes.obterToken,
+          chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          aoNaoAutorizado: opcoes.aoNaoAutorizado,
+        })
+      : undefined;
 
-  const baseHome = import.meta.env.VITE_HOME_API_BASE_URL?.trim();
-  const home = baseHome
-    ? new HttpAdminDataProvider({
-        baseUrl: baseHome,
-        obterToken: opcoes.obterToken,
-        chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        aoNaoAutorizado: opcoes.aoNaoAutorizado,
-      })
-    : undefined;
-
-  const baseCatalogo = enderecoDoCatalogo();
-  const catalogo = baseCatalogo
-    ? new HttpAdminDataProvider({
-        baseUrl: baseCatalogo,
-        obterToken: opcoes.obterToken,
-        chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        aoNaoAutorizado: opcoes.aoNaoAutorizado,
-      })
-    : undefined;
-
-  return new HybridAdminDataProvider(http, new MockAdminDataProvider(), home, catalogo);
+  return new HybridAdminDataProvider(
+    new MockAdminDataProvider(),
+    conectar(enderecoDoCatalogo()),
+    conectar(enderecoDoAcesso()),
+  );
 }
 
 /** Onde mora a `mindagent-catalogo`. Ver o cabeçalho deste arquivo. */

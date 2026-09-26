@@ -56,6 +56,13 @@ export const produtoCatalogoSchema = registroBaseSchema.extend({
   periodo: z.string().nullable().default(null),
   schemaDados: z.string().nullable().default(null),
   pipelinesHubspot: z.array(z.string()).default([]),
+  /* No Institute, as datas que valem são as da turma (`institute.programas`):
+     quando o produto tem turma, `comecaEm`/`encerraEm` já vêm dela e não se
+     editam por aqui. Nulo = o produto não tem turma; as datas são as dele. */
+  datasDaTurma: z
+    .object({ programa: z.string(), inicioPrevisto: z.boolean() })
+    .nullable()
+    .default(null),
 });
 export type ProdutoCatalogo = z.infer<typeof produtoCatalogoSchema>;
 

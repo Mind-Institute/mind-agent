@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
 import { produtoCatalogoFormSchema, type ProdutoCatalogo, type ProdutoCatalogoForm } from '@/contracts';
@@ -54,6 +54,32 @@ import {
 
 const ID_FORM = 'form-produto';
 
+/* Ativo e Vende são duas perguntas diferentes sobre cada produto — o texto
+   é o que a Adriana pediu na tela (26/09/2026). Conferido no banco:
+   "vendável agora" é `ativo and vende` (`mind_produto_da_rota_status`), o
+   kit do agente só lista quem vende e o CRM comercial só olha os
+   pipelines de produto ativo que vende (`mind_crm_comercial`). */
+const EXPLICACAO_ATIVO =
+  'O produto existe hoje no vocabulário do Mind: os agentes falam dele, o CRM registra negócios com ele e a base de conhecimento está ligada a ele. Inativo é o que ficou para trás, como as edições de 2025, e fica guardado por causa do histórico de vendas e do NPS.';
+const EXPLICACAO_VENDE =
+  'Dá para comprar agora. O agente só oferece compra quando os dois estão ligados — "vendável agora" é ativo e vende —, e o CRM comercial também só olha os pipelines desses produtos.';
+
+function AtivoEVende() {
+  return (
+    <div
+      className="grid gap-3 rounded-lg border bg-muted/30 p-4 text-sm sm:grid-cols-2"
+      data-testid="explicacao-ativo-vende"
+    >
+      <p>
+        <strong>Ativo</strong> — {EXPLICACAO_ATIVO}
+      </p>
+      <p>
+        <strong>Vende</strong> — {EXPLICACAO_VENDE}
+      </p>
+    </div>
+  );
+}
+
 /* Radix não aceita item de valor vazio; "sem vertical" usa este. */
 const SEM_VERTICAL = '__sem_vertical__';
 
@@ -96,6 +122,8 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
   const { errors } = formulario.formState;
   const podeEditar = sessao.pode('editar');
   const vertical = formulario.watch('vertical');
+  /* Produto do Institute com turma: as datas vêm dela e ficam travadas. */
+  const turma = registro?.datasDaTurma ?? null;
 
   return (
     <>
@@ -229,13 +257,16 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
               </Campo>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center gap-3">
-                  <Switch
-                    id="produto-ativo"
-                    checked={formulario.watch('ativo')}
-                    onCheckedChange={(v) => formulario.setValue('ativo', v, { shouldDirty: true })}
-                  />
-                  <Label htmlFor="produto-ativo">Produto ativo</Label>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="produto-ativo"
+                      checked={formulario.watch('ativo')}
+                      onCheckedChange={(v) => formulario.setValue('ativo', v, { shouldDirty: true })}
+                    />
+                    <Label htmlFor="produto-ativo">Produto ativo</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{EXPLICACAO_ATIVO}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
@@ -246,9 +277,7 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
                     />
                     <Label htmlFor="produto-vende">Está à venda</Label>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Desligado, o agente não oferece checkout deste produto.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{EXPLICACAO_VENDE}</p>
                 </div>
               </div>
 
@@ -269,22 +298,35 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
                 </Campo>
               </div>
 
-              {vertical === 'institute' ? (
-                <Alert variant="atencao">
-                  <AlertTriangle />
+              {turma ? (
+                <Alert variant="info" data-testid="datas-da-turma">
+                  <Lock />
                   <AlertDescription>
-                    No Institute, as datas que valem são as da turma, em{' '}
-                    <code className="font-mono">institute.programas</code>. As datas abaixo são uma
-                    cópia.
+                    Estas datas vêm da turma <code className="font-mono">{turma.programa}</code>, em{' '}
+                    <code className="font-mono">institute.programas</code> — é de lá que o site, o
+                    checkout e os agentes leem. Aqui elas só aparecem; mudam na turma.
+                    {turma.inicioPrevisto ? ' O início ainda é previsão.' : ''}
                   </AlertDescription>
                 </Alert>
               ) : null}
               <div className="grid gap-4 sm:grid-cols-3">
-                <Campo rotulo="Começa em" erro={errors.comecaEm?.message} dica="Quando acontece.">
-                  {(p) => <Input type="date" {...p} {...formulario.register('comecaEm')} />}
+                <Campo
+                  rotulo="Começa em"
+                  erro={errors.comecaEm?.message}
+                  dica={turma ? 'Da turma. Não se edita aqui.' : 'Quando acontece.'}
+                >
+                  {(p) => (
+                    <Input type="date" {...p} {...formulario.register('comecaEm')} disabled={Boolean(turma)} />
+                  )}
                 </Campo>
-                <Campo rotulo="Encerra em" erro={errors.encerraEm?.message}>
-                  {(p) => <Input type="date" {...p} {...formulario.register('encerraEm')} />}
+                <Campo
+                  rotulo="Encerra em"
+                  erro={errors.encerraEm?.message}
+                  dica={turma ? 'Da turma. Não se edita aqui.' : undefined}
+                >
+                  {(p) => (
+                    <Input type="date" {...p} {...formulario.register('encerraEm')} disabled={Boolean(turma)} />
+                  )}
                 </Campo>
                 <Campo rotulo="Período" erro={errors.periodo?.message} dica="Em texto: outubro de 2025.">
                   {(p) => <Input {...p} {...formulario.register('periodo')} />}
@@ -333,11 +375,14 @@ function JanelaDeVenda({ p }: { p: ProdutoCatalogo }) {
 export function PaginaCatalogo() {
   const { id } = useParams();
   const navegar = useNavigate();
+  /* Fechar o drawer volta à lista como estava: busca, filtros, página e ordem. */
+  const { search } = useLocation();
 
   const colunas: Coluna<ProdutoCatalogo>[] = [
     {
       chave: 'produto',
       cabecalho: 'Produto',
+      ordenarPor: 'nome',
       celula: (p) => (
         <div className="min-w-56">
           <p className="font-semibold">{p.nome}</p>
@@ -348,6 +393,7 @@ export function PaginaCatalogo() {
     {
       chave: 'vertical',
       cabecalho: 'Vertical',
+      ordenarPor: 'vertical',
       celula: (p) =>
         p.vertical ? (
           <SeloCategoria rotulo={rotuloVerticalProduto(p.vertical)} />
@@ -358,24 +404,30 @@ export function PaginaCatalogo() {
     {
       chave: 'tipo',
       cabecalho: 'Tipo',
+      ordenarPor: 'tipo',
       celula: (p) => <SeloCategoria rotulo={rotuloTipoProduto(p.tipo)} variante="secondary" />,
     },
-    { chave: 'ativo', cabecalho: 'Situação', celula: (p) => <SeloAtivo ativo={p.ativo} /> },
+    { chave: 'ativo', cabecalho: 'Situação', ordenarPor: 'ativo', celula: (p) => <SeloAtivo ativo={p.ativo} /> },
     {
       chave: 'vende',
       cabecalho: 'Venda',
+      ordenarPor: 'vende',
       celula: (p) =>
         p.vende ? <Badge variant="sucesso">à venda</Badge> : <Badge variant="neutro">não vende</Badge>,
     },
     {
       chave: 'janela',
       cabecalho: 'Janela de venda',
+      /* Pela data em que sai de venda: é a que quase todo produto com
+         janela tem preenchida. */
+      ordenarPor: 'vendeAte',
       className: 'whitespace-nowrap tabular',
       celula: (p) => <JanelaDeVenda p={p} />,
     },
     {
       chave: 'acontece',
       cabecalho: 'Acontece',
+      ordenarPor: 'comecaEm',
       className: 'whitespace-nowrap tabular',
       celula: (p) =>
         p.comecaEm || p.encerraEm ? (
@@ -428,6 +480,7 @@ export function PaginaCatalogo() {
             ],
           },
         ]}
+        antesDaTabela={() => <AtivoEVende />}
         estadoVazio={
           <EstadoVazio
             titulo="Nenhum produto no recorte"
@@ -436,7 +489,7 @@ export function PaginaCatalogo() {
         }
       />
 
-      <DrawerProduto id={id} aoFechar={() => navegar('/catalogo')} />
+      <DrawerProduto id={id} aoFechar={() => navegar({ pathname: '/catalogo', search })} />
     </>
   );
 }

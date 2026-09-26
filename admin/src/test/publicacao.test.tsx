@@ -23,9 +23,16 @@ import { renderizarPainel } from './utils';
 
 describe('rotas sob /admin (basename)', () => {
   it('monta a página no deep link, com o prefixo de produção', async () => {
-    renderizarPainel({ rota: '/admin/programacao', basename: '/admin' });
+    renderizarPainel({ rota: '/admin/catalogo/prd_dash', basename: '/admin' });
 
-    expect(await screen.findByRole('heading', { name: 'Programação', level: 1 })).toBeVisible();
+    /* O drawer do produto abre por cima da listagem: o endereço chegou inteiro. */
+    expect(await screen.findByDisplayValue('Mind Dash')).toBeVisible();
+  });
+
+  it('a raiz do painel sob /admin abre o Catálogo', async () => {
+    renderizarPainel({ rota: '/admin/', basename: '/admin' });
+
+    expect(await screen.findByRole('heading', { name: 'Catálogo', level: 1 })).toBeVisible();
   });
 
   it('os links do menu levam o prefixo UMA vez, sem /admin/admin', async () => {
@@ -33,27 +40,24 @@ describe('rotas sob /admin (basename)', () => {
 
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    const evento = within(menu).getByRole('link', { name: /^Evento/ });
-    expect(evento).toHaveAttribute('href', '/admin/evento');
+    const catalogo = within(menu).getByRole('link', { name: /^Catálogo/ });
+    expect(catalogo).toHaveAttribute('href', '/admin/catalogo');
 
-    /* A raiz do painel: o React Router normaliza `to="/"` para o próprio
-       basename, com ou sem barra final. As duas formas servem. */
-    const visaoGeral = within(menu).getByRole('link', { name: /visão geral/i });
-    expect(visaoGeral.getAttribute('href')).toMatch(/^\/admin\/?$/);
-
-    /* O que este teste existe para pegar: prefixo duplicado. */
+    /* O que este teste existe para pegar: prefixo duplicado. Inteiro,
+       segmento a segmento — `/admin/admins` é a tela de admins do sistema,
+       não o prefixo repetido. */
     for (const link of within(menu).getAllByRole('link')) {
-      expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/admin\/admin/);
+      expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/^\/admin\/admin(\/|$)/);
       expect(link.getAttribute('href')).toMatch(/^\/admin(\/|$)/);
     }
   });
 
   it('sem basename as rotas seguem na raiz — é o que as outras suítes usam', async () => {
-    renderizarPainel({ rota: '/programacao' });
+    renderizarPainel({ rota: '/catalogo' });
 
-    expect(await screen.findByRole('heading', { name: 'Programação', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Catálogo', level: 1 })).toBeVisible();
     const menu = screen.getByRole('navigation', { name: /navegação principal/i });
-    expect(within(menu).getByRole('link', { name: /^Evento/ })).toHaveAttribute('href', '/evento');
+    expect(within(menu).getByRole('link', { name: /^Catálogo/ })).toHaveAttribute('href', '/catalogo');
   });
 });
 
@@ -61,7 +65,7 @@ describe('regras de roteamento do Worker', () => {
   it('só entra em /admin e /admin/*', () => {
     expect(ehDoPainel('/admin')).toBe(true);
     expect(ehDoPainel('/admin/')).toBe(true);
-    expect(ehDoPainel('/admin/programacao')).toBe(true);
+    expect(ehDoPainel('/admin/catalogo')).toBe(true);
     expect(ehDoPainel('/admin/assets/index.js')).toBe(true);
 
     /* O chat não passa pelo Worker: 404 dele continua 404. */
@@ -74,7 +78,7 @@ describe('regras de roteamento do Worker', () => {
   it('/admin sem barra redireciona para /admin/', () => {
     expect(decidirAntes('GET', '/admin')).toEqual({ tipo: 'redirecionar', para: '/admin/' });
     expect(decidirAntes('GET', '/admin/')).toEqual({ tipo: 'asset' });
-    expect(decidirAntes('GET', '/admin/evento')).toEqual({ tipo: 'asset' });
+    expect(decidirAntes('GET', '/admin/catalogo')).toEqual({ tipo: 'asset' });
   });
 
   it('distingue pedido de ARQUIVO de navegação', () => {
@@ -87,15 +91,15 @@ describe('regras de roteamento do Worker', () => {
 
     /* Navegação: sem extensão. */
     expect(pedeArquivo('/admin/')).toBe(false);
-    expect(pedeArquivo('/admin/programacao')).toBe(false);
-    expect(pedeArquivo('/admin/programacao/ses_123')).toBe(false);
-    expect(pedeArquivo('/admin/configuracoes')).toBe(false);
+    expect(pedeArquivo('/admin/catalogo')).toBe(false);
+    expect(pedeArquivo('/admin/catalogo/prd_123')).toBe(false);
+    expect(pedeArquivo('/admin/catalogo')).toBe(false);
 
     expect(DIRETORIO_ASSETS).toBe('/admin/assets/');
   });
 
   it('404 de navegação cai no index do painel', () => {
-    for (const caminho of ['/admin/', '/admin/programacao', '/admin/evento', '/admin/palestrantes/pal_1']) {
+    for (const caminho of ['/admin/', '/admin/catalogo', '/admin/catalogo', '/admin/catalogo/prd_dash']) {
       expect(decidirApos404('GET', caminho), caminho).toEqual({ tipo: 'indice' });
     }
     expect(INDICE_PAINEL).toBe('/admin/index.html');
@@ -113,8 +117,8 @@ describe('regras de roteamento do Worker', () => {
   });
 
   it('método que não é navegação não recebe fallback', () => {
-    expect(decidirApos404('POST', '/admin/programacao')).toEqual({ tipo: 'asset' });
-    expect(decidirApos404('DELETE', '/admin/evento')).toEqual({ tipo: 'asset' });
-    expect(decidirApos404('HEAD', '/admin/evento')).toEqual({ tipo: 'indice' });
+    expect(decidirApos404('POST', '/admin/catalogo')).toEqual({ tipo: 'asset' });
+    expect(decidirApos404('DELETE', '/admin/catalogo')).toEqual({ tipo: 'asset' });
+    expect(decidirApos404('HEAD', '/admin/catalogo')).toEqual({ tipo: 'indice' });
   });
 });

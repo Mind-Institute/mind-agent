@@ -1,12 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ListFilters,
   ListResult,
   MapaRecursos,
   NomeRecurso,
   OpcoesEscrita,
-  ReciboReindexacao,
-  ResumoPainel,
 } from '@/contracts';
 import { chaves } from '@/services/query-keys';
 import { useAdminData } from '@/services/provider-context';
@@ -15,19 +13,7 @@ import { useAdminData } from '@/services/provider-context';
    ACESSO A RECURSOS
    ============================================================
    As páginas usam estes hooks e nunca o provedor direto. Cada escrita
-   invalida o recurso inteiro e o dashboard — os números da visão geral
-   saem dos mesmos registros, então precisam cair junto. */
-
-/**
- * Filtro das listas que servem de OPÇÃO num formulário — espaços,
- * palestrantes, temas.
- *
- * Elas precisam vir inteiras. Com a API paginando por padrão, uma lista
- * cortada faria o `Select` não encontrar o valor do registro, e o
- * Radix devolveria vazio ao formulário: salvar apagaria o espaço da
- * sessão sem ninguém pedir.
- */
-export const TODAS_AS_OPCOES = { porPagina: 500 } as const;
+   invalida o recurso inteiro: todas as listas filtradas caem junto. */
 
 export function useLista<K extends NomeRecurso>(
   recurso: K,
@@ -40,6 +26,10 @@ export function useLista<K extends NomeRecurso>(
     queryFn: () => provedor.list(recurso, filtros),
     enabled: opcoes.enabled ?? true,
     retry: false,
+    /* Trocar ordem, filtro ou página mantém a lista anterior na tela até a
+       nova chegar: a tabela não pisca e o cabeçalho clicado não perde o
+       foco — pelo teclado, o segundo Enter continua o ciclo da ordem. */
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -57,21 +47,10 @@ export function useItem<K extends NomeRecurso>(
   });
 }
 
-export function useResumoPainel() {
-  const provedor = useAdminData();
-  return useQuery<ResumoPainel>({
-    queryKey: chaves.dashboard(),
-    queryFn: () => provedor.getDashboard(),
-    retry: false,
-  });
-}
-
 function useInvalidar(recurso: NomeRecurso) {
   const cliente = useQueryClient();
   return () => {
     void cliente.invalidateQueries({ queryKey: chaves.recurso(recurso) });
-    void cliente.invalidateQueries({ queryKey: chaves.dashboard() });
-    void cliente.invalidateQueries({ queryKey: chaves.recurso('audit') });
   };
 }
 
@@ -113,15 +92,6 @@ export function useArquivar<K extends NomeRecurso>(recurso: K) {
   return useMutation({
     mutationFn: (args: { id: string; opcoes?: OpcoesEscrita }) =>
       provedor.archive(recurso, args.id, args.opcoes),
-    onSuccess: invalidar,
-  });
-}
-
-export function useReindexar() {
-  const provedor = useAdminData();
-  const invalidar = useInvalidar('documents');
-  return useMutation<ReciboReindexacao, unknown, string>({
-    mutationFn: (documentoId: string) => provedor.requestReindex(documentoId),
     onSuccess: invalidar,
   });
 }

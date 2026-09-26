@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import {
   AdminApiError,
-  espacoSchema,
-  eventoSchema,
-  palestranteSchema,
+  adminSistemaSchema,
   produtoCatalogoSchema,
-  sessaoSchema,
-  temaSchema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -37,12 +33,8 @@ import {
 
 /** Recursos servidos pela API real. Os demais passam sem validação. */
 const SCHEMAS = {
-  event: eventoSchema,
-  sessions: sessaoSchema,
-  speakers: palestranteSchema,
-  spaces: espacoSchema,
-  themes: temaSchema,
   products: produtoCatalogoSchema,
+  admins: adminSistemaSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

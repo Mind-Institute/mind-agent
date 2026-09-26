@@ -104,6 +104,60 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   inteligência da empresa de modo geral"* · *"eu prefiro construir do que você assumir o que eu quero"*.
   O painel atual nasceu como admin do app do Summit; o que entra no admin da empresa sai dela, sem
   proposta pronta.
+- **O painel mostra só dado real (26/09, pedidos dela).** *"aqui estamos fazendo o painel de controle
+  da inteligência do Mind"*. Saíram do código do painel, em dois passos: primeiro o que era do app — a
+  **Home V3** (*"isso é sobre o app"*), o grupo **Evento** (evento, programação, palestrantes, espaços,
+  rotas, estandes) e a **visão geral**; depois, *"limpa tudo que não for dado real"* — **ofertas,
+  conteúdo, documentos, conversas, perguntas, usuários e auditoria**, que eram demonstração. Com eles
+  saiu a camada de dados que só os servia (tipos, sementes, dashboard, reindexação, rotas do evento no
+  provedor híbrido). Ficaram: **Catálogo** (real, `mindagent-catalogo`), **Avaliação do dia** e **do
+  evento** (reais, `mindagent-avaliacao`, leitura) e **Configurações**; a raiz abre no Catálogo, por
+  escolha dela, até ela definir a tela inicial. O mock ficou só como arnês de teste e do preview (sem
+  variáveis do Supabase), com a semente do catálogo; em produção o selo do topo diz *dados reais*.
+  Backend intocado: `mindagent-admin` (porta de `/admin/me`, e ainda serve as rotas do evento a quem
+  usar) e `mindagent-home` (o app lê a home dela) seguem vivas; nenhuma tabela mudou. A variável de build
+  `VITE_HOME_API_BASE_URL`, se existir na Cloudflare, não é mais lida. Painel 141/141, `tsc` limpo,
+  build verde; raiz 426/426. PR [#137](https://github.com/Mind-Institute/mind-agent/pull/137).
+- **Mind Intelligence Admin: menu por vertical e admins do sistema (26/09, pedidos dela).** O painel
+  se chama *Mind Intelligence Admin*. Saíram as **avaliações do dia e do evento**, **Configurações** e o
+  rodapé com a data do Summit (*"tira isso do painel"*). O menu tem o Catálogo, um título por vertical —
+  **Summit, Institute, Dash**, por ora vazios (*"so os titulos depois vamos mapear as principais tabelas
+  neles"*) — e **Administração → Admins do sistema** (*"a visão do quadro do backend onde eu cadastro as
+  pessoas que podem entrar no sistema"*, opção "ver e cadastrar"). Casa existente, `mind_admin_users`,
+  nenhuma tabela nova: portas `mind_admin_read_admins`/`mind_admin_mutate_admins` (ledger
+  `20260926144621` e `20260926144815`, arquivos com o mesmo número e md5; só `service_role`); dar acesso
+  exige pessoa única, não fundida e marcada como equipe no Mind ID; ninguém tira o próprio acesso; nunca
+  fica sem administrador; auditoria em `mind_admin_audit` (`resource = 'admins'`). Contrato
+  `tests/admins_no_painel_contract.sql` → `ADMINS_PAINEL_OK` (15 casos, rodado em produção, sem rastro).
+  `mindagent-acesso` **v3 viva = código do repo**. O Catálogo já salvava no banco (PATCH →
+  `mind_admin_mutate_catalogo` → `catalogo.produtos` + auditoria). Painel 146/146, raiz 433/433, build
+  verde. **Aberto para ela:** marcar equipe no Mind ID ainda não está no painel; aposentar a conta antiga
+  de senha (aparece como *sem Mind ID*); um ou dois workers.
+- **Catálogo ordena por qualquer coluna (26/09, pedido dela).** *"quero poder ordenar os produtos de
+  acordo com as colunas em ordem crescente e decrescente"*. Cabeçalho clicável (crescente → decrescente →
+  ordem do banco), ordem na URL, feita pela `mindagent-catalogo` (`1.1.0`, v4 viva = repo) na lista
+  inteira antes de paginar. De carona, conserto: trocar filtro não voltava à página 1 (duas navegações
+  seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
+  (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
+  dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
+- **Institute: as datas do produto vêm da turma (26/09, pedido dela).** *"produtos do Institute devem
+  carregar a cópia e não deixar editar esses campos quando a fonte da verdade vier de outro lugar"*.
+  Conferido: checkout, ofertas, cupons, kits dos agentes, busca do chat e contexto do WhatsApp leem
+  `institute.programas.inicia_em/encerra_em`; `catalogo.produtos.comeca_em/encerra_em` só o painel lia — e
+  as duas não batem em nenhuma das 6 turmas. Agora `mind_admin_read_catalogo` mostra as datas da turma
+  (`datasDaTurma`) e `mind_admin_mutate_catalogo` recusa editá-las (`datas_da_turma`); ledger
+  `20260926153820`, mesmo md5; contrato `CATALOGO_OK` com os casos novos, sem rastro; `mindagent-catalogo`
+  1.2.0 (v5) com a frase. As colunas do catálogo NÃO foram sobrescritas: **aberto para ela** dizer quais
+  datas estão certas (4 turmas estão "a definir" na turma e com data no catálogo) — depois disso, alinhar
+  os dados e ligar a cópia à turma (gatilho).
+- **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
+  e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
+  (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,
+  saiu da lista a conta antiga de senha (sem Mind ID), com registro em `mind_admin_audit`; a conta de login
+  dela no Auth ficou (sem linha na lista, não entra no painel).
+- **`public.mind_conteudo` apagada (26/09, pedido dela).** Lia `summit.conhecimento`, que não existe mais;
+  conferido antes: nenhuma função, view ou job do banco, nenhuma das 35 Edge Functions publicadas, nenhum
+  código do repo e nenhuma chamada nos logs de 24 h. Ledger `20260926152044`, arquivo com o mesmo número e md5.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.

@@ -1,92 +1,30 @@
-import type { Evento } from './event';
-import type { Sessao } from './session';
-import type { Palestrante } from './speaker';
-import type { Espaco } from './space';
-import type { Rota } from './route';
-import type { Estande } from './booth';
-import type { Oferta } from './offer';
-import type { Conteudo } from './content';
-import type { Documento, Fonte } from './document';
-import type { Conversa } from './conversation';
-import type { PerguntaSemResposta } from './unanswered';
-import type { Usuario } from './user';
-import type { RegistroAuditoria } from './audit';
-import type { Tema } from './theme';
-import type { AvisoHome, EstadoHome, TrocaHome } from './home-v3';
 import type { ProdutoCatalogo } from './product';
+import type { AdminSistema } from './admin-sistema';
 
 /**
- * O nome do recurso é o mesmo na URL da futura Edge Function
- * (`GET /admin/sessions`) e na chave do TanStack Query. Um nome só,
+ * O nome do recurso é o mesmo na URL da Edge Function
+ * (`GET /admin/products`) e na chave do TanStack Query. Um nome só,
  * escrito em um lugar só.
+ *
+ * Só dado real. Decisão da Adriana (26/09/2026): saíram o evento, a Home
+ * V3, a visão geral e os módulos que eram demonstração (ofertas,
+ * conteúdo, documentos, conversas, perguntas, usuários e auditoria).
+ * Ficaram o Catálogo e, pedido dela no mesmo dia, os admins do sistema.
+ * Recurso novo entra aqui quando ela definir o módulo e ele tiver fonte
+ * real.
  */
 export interface MapaRecursos {
-  event: Evento;
-  sessions: Sessao;
-  speakers: Palestrante;
-  spaces: Espaco;
-  routes: Rota;
-  booths: Estande;
-  offers: Oferta;
-  content: Conteudo;
-  documents: Documento;
-  sources: Fonte;
-  conversations: Conversa;
-  unanswered: PerguntaSemResposta;
-  users: Usuario;
-  audit: RegistroAuditoria;
-  themes: Tema;
-  /* Home V3: o que o participante vê agora, e os avisos que ele recebe. */
-  home_state: EstadoHome;
-  home_schedule: TrocaHome;
-  home_notices: AvisoHome;
   /* Catálogo: `catalogo.produtos`, a origem de tudo. */
   products: ProdutoCatalogo;
+  /* Quem entra no painel: `public.mind_admin_users`, pela `mindagent-acesso`. */
+  admins: AdminSistema;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
 
-export const NOMES_RECURSOS: NomeRecurso[] = [
-  'event',
-  'sessions',
-  'speakers',
-  'spaces',
-  'routes',
-  'booths',
-  'offers',
-  'content',
-  'documents',
-  'sources',
-  'conversations',
-  'unanswered',
-  'users',
-  'audit',
-  'themes',
-  'home_state',
-  'home_schedule',
-  'home_notices',
-  'products',
-];
+export const NOMES_RECURSOS: NomeRecurso[] = ['products', 'admins'];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
-  event: 'Evento',
-  sessions: 'Sessão',
-  speakers: 'Palestrante',
-  spaces: 'Espaço',
-  routes: 'Rota',
-  booths: 'Estande',
-  offers: 'Oferta',
-  content: 'Conteúdo',
-  documents: 'Documento',
-  sources: 'Fonte',
-  conversations: 'Conversa',
-  unanswered: 'Pergunta sem resposta',
-  users: 'Usuário',
-  audit: 'Auditoria',
-  themes: 'Tema',
-  home_state: 'Home do participante',
-  home_schedule: 'Troca programada da home',
-  home_notices: 'Aviso',
   products: 'Produto',
+  admins: 'Admin',
 };
-

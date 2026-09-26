@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdminApiError, codigoDoErro, type ProdutoCatalogo } from '@/contracts';
@@ -15,7 +15,7 @@ import { HttpAdminDataProvider } from '@/services/http-admin-data-provider';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 import { enderecoDoCatalogo } from '@/services/provider-context';
 import { produtosSemente } from '@/mocks/seed/catalogo';
-import { CHAVE_FALSA, contarLinhas, criarFetchFalso, lista, renderizarPainel } from './utils';
+import { CHAVE_FALSA, contarLinhas, criarFetchFalso, lista, renderizarHibrido, renderizarPainel } from './utils';
 
 /* O produto como a `mindagent-catalogo` devolve. */
 const DO_BANCO: ProdutoCatalogo = {
@@ -39,6 +39,7 @@ const DO_BANCO: ProdutoCatalogo = {
   periodo: null,
   schemaDados: 'summit_2026',
   pipelinesHubspot: [],
+  datasDaTurma: null,
 };
 
 describe('catálogo — conversão entre banco e formulário', () => {
@@ -82,6 +83,12 @@ describe('catálogo — conversão entre banco e formulário', () => {
       pipelinesHubspot: ['123', '456'],
       vertical: null,
     });
+  });
+
+  it('produto com turma: as datas ficam fora do salvar, mesmo que o formulário mude', () => {
+    const comTurma = { ...DO_BANCO, datasDaTurma: { programa: 'turma-x', inicioPrevisto: false } };
+    const valores = { ...paraFormularioProduto(comTurma), comecaEm: '2030-01-01', nome: 'Outro nome' };
+    expect(payloadDaEdicaoProduto(valores, comTurma)).toEqual({ nome: 'Outro nome' });
   });
 
   it('sem o registro de origem, manda o formulário inteiro', () => {
@@ -139,11 +146,10 @@ describe('catálogo — contrato da resposta', () => {
 
 describe('catálogo — roteamento no modo híbrido', () => {
   function montar(comCatalogo: boolean) {
-    const http = new MockAdminDataProvider({ latenciaMs: 0 });
     const mock = new MockAdminDataProvider({ latenciaMs: 0 });
     const catalogo = new MockAdminDataProvider({ latenciaMs: 0 });
     catalogo.banco.products = [{ ...DO_BANCO, id: 'do-catalogo' }];
-    const hibrido = new HybridAdminDataProvider(http, mock, undefined, comCatalogo ? catalogo : undefined);
+    const hibrido = new HybridAdminDataProvider(mock, comCatalogo ? catalogo : undefined);
     return { hibrido, catalogo, mock };
   }
 
@@ -275,6 +281,47 @@ describe('catálogo — a tela', () => {
     expect(salvo.codigo).toBe('mind-summit-2026');
   });
 
+  it('no Institute, as datas vêm da turma: aparecem travadas e não vão no salvar', async () => {
+    const usuario = userEvent.setup();
+    const { provedor } = renderizarPainel({ rota: '/catalogo/prd_cert_lideranca_2027' });
+
+    const aviso = await screen.findByTestId('datas-da-turma');
+    expect(aviso).toHaveTextContent('certificacao-lideranca-positiva');
+    expect(aviso).toHaveTextContent('O início ainda é previsão.');
+    expect(screen.getByLabelText(/^Começa em/)).toBeDisabled();
+    expect(screen.getByLabelText(/^Encerra em/)).toBeDisabled();
+    expect(screen.getByLabelText(/^Começa em/)).toHaveValue('2027-01-28');
+
+    const espiao = vi.spyOn(provedor, 'update');
+    const curta = screen.getByLabelText(/^Descrição curta/);
+    await usuario.clear(curta);
+    await usuario.type(curta, 'Nova descrição');
+    await usuario.click(screen.getByRole('button', { name: /^Salvar$/ }));
+    await screen.findByText('Salvo');
+    expect(espiao).toHaveBeenCalledWith(
+      'products', 'prd_cert_lideranca_2027', { descricaoCurta: 'Nova descrição' }, expect.anything(),
+    );
+  });
+
+  it('produto sem turma continua com as datas editáveis', async () => {
+    renderizarPainel({ rota: '/catalogo/prd_summit_2026' });
+    const comeca = await screen.findByLabelText(/^Começa em/);
+    await waitFor(() => expect(comeca).toHaveValue('2026-09-16'));
+    expect(comeca).toBeEnabled();
+    expect(screen.queryByTestId('datas-da-turma')).toBeNull();
+  });
+
+  it('explica na tela a diferença entre ativo e vende', async () => {
+    renderizarPainel({ rota: '/catalogo/prd_dash' });
+    const explicacao = await screen.findByTestId('explicacao-ativo-vende');
+    expect(explicacao).toHaveTextContent(/Ativo — O produto existe hoje no vocabulário do Mind/);
+    expect(explicacao).toHaveTextContent(/Vende — Dá para comprar agora/);
+    /* E junto de cada chave, na edição do produto. */
+    const dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).getByText(/fica guardado por causa do histórico de vendas e do NPS/)).toBeVisible();
+    expect(within(dialogo).getByText(/"vendável agora" é ativo e vende/)).toBeVisible();
+  });
+
   it('quem só visualiza vê o produto e não salva', async () => {
     renderizarPainel({ rota: '/catalogo/prd_dash', papel: 'analista' });
     const nome = await screen.findByLabelText(/^Nome/);
@@ -283,5 +330,127 @@ describe('catálogo — a tela', () => {
     const rodape = screen.getByRole('button', { name: /^Salvar$/ });
     expect(rodape).toBeDisabled();
     expect(within(screen.getByRole('dialog')).getByText('mind-dash')).toBeVisible();
+  });
+});
+
+/* Pedido da Adriana (26/09/2026): ordenar os produtos por qualquer coluna,
+   em ordem crescente e decrescente. */
+describe('catálogo — ordenar pelas colunas', () => {
+  function nomesNaTela(container: HTMLElement) {
+    return [...container.querySelectorAll('tbody tr')].map((tr) => tr.querySelector('td p')?.textContent);
+  }
+  const cabecalho = (nome: RegExp) => screen.getByRole('columnheader', { name: nome });
+
+  it('um clique ordena crescente, o segundo decrescente, o terceiro volta à ordem padrão', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    const padrao = nomesNaTela(container);
+    const crescente = [
+      'Certificação Avançada em Liderança Positiva', 'Mind', 'Mind Dash', 'Mind Journey',
+      'Mind Summit 2025', 'Mind Summit 2026',
+    ];
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'none');
+
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(nomesNaTela(container)).toEqual(crescente));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'ascending');
+
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(nomesNaTela(container)).toEqual([...crescente].reverse()));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(nomesNaTela(container)).toEqual(padrao));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('toda coluna do catálogo ordena', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    for (const coluna of ['Produto', 'Vertical', 'Tipo', 'Situação', 'Venda', 'Janela de venda', 'Acontece']) {
+      await usuario.click(within(cabecalho(new RegExp(`^${coluna}`))).getByRole('button'));
+      await waitFor(() => expect(cabecalho(new RegExp(`^${coluna}`)), coluna).toHaveAttribute('aria-sort', 'ascending'));
+    }
+  });
+
+  it('pelo teclado o ciclo continua: o foco fica no cabeçalho', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+
+    within(cabecalho(/^Acontece/)).getByRole('button').focus();
+    await usuario.keyboard('{Enter}');
+    await waitFor(() => expect(cabecalho(/^Acontece/)).toHaveAttribute('aria-sort', 'ascending'));
+    expect(document.activeElement).toBe(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await usuario.keyboard('{Enter}');
+    await waitFor(() => expect(cabecalho(/^Acontece/)).toHaveAttribute('aria-sort', 'descending'));
+  });
+
+  it('abrir um produto e fechar mantém a ordem da lista', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending'));
+    const decrescente = nomesNaTela(container);
+
+    await usuario.click(container.querySelector('tbody tr') as HTMLElement);
+    const dialogo = await screen.findByRole('dialog');
+    expect(nomesNaTela(container)).toEqual(decrescente);
+
+    await usuario.click(within(dialogo).getByRole('button', { name: /^Fechar$/ }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+    expect(nomesNaTela(container)).toEqual(decrescente);
+  });
+
+  it('"Limpar" tira busca e filtros, e a ordem fica', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo?ordenar=-nome&ativo=true' });
+    await waitFor(() => expect(contarLinhas(container)).toBeGreaterThan(0));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+
+    await usuario.click(screen.getByRole('button', { name: /Limpar/ }));
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('a ordem vai para a função do catálogo e volta à página 1', async () => {
+    const usuario = userEvent.setup();
+    const { falso } = renderizarHibrido({
+      rota: '/catalogo?pagina=2',
+      rotas: { '/admin/products': { corpo: lista([DO_BANCO], { total: 120, pagina: 2, porPagina: 50 }) } },
+    });
+    await screen.findByText('Mind Summit 2026');
+    const pedido = () => new URL(falso.ultima('/admin/products')!.url).searchParams;
+    expect(pedido().get('pagina')).toBe('2');
+
+    await usuario.click(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await waitFor(() => expect(pedido().get('ordenar')).toBe('comecaEm'));
+    expect(pedido().get('pagina')).toBe('1');
+
+    await usuario.click(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await waitFor(() => expect(pedido().get('ordenar')).toBe('-comecaEm'));
+
+    await usuario.click(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await waitFor(() => expect(pedido().has('ordenar')).toBe(false));
+  });
+
+  it('trocar um filtro também volta à página 1', async () => {
+    const usuario = userEvent.setup();
+    const { falso } = renderizarHibrido({
+      rota: '/catalogo?pagina=2',
+      rotas: { '/admin/products': { corpo: lista([DO_BANCO], { total: 120, pagina: 2, porPagina: 50 }) } },
+    });
+    await screen.findByText('Mind Summit 2026');
+    const pedido = () => new URL(falso.ultima('/admin/products')!.url).searchParams;
+
+    await usuario.click(screen.getByRole('combobox', { name: 'Situação' }));
+    await usuario.click(await screen.findByRole('option', { name: 'Ativos' }));
+    await waitFor(() => expect(pedido().get('ativo')).toBe('true'));
+    expect(pedido().get('pagina')).toBe('1');
   });
 });

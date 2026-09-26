@@ -28,6 +28,7 @@ function produto(p: Partial<ProdutoCatalogo> & Pick<ProdutoCatalogo, 'id' | 'cod
     encerraEm: null,
     periodo: null,
     schemaDados: null,
+    datasDaTurma: null,
     pipelinesHubspot: [],
     ...p,
   };
@@ -71,6 +72,9 @@ export const produtosSemente: ProdutoCatalogo[] = [
     vertical: 'institute',
     vende: true,
     descricaoCurta: 'Formação executiva do Mind Institute.',
+    comecaEm: '2027-01-28',
+    encerraEm: '2027-03-05',
+    datasDaTurma: { programa: 'certificacao-lideranca-positiva', inicioPrevisto: true },
   }),
   produto({
     id: 'prd_journey_2027',
