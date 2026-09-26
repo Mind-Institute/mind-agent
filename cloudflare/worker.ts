@@ -6,7 +6,7 @@
      /        → Mind Agent, o chat público (estático, sem rota de cliente)
      /admin/  → Painel Admin (SPA com BrowserRouter)
      avaliacao.mindsummit.com.br → só a pesquisa, e nada mais
-     admin.minddash.pro          → só o painel; o endereço antigo leva para lá
+     admin.minddash.pro          → só o painel; nos outros endereços, /admin leva para lá
 
    O Worker atende TODOS os caminhos (`run_worker_first` no
    `wrangler.jsonc`). Era só `/admin` antes; ampliou porque a decisão do
@@ -28,7 +28,7 @@
 import {
   INDICE_PAINEL, PAGINA_DA_PESQUISA,
   decidirAntes, decidirApos404, decidirNaPesquisa, decidirNoHostDoPainel,
-  destinoDoPainelAntigo, ehDaPesquisa, ehDoHostDoPainel, ehDoPainel,
+  destinoDoPainelForaDoDominio, ehDaPesquisa, ehDoHostDoPainel, ehDoPainel,
 } from './roteamento.js';
 
 export interface Env {
@@ -100,9 +100,11 @@ export default {
        Em `admin.minddash.pro` só existe o painel: a raiz e qualquer
        navegação fora de `/admin` levam para `/admin/`, e arquivo que não
        é do painel é 404. O que é do painel segue o fluxo de sempre, logo
-       abaixo. No endereço antigo do worker, o painel manda para cá; o chat
-       fica onde está. Redirecionamento temporário (302) enquanto o domínio
-       novo se firma — trocar para 301 é uma linha. */
+       abaixo. Em qualquer outro endereço deste worker — o do app, o
+       `workers.dev`, um domínio ligado amanhã —, o painel manda para cá e o
+       app fica onde está; só os endereços de teste (previews e máquina local)
+       seguem com o painel no próprio endereço. Redirecionamento temporário
+       (302) enquanto o domínio novo se firma — trocar para 301 é uma linha. */
     if (ehDoHostDoPainel(url.hostname)) {
       const decisao = decidirNoHostDoPainel(url.pathname);
       if (decisao.tipo === 'recusado') {
@@ -116,7 +118,7 @@ export default {
         return Response.redirect(url.toString(), 302);
       }
     } else {
-      const destino = destinoDoPainelAntigo(url.hostname, url.pathname);
+      const destino = destinoDoPainelForaDoDominio(url.hostname, url.pathname);
       if (destino) {
         const alvo = new URL(destino);
         alvo.search = url.search;

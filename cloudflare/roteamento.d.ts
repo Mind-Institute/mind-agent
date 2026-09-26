@@ -12,13 +12,14 @@ export type Decisao =
   | { tipo: 'indice' };
 
 export declare const HOST_DO_PAINEL: 'admin.minddash.pro';
-export declare const HOST_ANTIGO_DO_PAINEL: 'mind-agent.adriana-3eb.workers.dev';
+export declare const HOST_DO_WORKER: 'mind-agent.adriana-3eb.workers.dev';
 
 export declare function ehDoHostDoPainel(hostname: string | null | undefined): boolean;
 export declare function decidirNoHostDoPainel(
   pathname: string,
 ): { tipo: 'painel' } | { tipo: 'redirecionar'; para: string } | { tipo: 'recusado' };
-export declare function destinoDoPainelAntigo(
+export declare function ehEnderecoDeTeste(hostname: string | null | undefined): boolean;
+export declare function destinoDoPainelForaDoDominio(
   hostname: string | null | undefined,
   pathname: string,
 ): string | null;

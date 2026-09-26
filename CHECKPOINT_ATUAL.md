@@ -89,9 +89,14 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
     endereço próprio do painel e a tela "Admins do sistema" para ela dar e tirar acesso.
 - **Painel em `admin.minddash.pro` (pedido dela, 26/09).** O domínio foi ligado por ela ao worker
   `mind-agent` pelo painel da Cloudflare. O mesmo worker separa por endereço: ali só o painel (raiz e
-  navegação levam a `/admin/`, arquivo do app público é 404); o `/admin` do endereço antigo do worker
-  leva para lá (302); previews continuam no próprio endereço. Regras em `cloudflare/roteamento.js`,
-  teste `tests/roteamento_painel.test.mjs`. **Falta (dela):** secret `ADMIN_ALLOWED_ORIGINS =
+  navegação levam a `/admin/`, arquivo do app público é 404); o `/admin` de **qualquer outro endereço**
+  do worker — o `workers.dev`, o domínio do app, um domínio ligado depois — leva para lá (302); só os
+  endereços de teste (previews e máquina local) seguem com o painel no próprio endereço. Pedido dela:
+  *"duas coisas diferentes em dois endereços distintos"*. Regras em `cloudflare/roteamento.js`, teste
+  `tests/roteamento_painel.test.mjs`. `avaliacao.mindsummit.com.br` foi desligado do worker por ela
+  (26/09, *"não vou usar ele aqui"*): a regra da pesquisa no Worker fica parada, sem efeito. **Aberto
+  (dela):** um worker ou dois. Código do app na raiz, do painel em `admin/` (não importa nada de
+  fora); separar depois muda só o worker atrás do endereço — Supabase e Google não se refazem. **Falta (dela):** secret `ADMIN_ALLOWED_ORIGINS =
   https://admin.minddash.pro` nas Edge Functions (hoje as quatro do painel recusam a origem nova) e a
   Redirect URL `https://admin.minddash.pro/admin/` no Auth. Previews montam sem as variáveis de build do
   Supabase e abrem em demonstração: o teste de login é em produção.

@@ -2,17 +2,19 @@
    O DOMÍNIO DO PAINEL — `admin.minddash.pro`
    ============================================================
    Pedido da Adriana (26/09/2026): o painel abre em admin.minddash.pro,
-   que aponta para o mesmo Worker do app. A promessa é dupla: ali só existe
-   o painel, e o app público nunca roda naquela origem. Promessa negativa
-   apodrece calada — daí o teste.
+   que aponta para o mesmo Worker do app, e app e painel são duas coisas em
+   dois endereços. A promessa é dupla: ali só existe o painel, e em nenhum
+   outro endereço de produção o painel roda. Promessa negativa apodrece
+   calada — daí o teste.
 */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lerFonte } from './helpers/ler-fonte.mjs';
 import {
-  HOST_ANTIGO_DO_PAINEL, HOST_DO_PAINEL, HOST_DA_PESQUISA,
-  decidirNoHostDoPainel, destinoDoPainelAntigo, ehDaPesquisa, ehDoHostDoPainel,
+  HOST_DO_WORKER, HOST_DO_PAINEL, HOST_DA_PESQUISA,
+  decidirNoHostDoPainel, destinoDoPainelForaDoDominio, ehDaPesquisa, ehDoHostDoPainel,
+  ehEnderecoDeTeste,
 } from '../cloudflare/roteamento.js';
 
 const worker = lerFonte(new URL('../cloudflare/worker.ts', import.meta.url));
@@ -20,7 +22,7 @@ const worker = lerFonte(new URL('../cloudflare/worker.ts', import.meta.url));
 test('reconhece o domínio do painel, e só ele', () => {
   assert.equal(ehDoHostDoPainel(HOST_DO_PAINEL), true);
   assert.equal(ehDoHostDoPainel(HOST_DO_PAINEL.toUpperCase()), true);
-  for (const outro of [HOST_ANTIGO_DO_PAINEL, 'minddash.pro', 'admin.minddash.pro.evil.com',
+  for (const outro of [HOST_DO_WORKER, 'minddash.pro', 'admin.minddash.pro.evil.com',
                        'x-admin.minddash.pro', HOST_DA_PESQUISA, 'localhost', '', null]) {
     assert.equal(ehDoHostDoPainel(outro), false, `${outro} não é o domínio do painel`);
   }
@@ -47,15 +49,31 @@ test('NÃO entrega o app público nem a pesquisa', () => {
   }
 });
 
-test('o endereço antigo leva o painel para o domínio novo; o chat fica', () => {
-  assert.equal(destinoDoPainelAntigo(HOST_ANTIGO_DO_PAINEL, '/admin/catalogo'),
-    'https://admin.minddash.pro/admin/catalogo');
-  assert.equal(destinoDoPainelAntigo(HOST_ANTIGO_DO_PAINEL, '/admin'), 'https://admin.minddash.pro/admin');
-  assert.equal(destinoDoPainelAntigo(HOST_ANTIGO_DO_PAINEL, '/'), null);
-  assert.equal(destinoDoPainelAntigo(HOST_ANTIGO_DO_PAINEL, '/app.js'), null);
-  /* Preview de branch continua servindo o painel no próprio endereço. */
-  assert.equal(destinoDoPainelAntigo('claude-x-mind-agent.adriana-3eb.workers.dev', '/admin/'), null);
-  assert.equal(destinoDoPainelAntigo(HOST_DO_PAINEL, '/admin/'), null);
+test('em qualquer outro endereço, o painel leva para o domínio dele; o app fica', () => {
+  /* O workers.dev, um domínio do app, um domínio ligado amanhã: nenhum
+     precisa estar listado para o painel sair dele. */
+  for (const host of [HOST_DO_WORKER, 'app.exemplo.com.br', 'mindagent.mindsummit.com.br', 'MIND-AGENT.adriana-3eb.workers.dev']) {
+    assert.equal(destinoDoPainelForaDoDominio(host, '/admin/catalogo'),
+      'https://admin.minddash.pro/admin/catalogo', host);
+    assert.equal(destinoDoPainelForaDoDominio(host, '/admin'), 'https://admin.minddash.pro/admin', host);
+    for (const doApp of ['/', '/app.js', '/programacao', '/administrador', '/c/00000000-0000-0000-0000-000000000000']) {
+      assert.equal(destinoDoPainelForaDoDominio(host, doApp), null, `${host}${doApp} é do app`);
+    }
+  }
+  assert.equal(destinoDoPainelForaDoDominio(HOST_DO_PAINEL, '/admin/'), null);
+});
+
+test('só os endereços de teste seguem com o painel no próprio endereço', () => {
+  for (const host of ['claude-x-mind-agent.adriana-3eb.workers.dev', '11967bf4-mind-agent.adriana-3eb.workers.dev',
+                      'localhost', '127.0.0.1']) {
+    assert.equal(ehEnderecoDeTeste(host), true, `${host} é de teste`);
+    assert.equal(destinoDoPainelForaDoDominio(host, '/admin/'), null, host);
+  }
+  for (const host of [HOST_DO_WORKER, HOST_DO_PAINEL, '-mind-agent.adriana-3eb.workers.dev',
+                      'xmind-agent.adriana-3eb.workers.dev', 'claude-x-mind-agent.adriana-3eb.workers.dev.exemplo.com',
+                      'app.exemplo.com.br', '', null]) {
+    assert.equal(ehEnderecoDeTeste(host), false, `${host} NÃO é de teste`);
+  }
 });
 
 test('no Worker, o domínio do painel é decidido antes do checkout e dos assets', () => {
@@ -64,5 +82,5 @@ test('no Worker, o domínio do painel é decidido antes do checkout e dos assets
   assert.ok(iPainel > worker.indexOf('ehDaPesquisa(url.hostname)'), 'a pesquisa continua primeiro');
   assert.ok(iPainel < worker.indexOf('mindagent-checkout'));
   assert.ok(iPainel < worker.indexOf('decidirAntes(request.method'));
-  assert.match(worker, /destinoDoPainelAntigo\(url\.hostname, url\.pathname\)/);
+  assert.match(worker, /destinoDoPainelForaDoDominio\(url\.hostname, url\.pathname\)/);
 });
