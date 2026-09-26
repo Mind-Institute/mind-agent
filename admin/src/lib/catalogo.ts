@@ -97,6 +97,8 @@ export function payloadDaEdicaoProduto(
   const antes = original ? paraFormularioProduto(original) : null;
   const payload: Record<string, unknown> = {};
   for (const campo of CAMPOS) {
+    /* Datas que vêm da turma não saem daqui: mudam na turma, não na cópia. */
+    if (original?.datasDaTurma && (campo === 'comecaEm' || campo === 'encerraEm')) continue;
     const mudou = !antes || !mesmoValor(campo, antes, valores);
     if (mudou) payload[campo] = paraBanco(campo, valores);
   }

@@ -61,6 +61,7 @@ const MOTIVO_VALIDACAO: Record<string, string> = {
   nome_obrigatorio: "Informe o nome do produto.",
   janela_de_venda_invertida: "O fim da venda não pode ser antes do início.",
   datas_invertidas: "O fim não pode ser antes do começo.",
+  datas_da_turma: "No Institute, as datas vêm da turma (institute.programas). Mude na turma, não no catálogo.",
   pipelines_hubspot: "Os pipelines do HubSpot precisam vir como lista.",
   dados_invalidos: "Algum campo tem valor que o banco não aceita — tipo, vertical ou data.",
 };
@@ -213,7 +214,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   }
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.1.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.2.0" }, requestId);
   }
 
   const origem = req.headers.get("Origin");

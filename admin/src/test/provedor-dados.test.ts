@@ -33,6 +33,7 @@ const PRODUTO: ProdutoCatalogo = {
   periodo: null,
   schemaDados: null,
   pipelinesHubspot: [],
+  datasDaTurma: null,
 };
 
 describe('MockAdminDataProvider', () => {
