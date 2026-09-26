@@ -18,9 +18,9 @@ export function BarraLateral({ aoNavegar }: { aoNavegar?: () => void }) {
       <div className="mb-3 flex items-center gap-2.5 px-2 py-1">
         <img src={simboloMind} alt="" className="size-7" />
         <div className="leading-tight">
-          <p className="text-sm font-black tracking-tight">Mind Agent</p>
+          <p className="text-sm font-black tracking-tight">Mind Intelligence</p>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Administração
+            Admin
           </p>
         </div>
       </div>
@@ -63,12 +63,6 @@ export function BarraLateral({ aoNavegar }: { aoNavegar?: () => void }) {
           </ul>
         </div>
       ))}
-
-      <p className="mt-auto px-2 pt-4 text-[11px] leading-relaxed text-muted-foreground">
-        Mind Summit 2026 · 16 e 17 de setembro
-        <br />
-        São Paulo · America/Sao_Paulo
-      </p>
     </nav>
   );
 }

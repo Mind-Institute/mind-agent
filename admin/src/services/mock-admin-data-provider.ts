@@ -28,6 +28,13 @@ import type { AdminDataProvider, ContextoAutor } from './admin-data-provider';
 /** Campos varridos pela busca textual de cada recurso. */
 const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
+  admins: ['nome', 'email'],
+};
+
+/* O que o banco preenche ao criar, para a linha nova aparecer inteira na
+   tela. Dar acesso manda só e-mail e papel; o resto vem do Mind ID. */
+const PADRAO_AO_CRIAR: Partial<Record<NomeRecurso, Record<string, unknown>>> = {
+  admins: { mindId: null, nome: null, ativo: true, loginLigado: false, ultimoLoginEm: null },
 };
 
 const CHAVES_RESERVADAS = new Set(['busca', 'pagina', 'porPagina', 'ordenar']);
@@ -249,6 +256,7 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const agora = this.agora();
     const tabela = this.tabela(resource);
     const registro = {
+      ...PADRAO_AO_CRIAR[resource],
       ...(payload as Record<string, unknown>),
       id: `${resource.slice(0, 3)}_novo_${String(tabela.length + 1).padStart(3, '0')}`,
       criadoEm: agora,

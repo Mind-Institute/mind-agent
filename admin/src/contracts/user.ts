@@ -25,10 +25,14 @@ export const ROTULO_PAPEL: Record<Papel, string> = {
   analista: 'Analista',
 };
 
+/* O que cada papel faz HOJE no painel, que tem o Catálogo e os Admins do
+   sistema. Aparece na hora de dar acesso, para ajudar a escolher — quem
+   autoriza de verdade é o banco. Módulo novo que mude o que um papel faz
+   muda esta frase junto. */
 export const DESCRICAO_PAPEL: Record<Papel, string> = {
-  administrador: 'Acesso completo, inclusive usuários, auditoria e configurações.',
-  editor: 'Cria e edita conteúdo. Salva rascunho e envia para revisão; não publica.',
-  aprovador: 'Revisa, publica e arquiva conteúdo enviado pelos editores.',
-  atendimento: 'Lê conversas e trabalha a fila de perguntas sem resposta.',
-  analista: 'Somente leitura: visão geral, listagens e auditoria.',
+  administrador: 'Edita o catálogo e decide quem entra no painel.',
+  editor: 'Edita o catálogo.',
+  aprovador: 'Edita o catálogo.',
+  atendimento: 'Só vê.',
+  analista: 'Só vê.',
 };

@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { ehErroAdmin, NOMES_RECURSOS } from '@/contracts';
 import {
   HybridAdminDataProvider,
+  RECURSOS_DO_ACESSO,
   RECURSOS_DO_CATALOGO,
 } from '@/services/hybrid-admin-data-provider';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
@@ -46,9 +47,10 @@ const ROTAS_BASICAS = {
 };
 
 describe('encaminhamento', () => {
-  it('o catálogo é o único recurso do painel', () => {
-    expect([...NOMES_RECURSOS]).toEqual(['products']);
+  it('o painel tem dois recursos, cada um na sua função', () => {
+    expect([...NOMES_RECURSOS]).toEqual(['products', 'admins']);
     expect([...RECURSOS_DO_CATALOGO]).toEqual(['products']);
+    expect([...RECURSOS_DO_ACESSO]).toEqual(['admins']);
   });
 
   it('anuncia o modo como hybrid — nem mock, nem http', () => {
@@ -56,11 +58,16 @@ describe('encaminhamento', () => {
     expect(hibrido.modo).toBe('hybrid');
   });
 
-  it('origemDoRecurso diz real com a função do catálogo, e demonstração sem ela', () => {
+  it('origemDoRecurso diz real com a função do recurso, e demonstração sem ela', () => {
     const mock = new MockAdminDataProvider({ latenciaMs: 0 });
     const catalogo = new MockAdminDataProvider({ latenciaMs: 0 });
+    const acesso = new MockAdminDataProvider({ latenciaMs: 0 });
     expect(new HybridAdminDataProvider(mock, catalogo).origemDoRecurso('products')).toBe('http');
     expect(new HybridAdminDataProvider(mock).origemDoRecurso('products')).toBe('mock');
+    /* Uma função não responde pela outra. */
+    expect(new HybridAdminDataProvider(mock, catalogo).origemDoRecurso('admins')).toBe('mock');
+    expect(new HybridAdminDataProvider(mock, undefined, acesso).origemDoRecurso('admins')).toBe('http');
+    expect(new HybridAdminDataProvider(mock, undefined, acesso).origemDoRecurso('products')).toBe('mock');
   });
 
   it('operação que a função não tem é recusada antes de sair', async () => {

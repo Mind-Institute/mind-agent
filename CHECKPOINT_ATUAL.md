@@ -118,6 +118,21 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   usar) e `mindagent-home` (o app lê a home dela) seguem vivas; nenhuma tabela mudou. A variável de build
   `VITE_HOME_API_BASE_URL`, se existir na Cloudflare, não é mais lida. Painel 141/141, `tsc` limpo,
   build verde; raiz 426/426. PR [#137](https://github.com/Mind-Institute/mind-agent/pull/137).
+- **Mind Intelligence Admin: menu por vertical e admins do sistema (26/09, pedidos dela).** O painel
+  se chama *Mind Intelligence Admin*. Saíram as **avaliações do dia e do evento**, **Configurações** e o
+  rodapé com a data do Summit (*"tira isso do painel"*). O menu tem o Catálogo, um título por vertical —
+  **Summit, Institute, Dash**, por ora vazios (*"so os titulos depois vamos mapear as principais tabelas
+  neles"*) — e **Administração → Admins do sistema** (*"a visão do quadro do backend onde eu cadastro as
+  pessoas que podem entrar no sistema"*, opção "ver e cadastrar"). Casa existente, `mind_admin_users`,
+  nenhuma tabela nova: portas `mind_admin_read_admins`/`mind_admin_mutate_admins` (ledger
+  `20260926144621` e `20260926144815`, arquivos com o mesmo número e md5; só `service_role`); dar acesso
+  exige pessoa única, não fundida e marcada como equipe no Mind ID; ninguém tira o próprio acesso; nunca
+  fica sem administrador; auditoria em `mind_admin_audit` (`resource = 'admins'`). Contrato
+  `tests/admins_no_painel_contract.sql` → `ADMINS_PAINEL_OK` (15 casos, rodado em produção, sem rastro).
+  `mindagent-acesso` **v3 viva = código do repo**. O Catálogo já salvava no banco (PATCH →
+  `mind_admin_mutate_catalogo` → `catalogo.produtos` + auditoria). Painel 146/146, raiz 433/433, build
+  verde. **Aberto para ela:** marcar equipe no Mind ID ainda não está no painel; aposentar a conta antiga
+  de senha (aparece como *sem Mind ID*); um ou dois workers.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.

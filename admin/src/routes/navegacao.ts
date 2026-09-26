@@ -1,9 +1,4 @@
-import {
-  Package,
-  Settings,
-  Star,
-  type LucideIcon,
-} from 'lucide-react';
+import { Package, UserCog, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -11,7 +6,12 @@ import type { Acao } from '@/lib/permissions';
    ============================================================
    Uma lista só, consumida pela barra lateral E pelas rotas. Item novo
    aqui aparece nos dois lugares — e nos testes de navegação, que
-   percorrem esta mesma lista. */
+   percorrem esta mesma lista.
+
+   Um título por vertical — Summit, Institute, Dash —, pedido da
+   Adriana (26/09/2026). Por ora são só os títulos: as principais tabelas
+   de cada vertical entram quando ela as mapear. Por último, a
+   Administração: quem entra no painel (pedido dela no mesmo dia). */
 
 export interface ItemNavegacao {
   id: string;
@@ -31,8 +31,8 @@ export interface GrupoNavegacao {
 
 export const NAVEGACAO: GrupoNavegacao[] = [
   {
-    id: 'conteudo',
-    rotulo: 'Conteúdo e comercial',
+    id: 'catalogo',
+    rotulo: null,
     itens: [
       {
         id: 'catalogo',
@@ -43,36 +43,20 @@ export const NAVEGACAO: GrupoNavegacao[] = [
       },
     ],
   },
-  {
-    id: 'atendimento',
-    rotulo: 'Atendimento',
-    itens: [
-      {
-        id: 'avaliacao-do-dia',
-        rotulo: 'Avaliação do dia',
-        caminho: '/avaliacao-do-dia',
-        icone: Star,
-        descricao: 'O que os participantes responderam sobre cada dia, de 0 a 5.',
-      },
-      {
-        id: 'avaliacao-do-evento',
-        rotulo: 'Avaliação do evento',
-        caminho: '/avaliacao-do-evento',
-        icone: Star,
-        descricao: 'O que eles responderam sobre o Summit inteiro, depois que ele acabou.',
-      },
-    ],
-  },
+  { id: 'summit', rotulo: 'Summit', itens: [] },
+  { id: 'institute', rotulo: 'Institute', itens: [] },
+  { id: 'dash', rotulo: 'Dash', itens: [] },
   {
     id: 'administracao',
     rotulo: 'Administração',
     itens: [
       {
-        id: 'configuracoes',
-        rotulo: 'Configurações',
-        caminho: '/configuracoes',
-        icone: Settings,
-        descricao: 'Modo de dados, integrações futuras e limites desta versão.',
+        id: 'admins',
+        rotulo: 'Admins do sistema',
+        caminho: '/admins',
+        icone: UserCog,
+        permissao: 'gerir_usuarios',
+        descricao: 'Quem entra no Mind Intelligence Admin — por Mind ID, só da equipe.',
       },
     ],
   },
