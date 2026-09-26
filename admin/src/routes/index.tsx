@@ -32,6 +32,9 @@ export const rotasAdmin: RouteObject[] = [
 
       /* O schema `catalogo` inteiro no painel (Adriana, 26/09/2026): ofertas e cupons. */
       { path: 'ofertas', element: <PaginaOfertas /> },
+      /* Criar (e duplicar, com a oferta de origem no caminho — na query ela viraria filtro da lista). */
+      { path: 'ofertas/nova', element: <PaginaOfertas criando /> },
+      { path: 'ofertas/nova/:de', element: <PaginaOfertas criando /> },
       { path: 'ofertas/:id', element: <PaginaOfertas /> },
       { path: 'cupons', element: <PaginaCupons /> },
       { path: 'cupons/:id', element: <PaginaCupons /> },

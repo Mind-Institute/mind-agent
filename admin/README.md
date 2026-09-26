@@ -359,8 +359,8 @@ antes de "sim"; a Janela de venda ordena pela data em que o produto sai de venda
 
 Decisão da Adriana (26/09/2026): preço, oferta, order bump e cupom moram no
 schema `catalogo`, em tabelas separadas, e "o painel é o controle deste
-schema". Plano: `docs/PLANO_OFERTAS_PASSO_A_PASSO.md`. Hoje as duas telas são
-**só leitura** (Passo 2); a edição é o Passo 4.
+schema". Plano: `docs/PLANO_OFERTAS_PASSO_A_PASSO.md`. As **ofertas se editam**
+desde o Passo 4; os **cupons** seguem só leitura.
 
 - **Ofertas** (`/ofertas`): cada oferta de `catalogo.ofertas` com os preços
   (um por produto, com o código vendável), o bônus, o que ela exige (order
@@ -375,11 +375,37 @@ schema". Plano: `docs/PLANO_OFERTAS_PASSO_A_PASSO.md`. Hoje as duas telas são
   histórico), onde se aplica, usos e prazo.
 - Hoje o catálogo tem o histórico do Summit 2026 (14 ofertas, 28 preços, 3
   upgrades, 3 cupons). As ofertas do Institute entram na virada (Passo 5).
-- Porta: `mindagent-catalogo` 1.3.0 (`/admin/offers`, `/admin/coupons`), que
-  chama `mind_admin_read_ofertas` e `mind_admin_read_cupons` (só
-  `service_role`; contrato `tests/ofertas_painel_contract.sql` →
-  `OFERTAS_PAINEL_OK`). Preço em reais (`formatarReais`), não em centavos.
-- Qualquer papel do painel vê. Escrever é recusado antes de sair.
+- **Editar oferta (Passo 4):**
+  - **Nova oferta** nasce desligada, como rascunho (`/ofertas/nova`);
+    **Duplicar** copia preços, bônus e exigências, com prazo e códigos em
+    branco (`/ofertas/nova/:de` — na query, a origem viraria filtro da lista);
+  - o formulário tem a oferta, os **preços por produto** (código vendável,
+    à vista, parcelas com a conta ao vivo, riscado, sistema e link), o
+    **bônus** (o produto que ele entrega, custo, valor e prazo) e as
+    **exigências** do order bump / upgrade;
+  - salvar manda **só o que mudou** (`payloadDaOferta`); oferta ligada pede
+    confirmação com o preço antes e depois e o lembrete da Eduzz;
+  - **Pôr no ar** e **Tirar do ar** com confirmação. "Pôr no ar" aparece
+    travado, com o motivo que o banco dá (`bloqueioPorNoAr`), até um site ler
+    o catálogo — o Institute, na virada;
+  - oferta que já esteve no ar trava os códigos e não perde linha;
+  - cada oferta mostra o **histórico de alterações** (quem, quando, o quê) e,
+    recolhido, "como está no banco";
+  - o histórico importado abre só para consulta, com **Duplicar**.
+- As regras de verdade moram no banco (`mind_admin_mutate_ofertas`, migration
+  `20260926210134`, contrato `tests/ofertas_edicao_contract.sql` →
+  `OFERTAS_EDICAO_OK`); a tela só adianta o que dá para dizer antes de enviar.
+  Em demonstração o banco em memória imita a situação, o bloqueio e o
+  histórico (`src/mocks/ofertas-mock.ts`); `ligarLeitorDoCatalogo()` imita a
+  virada nos testes.
+- Porta: `mindagent-catalogo` 1.4.0 (`/admin/offers` lê, cria, edita,
+  `/publish` e `/archive`; `/admin/coupons` só lê), que chama
+  `mind_admin_read_ofertas`, `mind_admin_mutate_ofertas` e
+  `mind_admin_read_cupons` (só `service_role`). Preço em reais
+  (`formatarReais`), não em centavos.
+- Qualquer papel do painel vê. Criar pede o papel que cria, pôr no ar e tirar
+  do ar os papéis que publicam e arquivam (a matriz de `lib/permissions.ts`);
+  hoje só há um administrador ativo. Cupom: escrever é recusado antes de sair.
 
 ## Summit → Mind Summit 2026 → Programação
 

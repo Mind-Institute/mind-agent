@@ -178,6 +178,22 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
   `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
   e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
+  md5): `mind_admin_mutate_ofertas` (só `service_role`) — criar (nasce desligada), atualizar (listas de
+  preços, bônus e exigências inteiras), publicar e arquivar (os nomes que `mind_admin_audit` aceita); trava de
+  versão; antes e depois na auditoria com a hora do relógio; recusas com motivo (histórico só leitura, código
+  reservado — inclusive os 16 de `institute.ofertas` — ou travado depois de ir ao ar, linha que não sai de
+  oferta que já esteve no ar, parcela que não fecha, base sem prazo, exigência só em condicional, um preço sem
+  prazo no ar por produto, sem preço, prazo vencido, **sem leitor**). "Pôr no ar" só destrava quando
+  `api.ofertas` depender de `catalogo.ofertas` e o produto tiver programa no Institute — sozinho, na virada.
+  A leitura ganhou `jaFoiAoAr`, `bloqueioPorNoAr`, `sobrepostas` e o histórico de alterações. Contrato
+  `OFERTAS_EDICAO_OK` em produção (57 recusas, ensaio da virada dentro da transação), sem rastro.
+  `mindagent-catalogo` 1.4.0: `POST /admin/offers`, `PATCH /:id`, `POST /:id/publish` e `/:id/archive`; cupom
+  segue só leitura. Painel: Nova oferta, formulário com preços, bônus e exigências, Duplicar, Pôr no ar / Tirar
+  do ar com confirmação, histórico de alterações. Raiz 467/467, painel 189/189, build verde. Caiu a regra
+  "nenhuma condicional no ar" (ela manteve os bumps). **Depois do merge: publicar a `mindagent-catalogo` 1.4.0
+  à mão.** Divergência vista no ledger, de outra frente: `20260926210031_masterclasses_duplicadas_sao_turma_hnk`
+  aplicada sem arquivo em `main`.
 - **Passo 2 — telas Ofertas e Cupons no painel, só leitura (26/09, noite).** Portas
   `mind_admin_read_ofertas` / `mind_admin_read_cupons` (ledger `20260926202049`, mesmo md5; situação
   calculada com as pontas de janela de `api.ofertas`; `noSite` = o código está em `api.ofertas`; preço

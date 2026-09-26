@@ -1,6 +1,6 @@
 # Plano passo a passo: todas as ofertas no catalogo, editáveis no painel
 
-26/09/2026 · Status: em execução — Passo 3 aplicado em 26/09 (ver a atualização abaixo)
+26/09/2026 · Status: em execução — Passos 2, 3 e 4 feitos em 26/09 (ver as atualizações abaixo); próximo: a virada (Passo 5)
 
 ## Atualização de 26/09, noite: as respostas da Adriana
 
@@ -20,6 +20,12 @@ O que ela decidiu, e o que muda neste plano:
 **Feito em 26/09 (Passo 3, com os cupons):** migration `20260926201053_catalogo_ofertas_forma_historico_e_cupons` — a forma das 4 tabelas de oferta, `checkout.cupons` → `catalogo.cupons` (as 3 funções que citavam a tabela pelo nome foram regravadas), 3 produtos de categoria do Summit 2026 e 2 do Summit 2027 (desligados, sem venda, sem funil), e o histórico do Summit 2026: 14 ofertas, 28 preços, 3 upgrades e 3 cupons, copiados dentro do banco. Contratos `CATALOGO_OFERTAS_OK` e `CATALOGO_OK` em produção, sem rastro. O site e o agente não mudaram (`api.ofertas` segue com as mesmas 14 linhas).
 
 **Cronograma novo:** Passo 2 (tela "Ofertas" lendo o `catalogo`) em 27/09; Passo 4 (edição) em 28/09; ensaio da virada em 28/09; Passo 5 (virada) na madrugada de 29/09; Passos 6 e 7 depois.
+
+**Feito em 26/09 (adiantado): Passos 2 e 4.** A tela "Ofertas" lê o `catalogo` (PR #147) e as ofertas se editam pelo painel (Passo 4): criar (nasce desligada), editar, duplicar, pôr no ar e tirar do ar, com confirmação, trava de versão, histórico de alterações e as regras do banco (`mind_admin_mutate_ofertas`, migration `20260926210134`, contrato `OFERTAS_EDICAO_OK`). Três ajustes ao texto do Passo 4, abaixo:
+- a regra "nenhuma oferta condicional no ar enquanto nenhuma página usar bump" **caiu**: ela decidiu não tirar os bumps do ar;
+- "a parcela tem de fechar com o preço à vista" virou a conta de hoje: parcelas × parcela fica entre o à vista e o à vista + R$ 1 por parcela (R$ 5.997 em 12 × R$ 500);
+- quem pode o quê (decisão 7) está na tela — o editor cria rascunho e edita; publicar e arquivar ficam com administrador e aprovador —, e no banco qualquer papel que escreve pode tudo, como no Catálogo: hoje só há um administrador ativo. Quando entrar a segunda pessoa, a regra vai também para o banco.
+"Pôr no ar" destrava sozinho na virada: o banco confere se `api.ofertas` lê `catalogo.ofertas` e se o produto tem programa no Institute.
 
 *Este plano saiu só de leituras. Rodei SELECT no banco `ymnmotgglsrxmjmonwjz` e li este repositório em `d75588e` e os dois sites em `238c313` (Institute) e `acbbd01` (Join). Nada foi alterado. Documentos que acompanham este: o plano anterior, [`PLANO_PRECOS_CATALOGO.md`](PLANO_PRECOS_CATALOGO.md), e o mapa dos sites, [`FONTE_DA_VERDADE_SITES.md`](FONTE_DA_VERDADE_SITES.md).*
 
