@@ -140,8 +140,9 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
   (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
   dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
-- **Descoberta lateral (26/09):** `public.mind_conteudo` lê `summit.conhecimento`, que não existe mais, e
-  ninguém a chama — código morto no banco; registrado, sem ação.
+- **`public.mind_conteudo` apagada (26/09, pedido dela).** Lia `summit.conhecimento`, que não existe mais;
+  conferido antes: nenhuma função, view ou job do banco, nenhuma das 35 Edge Functions publicadas, nenhum
+  código do repo e nenhuma chamada nos logs de 24 h. Ledger `20260926152044`, arquivo com o mesmo número e md5.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
