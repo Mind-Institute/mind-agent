@@ -1,6 +1,25 @@
 # Plano passo a passo: todas as ofertas no catalogo, editáveis no painel
 
-26/09/2026 · Status: aguarda o OK da Adriana passo a passo
+26/09/2026 · Status: em execução — Passo 3 aplicado em 26/09 (ver a atualização abaixo)
+
+## Atualização de 26/09, noite: as respostas da Adriana
+
+O que ela decidiu, e o que muda neste plano:
+
+- **Tudo no `catalogo`:** *"no schema catálogo deve organizar as tabelas de preço, oferta, order bump, cupom — todas devem estar neste schema, embora não necessariamente na mesma tabela"*, e *"todas as infos importantes deste schema devem ser espelhadas e editáveis via painel"* — o painel é o controle do schema.
+- **Checkout próprio (InfinitePay) não prende nada:** *"não tem nada relevante ainda ... podemos migrar qualquer coisa relacionada sem medo de quebrar ou deletar para reconstruir do zero"*. As funções do checkout próprio não precisam mais de paridade; o que for do catálogo (cupons, bumps) muda de casa sem esperar.
+- **Bumps não saem do ar:** *"não tira bumps do ar mas ... vamos aproveitar para migrar pro lugar certo"*. A decisão 1 (desligar os 3 bumps) cai.
+- **Nada é desligado à mão; a virada vem antes de 30/09:** *"não acho que temos que desligar nada, vamos ter migrado antes disso"*. A decisão 2 (agendamento às 00h00) cai; o Passo 5 é antecipado para antes de 30/09 23h59.
+- **Eduzz:** ela troca os preços lá (decisão 3).
+- **Agente sem preço escrito:** *"nunca agentes devem ter preços escritos hard coded, mas sempre apontar para onde estão preços e ofertas atuais"* — decisão 4 aprovada, e virou regra no `CLAUDE.md`.
+- **Passo 3 aprovado** ("3- ok"); **histórico importante** (Passos 6 e 7 entram); **Passo 8 ok**.
+- **Os sites leem direto, sem cópia por cron:** na virada, as mesmas views `api.*` passam a ler o `catalogo`, numa transação só, com a paridade conferida. Uma cópia por cron atrasaria e poderia divergir sem aviso.
+
+**Ainda com ela, para a virada:** (a) dar "vale até" aos 4 textos e às 4 perguntas do FAQ da Condição Summit, para saírem sozinhos às 23h59 de 30/09; (b) tirar o bump da lista de preços da página (ele continua disponível ao checkout pela view de bumps), para a seção "Avulsas" não mostrar o bump como preço depois de 30/09.
+
+**Feito em 26/09 (Passo 3, com os cupons):** migration `20260926201053_catalogo_ofertas_forma_historico_e_cupons` — a forma das 4 tabelas de oferta, `checkout.cupons` → `catalogo.cupons` (as 3 funções que citavam a tabela pelo nome foram regravadas), 3 produtos de categoria do Summit 2026 e 2 do Summit 2027 (desligados, sem venda, sem funil), e o histórico do Summit 2026: 14 ofertas, 28 preços, 3 upgrades e 3 cupons, copiados dentro do banco. Contratos `CATALOGO_OFERTAS_OK` e `CATALOGO_OK` em produção, sem rastro. O site e o agente não mudaram (`api.ofertas` segue com as mesmas 14 linhas).
+
+**Cronograma novo:** Passo 2 (tela "Ofertas" lendo o `catalogo`) em 27/09; Passo 4 (edição) em 28/09; ensaio da virada em 28/09; Passo 5 (virada) na madrugada de 29/09; Passos 6 e 7 depois.
 
 *Este plano saiu só de leituras. Rodei SELECT no banco `ymnmotgglsrxmjmonwjz` e li este repositório em `d75588e` e os dois sites em `238c313` (Institute) e `acbbd01` (Join). Nada foi alterado. Documentos que acompanham este: o plano anterior, [`PLANO_PRECOS_CATALOGO.md`](PLANO_PRECOS_CATALOGO.md), e o mapa dos sites, [`FONTE_DA_VERDADE_SITES.md`](FONTE_DA_VERDADE_SITES.md).*
 

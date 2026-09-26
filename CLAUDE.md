@@ -94,6 +94,8 @@ CANAL/ENTRADA
 - não crie backend/identidade/session lifecycle paralelo para Play/Concierge;
 - structured authoritative first; RAG só para long-tail;
 - preço/checkout/desconto/horário/disponibilidade nunca dependem de vector como fonte da verdade;
+- **preço, oferta, order bump e cupom moram no schema `catalogo`** (em tabelas separadas), e o painel `admin/` é o controle dele: o que importa ali aparece e se edita lá (Adriana, 26/09);
+- **agente nunca tem preço, oferta, cupom ou prazo escrito** no playbook ou no prompt: sempre aponta para onde estão os preços e as ofertas atuais (o `catalogo`, pelos blocos do Kit) (Adriana, 26/09);
 - descoberta lateral: registre e volte ao caminho crítico.
 
 ## Ownership atual
