@@ -63,6 +63,11 @@
     "not_found_handling": "none"
   }
 
+  // Domínios ligados pelo painel da Cloudflare, e não daqui:
+  // avaliacao.mindsummit.com.br (só a pesquisa) e admin.minddash.pro (só o
+  // painel, 26/09/2026). O deploy não mexe neles enquanto esta config não
+  // declarar "routes". Quem decide o que cada um serve é o Worker.
+  //
   // Domínio próprio: descomente quando o DNS estiver pronto.
   // "routes": [
   //   { "pattern": "mindagent.mindsummit.com.br", "custom_domain": true }

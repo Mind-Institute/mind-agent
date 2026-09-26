@@ -89,6 +89,56 @@ export function decidirNaPesquisa(pathname) {
   return pedeArquivo(pathname) ? { tipo: 'recusado' } : { tipo: 'pesquisa' };
 }
 
+/* ============================================================
+   O DOMÍNIO DO PAINEL
+   ============================================================
+   Pedido da Adriana (26/09/2026): o painel abre em `admin.minddash.pro`.
+   Ali só existe o painel. A raiz, e qualquer navegação fora de `/admin`,
+   levam para `/admin/`; arquivo que não é do painel (o chat público, a
+   pesquisa) é 404. Assim o app público nunca roda na mesma origem do
+   painel, e a sessão de admin não divide o navegador com ele.
+
+   O endereço antigo do worker leva o painel para lá. Os previews de branch
+   continuam servindo o painel no próprio endereço, para teste. */
+export const HOST_DO_PAINEL = 'admin.minddash.pro';
+export const HOST_ANTIGO_DO_PAINEL = 'mind-agent.adriana-3eb.workers.dev';
+
+/**
+ * O pedido chegou pelo domínio do painel?
+ *
+ * @param {string | null | undefined} hostname
+ * @returns {boolean}
+ */
+export function ehDoHostDoPainel(hostname) {
+  return String(hostname || '').toLowerCase() === HOST_DO_PAINEL;
+}
+
+/**
+ * Decide o que o domínio do painel entrega.
+ *
+ * @param {string} pathname
+ * @returns {{ tipo: 'painel' } | { tipo: 'redirecionar', para: string } | { tipo: 'recusado' }}
+ */
+export function decidirNoHostDoPainel(pathname) {
+  if (ehDoPainel(pathname)) return { tipo: 'painel' };
+  if (pedeArquivo(pathname)) return { tipo: 'recusado' };
+  return { tipo: 'redirecionar', para: PREFIXO_PAINEL + '/' };
+}
+
+/**
+ * Painel pedido no endereço antigo do worker → o mesmo caminho no domínio
+ * do painel. `null` para tudo o mais (o chat continua onde está).
+ *
+ * @param {string | null | undefined} hostname
+ * @param {string} pathname
+ * @returns {string | null}
+ */
+export function destinoDoPainelAntigo(hostname, pathname) {
+  if (String(hostname || '').toLowerCase() !== HOST_ANTIGO_DO_PAINEL) return null;
+  if (!ehDoPainel(pathname)) return null;
+  return `https://${HOST_DO_PAINEL}${pathname}`;
+}
+
 /**
  * O caminho pede um ARQUIVO (e não navegação)?
  *

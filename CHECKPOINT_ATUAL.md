@@ -87,6 +87,18 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
     provedor Google do Supabase; Redirect URLs do painel (produção e previews). Depois: tirar e-mail e
     senha do painel, apagar a conta genérica, aposentar `seguranca.equipe` e o admin antigo do Join,
     endereço próprio do painel e a tela "Admins do sistema" para ela dar e tirar acesso.
+- **Painel em `admin.minddash.pro` (pedido dela, 26/09).** O domínio foi ligado por ela ao worker
+  `mind-agent` pelo painel da Cloudflare. O mesmo worker separa por endereço: ali só o painel (raiz e
+  navegação levam a `/admin/`, arquivo do app público é 404); o `/admin` do endereço antigo do worker
+  leva para lá (302); previews continuam no próprio endereço. Regras em `cloudflare/roteamento.js`,
+  teste `tests/roteamento_painel.test.mjs`. **Falta (dela):** secret `ADMIN_ALLOWED_ORIGINS =
+  https://admin.minddash.pro` nas Edge Functions (hoje as quatro do painel recusam a origem nova) e a
+  Redirect URL `https://admin.minddash.pro/admin/` no Auth. Previews montam sem as variáveis de build do
+  Supabase e abrem em demonstração: o teste de login é em produção.
+- **Conteúdo do admin — ela define.** Da Adriana (26/09): *"eu quero um admin da empresa, da
+  inteligência da empresa de modo geral"* · *"eu prefiro construir do que você assumir o que eu quero"*.
+  O painel atual nasceu como admin do app do Summit; o que entra no admin da empresa sai dela, sem
+  proposta pronta.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
