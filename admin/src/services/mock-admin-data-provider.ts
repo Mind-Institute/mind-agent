@@ -23,6 +23,9 @@ import {
   type StatusEditorial,
 } from '@/contracts';
 import { criarBanco, type BancoMock } from '@/mocks/db';
+import { montarLinhas, recalcular, registrarAlteracao, type EscritaOferta } from '@/mocks/ofertas-mock';
+import { motivoDoBloqueio } from '@/lib/ofertas';
+import type { OfertaCatalogo } from '@/contracts';
 import type { AdminDataProvider, ContextoAutor } from './admin-data-provider';
 
 /** Campos varridos pela busca textual de cada recurso. */
@@ -133,6 +136,10 @@ export class MockAdminDataProvider implements AdminDataProvider {
   private autor: ContextoAutor;
   private falhas = new Map<string, CodigoErroAdmin>();
   private sequencia = 0;
+  /* Algum site lê as ofertas do catálogo? Em produção, só depois da virada
+     (Passo 5). A demonstração começa como hoje: ninguém lê, e "pôr no ar"
+     fica travado com o motivo. O teste liga quando quer o outro lado. */
+  private leitorDoCatalogo = false;
 
   constructor(opcoes: OpcoesMock = {}) {
     this.banco = opcoes.banco ?? criarBanco();
@@ -160,6 +167,12 @@ export class MockAdminDataProvider implements AdminDataProvider {
 
   definirLatencia(ms: number) {
     this.latenciaMs = ms;
+  }
+
+  /** Imita a virada: `api.ofertas` passa a ler o catálogo e "pôr no ar" destrava. */
+  ligarLeitorDoCatalogo(ligado = true) {
+    this.leitorDoCatalogo = ligado;
+    for (const o of this.banco.offers) Object.assign(o, recalcular(o, this.banco.offers, ligado));
   }
 
   private async esperar() {
@@ -279,6 +292,10 @@ export class MockAdminDataProvider implements AdminDataProvider {
     await this.esperar();
     this.verificarFalha(resource);
 
+    if (resource === 'offers') {
+      return this.escreverOferta(null, payload as Record<string, unknown>, { acao: 'criar', por: this.autor.nome }) as MapaRecursos[K];
+    }
+
     const agora = this.agora();
     const tabela = this.tabela(resource);
     const registro = {
@@ -306,6 +323,13 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
+    if (resource === 'offers') {
+      return this.escreverOferta(registro as OfertaCatalogo, payload as Record<string, unknown>, {
+        acao: 'atualizar',
+        por: this.autor.nome,
+      }) as MapaRecursos[K];
+    }
+
     Object.assign(registro, payload, {
       atualizadoEm: this.agora(),
       atualizadoPor: this.autor.nome,
@@ -324,6 +348,10 @@ export class MockAdminDataProvider implements AdminDataProvider {
 
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
+
+    if (resource === 'offers') {
+      return this.escreverOferta(registro as OfertaCatalogo, { ativo: true }, { acao: 'publicar', por: this.autor.nome }) as MapaRecursos[K];
+    }
 
     const agora = this.agora();
     Object.assign(registro, {
@@ -353,10 +381,92 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
+    if (resource === 'offers') {
+      return this.escreverOferta(registro as OfertaCatalogo, { ativo: false }, { acao: 'arquivar', por: this.autor.nome }) as MapaRecursos[K];
+    }
+
     if ('status' in registro) registro.status = 'arquivado';
     if ('ativo' in registro) registro.ativo = false;
 
     Object.assign(registro, { atualizadoEm: this.agora(), atualizadoPor: this.autor.nome });
     return { ...(registro as MapaRecursos[K]) };
+  }
+
+  /* -------------------------------------------------------------- */
+  /* Ofertas: as regras que a tela precisa ver acontecer              */
+  /* -------------------------------------------------------------- */
+
+  /**
+   * Criar, editar, pôr no ar e tirar do ar uma oferta, como o banco faz: a
+   * oferta nasce desligada; o histórico importado não muda; o código trava
+   * depois que a oferta esteve no ar; "pôr no ar" respeita o bloqueio; e
+   * cada escrita entra no histórico de alterações. As outras regras (parcela
+   * que fecha, código reservado…) são do banco e não se repetem aqui.
+   */
+  private escreverOferta(atual: OfertaCatalogo | null, mudancas: Record<string, unknown>, escrita: EscritaOferta) {
+    const recusar = (mensagem: string) => {
+      throw new AdminApiError('validacao', mensagem, { requestId: this.proximoRequestId() });
+    };
+    const tabela = this.banco.offers;
+    if (atual?.historico) recusar(motivoDoBloqueio('historico_so_leitura') as string);
+    if (escrita.acao === 'publicar' && atual && !atual.ativo) {
+      const motivo = recalcular(atual, tabela, this.leitorDoCatalogo).bloqueioPorNoAr;
+      if (motivo) recusar(motivoDoBloqueio(motivo) as string);
+    }
+    const codigo = mudancas.codigo as string | undefined;
+    if (codigo !== undefined && codigo !== atual?.codigo) {
+      if (atual?.jaFoiAoAr) recusar('Esta oferta já esteve no ar: os códigos não mudam mais, porque links, pedidos e acessos usam esses códigos.');
+      if (tabela.some((o) => o.codigo === codigo)) recusar('Este código já é usado por outra oferta, outro preço, um programa ou um produto.');
+    }
+
+    const agora = this.agora();
+    const base: OfertaCatalogo =
+      atual ??
+      ({
+        id: `off_novo_${String(tabela.length + 1).padStart(3, '0')}`,
+        codigo: '',
+        nome: '',
+        tipo: '',
+        situacao: 'desligada',
+        situacaoOrdem: 5,
+        descricao: null,
+        ativo: false,
+        publico: true,
+        historico: false,
+        iniciaEm: null,
+        encerraEm: null,
+        meiosPagamento: [],
+        noSite: false,
+        verticais: [],
+        produtos: [],
+        precos: [],
+        bonus: [],
+        requer: [],
+        origem: null,
+        jaFoiAoAr: false,
+        bloqueioPorNoAr: null,
+        sobrepostas: [],
+        alteracoes: [],
+        criadoEm: agora,
+        atualizadoEm: agora,
+      } as OfertaCatalogo);
+    const antes = atual ? (JSON.parse(JSON.stringify(atual)) as OfertaCatalogo) : null;
+
+    const proxima = recalcular(
+      {
+        ...base,
+        ...mudancas,
+        ...montarLinhas(mudancas, this.banco.products),
+        jaFoiAoAr: base.jaFoiAoAr || escrita.acao === 'publicar',
+        atualizadoEm: agora,
+      } as OfertaCatalogo,
+      tabela,
+      this.leitorDoCatalogo,
+    );
+    proxima.alteracoes = registrarAlteracao(antes, proxima, escrita, agora);
+
+    if (atual) Object.assign(atual, proxima);
+    else tabela.unshift(proxima);
+    return JSON.parse(JSON.stringify(proxima)) as OfertaCatalogo;
   }
 }

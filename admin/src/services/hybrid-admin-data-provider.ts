@@ -7,8 +7,10 @@
 
    - o Catálogo (`catalogo.produtos`), na `mindagent-catalogo`: lê e
      edita — criar, publicar e arquivar produto não existem por aqui;
-   - as ofertas e os cupons do mesmo schema, na mesma função: por
-     enquanto só leitura (a edição é o Passo 4 do plano de ofertas);
+   - as ofertas do mesmo schema, na mesma função: criar (nasce
+     desligada), editar, pôr no ar (publish) e tirar do ar (archive) —
+     apagar não existe (Passo 4 do plano de ofertas);
+   - os cupons do mesmo schema: por enquanto só leitura;
    - os admins do sistema (`mind_admin_users`), na `mindagent-acesso`:
      vê, dá acesso e muda papel ou situação — tirar o acesso é desligar
      a situação, e a linha fica;
@@ -60,7 +62,7 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   products: new Set(['list', 'get', 'update']),
   admins: new Set(['list', 'get', 'create', 'update']),
   summit_2026_sessions: new Set(['list', 'get']),
-  offers: new Set(['list', 'get']),
+  offers: new Set(['list', 'get', 'create', 'update', 'publish', 'archive']),
   coupons: new Set(['list', 'get']),
 };
 
@@ -70,7 +72,7 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
     `A lista de admins aceita ver, dar acesso e mudar papel ou situação; ${op} admin não existe no painel.`,
   summit_2026_sessions: (op) =>
     `A programação do Summit 2026 é só leitura no painel; ${op} sessão não existe por aqui.`,
-  offers: (op) => `As ofertas ainda são só leitura no painel; ${op} oferta chega no próximo passo.`,
+  offers: (op) => `Ofertas se criam, editam, põem no ar e tiram do ar; ${op} oferta não existe no painel.`,
   coupons: (op) => `Os cupons ainda são só leitura no painel; ${op} cupom chega no próximo passo.`,
 };
 

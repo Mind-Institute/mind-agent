@@ -21,6 +21,8 @@ export function DrawerEdicao({
   idFormulario,
   acoes,
   informacao,
+  rotuloSalvar = 'Salvar',
+  larga = false,
   aoFechar,
   children,
 }: {
@@ -33,6 +35,10 @@ export function DrawerEdicao({
   idFormulario: string;
   acoes?: ReactNode;
   informacao?: ReactNode;
+  /** "Criar rascunho", por exemplo, quando salvar cria. */
+  rotuloSalvar?: string;
+  /** Formulário com listas (os preços de uma oferta) precisa de mais largura. */
+  larga?: boolean;
   aoFechar: () => void;
   children: ReactNode;
 }) {
@@ -46,7 +52,7 @@ export function DrawerEdicao({
   return (
     <>
       <Sheet open={aberto} onOpenChange={(estado) => (!estado ? tentarFechar() : undefined)}>
-        <SheetContent side="right" className="w-full p-0 sm:max-w-2xl">
+        <SheetContent side="right" className={larga ? 'w-full p-0 sm:max-w-4xl' : 'w-full p-0 sm:max-w-2xl'}>
           <SheetHeader>
             <SheetTitle>{titulo}</SheetTitle>
             {descricao ? <SheetDescription asChild><div>{descricao}</div></SheetDescription> : null}
@@ -63,7 +69,7 @@ export function DrawerEdicao({
               </Button>
               <Button type="submit" form={idFormulario} disabled={!podeSalvar || !sujo || salvando}>
                 {salvando ? <Salvando /> : <Save />}
-                Salvar
+                {rotuloSalvar}
               </Button>
             </div>
           </SheetFooter>
