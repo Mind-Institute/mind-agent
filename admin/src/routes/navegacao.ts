@@ -1,4 +1,4 @@
-import { Package, type LucideIcon } from 'lucide-react';
+import { Package, UserCog, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -10,7 +10,8 @@ import type { Acao } from '@/lib/permissions';
 
    Um título por vertical — Summit, Institute, Dash —, pedido da
    Adriana (26/09/2026). Por ora são só os títulos: as principais tabelas
-   de cada vertical entram quando ela as mapear. */
+   de cada vertical entram quando ela as mapear. Por último, a
+   Administração: quem entra no painel (pedido dela no mesmo dia). */
 
 export interface ItemNavegacao {
   id: string;
@@ -45,6 +46,20 @@ export const NAVEGACAO: GrupoNavegacao[] = [
   { id: 'summit', rotulo: 'Summit', itens: [] },
   { id: 'institute', rotulo: 'Institute', itens: [] },
   { id: 'dash', rotulo: 'Dash', itens: [] },
+  {
+    id: 'administracao',
+    rotulo: 'Administração',
+    itens: [
+      {
+        id: 'admins',
+        rotulo: 'Admins do sistema',
+        caminho: '/admins',
+        icone: UserCog,
+        permissao: 'gerir_usuarios',
+        descricao: 'Quem entra no Mind Intelligence Admin — por Mind ID, só da equipe.',
+      },
+    ],
+  },
 ];
 
 export const ITENS_NAVEGACAO: ItemNavegacao[] = NAVEGACAO.flatMap((grupo) => grupo.itens);

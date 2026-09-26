@@ -5,6 +5,7 @@ import type { AdminDataProvider } from './admin-data-provider';
 import { MockAdminDataProvider } from './mock-admin-data-provider';
 import { HttpAdminDataProvider, type ProvedorDeToken } from './http-admin-data-provider';
 import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
+import { enderecoDoAcesso } from './perfil-admin';
 
 /* ============================================================
    ESCOLHA DA IMPLEMENTAÇÃO
@@ -18,6 +19,9 @@ import { HybridAdminDataProvider } from './hybrid-admin-data-provider';
      do próprio `VITE_SUPABASE_URL` — a função mora no mesmo projeto em
      que o login já confia, no caminho fixo `/functions/v1/`. Sem nenhum
      dos dois, o catálogo fica em memória. Não participa do modo `http`.
+   - os admins do sistema falam com a `mindagent-acesso`, pelo mesmo
+     caminho (`VITE_ACESSO_API_BASE_URL` ou o `VITE_SUPABASE_URL`) — é a
+     função que já liga a conta Google no primeiro login.
    - com a URL, `VITE_ADMIN_DATA_MODE` escolhe entre `mock`, `hybrid`
      (o catálogo real, na `mindagent-catalogo`) e `http` (tudo na
      `mindagent-admin`). Ausente, o padrão é `hybrid`, o de produção. */
@@ -55,17 +59,21 @@ export function criarProvedorPadrao(opcoes: OpcoesFabrica = {}): AdminDataProvid
     });
   }
 
-  const baseCatalogo = enderecoDoCatalogo();
-  const catalogo = baseCatalogo
-    ? new HttpAdminDataProvider({
-        baseUrl: baseCatalogo,
-        obterToken: opcoes.obterToken,
-        chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        aoNaoAutorizado: opcoes.aoNaoAutorizado,
-      })
-    : undefined;
+  const conectar = (baseUrl: string | null) =>
+    baseUrl
+      ? new HttpAdminDataProvider({
+          baseUrl,
+          obterToken: opcoes.obterToken,
+          chavePublicavel: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          aoNaoAutorizado: opcoes.aoNaoAutorizado,
+        })
+      : undefined;
 
-  return new HybridAdminDataProvider(new MockAdminDataProvider(), catalogo);
+  return new HybridAdminDataProvider(
+    new MockAdminDataProvider(),
+    conectar(enderecoDoCatalogo()),
+    conectar(enderecoDoAcesso()),
+  );
 }
 
 /** Onde mora a `mindagent-catalogo`. Ver o cabeçalho deste arquivo. */

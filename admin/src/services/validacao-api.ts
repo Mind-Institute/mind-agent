@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   AdminApiError,
+  adminSistemaSchema,
   produtoCatalogoSchema,
   type ListResult,
   type MapaRecursos,
@@ -33,6 +34,7 @@ import {
 /** Recursos servidos pela API real. Os demais passam sem validação. */
 const SCHEMAS = {
   products: produtoCatalogoSchema,
+  admins: adminSistemaSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

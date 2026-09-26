@@ -4,11 +4,11 @@ import { renderizarPainel } from './utils';
 import { ITENS_NAVEGACAO, NAVEGACAO } from '@/routes/navegacao';
 
 describe('navegação', () => {
-  it('mostra o Catálogo e um título por vertical', async () => {
+  it('mostra o Catálogo, um título por vertical e os admins do sistema', async () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo']);
+    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Admins do sistema']);
     for (const item of ITENS_NAVEGACAO) {
       expect(
         within(menu).getByRole('link', { name: (nome) => nome.trim() === item.rotulo }),
@@ -21,6 +21,28 @@ describe('navegação', () => {
     }
     expect(NAVEGACAO.filter((g) => ['summit', 'institute', 'dash'].includes(g.id)).map((g) => g.itens))
       .toEqual([[], [], []]);
+    /* Pedido dela no mesmo dia: no lugar do antigo grupo de administração,
+       só o quadro de quem entra no painel. */
+    expect(within(menu).getByText('Administração')).toBeVisible();
+    expect(NAVEGACAO.at(-1)?.itens.map((item) => item.caminho)).toEqual(['/admins']);
+  });
+
+  it('os admins do sistema aparecem travados para quem não é administrador', async () => {
+    renderizarPainel({ papel: 'editor' });
+    const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
+
+    const admins = within(menu).getByRole('link', { name: (nome) => nome.trim() === 'Admins do sistema' });
+    expect(admins).toHaveAttribute('title', expect.stringMatching(/^Sem permissão/));
+  });
+
+  it('a barra lateral não fala mais do Summit 2026', async () => {
+    renderizarPainel();
+    const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
+
+    /* Pedido da Adriana (26/09/2026): o rodapé com data e local do evento
+       era do app, não da inteligência do Mind. */
+    expect(within(menu).queryByText(/16 e 17 de setembro/)).toBeNull();
+    expect(within(menu).queryByText(/America\/Sao_Paulo/)).toBeNull();
   });
 
   /* Decisões da Adriana (26/09/2026): o que era do app do Summit saiu do

@@ -1,4 +1,4 @@
-# Painel administrativo — Mind Agent
+# Mind Intelligence Admin — o painel do Mind
 
 Interface de administração do Mind. Desde 26/09/2026, nas palavras da Adriana,
 é **o painel de controle da inteligência do Mind** — não mais o admin do app do
@@ -8,7 +8,10 @@ Summit, que foi como ele nasceu.
 (evento, programação, palestrantes, espaços, rotas e estandes) e a Home V3
 (visualização e avisos), que eram do app; e depois **tudo o que não era dado
 real** — ofertas, conteúdo, documentos, conversas, perguntas, usuários e
-auditoria, que mostravam demonstração. A raiz do painel abre no Catálogo até ela
+auditoria, que mostravam demonstração; e por fim as avaliações do dia e do
+evento, a tela de configurações e o rodapé com a data do Summit. O menu tem um
+título por vertical — **Summit, Institute, Dash** —, por ora vazios: as tabelas
+de cada uma entram quando ela as mapear. A raiz do painel abre no Catálogo até ela
 definir a tela inicial, e **o que entra no painel é ela quem define** — nada de
 estrutura presumida. O backend dessas telas (Edge Functions `mindagent-admin` e
 `mindagent-home`, e as tabelas) continua como estava: o app ainda depende dele.
@@ -26,8 +29,9 @@ Estado atual: **o painel mostra só dado real.**
   pela Edge Function `mindagent-catalogo` — a origem de tudo. Salvar manda
   para o banco só o que mudou; `codigo` e `schema_dados` não se editam; criar
   e arquivar produto ainda não existem. Ver [Catálogo](#catálogo).
-- **As avaliações do dia e do evento** leem a `mindagent-avaliacao`, só leitura.
-- **Configurações** diz como o painel está ligado; não mostra dado.
+- **Admins do sistema, real em leitura e escrita:** quem entra no painel
+  (`mind_admin_users`, por Mind ID), pela `mindagent-acesso`. Só administrador vê
+  e mexe. Ver [Admins do sistema](#admins-do-sistema).
 
 A faixa do topo diz de onde vem o que está na tela — **dados reais** em
 produção, **dados simulados** no preview e nos testes, que não têm banco ligado —
@@ -141,8 +145,7 @@ segunda a partir da primeira, e nunca lê `user_metadata`.
 |---|---|
 | `/` | leva ao Catálogo |
 | `/catalogo` · `/catalogo/:id` | Catálogo de produtos |
-| `/avaliacao-do-dia` · `/avaliacao-do-evento` | Avaliações (somente leitura) |
-| `/configuracoes` | Configurações |
+| `/admins` · `/admins/:id` | Admins do sistema (só administrador) |
 
 Os módulos com edição em drawer têm **duas entradas para a mesma página**: a
 listagem continua montada atrás e o endereço é compartilhável.
@@ -337,6 +340,26 @@ Três regras seguram a edição:
   (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
   diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
 
+## Admins do sistema
+
+Pedido da Adriana (26/09/2026): ver e cadastrar quem entra no painel. A casa é a
+que já existia, `public.mind_admin_users`, por Mind ID — nenhuma tabela nova. A
+porta é a `mindagent-acesso`, e quem decide é o banco (`mind_admin_read_admins`,
+`mind_admin_mutate_admins`, só `service_role` executa; contrato
+`tests/admins_no_painel_contract.sql` → `ADMINS_PAINEL_OK`).
+
+- **Dar acesso:** e-mail @joinmind.com.br e papel (escolhido, sem valor pronto).
+  O banco acha a pessoa no Mind ID pelo e-mail: tem que existir, ser uma só, não
+  fundida e **marcada como equipe**. A lista nunca cria pessoa. Quem tinha acesso
+  desligado volta na mesma linha.
+- **Na linha:** papel e situação ("Pode entrar no painel"). Tirar o acesso é
+  desligar a situação — a linha fica, para a auditoria e para religar depois.
+  Salvar manda só o que mudou, com a versão (409 abre o conflito).
+- **Travas do banco:** só administrador ativo lê e escreve; ninguém tira o próprio
+  acesso nem o próprio papel de administrador; o painel nunca fica sem
+  administrador ativo. Toda escrita vai para `mind_admin_audit`.
+- A conta antiga, de senha, aparece com o selo **sem Mind ID**.
+
 ## Dados simulados
 
 Só existe para os testes e para o preview de cada versão, que é montado sem as
@@ -368,7 +391,7 @@ isso só cabem aí URL e chave publicável. `service_role`, secret key e chave d
 Edge Function **não existem neste código** — nem em variável, nem em header.
 Quem guarda segredo é o backend.
 
-A tela de Configurações mostra se cada variável está definida — **nunca o
+Nenhuma tela mostra o valor de variável — **nunca o
 valor**.
 
 `.env.example` fica sem valores de propósito; os reais vivem em `.env.local`, que
@@ -514,8 +537,8 @@ Endpoints em uso:
 ```text
 mindagent-admin      GET   /admin/me                  (quem é você e o que pode)
 mindagent-acesso     POST  /admin/vincular            (primeiro login com Google)
+mindagent-acesso     GET   /admin/admins · /:id · POST /admin/admins · PATCH /:id
 mindagent-catalogo   GET   /admin/products · /:id · PATCH /:id
-mindagent-avaliacao  GET   os relatórios da avaliação do dia e do evento
 ```
 
 Toda escrita manda `If-Unmodified-Since-Version: <atualizadoEm>`, e `409` abre o
@@ -566,7 +589,7 @@ npm test --prefix admin
 | `fluxo-editorial.test.tsx` | Conflito de atualização: a alteração de outra pessoa não é sobrescrita em silêncio. |
 | `listagens.test.tsx` | Busca textual. |
 | `publicacao.test.tsx` | O painel sob `/admin` e as regras de roteamento do Worker. |
-| `avaliacao-do-dia.test.tsx` | O relatório da avaliação do dia. |
+| `admins.test.tsx` | A lista vem da `mindagent-acesso`; dar acesso manda só e-mail e papel; e-mail de fora da Mind e papel vazio não saem da tela; recusas do banco aparecem; mudar papel ou situação manda só o que mudou, com a versão; conflito; quem não é administrador não vê. |
 
 Os testes montam o painel inteiro, com rotas e provedores reais e um banco novo
 em memória por teste. `src/test/setup.ts` traz três remendos de ambiente

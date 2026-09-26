@@ -196,6 +196,8 @@ export interface ChamadaHttp {
   url: string;
   metodo: string;
   cabecalhos: Record<string, string>;
+  /** O corpo JSON enviado, já lido. `undefined` quando não houve corpo. */
+  corpo?: unknown;
 }
 
 export interface FetchFalso {
@@ -259,7 +261,8 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
       if (brutos instanceof Headers) brutos.forEach((v, k) => (cabecalhos[k] = v));
       else Object.assign(cabecalhos, brutos as Record<string, string>);
     }
-    chamadas.push({ url, metodo, cabecalhos });
+    const corpo = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
+    chamadas.push({ url, metodo, cabecalhos, corpo });
 
     const escolhida = escolher(url, metodo);
     if (!escolhida) {
@@ -299,6 +302,7 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
 
 export const API_FALSA = 'https://api.exemplo.invalido/mindagent-admin';
 export const CATALOGO_FALSO = 'https://api.exemplo.invalido/mindagent-catalogo';
+export const ACESSO_FALSO = 'https://api.exemplo.invalido/mindagent-acesso';
 
 /** Publicável de mentira. A real nunca entra em teste nem em commit. */
 export const CHAVE_FALSA = 'sb_publishable_de_teste';
@@ -331,18 +335,19 @@ export function renderizarHibrido({ rota = '/', rotas = {}, perfil }: OpcoesHibr
     baseUrlApi: API_FALSA,
     chavePublicavel: CHAVE_FALSA,
     fetchImpl: falso.fetch,
-    provedor: (o) =>
-      new HybridAdminDataProvider(
-        mock,
-        /* O catálogo real, como em produção: é a tela inicial do painel. */
+    provedor: (o) => {
+      const conectar = (baseUrl: string) =>
         new HttpAdminDataProvider({
-          baseUrl: CATALOGO_FALSO,
+          baseUrl,
           fetchImpl: falso.fetch,
           chavePublicavel: CHAVE_FALSA,
           obterToken: o.obterToken,
           aoNaoAutorizado: o.aoNaoAutorizado,
-        }),
-      ),
+        });
+      /* Como em produção: o catálogo (a tela inicial) e os admins do
+         sistema, cada um na sua função. */
+      return new HybridAdminDataProvider(mock, conectar(CATALOGO_FALSO), conectar(ACESSO_FALSO));
+    },
   });
 
   return { ...tela, falso, porta, mock };

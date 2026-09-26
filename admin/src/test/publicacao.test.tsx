@@ -43,9 +43,11 @@ describe('rotas sob /admin (basename)', () => {
     const catalogo = within(menu).getByRole('link', { name: /^Catálogo/ });
     expect(catalogo).toHaveAttribute('href', '/admin/catalogo');
 
-    /* O que este teste existe para pegar: prefixo duplicado. */
+    /* O que este teste existe para pegar: prefixo duplicado. Inteiro,
+       segmento a segmento — `/admin/admins` é a tela de admins do sistema,
+       não o prefixo repetido. */
     for (const link of within(menu).getAllByRole('link')) {
-      expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/admin\/admin/);
+      expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/^\/admin\/admin(\/|$)/);
       expect(link.getAttribute('href')).toMatch(/^\/admin(\/|$)/);
     }
   });

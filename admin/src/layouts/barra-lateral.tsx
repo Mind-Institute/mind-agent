@@ -63,12 +63,6 @@ export function BarraLateral({ aoNavegar }: { aoNavegar?: () => void }) {
           </ul>
         </div>
       ))}
-
-      <p className="mt-auto px-2 pt-4 text-[11px] leading-relaxed text-muted-foreground">
-        Mind Summit 2026 · 16 e 17 de setembro
-        <br />
-        São Paulo · America/Sao_Paulo
-      </p>
     </nav>
   );
 }
