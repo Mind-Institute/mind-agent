@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ehErroAdmin } from '@/contracts';
 import { HttpAdminDataProvider } from '@/services/http-admin-data-provider';
@@ -414,66 +414,41 @@ describe('contrato das respostas reais', () => {
   });
 });
 
-describe('filtros reais da programação', () => {
-  it('todos os filtros combinados chegam na query string', async () => {
-    const { falso } = renderizarHibrido({
-      rota:
-        '/programacao?busca=clareza&dia=2026-09-16&espacoId=esp_real_1' +
-        '&tema=cultura&palestranteId=pal_1&tipo=palestra&status=em_revisao&pagina=2',
-      rotas: ROTAS,
-    });
+/* O produto como a `mindagent-catalogo` devolve. O catálogo é o módulo real
+   que ficou na tela depois que o Evento saiu do painel (26/09/2026), e é
+   por ele que o tratamento de cada status é conferido de ponta a ponta. */
+const PRODUTO_REAL = {
+  id: '5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f',
+  criadoEm: '',
+  atualizadoEm: '2026-09-13T15:30:00.123456+00:00',
+  atualizadoPor: null,
+  codigo: 'produto-real',
+  nome: 'Produto real',
+  tipo: 'curso',
+  vertical: 'institute',
+  categoria: null,
+  descricaoCurta: null,
+  descricao: null,
+  ativo: true,
+  vende: true,
+  vendeDe: null,
+  vendeAte: null,
+  comecaEm: null,
+  encerraEm: null,
+  periodo: null,
+  schemaDados: null,
+  pipelinesHubspot: [],
+};
 
-    /* Duas consultas saem para `sessions`: a listagem filtrada e a
-       grade inteira usada na detecção de conflito. A do teste é a que
-       carrega os filtros. */
-    await waitFor(() => expect(falso.ultima('busca=clareza')).toBeDefined());
-    const url = new URL(falso.ultima('busca=clareza')!.url);
-    const p = url.searchParams;
-
-    expect(p.get('busca')).toBe('clareza');
-    expect(p.get('dia')).toBe('2026-09-16');
-    expect(p.get('espacoId')).toBe('esp_real_1');
-    expect(p.get('tema')).toBe('cultura');
-    expect(p.get('palestranteId')).toBe('pal_1');
-    expect(p.get('tipo')).toBe('palestra');
-    expect(p.get('status')).toBe('em_revisao');
-    expect(p.get('ordenar')).toBe('dia');
-    expect(p.get('pagina')).toBe('2');
-    expect(p.get('porPagina')).toBe('50');
-  });
-
-  it('a paginação usa o total que a API informou', async () => {
-    renderizarHibrido({ rota: '/programacao', rotas: ROTAS });
-
-    await screen.findByTestId('linha-ses_real_1');
-    /* total 67, porPagina 50 → duas páginas. */
-    expect(screen.getByTestId('contagem-registros')).toHaveTextContent('67 registro(s)');
-    expect(screen.getByTestId('contagem-registros')).toHaveTextContent('página 1 de 2');
-    expect(screen.getByRole('button', { name: /próxima/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /anterior/i })).toBeDisabled();
-  });
-
-  it('avançar de página refaz a busca com pagina=2', async () => {
-    const usuario = userEvent.setup();
-    const { falso } = renderizarHibrido({ rota: '/programacao', rotas: ROTAS });
-
-    await screen.findByTestId('linha-ses_real_1');
-    await usuario.click(screen.getByRole('button', { name: /próxima/i }));
-
-    await waitFor(() => {
-      const url = falso.ultima('/admin/sessions?')?.url ?? '';
-      expect(new URL(url).searchParams.get('pagina')).toBe('2');
-    });
-  });
-});
+const ROTAS_CATALOGO = { ...ROTAS, '/admin/products': { corpo: lista([PRODUTO_REAL]) } };
 
 describe('códigos de erro da API real', () => {
   it('401 devolve ao login com aviso de sessão expirada', async () => {
     const { porta } = renderizarHibrido({
-      rota: '/programacao',
+      rota: '/catalogo',
       rotas: {
-        ...ROTAS,
-        '/admin/sessions': {
+        ...ROTAS_CATALOGO,
+        '/admin/products': {
           status: 401,
           corpo: { codigo: 'sem_permissao', mensagem: 'Sessão inválida ou expirada.' },
         },
@@ -481,53 +456,51 @@ describe('códigos de erro da API real', () => {
     });
 
     expect(await screen.findByText(/sua sessão expirou/i)).toBeVisible();
-    /* A programação faz duas consultas (a lista e a grade inteira para
-       detectar conflito); as duas levam 401, e as duas mandam sair. O
-       que importa é a sessão ter sido descartada. */
     await waitFor(() => expect(porta.chamadas.sair).toBeGreaterThanOrEqual(1));
   });
 
   it('403 mostra sem permissão, sem cair no mock', async () => {
     renderizarHibrido({
-      rota: '/palestrantes',
+      rota: '/catalogo',
       rotas: {
-        ...ROTAS,
-        '/admin/speakers': {
+        ...ROTAS_CATALOGO,
+        '/admin/products': {
           status: 403,
-          corpo: { codigo: 'sem_permissao', mensagem: 'Seu papel não acessa palestrantes.' },
+          corpo: { codigo: 'sem_permissao', mensagem: 'Seu papel não acessa o catálogo.' },
         },
       },
     });
 
     expect(await screen.findByText('Sem permissão')).toBeVisible();
-    expect(screen.getByText('Seu papel não acessa palestrantes.')).toBeVisible();
-    expect(screen.queryByText('Amy Edmondson')).not.toBeInTheDocument();
+    expect(screen.getByText('Seu papel não acessa o catálogo.')).toBeVisible();
+    expect(screen.queryByTestId('linha-prd_mind')).not.toBeInTheDocument();
   });
 
   it('404 no item mostra registro não encontrado', async () => {
+    const inexistente = '0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f';
     renderizarHibrido({
-      rota: '/programacao/ses_inexistente',
+      rota: `/catalogo/${inexistente}`,
       rotas: {
-        ...ROTAS,
-        '/admin/sessions/ses_inexistente': {
+        ...ROTAS_CATALOGO,
+        [`/admin/products/${inexistente}`]: {
           status: 404,
-          corpo: { codigo: 'nao_encontrado', mensagem: 'Sessão não existe.' },
+          corpo: { codigo: 'nao_encontrado', mensagem: 'Produto não existe.' },
         },
       },
     });
 
     expect(await screen.findByText('Registro não encontrado')).toBeVisible();
-    expect(screen.getByText('Sessão não existe.')).toBeVisible();
+    expect(screen.getByText('Produto não existe.')).toBeVisible();
   });
 
   it('409 no salvamento abre o diálogo de conflito', async () => {
     const usuario = userEvent.setup();
     renderizarHibrido({
-      rota: '/programacao/ses_real_1',
+      rota: `/catalogo/${PRODUTO_REAL.id}`,
       rotas: {
-        ...ROTAS,
-        'GET /admin/sessions/ses_real_1': { corpo: SESSAO_DA_API },
-        'PATCH /admin/sessions/ses_real_1': {
+        ...ROTAS_CATALOGO,
+        [`GET /admin/products/${PRODUTO_REAL.id}`]: { corpo: PRODUTO_REAL },
+        [`PATCH /admin/products/${PRODUTO_REAL.id}`]: {
           status: 409,
           corpo: {
             codigo: 'conflito',
@@ -537,9 +510,9 @@ describe('códigos de erro da API real', () => {
       },
     });
 
-    const titulo = await screen.findByLabelText(/^Título/);
-    await waitFor(() => expect(titulo).toHaveValue('Sessão real'));
-    await usuario.type(titulo, ' editada');
+    const nome = await screen.findByLabelText(/^Nome/);
+    await waitFor(() => expect(nome).toHaveValue('Produto real'));
+    await usuario.type(nome, ' editado');
     await usuario.click(screen.getByRole('button', { name: /^Salvar$/ }));
 
     expect(await screen.findByRole('heading', { name: /conflito de atualização/i })).toBeVisible();
@@ -549,54 +522,41 @@ describe('códigos de erro da API real', () => {
   it('422 mostra o motivo da recusa e mantém o que foi editado', async () => {
     const usuario = userEvent.setup();
     renderizarHibrido({
-      rota: '/espacos/esp_real_1',
+      rota: `/catalogo/${PRODUTO_REAL.id}`,
       rotas: {
-        ...ROTAS,
-        'GET /admin/spaces/esp_real_1': {
-          corpo: {
-            id: 'esp_real_1',
-            nome: 'Arena Real',
-            slug: 'arena-real',
-            tipo: 'arena',
-            aliases: ['palco real'],
-            comoChegar: 'Ao fundo.',
-            coordenadaX: 1,
-            coordenadaY: 2,
-            ativo: true,
-            atualizadoEm: '2026-08-10T00:00:00.000Z',
-          },
-        },
-        'PATCH /admin/spaces/esp_real_1': {
+        ...ROTAS_CATALOGO,
+        [`GET /admin/products/${PRODUTO_REAL.id}`]: { corpo: PRODUTO_REAL },
+        [`PATCH /admin/products/${PRODUTO_REAL.id}`]: {
           status: 422,
           corpo: {
             codigo: 'validacao',
-            mensagem: 'Slug já usado por outro espaço.',
-            detalhes: ['slug: precisa ser único'],
+            mensagem: 'Nome já usado por outro produto.',
+            detalhes: ['nome: precisa ser único'],
           },
         },
       },
     });
 
-    const slug = await screen.findByLabelText(/^Slug/);
-    await waitFor(() => expect(slug).toHaveValue('arena-real'));
-    await usuario.clear(slug);
-    await usuario.type(slug, 'arena-mind');
+    const nome = await screen.findByLabelText(/^Nome/);
+    await waitFor(() => expect(nome).toHaveValue('Produto real'));
+    await usuario.clear(nome);
+    await usuario.type(nome, 'Outro nome');
     await usuario.click(screen.getByRole('button', { name: /^Salvar$/ }));
 
     const aviso = await screen.findByTestId('erro-escrita');
     expect(aviso).toHaveTextContent('A API recusou estes dados');
-    expect(aviso).toHaveTextContent('Slug já usado por outro espaço.');
-    expect(aviso).toHaveTextContent('slug: precisa ser único');
+    expect(aviso).toHaveTextContent('Nome já usado por outro produto.');
+    expect(aviso).toHaveTextContent('nome: precisa ser único');
     /* O que a pessoa digitou continua no formulário. */
-    expect(screen.getByLabelText(/^Slug/)).toHaveValue('arena-mind');
+    expect(screen.getByLabelText(/^Nome/)).toHaveValue('Outro nome');
   });
 
   it('503 mostra serviço indisponível na listagem real', async () => {
     renderizarHibrido({
-      rota: '/espacos',
+      rota: '/catalogo',
       rotas: {
-        ...ROTAS,
-        '/admin/spaces': {
+        ...ROTAS_CATALOGO,
+        '/admin/products': {
           status: 503,
           corpo: { codigo: 'indisponivel', mensagem: 'Em manutenção programada.' },
         },
@@ -609,8 +569,8 @@ describe('códigos de erro da API real', () => {
 
   it('o requestId da resposta aparece na tela de erro', async () => {
     renderizarHibrido({
-      rota: '/espacos',
-      rotas: { ...ROTAS, '/admin/spaces': { status: 503, corpo: { codigo: 'indisponivel' } } },
+      rota: '/catalogo',
+      rotas: { ...ROTAS_CATALOGO, '/admin/products': { status: 503, corpo: { codigo: 'indisponivel' } } },
     });
 
     expect(await screen.findByText(/requisição req_teste_0001/)).toBeVisible();
@@ -634,193 +594,5 @@ describe('códigos de erro da API real', () => {
         (e: unknown) => ehErroAdmin(e) && e.codigo === esperado,
       );
     }
-  });
-});
-
-describe('evento real', () => {
-  it('mostra a divergência entre o cadastro oficial e a cópia congelada', async () => {
-    renderizarHibrido({ rota: '/evento', rotas: ROTAS });
-
-    expect(await screen.findByText(/local do evento em divergência/i)).toBeVisible();
-    expect(screen.getByText('Pavilhão 3 · Transamérica Expo Center')).toBeVisible();
-    expect(screen.getByText('São Paulo Expo')).toBeVisible();
-    expect(screen.getByText(/o painel não decide qual está correto/i)).toBeVisible();
-  });
-
-  it('salvar fala da API, não da base de demonstração', async () => {
-    const usuario = userEvent.setup();
-    renderizarHibrido({
-      rota: '/evento',
-      rotas: { ...ROTAS, '/admin/event/evt_real': { corpo: EVENTO_DA_API } },
-    });
-
-    const cidade = await screen.findByLabelText(/^Cidade/);
-    await waitFor(() => expect(cidade).toHaveValue('São Paulo'));
-    await usuario.type(cidade, ' · SP');
-    await usuario.click(screen.getByRole('button', { name: /salvar alterações/i }));
-
-    expect(await screen.findByText('Alterações salvas')).toBeVisible();
-    expect(screen.getByText(/gravado na api administrativa/i)).toBeVisible();
-    expect(screen.queryByText(/base de demonstração/i)).not.toBeInTheDocument();
-  });
-
-  it('manda o PATCH com o header de concorrência', async () => {
-    const usuario = userEvent.setup();
-    const { falso } = renderizarHibrido({
-      rota: '/evento',
-      rotas: { ...ROTAS, '/admin/event/evt_real': { corpo: EVENTO_DA_API } },
-    });
-
-    const cidade = await screen.findByLabelText(/^Cidade/);
-    await waitFor(() => expect(cidade).toHaveValue('São Paulo'));
-    await usuario.type(cidade, ' · SP');
-    await usuario.click(screen.getByRole('button', { name: /salvar alterações/i }));
-
-    await waitFor(() => {
-      const patch = falso.chamadas.find((c) => c.metodo === 'PATCH');
-      expect(patch?.url).toContain('/admin/event/evt_real');
-      expect(patch?.cabecalhos['If-Unmodified-Since-Version']).toBe(EVENTO_DA_API.atualizadoEm);
-    });
-  });
-});
-
-describe('categorias reais na tela', () => {
-  const tipos = [
-    ['credenciamento', 'Credenciamento'],
-    ['almoco', 'Almoço'],
-    ['intervalo', 'Intervalo'],
-    ['em_curadoria', 'Em curadoria'],
-  ] as const;
-
-  it('os novos tipos de sessão aparecem com rótulo em português', async () => {
-    renderizarHibrido({
-      rota: '/programacao',
-      rotas: {
-        ...ROTAS,
-        '/admin/sessions': {
-          corpo: lista(
-            tipos.map(([tipo], i) => ({
-              ...SESSAO_DA_API,
-              id: `ses_${tipo}`,
-              titulo: `Bloco ${i}`,
-              tipo,
-            })),
-          ),
-        },
-      },
-    });
-
-    await screen.findByTestId('linha-ses_credenciamento');
-    for (const [tipo, esperado] of tipos) {
-      const linha = screen.getByTestId(`linha-ses_${tipo}`);
-      expect(within(linha).getByText(esperado), tipo).toBeVisible();
-    }
-  });
-
-  it('o formato remoto aparece traduzido', async () => {
-    renderizarHibrido({
-      rota: '/programacao',
-      rotas: {
-        ...ROTAS,
-        '/admin/sessions': {
-          corpo: lista([{ ...SESSAO_DA_API, id: 'ses_remoto', formato: 'remoto' }]),
-        },
-      },
-    });
-
-    const linha = await screen.findByTestId('linha-ses_remoto');
-    expect(within(linha).getByText('Remoto')).toBeVisible();
-  });
-
-  it('os novos tipos de espaço aparecem com rótulo em português', async () => {
-    const tiposEspaco = [
-      ['acessibilidade', 'Acessibilidade'],
-      ['acesso', 'Acesso'],
-      ['alimentacao', 'Alimentação'],
-      ['ativacao', 'Ativação'],
-      ['estandes', 'Estandes'],
-      ['servico', 'Serviço'],
-    ] as const;
-
-    renderizarHibrido({
-      rota: '/espacos',
-      rotas: {
-        ...ROTAS,
-        '/admin/spaces': {
-          corpo: lista(
-            tiposEspaco.map(([tipo]) => ({
-              id: `esp_${tipo}`,
-              nome: `Espaço ${tipo}`,
-              slug: tipo,
-              tipo,
-              aliases: ['x'],
-              comoChegar: 'Ali.',
-              coordenadaX: 1,
-              coordenadaY: 2,
-              ativo: true,
-              atualizadoEm: '2026-08-01T00:00:00.000Z',
-            })),
-          ),
-        },
-      },
-    });
-
-    await screen.findByTestId('linha-esp_acesso');
-    for (const [tipo, esperado] of tiposEspaco) {
-      const linha = screen.getByTestId(`linha-esp_${tipo}`);
-      expect(within(linha).getByText(esperado), tipo).toBeVisible();
-    }
-  });
-
-  it('categoria desconhecida aparece com o código cru e marcada', async () => {
-    renderizarHibrido({
-      rota: '/programacao',
-      rotas: {
-        ...ROTAS,
-        '/admin/sessions': {
-          corpo: lista([{ ...SESSAO_DA_API, id: 'ses_nova', tipo: 'mesa_redonda' }]),
-        },
-      },
-    });
-
-    const linha = await screen.findByTestId('linha-ses_nova');
-    const selo = within(linha).getByText('mesa_redonda');
-    expect(selo).toBeVisible();
-    /* Marcado como desconhecido, não traduzido para "palestra". */
-    expect(selo.closest('[data-categoria-desconhecida="true"]')).not.toBeNull();
-    expect(within(linha).queryByText('Palestra')).not.toBeInTheDocument();
-  });
-});
-
-describe('vínculo que aponta para fora da lista carregada', () => {
-  /* Regressão de um bug real: o Radix avisa `onValueChange('')` quando
-     o valor controlado não casa com nenhum item montado. Sem o guarda
-     em `components/ui/select.tsx`, abrir uma sessão cujo espaço não está
-     na lista e salvar qualquer outro campo mandava `espacoId: null`. */
-  it('salvar preserva o espaço da sessão mesmo sem ele nas opções', async () => {
-    const usuario = userEvent.setup();
-    const { falso } = renderizarHibrido({
-      rota: '/programacao/ses_real_1',
-      rotas: {
-        ...ROTAS,
-        /* A lista de espaços volta vazia — o espaço da sessão não está lá. */
-        '/admin/spaces': { corpo: lista([]) },
-        'GET /admin/sessions/ses_real_1': { corpo: SESSAO_DA_API },
-        'PATCH /admin/sessions/ses_real_1': { corpo: SESSAO_DA_API },
-      },
-    });
-
-    const titulo = await screen.findByLabelText(/^Título/);
-    await waitFor(() => expect(titulo).toHaveValue('Sessão real'));
-    await usuario.type(titulo, ' revisada');
-    await usuario.click(screen.getByRole('button', { name: /^Salvar$/ }));
-
-    await waitFor(() => {
-      const patch = falso.chamadas.find((c) => c.metodo === 'PATCH');
-      expect(patch, 'o PATCH precisa sair — validação não pode barrar').toBeDefined();
-    });
-
-    /* Nenhuma mensagem de "escolha o espaço": o vínculo sobreviveu. */
-    expect(screen.queryByText('Escolha o espaço.')).not.toBeInTheDocument();
   });
 });

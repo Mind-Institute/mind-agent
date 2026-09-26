@@ -104,6 +104,16 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   inteligência da empresa de modo geral"* · *"eu prefiro construir do que você assumir o que eu quero"*.
   O painel atual nasceu como admin do app do Summit; o que entra no admin da empresa sai dela, sem
   proposta pronta.
+- **O que era do app saiu do painel (26/09, pedido dela).** *"aqui estamos fazendo o painel de controle
+  da inteligência do Mind"*. Saíram do código do painel: a **Home V3** (visualização e avisos — *"isso é
+  sobre o app"*), o grupo **Evento** (evento, programação, palestrantes, espaços, rotas, estandes) e a
+  **visão geral**; por escolha dela, a raiz abre no **Catálogo** até ela definir a tela inicial. Menu com
+  11 itens; teste impede os removidos de voltarem. Backend intocado: `mindagent-admin` (continua sendo a
+  porta de `/admin/me`) e `mindagent-home` (o app lê a home dela) seguem vivas, e nenhuma tabela mudou.
+  **Ficou para depois:** a camada de dados do painel ainda conhece os recursos do evento e o dashboard
+  (tipos, sementes do mock, encaminhamento híbrido para a `mindagent-admin`) — nenhuma tela usa; limpar
+  quando ela definir o conteúdo. A variável de build `VITE_HOME_API_BASE_URL`, se existir na Cloudflare,
+  não é mais lida. Painel 183/183, `tsc` limpo, build verde.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.

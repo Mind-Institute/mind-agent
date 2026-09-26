@@ -1,21 +1,22 @@
 /* ============================================================
    HybridAdminDataProvider — meio caminho, dito em voz alta
    ============================================================
-   Nesta etapa o painel tem TRÊS origens:
+   Nesta etapa o painel tem estas origens:
 
    - o núcleo do evento — visão geral, evento, programação, palestrantes,
      espaços e temas — vem da `mindagent-admin`, em leitura e escrita;
-   - o módulo Home V3 — avisos, composição no ar e trocas programadas —
-     vem da `mindagent-home`, que é função separada. Ela existe porque
-     essas rotas não cabiam na outra sem editar função viva de outra
-     lane, e porque o conteúdo é de outra natureza: o que o painel
-     PUBLICA, não o que a grade informa;
    - o catálogo (`catalogo.produtos`) vem da `mindagent-catalogo`, outra
      função separada, pelo mesmo motivo. Lê e edita — criar e arquivar
      produto não existem por aqui;
    - rotas, estandes, ofertas, conteúdo institucional, documentos,
      conversas, perguntas, usuários e auditoria continuam no banco em
      memória.
+
+   Desde 26/09/2026 o painel não tem mais tela do evento (visão geral,
+   evento, programação, palestrantes, espaços, rotas, estandes) nem da
+   Home V3: eram do app do Summit, e a Adriana tirou. Na tela, o que é
+   real é o catálogo. O encaminhamento do núcleo do evento continua aqui
+   até a limpeza da camada de dados.
 
    Essa mistura é a coisa mais perigosa do painel: quem edita um
    palestrante real e um estande falso na mesma sessão precisa saber
@@ -50,19 +51,6 @@ export const RECURSOS_REAIS = [
 ] as const satisfies readonly NomeRecurso[];
 
 export type RecursoReal = (typeof RECURSOS_REAIS)[number];
-
-/** Servidos pela `mindagent-home`, não pela `mindagent-admin`. */
-export const RECURSOS_DA_HOME = [
-  'home_notices',
-  'home_state',
-  'home_schedule',
-] as const satisfies readonly NomeRecurso[];
-
-const CONJUNTO_HOME = new Set<string>(RECURSOS_DA_HOME);
-
-export function ehRecursoDaHome(resource: NomeRecurso): boolean {
-  return CONJUNTO_HOME.has(resource);
-}
 
 /** Servido pela `mindagent-catalogo`: ler e editar, nada além. */
 export const RECURSOS_DO_CATALOGO = ['products'] as const satisfies readonly NomeRecurso[];
@@ -139,26 +127,18 @@ export class HybridAdminDataProvider implements AdminDataProvider {
   constructor(
     private readonly http: AdminDataProvider,
     private readonly mock: AdminDataProvider,
-    /* Ausente, o módulo Home V3 continua em memória — é o que acontece
-       nos testes e em qualquer build sem `VITE_HOME_API_BASE_URL`. */
-    private readonly home?: AdminDataProvider,
     /* Ausente, o catálogo fica em memória — nos testes e em build sem
        endereço do Supabase. */
     private readonly catalogo?: AdminDataProvider,
   ) {}
 
   origemDoRecurso(resource: NomeRecurso): 'http' | 'mock' {
-    if (ehRecursoDaHome(resource)) return this.home ? 'http' : 'mock';
     if (ehRecursoDoCatalogo(resource)) return this.catalogo ? 'http' : 'mock';
     return ehRecursoReal(resource) ? 'http' : 'mock';
   }
 
   /** Escolhe o destino e, para recurso real, confere se a operação existe. */
   private destino(resource: NomeRecurso, operacao: string): AdminDataProvider {
-    /* A Home V3 tem API própria e todas as operações que as páginas
-       usam — não passa pela tabela de OPERACOES, que existe para
-       descrever as lacunas da API do evento. */
-    if (ehRecursoDaHome(resource)) return this.home ?? this.mock;
     if (ehRecursoDoCatalogo(resource)) {
       /* A recusa vale também em demonstração: a tela não pode ensinar um
          botão que a API de verdade não tem. */

@@ -143,7 +143,7 @@ describe('catálogo — roteamento no modo híbrido', () => {
     const mock = new MockAdminDataProvider({ latenciaMs: 0 });
     const catalogo = new MockAdminDataProvider({ latenciaMs: 0 });
     catalogo.banco.products = [{ ...DO_BANCO, id: 'do-catalogo' }];
-    const hibrido = new HybridAdminDataProvider(http, mock, undefined, comCatalogo ? catalogo : undefined);
+    const hibrido = new HybridAdminDataProvider(http, mock, comCatalogo ? catalogo : undefined);
     return { hibrido, catalogo, mock };
   }
 

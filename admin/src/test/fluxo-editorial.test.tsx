@@ -45,9 +45,9 @@ describe('publicação (mock)', () => {
 describe('arquivamento (mock)', () => {
   it('pede confirmação, explica que não apaga e arquiva', async () => {
     const usuario = userEvent.setup();
-    const { provedor } = renderizarPainel({ rota: '/estandes/est_mind' });
+    const { provedor } = renderizarPainel({ rota: '/ofertas/ofe_mind' });
 
-    await screen.findByDisplayValue('Mind Institute');
+    await screen.findByDisplayValue('Ingresso Mind');
     await usuario.click(screen.getByRole('button', { name: /arquivar/i }));
 
     expect(await screen.findByRole('heading', { name: /arquivar registro/i })).toBeVisible();
@@ -57,31 +57,31 @@ describe('arquivamento (mock)', () => {
     await usuario.click(screen.getByRole('button', { name: /^Arquivar$/ }));
 
     await waitFor(async () => {
-      const registro = await provedor.get('booths', 'est_mind');
+      const registro = await provedor.get('offers', 'ofe_mind');
       expect(registro.ativo).toBe(false);
     });
 
     /* Arquivado é diferente de apagado: o registro continua na lista. */
-    const total = await provedor.list('booths');
-    expect(total.itens.some((e) => e.id === 'est_mind')).toBe(true);
+    const total = await provedor.list('offers');
+    expect(total.itens.some((o) => o.id === 'ofe_mind')).toBe(true);
   });
 
   it('cancelar a confirmação não arquiva nada', async () => {
     const usuario = userEvent.setup();
-    const { provedor } = renderizarPainel({ rota: '/estandes/est_mind' });
+    const { provedor } = renderizarPainel({ rota: '/ofertas/ofe_mind' });
 
-    await screen.findByDisplayValue('Mind Institute');
+    await screen.findByDisplayValue('Ingresso Mind');
     await usuario.click(screen.getByRole('button', { name: /arquivar/i }));
     await usuario.click(await screen.findByRole('button', { name: 'Cancelar' }));
 
-    const registro = await provedor.get('booths', 'est_mind');
+    const registro = await provedor.get('offers', 'ofe_mind');
     expect(registro.ativo).toBe(true);
   });
 
   it('atendimento não vê ação de arquivar', async () => {
-    renderizarPainel({ rota: '/estandes/est_mind', papel: 'atendimento' });
+    renderizarPainel({ rota: '/ofertas/ofe_mind', papel: 'atendimento' });
 
-    await screen.findByDisplayValue('Mind Institute');
+    await screen.findByDisplayValue('Ingresso Mind');
     expect(screen.queryByRole('button', { name: /arquivar/i })).not.toBeInTheDocument();
   });
 });
@@ -89,15 +89,15 @@ describe('arquivamento (mock)', () => {
 describe('conflito de atualização', () => {
   it('avisa quando o registro mudou desde que a tela abriu', async () => {
     const usuario = userEvent.setup();
-    const { provedor } = renderizarPainel({ rota: '/estandes/est_sextante' });
+    const { provedor } = renderizarPainel({ rota: '/ofertas/ofe_vip' });
 
-    const contato = await screen.findByLabelText(/^Contato/);
-    await waitFor(() => expect(contato).toHaveValue('contato@exemplo.com.br'));
+    const condicoes = await screen.findByLabelText(/^Condições de pagamento/);
+    await waitFor(() => expect(condicoes).toHaveValue('Em até 10x sem juros no cartão.'));
 
     /* Outra pessoa salva o mesmo registro enquanto esta tela está aberta. */
-    await provedor.update('booths', 'est_sextante', { descricao: 'alterado por outra pessoa' });
+    await provedor.update('offers', 'ofe_vip', { descricao: 'alterado por outra pessoa' });
 
-    await usuario.type(contato, 'x');
+    await usuario.type(condicoes, 'x');
     await usuario.click(screen.getByRole('button', { name: /^Salvar$/ }));
 
     expect(await screen.findByRole('heading', { name: /conflito de atualização/i })).toBeVisible();

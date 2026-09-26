@@ -1,32 +1,37 @@
 # Painel administrativo — Mind Agent
 
-Interface de administração do **Mind Agent**: o lugar onde se edita o que o
-chat próprio e o agente do Treble respondem sobre o Mind Summit 2026.
+Interface de administração do Mind. Desde 26/09/2026, nas palavras da Adriana,
+é **o painel de controle da inteligência do Mind** — não mais o admin do app do
+Summit, que foi como ele nasceu.
+
+**O que saiu (26/09/2026, decisão dela):** a visão geral, o grupo Evento
+(evento, programação, palestrantes, espaços, rotas e estandes) e a Home V3
+(visualização e avisos). Eram do app. A raiz do painel abre no Catálogo até ela
+definir a tela inicial, e **o que entra no painel é ela quem define** — nada de
+estrutura presumida. O backend dessas telas (Edge Functions `mindagent-admin` e
+`mindagent-home`, e as tabelas) continua como estava: o app ainda depende dele.
 
 Aplicação **independente**, dentro de `admin/`. O chat da raiz continua sendo
 site estático sem build — este painel não toca em nenhum arquivo dele. A única
 coisa que atravessa a fronteira é leitura: `../dados/summit.json` como semente e
 `../assets/` para a fonte Satoshi, o símbolo e o favicon.
 
-Estado atual: **o núcleo do evento é real; os módulos de apoio seguem em
-demonstração.**
+Estado atual: **o Catálogo é real; os demais módulos seguem em demonstração.**
 
 - O acesso passa por **Supabase Auth**. Papel e permissões vêm exclusivamente de
   `GET /admin/me`, validado no backend.
-- **Reais, em leitura e escrita:** visão geral, evento, programação,
-  palestrantes, espaços e temas (temas só em leitura).
 - **Catálogo, real em leitura e edição:** os produtos de `catalogo.produtos`,
   pela Edge Function `mindagent-catalogo` — a origem de tudo. Salvar manda
   para o banco só o que mudou; `codigo` e `schema_dados` não se editam; criar
   e arquivar produto ainda não existem. Ver [Catálogo](#catálogo).
-- **Ainda em memória:** rotas, estandes, ofertas, conteúdo institucional,
-  documentos, conversas, perguntas sem resposta, usuários e auditoria.
+- **As avaliações do dia e do evento** leem a `mindagent-avaliacao`, só leitura.
+- **Ainda em memória:** ofertas, conteúdo institucional, documentos, conversas,
+  perguntas sem resposta, usuários e auditoria.
 
 Essa mistura é a coisa mais perigosa do painel, então ela é dita em voz alta. A
 faixa do topo mostra, em todas as páginas:
 
-> **Evento, programação, palestrantes e espaços reais · Demais módulos em
-> demonstração.**
+> **parte real · parte em demonstração**
 
 E cada listagem carrega um selo próprio — *dados reais* ou *demonstração* — para
 não haver dúvida sobre qual tabela você está editando. Ver
@@ -119,12 +124,12 @@ Três regras sustentam o desenho:
 mesmo jeito que o chat da raiz fala com `data-service.js`. Trocar mock por HTTP
 não reescreve tela nenhuma.
 
-**2. Regra de negócio mora em `lib/`, não na tela.** A listagem de programação e
-a visão geral usam as mesmas funções de `lib/pendencias.ts`. Se divergissem, o
-painel mentiria em uma das duas.
+**2. Regra de negócio mora em `lib/`, não na tela.** O que conta como pendência
+mora em `lib/pendencias.ts`, uma cópia só. Se cada tela tivesse a sua, o painel
+mentiria em uma delas.
 
-**3. O painel não inventa dado.** Quando a fonte é ambígua — o local do evento,
-por exemplo — ele mostra a divergência e pede revisão humana, em vez de escolher.
+**3. O painel não inventa dado.** Quando a fonte é ambígua, ele mostra a
+divergência e pede revisão humana, em vez de escolher.
 Quando a API responde fora do contrato, aparece erro de contrato, não campo
 preenchido por conta própria nem queda silenciosa para o mock. É o mesmo
 princípio que sustenta o agente.
@@ -137,26 +142,20 @@ segunda a partir da primeira, e nunca lê `user_metadata`.
 
 | Rota | Módulo |
 |---|---|
-| `/` | Visão geral |
-| `/evento` | Evento |
-| `/programacao` · `/programacao/:id` | Programação |
-| `/palestrantes` · `/palestrantes/:id` | Palestrantes |
-| `/espacos` · `/espacos/:id` | Espaços |
-| `/rotas` · `/rotas/:id` | Rotas |
-| `/estandes` · `/estandes/:id` | Estandes |
+| `/` | leva ao Catálogo |
 | `/catalogo` · `/catalogo/:id` | Catálogo de produtos |
 | `/ofertas` · `/ofertas/:id` | Ingressos e ofertas |
 | `/conteudo` · `/conteudo/:id` | Conteúdo da Mind |
 | `/documentos` · `/documentos/:id` | FAQ e documentos |
 | `/conversas` · `/conversas/:id` | Conversas (somente leitura) |
 | `/perguntas` · `/perguntas/:id` | Perguntas sem resposta |
+| `/avaliacao-do-dia` · `/avaliacao-do-evento` | Avaliações (somente leitura) |
 | `/usuarios` | Usuários e permissões |
 | `/auditoria` | Auditoria |
 | `/configuracoes` | Configurações |
 
 Os módulos com edição em drawer têm **duas entradas para a mesma página**: a
-listagem continua montada atrás, o endereço é compartilhável, e o link de
-pendência da visão geral abre direto no registro.
+listagem continua montada atrás e o endereço é compartilhável.
 
 **Login não é rota.** `GuardaAutenticacao` fica fora do roteador: sem sessão e
 sem perfil não existe painel — nem barra lateral, nem endereço. É mais honesto
@@ -164,8 +163,8 @@ que renderizar a casca e ir escondendo pedaço, e evita todo o vaivém de
 `redirectTo` na URL. Quem entra volta para o mesmo endereço que estava tentando
 abrir, porque a rota nunca chegou a mudar.
 
-Filtro também mora na URL (`/programacao?dia=2026-09-17&espacoId=null`). Só
-metadado — dia, espaço, status. **Nunca dado pessoal:** URL vaza em histórico,
+Filtro também mora na URL (`/documentos?statusIndexacao=erro`). Só
+metadado — status, público, tipo. **Nunca dado pessoal:** URL vaza em histórico,
 log de proxy e print de tela.
 
 ## Componentes
@@ -363,6 +362,10 @@ Três regras seguram a edição:
 pessoas** — o mesmo arquivo que o chat usa como fallback. Ele é **lido, nunca
 escrito**: continua sendo gerado por `scripts/gerar-dados-mindagent.mjs` no
 repositório do site.
+
+Desde 26/09/2026 nenhuma tela mostra evento, sessões, pessoas, espaços, rotas
+ou estandes; essas sementes, os tipos e o encaminhamento delas no provedor
+híbrido ficam até a limpeza da camada de dados.
 
 A conversão para o formato administrativo (`src/mocks/seed/summit.ts`) é
 determinística — nada de `Math.random()`, para o painel abrir igual em toda
@@ -587,14 +590,13 @@ nenhuma página muda.
 
 ## Limites desta versão
 
-- **Nove módulos ainda são demonstração.** Rotas, estandes, ofertas, conteúdo
-  institucional, documentos, conversas, perguntas sem resposta, usuários e
-  auditoria vivem na memória do navegador: recarregar desfaz. O selo da listagem
-  e a faixa do topo dizem qual é qual em cada tela.
-- **Escrita real, com o alcance da API.** Sessões e palestrantes aceitam criar,
-  editar, publicar e arquivar; espaços não têm `publish`; o evento só aceita
-  `PATCH`; temas são somente leitura. Pedir o que não existe devolve uma frase
-  explicando, não um 404 disfarçado.
+- **Sete módulos ainda são demonstração.** Ofertas, conteúdo institucional,
+  documentos, conversas, perguntas sem resposta, usuários e auditoria vivem na
+  memória do navegador: recarregar desfaz. O selo da listagem e a faixa do topo
+  dizem qual é qual em cada tela.
+- **Escrita real só no Catálogo, e só edição.** Criar e arquivar produto ainda
+  não existem. Pedir o que não existe devolve uma frase explicando, não um 404
+  disfarçado.
 - **Nenhuma tabela foi criada, nenhuma migration foi aplicada, nenhum deploy foi
   feito.** O painel só consome os endpoints já publicados.
 - **A tela de login não tem "esqueci minha senha" nem cadastro.** Recuperação e
@@ -620,8 +622,6 @@ nenhuma página muda.
   junto com a persistência.
 - **Paginação simples.** `porPagina=50` com "anterior/próxima". Sem salto para
   uma página específica e sem escolha de tamanho.
-- **Rotas não têm editor de mapa.** O diagrama de conexões é de conferência —
-  serve para ver de relance quem ficou sem caminho.
 - **Usuários é leitura, e ainda vem do mock.** Convidar pessoa e trocar papel
   dependem de endpoints que não existem.
 - **A tela de Usuários é demonstração; a autorização não é.** A lista vem do
@@ -630,10 +630,6 @@ nenhuma página muda.
   (Edge Function + `mind_admin_mutate_resource`), com `anon` e `authenticated`
   sem acesso direto à RPC.
 - **Conversas é somente leitura,** de propósito: o painel não responde por aqui.
-- **O local do evento está em divergência e continua assim.** `summit.json` diz
-  "São Paulo Expo", material de divulgação diz "Transamérica Expo Center". O
-  painel mostra as duas versões com a origem de cada uma e pede confirmação —
-  escolher seria inventar dado.
 - **Sem deploy.** Nada foi publicado.
 
 ## Testes
@@ -642,19 +638,19 @@ nenhuma página muda.
 npm test --prefix admin
 ```
 
-166 testes, onze arquivos. Cobrem:
+183 testes, catorze arquivos. Cobrem, entre outros:
 
 | Arquivo | O que garante |
 |---|---|
-| `api-real.test.tsx` | Validação de contrato: resposta válida aceita com os opcionais vindo do default, registro sem `id`, sem `atualizadoEm`, sem `titulo`/`nome`, listagem sem `itens`, envelope sem `total`/`pagina`/`porPagina`, tema sem `codigo`, tipo desconhecido preservado, erro apontando o índice sem revelar conteúdo, e nenhuma escrita no console. Mais: os verbos e caminhos dos cinco recursos reais; `If-Unmodified-Since-Version` em toda escrita; token e `apikey` nos headers e fora da URL; os dez filtros da programação na query string; paginação a partir do `total` da API; 401, 403, 404, 409, 422 e 503; a divergência de local do evento; os novos enums com rótulo em português; categoria desconhecida mostrada crua; e a regressão do `Select` que apagava o espaço da sessão. |
-| `modo-hibrido.test.tsx` | Encaminhamento seletivo recurso por recurso, leitura e escrita reais nos módulos reais, o resto em memória, temas somente leitura, operação sem endpoint recusada antes de sair, ausência de queda para o mock em erro, e a faixa nomeando os módulos. |
+| `api-real.test.tsx` | Validação de contrato: resposta válida aceita com os opcionais vindo do default, registro sem `id`, sem `atualizadoEm`, sem `titulo`/`nome`, listagem sem `itens`, envelope sem `total`/`pagina`/`porPagina`, tema sem `codigo`, tipo desconhecido preservado, erro apontando o índice sem revelar conteúdo, e nenhuma escrita no console. Mais: os verbos e caminhos dos recursos da `mindagent-admin`; `If-Unmodified-Since-Version` em toda escrita; token e `apikey` nos headers e fora da URL; e, na tela do Catálogo real, 401, 403, 404, 409, 422, 503 e o `requestId`. |
+| `modo-hibrido.test.tsx` | Encaminhamento seletivo recurso por recurso, o Catálogo real na tela e as demais listagens em demonstração, temas somente leitura, operação sem endpoint recusada antes de sair, ausência de queda para o mock em erro, e o selo do topo. |
 | `autenticacao.test.tsx` | Restauração da sessão, `onAuthStateChange`, login, validação do formulário, credencial inválida, serviço de auth fora, logout, 401, 403, papel irreconhecível, papel e permissões vindos de `/admin/me`, ausência do seletor "Ver como", token no `Authorization`, token fora da URL e fora do console, e sessão expirada no meio do uso. |
 | `provedor-dados.test.ts` | Listagem, filtros, busca sem acento, publicação, arquivamento, conflito de atualização, auditoria, reindexação, injeção de falha, isolamento entre instâncias — e, no `HttpAdminDataProvider`, os caminhos combinados, a tradução de status HTTP e o token fora da URL. |
 | `dominio.test.ts` | Máscaras, formatação em BRL e pt-BR, campos faltantes, conflito de horário (inclusive os casos que **não** são conflito) e a matriz de permissões. |
-| `navegacao.test.tsx` | Os quinze módulos no menu, cada um abrindo sem quebrar, o 404 e a faixa de demonstração. |
-| `listagens.test.tsx` | Listagens dos módulos, aliases, alertas de oferta, estados de indexação, auditoria com antes/depois, busca e a marcação visual de conflito. |
-| `filtros-e-estados.test.tsx` | Filtro por dia, espaço e status; limpar filtros; vazio; erro com "tentar novamente"; sem permissão por papel; esqueleto de carregamento. |
-| `formularios.test.tsx` | Validação (nome vazio, slug inválido, data invertida, fim antes do início, reserva sem vagas), salvamento, editor de aliases, prévia do cartão e os três caminhos de alteração não salva. |
+| `navegacao.test.tsx` | Os onze módulos no menu, cada um abrindo sem quebrar, a raiz no Catálogo, o 404 — e que visão geral, Home V3 e Evento não voltam ao menu. |
+| `listagens.test.tsx` | Alertas de oferta, estados de indexação, auditoria com antes/depois e busca. |
+| `filtros-e-estados.test.tsx` | Filtro por status e público; limpar filtros; vazio; erro com "tentar novamente"; sem permissão por papel; esqueleto de carregamento. |
+| `formularios.test.tsx` | O drawer não fecha por cima de alteração não salva. |
 | `fluxo-editorial.test.tsx` | Publicação mock, arquivamento mock com confirmação, botões que somem por papel, conflito de atualização e reindexação mock. |
 | `mascaramento-na-tela.test.tsx` | Que as telas realmente usam as máscaras — que é onde o vazamento aconteceria. |
 

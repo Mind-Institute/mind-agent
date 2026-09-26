@@ -21,7 +21,30 @@ const PERFIL_OK = {
   papel: 'administrador',
 };
 
-const RESUMO_VAZIO = { metricas: [], pendencias: [], alertas: [], geradoEm: '2026-08-20T12:00:00Z' };
+/* A chamada real que o painel faz ao abrir: a lista do Catálogo, que é a
+   tela inicial e vem da `mindagent-catalogo`. */
+const CATALOGO = 'https://api.exemplo.invalido/mindagent-catalogo';
+const LISTA_VAZIA = { itens: [], total: 0, pagina: 1, porPagina: 1 };
+
+/** Híbrido com o catálogo real, ligado à sessão como em produção. */
+function comCatalogoReal(falso: { fetch: typeof fetch }) {
+  return (opcoes: { obterToken?: () => Promise<string | null>; aoNaoAutorizado?: (erro: AdminApiError) => void }) =>
+    new HybridAdminDataProvider(
+      new HttpAdminDataProvider({
+        baseUrl: API,
+        fetchImpl: falso.fetch,
+        obterToken: opcoes.obterToken,
+        aoNaoAutorizado: opcoes.aoNaoAutorizado,
+      }),
+      new MockAdminDataProvider({ latenciaMs: 0 }),
+      new HttpAdminDataProvider({
+        baseUrl: CATALOGO,
+        fetchImpl: falso.fetch,
+        obterToken: opcoes.obterToken,
+        aoNaoAutorizado: opcoes.aoNaoAutorizado,
+      }),
+    );
+}
 
 /** Painel autenticado, com `/admin/me` respondendo o perfil dado. */
 function renderizarAutenticado(
@@ -39,7 +62,6 @@ function renderizarAutenticado(
       corpo: opcoes.perfil ?? PERFIL_OK,
       erroDeRede: opcoes.erroDeRedeNoMe,
     },
-    '/admin/dashboard': { corpo: RESUMO_VAZIO },
   });
 
   const tela = renderizarPainel({
@@ -59,7 +81,7 @@ describe('restauração da sessão', () => {
     /* Antes de resolver, a tela diz o que está fazendo. */
     expect(screen.getByText(/restaurando sua sessão/i)).toBeVisible();
 
-    expect(await screen.findByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Catálogo', level: 1 })).toBeVisible();
     expect(screen.queryByLabelText(/^E-mail/)).not.toBeInTheDocument();
     expect(falso.ultima('/admin/me')).toBeDefined();
   });
@@ -80,7 +102,6 @@ describe('restauração da sessão', () => {
     const porta = criarPortaFalsa({ sessaoInicial: null });
     const falso = criarFetchFalso({
       '/admin/me': { corpo: PERFIL_OK },
-      '/admin/dashboard': { corpo: RESUMO_VAZIO },
     });
 
     renderizarPainel({ porta, baseUrlApi: API, fetchImpl: falso.fetch });
@@ -88,7 +109,7 @@ describe('restauração da sessão', () => {
 
     porta.emitir(SESSAO_DE_TESTE);
 
-    expect(await screen.findByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Catálogo', level: 1 })).toBeVisible();
   });
 });
 
@@ -98,7 +119,6 @@ describe('login', () => {
     const porta = criarPortaFalsa({ sessaoInicial: null });
     const falso = criarFetchFalso({
       '/admin/me': { corpo: PERFIL_OK },
-      '/admin/dashboard': { corpo: RESUMO_VAZIO },
     });
 
     renderizarPainel({ porta, baseUrlApi: API, fetchImpl: falso.fetch });
@@ -107,7 +127,7 @@ describe('login', () => {
     await usuario.type(screen.getByLabelText(/^Senha/), 'senha-de-teste');
     await usuario.click(screen.getByRole('button', { name: /entrar/i }));
 
-    expect(await screen.findByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Catálogo', level: 1 })).toBeVisible();
     expect(porta.chamadas.entrar).toBe(1);
   });
 
@@ -172,7 +192,7 @@ describe('logout', () => {
     const usuario = userEvent.setup();
     const { porta } = renderizarAutenticado();
 
-    await screen.findByRole('heading', { name: 'Visão geral', level: 1 });
+    await screen.findByRole('heading', { name: 'Catálogo', level: 1 });
     await usuario.click(screen.getByRole('button', { name: /sair da conta/i }));
 
     expect(await screen.findByLabelText(/^E-mail/)).toBeVisible();
@@ -239,7 +259,7 @@ describe('papel e permissões vêm de /admin/me', () => {
   it('usa o papel da resposta, e não um padrão local', async () => {
     renderizarAutenticado({ perfil: { ...PERFIL_OK, papel: 'editor' } });
 
-    await screen.findByRole('heading', { name: 'Visão geral', level: 1 });
+    await screen.findByRole('heading', { name: 'Catálogo', level: 1 });
     expect(screen.getByText('Editor')).toBeVisible();
     expect(screen.getByText('Ana Ribeiro')).toBeVisible();
   });
@@ -247,7 +267,7 @@ describe('papel e permissões vêm de /admin/me', () => {
   it('sem o seletor "Ver como" — trocar de papel na tela seria mentira', async () => {
     renderizarAutenticado();
 
-    await screen.findByRole('heading', { name: 'Visão geral', level: 1 });
+    await screen.findByRole('heading', { name: 'Catálogo', level: 1 });
     expect(screen.queryByLabelText('Papel simulado')).not.toBeInTheDocument();
   });
 
@@ -278,33 +298,25 @@ describe('o token no transporte', () => {
     const porta = criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE });
     const falso = criarFetchFalso({
       '/admin/me': { corpo: PERFIL_OK },
-      '/admin/dashboard': { corpo: RESUMO_VAZIO },
+      '/admin/products': { corpo: LISTA_VAZIA },
     });
 
     renderizarPainel({
       porta,
       baseUrlApi: API,
       fetchImpl: falso.fetch,
-      provedor: (opcoes) =>
-        new HybridAdminDataProvider(
-          new HttpAdminDataProvider({
-            baseUrl: API,
-            fetchImpl: falso.fetch,
-            obterToken: opcoes.obterToken,
-            aoNaoAutorizado: opcoes.aoNaoAutorizado,
-          }),
-          new MockAdminDataProvider({ latenciaMs: 0 }),
-        ),
+      provedor: comCatalogoReal(falso),
     });
 
-    await screen.findByRole('heading', { name: 'Visão geral', level: 1 });
-    await waitFor(() => expect(falso.ultima('/admin/dashboard')).toBeDefined());
+    await screen.findByRole('heading', { name: 'Catálogo', level: 1 });
+    await waitFor(() => expect(falso.ultima('/admin/products')).toBeDefined());
 
     const chamadaMe = falso.ultima('/admin/me');
-    const chamadaDashboard = falso.ultima('/admin/dashboard');
+    const chamadaCatalogo = falso.ultima('/admin/products');
 
     expect(chamadaMe?.cabecalhos.Authorization).toBe(`Bearer ${SESSAO_DE_TESTE.accessToken}`);
-    expect(chamadaDashboard?.cabecalhos.Authorization).toBe(
+    expect(chamadaCatalogo?.url.startsWith(CATALOGO)).toBe(true);
+    expect(chamadaCatalogo?.cabecalhos.Authorization).toBe(
       `Bearer ${SESSAO_DE_TESTE.accessToken}`,
     );
 
@@ -326,7 +338,7 @@ describe('o token no transporte', () => {
 
     try {
       const { falso } = renderizarAutenticado();
-      await screen.findByRole('heading', { name: 'Visão geral', level: 1 });
+      await screen.findByRole('heading', { name: 'Catálogo', level: 1 });
       await waitFor(() => expect(falso.ultima('/admin/me')).toBeDefined());
     } finally {
       espioes.forEach((e) => e.mockRestore());
@@ -343,7 +355,7 @@ describe('sessão expirada no meio do uso', () => {
     const porta = criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE });
     const falso = criarFetchFalso({
       '/admin/me': { corpo: PERFIL_OK },
-      '/admin/dashboard': {
+      '/admin/products': {
         status: 401,
         corpo: { codigo: 'sem_permissao', mensagem: 'Sessão inválida ou expirada.' },
       },
@@ -353,16 +365,7 @@ describe('sessão expirada no meio do uso', () => {
       porta,
       baseUrlApi: API,
       fetchImpl: falso.fetch,
-      provedor: (opcoes) =>
-        new HybridAdminDataProvider(
-          new HttpAdminDataProvider({
-            baseUrl: API,
-            fetchImpl: falso.fetch,
-            obterToken: opcoes.obterToken,
-            aoNaoAutorizado: opcoes.aoNaoAutorizado,
-          }),
-          new MockAdminDataProvider({ latenciaMs: 0 }),
-        ),
+      provedor: comCatalogoReal(falso),
     });
 
     expect(await screen.findByText(/sua sessão expirou/i)).toBeVisible();
@@ -404,11 +407,10 @@ describe('login com o Google da Mind', () => {
         ],
       },
       'POST /admin/vincular': { corpo: { vinculado: true, papel: 'administrador', nome: 'Ana Ribeiro' } },
-      '/admin/dashboard': { corpo: RESUMO_VAZIO },
     });
     renderizarPainel({ porta, baseUrlApi: API, baseUrlAcesso: ACESSO, fetchImpl: falso.fetch });
 
-    expect(await screen.findByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Catálogo', level: 1 })).toBeVisible();
     const vinculo = falso.ultima('/admin/vincular');
     expect(vinculo?.metodo).toBe('POST');
     expect(vinculo?.url).toBe(`${ACESSO}/admin/vincular`);

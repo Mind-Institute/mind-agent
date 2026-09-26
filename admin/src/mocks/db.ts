@@ -23,7 +23,6 @@ import {
 } from './seed/operacao';
 import { auditoriaSemente, conversasSemente, perguntasSemente } from './seed/atendimento';
 import { espacosSemente, palestrantesSemente, sessoesSemente, temasSemente } from './seed/summit';
-import { avisosHomeSemente, estadoHomeSemente, trocasHomeSemente } from './seed/home-v3';
 import { produtosSemente } from './seed/catalogo';
 
 export type BancoMock = {
@@ -54,10 +53,6 @@ export function criarBanco(agora: number = Date.now()): BancoMock {
     users: clonar(usuariosSemente),
     audit: auditoriaSemente(agora),
     themes: clonar(temasSemente),
-    /* Home V3: um estado só, as trocas programadas e os avisos. */
-    home_state: clonar([estadoHomeSemente]),
-    home_schedule: clonar(trocasHomeSemente),
-    home_notices: clonar(avisosHomeSemente),
     products: clonar(produtosSemente),
   };
 }

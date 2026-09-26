@@ -1,12 +1,5 @@
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 import { AdminLayout } from '@/layouts/admin-layout';
-import { PaginaVisaoGeral } from '@/pages/visao-geral';
-import { PaginaEvento } from '@/pages/evento';
-import { PaginaProgramacao } from '@/pages/programacao';
-import { PaginaPalestrantes } from '@/pages/palestrantes';
-import { PaginaEspacos } from '@/pages/espacos';
-import { PaginaRotas } from '@/pages/rotas';
-import { PaginaEstandes } from '@/pages/estandes';
 import { PaginaOfertas } from '@/pages/ofertas';
 import { PaginaCatalogo } from '@/pages/catalogo';
 import { PaginaConteudo } from '@/pages/conteudo';
@@ -18,40 +11,25 @@ import { PaginaAuditoria } from '@/pages/auditoria';
 import { PaginaConfiguracoes } from '@/pages/configuracoes';
 import { PaginaAvaliacaoDoDia } from '@/pages/avaliacao-do-dia';
 import { PaginaAvaliacaoDoEvento } from '@/pages/avaliacao-do-evento';
-import { PaginaHomeVisualizacao } from '@/pages/home-visualizacao';
-import { PaginaHomeAvisos } from '@/pages/home-avisos';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
    ROTAS
    ============================================================
    Os módulos com edição em drawer têm duas entradas para a MESMA
-   página: `/programacao` e `/programacao/:id`. A listagem continua
-   montada atrás do drawer, o endereço é compartilhável e o link de
-   pendência da visão geral abre direto no registro. */
+   página: `/catalogo` e `/catalogo/:id`. A listagem continua montada
+   atrás do drawer e o endereço é compartilhável.
+
+   A raiz leva ao Catálogo. Decisão da Adriana (26/09/2026): a visão
+   geral, o Evento e a Home V3 eram do app do Summit e saíram do painel,
+   que é o painel de controle da inteligência do Mind. A tela inicial
+   fica no Catálogo até ela definir outra. */
 export const rotasAdmin: RouteObject[] = [
   {
     path: '/',
     element: <AdminLayout />,
     children: [
-      { index: true, element: <PaginaVisaoGeral /> },
-
-      { path: 'evento', element: <PaginaEvento /> },
-
-      { path: 'programacao', element: <PaginaProgramacao /> },
-      { path: 'programacao/:id', element: <PaginaProgramacao /> },
-
-      { path: 'palestrantes', element: <PaginaPalestrantes /> },
-      { path: 'palestrantes/:id', element: <PaginaPalestrantes /> },
-
-      { path: 'espacos', element: <PaginaEspacos /> },
-      { path: 'espacos/:id', element: <PaginaEspacos /> },
-
-      { path: 'rotas', element: <PaginaRotas /> },
-      { path: 'rotas/:id', element: <PaginaRotas /> },
-
-      { path: 'estandes', element: <PaginaEstandes /> },
-      { path: 'estandes/:id', element: <PaginaEstandes /> },
+      { index: true, element: <Navigate to="catalogo" replace /> },
 
       { path: 'catalogo', element: <PaginaCatalogo /> },
       { path: 'catalogo/:id', element: <PaginaCatalogo /> },
@@ -73,10 +51,6 @@ export const rotasAdmin: RouteObject[] = [
 
       { path: 'avaliacao-do-dia', element: <PaginaAvaliacaoDoDia /> },
       { path: 'avaliacao-do-evento', element: <PaginaAvaliacaoDoEvento /> },
-
-      { path: 'home/visualizacao', element: <PaginaHomeVisualizacao /> },
-      { path: 'home/avisos', element: <PaginaHomeAvisos /> },
-      { path: 'home/avisos/:id', element: <PaginaHomeAvisos /> },
 
       { path: 'usuarios', element: <PaginaUsuarios /> },
       { path: 'auditoria', element: <PaginaAuditoria /> },

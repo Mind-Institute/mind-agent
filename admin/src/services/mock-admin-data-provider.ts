@@ -46,9 +46,6 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   users: ['nome', 'papel'],
   audit: ['usuario', 'recurso', 'registroRotulo', 'requestId'],
   themes: ['codigo', 'rotulo'],
-  home_state: ['momento', 'modo'],
-  home_schedule: ['momento', 'nota'],
-  home_notices: ['titulo', 'subtitulo', 'descricao'],
   products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
 };
 

@@ -6,7 +6,7 @@ import { HybridAdminDataProvider, RECURSOS_REAIS } from '@/services/hybrid-admin
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 import type { AdminDataProvider } from '@/services/admin-data-provider';
 import { NOMES_RECURSOS } from '@/contracts';
-import { SESSAO_DE_TESTE, lista, renderizarHibrido } from './utils';
+import { CATALOGO_FALSO, SESSAO_DE_TESTE, lista, renderizarHibrido } from './utils';
 
 /* Números propositalmente diferentes dos do mock: se a tela mostrar
    777, veio da API. */
@@ -84,7 +84,33 @@ const ESPACO_DA_API = {
   atualizadoPor: 'API',
 };
 
+/* O produto como a `mindagent-catalogo` devolve. Nome que o mock não tem:
+   se a tela mostrar "Produto vindo da API", veio da API. */
+const PRODUTO_DA_API = {
+  id: '7a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d',
+  criadoEm: '',
+  atualizadoEm: '2026-09-13T15:30:00.123456+00:00',
+  atualizadoPor: null,
+  codigo: 'produto-da-api',
+  nome: 'Produto vindo da API',
+  tipo: 'curso',
+  vertical: 'institute',
+  categoria: null,
+  descricaoCurta: null,
+  descricao: null,
+  ativo: true,
+  vende: true,
+  vendeDe: null,
+  vendeAte: null,
+  comecaEm: null,
+  encerraEm: null,
+  periodo: null,
+  schemaDados: null,
+  pipelinesHubspot: [],
+};
+
 const ROTAS_BASICAS = {
+  '/admin/products': { corpo: lista([PRODUTO_DA_API]) },
   '/admin/dashboard': { corpo: RESUMO_DA_API },
   '/admin/sessions': { corpo: lista([SESSAO_DA_API]) },
   '/admin/speakers': { corpo: lista([]) },
@@ -206,36 +232,17 @@ describe('encaminhamento seletivo', () => {
 });
 
 describe('módulos reais na tela', () => {
-  it('a visão geral mostra os números que vieram da API', async () => {
-    renderizarHibrido({ rotas: ROTAS_BASICAS });
+  it('o catálogo lista o que a API devolveu, não o mock', async () => {
+    const { falso } = renderizarHibrido({ rota: '/catalogo', rotas: ROTAS_BASICAS });
 
-    expect(await screen.findByText('777')).toBeVisible();
-    expect(screen.getByText('888')).toBeVisible();
-    expect(screen.getByText('Alerta vindo do backend')).toBeVisible();
-    /* 53 é o total do mock: se aparecesse, o dashboard não seria real. */
-    expect(screen.queryByText('53')).not.toBeInTheDocument();
-  });
-
-  it('a programação lista o que a API devolveu, não o mock', async () => {
-    const { falso } = renderizarHibrido({ rota: '/programacao', rotas: ROTAS_BASICAS });
-
-    const linha = await screen.findByTestId('linha-ses_api_1');
-    expect(within(linha).getByText('Sessão vinda da API')).toBeVisible();
-    expect(screen.queryByTestId('linha-ses_d1-09_00-abertura')).not.toBeInTheDocument();
-    expect(falso.ultima('/admin/sessions')).toBeDefined();
-  });
-
-  it('espaços vêm da API, com o tipo real', async () => {
-    renderizarHibrido({ rota: '/espacos', rotas: ROTAS_BASICAS });
-
-    const linha = await screen.findByTestId('linha-esp_api_1');
-    expect(within(linha).getByText('Portaria Norte')).toBeVisible();
-    expect(within(linha).getByText('Acesso')).toBeVisible();
-    expect(screen.queryByTestId('linha-esp_arena-mind')).not.toBeInTheDocument();
+    const linha = await screen.findByTestId(`linha-${PRODUTO_DA_API.id}`);
+    expect(within(linha).getByText('Produto vindo da API')).toBeVisible();
+    expect(screen.queryByTestId('linha-prd_mind')).not.toBeInTheDocument();
+    expect(falso.ultima('/admin/products')?.url.startsWith(CATALOGO_FALSO)).toBe(true);
   });
 
   it('a listagem real é marcada como real e a simulada como demonstração', async () => {
-    const real = renderizarHibrido({ rota: '/palestrantes', rotas: ROTAS_BASICAS });
+    const real = renderizarHibrido({ rota: '/catalogo', rotas: ROTAS_BASICAS });
     expect(await screen.findByTestId('selo-origem-real')).toHaveTextContent('dados reais');
     expect(screen.queryByTestId('selo-origem-mock')).not.toBeInTheDocument();
     real.unmount();
@@ -244,17 +251,10 @@ describe('módulos reais na tela', () => {
     expect(await screen.findByTestId('selo-origem-mock')).toHaveTextContent('demonstração');
     expect(screen.queryByTestId('selo-origem-real')).not.toBeInTheDocument();
   });
-
-  it('temas reais alimentam o filtro de tema da programação', async () => {
-    const { falso } = renderizarHibrido({ rota: '/programacao', rotas: ROTAS_BASICAS });
-
-    await screen.findByTestId('linha-ses_api_1');
-    await waitFor(() => expect(falso.ultima('/admin/themes')).toBeDefined());
-  });
 });
 
 describe('módulos que continuam em demonstração', () => {
-  it('ofertas, estandes e documentos não tocam a API', async () => {
+  it('ofertas e documentos não tocam a API', async () => {
     const { falso, unmount } = renderizarHibrido({ rota: '/ofertas', rotas: ROTAS_BASICAS });
     const linha = await screen.findByTestId('linha-ofe_mind');
     expect(within(linha).getByText(/R\$\s*890,00/)).toBeVisible();
@@ -263,31 +263,32 @@ describe('módulos que continuam em demonstração', () => {
     const segundo = renderizarHibrido({ rota: '/documentos', rotas: ROTAS_BASICAS });
     await screen.findByTestId('linha-doc_mapa_pdf');
 
+    /* Só a pergunta de quem é a pessoa sai para a rede. */
     for (const chamada of [...falso.chamadas, ...segundo.falso.chamadas]) {
-      expect(chamada.url).toMatch(/\/admin\/(me|dashboard|sessions|speakers|spaces|themes|event)/);
+      expect(chamada.url).toMatch(/\/admin\/me$/);
     }
   });
 
-  it('salvar um estande continua sem sair do navegador', async () => {
-    const { falso, mock } = renderizarHibrido({ rota: '/estandes/est_mind', rotas: ROTAS_BASICAS });
+  it('salvar uma oferta continua sem sair do navegador', async () => {
+    const { falso, mock } = renderizarHibrido({ rota: '/ofertas/ofe_mind', rotas: ROTAS_BASICAS });
 
-    await screen.findByDisplayValue('Mind Institute');
+    await screen.findByDisplayValue('Ingresso Mind');
     const antes = falso.chamadas.filter((c) => c.metodo !== 'GET').length;
 
-    await mock.update('booths', 'est_mind', { contato: 'novo@exemplo.com.br' });
+    await mock.update('offers', 'ofe_mind', { condicoesPagamento: 'Pix à vista.' });
 
     expect(falso.chamadas.filter((c) => c.metodo !== 'GET').length).toBe(antes);
-    expect((await mock.get('booths', 'est_mind')).contato).toBe('novo@exemplo.com.br');
+    expect((await mock.get('offers', 'ofe_mind')).condicoesPagamento).toBe('Pix à vista.');
   });
 });
 
 describe('sem queda para o mock', () => {
   it('erro na listagem real mostra a tela de erro, não dado simulado', async () => {
     renderizarHibrido({
-      rota: '/programacao',
+      rota: '/catalogo',
       rotas: {
         ...ROTAS_BASICAS,
-        '/admin/sessions': {
+        '/admin/products': {
           status: 503,
           corpo: { codigo: 'indisponivel', mensagem: 'Em manutenção.' },
         },
@@ -297,37 +298,26 @@ describe('sem queda para o mock', () => {
     expect(await screen.findByText('Serviço indisponível')).toBeVisible();
     expect(screen.getByText('Em manutenção.')).toBeVisible();
     /* Nenhuma linha do mock aparece no lugar. */
-    expect(screen.queryByTestId('linha-ses_d1-09_00-abertura')).not.toBeInTheDocument();
-    expect(screen.queryByText('Abertura')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('linha-prd_mind')).not.toBeInTheDocument();
   });
 
-  it('erro de rede em espaços também não cai no mock', async () => {
+  it('erro de rede também não cai no mock', async () => {
     renderizarHibrido({
-      rota: '/espacos',
-      rotas: { ...ROTAS_BASICAS, '/admin/spaces': { erroDeRede: true } },
+      rota: '/catalogo',
+      rotas: { ...ROTAS_BASICAS, '/admin/products': { erroDeRede: true } },
     });
 
     expect(await screen.findByText('Não foi possível carregar')).toBeVisible();
-    expect(screen.queryByText('Arena Mind')).not.toBeInTheDocument();
-  });
-
-  it('dashboard fora do contrato vira erro, não número inventado', async () => {
-    renderizarHibrido({
-      rotas: { ...ROTAS_BASICAS, '/admin/dashboard': { corpo: { qualquer: 'coisa' } } },
-    });
-
-    expect(await screen.findByText('Algo deu errado')).toBeVisible();
-    expect(screen.getByText(/não segue o contrato do painel/i)).toBeVisible();
-    expect(screen.queryByText('53')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('linha-prd_mind')).not.toBeInTheDocument();
   });
 });
 
 describe('o token no modo híbrido', () => {
   it('vai no Authorization das chamadas reais e nunca na URL', async () => {
-    const { falso } = renderizarHibrido({ rota: '/programacao', rotas: ROTAS_BASICAS });
+    const { falso } = renderizarHibrido({ rota: '/catalogo', rotas: ROTAS_BASICAS });
 
-    await screen.findByTestId('linha-ses_api_1');
-    await waitFor(() => expect(falso.ultima('/admin/sessions')).toBeDefined());
+    await screen.findByTestId(`linha-${PRODUTO_DA_API.id}`);
+    await waitFor(() => expect(falso.ultima('/admin/products')).toBeDefined());
 
     for (const chamada of falso.chamadas) {
       expect(chamada.cabecalhos.Authorization).toBe(`Bearer ${SESSAO_DE_TESTE.accessToken}`);
@@ -345,9 +335,9 @@ describe('o token no modo híbrido', () => {
     );
 
     try {
-      const { falso } = renderizarHibrido({ rota: '/programacao', rotas: ROTAS_BASICAS });
-      await screen.findByTestId('linha-ses_api_1');
-      await waitFor(() => expect(falso.ultima('/admin/sessions')).toBeDefined());
+      const { falso } = renderizarHibrido({ rota: '/catalogo', rotas: ROTAS_BASICAS });
+      await screen.findByTestId(`linha-${PRODUTO_DA_API.id}`);
+      await waitFor(() => expect(falso.ultima('/admin/products')).toBeDefined());
     } finally {
       espioes.forEach((e) => e.mockRestore());
     }
@@ -363,10 +353,11 @@ describe('o selo do topo', () => {
   it('resume o modo híbrido sem prometer o que não é', async () => {
     renderizarHibrido({ rotas: ROTAS_BASICAS });
 
-    await screen.findByText('777');
-    expect(screen.getByText('núcleo real · apoio em demonstração')).toBeVisible();
-    /* O texto antigo dizia que só o dashboard era real. */
+    await screen.findByTestId(`linha-${PRODUTO_DA_API.id}`);
+    expect(screen.getByText('parte real · parte em demonstração')).toBeVisible();
+    /* Os textos antigos: só o dashboard real, depois o "núcleo" do evento. */
     expect(screen.queryByText(/dashboard real · cadastros mock/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/núcleo real/i)).not.toBeInTheDocument();
   });
 });
 

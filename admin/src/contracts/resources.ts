@@ -12,7 +12,6 @@ import type { PerguntaSemResposta } from './unanswered';
 import type { Usuario } from './user';
 import type { RegistroAuditoria } from './audit';
 import type { Tema } from './theme';
-import type { AvisoHome, EstadoHome, TrocaHome } from './home-v3';
 import type { ProdutoCatalogo } from './product';
 
 /**
@@ -36,10 +35,6 @@ export interface MapaRecursos {
   users: Usuario;
   audit: RegistroAuditoria;
   themes: Tema;
-  /* Home V3: o que o participante vê agora, e os avisos que ele recebe. */
-  home_state: EstadoHome;
-  home_schedule: TrocaHome;
-  home_notices: AvisoHome;
   /* Catálogo: `catalogo.produtos`, a origem de tudo. */
   products: ProdutoCatalogo;
 }
@@ -62,9 +57,6 @@ export const NOMES_RECURSOS: NomeRecurso[] = [
   'users',
   'audit',
   'themes',
-  'home_state',
-  'home_schedule',
-  'home_notices',
   'products',
 ];
 
@@ -84,9 +76,6 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   users: 'Usuário',
   audit: 'Auditoria',
   themes: 'Tema',
-  home_state: 'Home do participante',
-  home_schedule: 'Troca programada da home',
-  home_notices: 'Aviso',
   products: 'Produto',
 };
 

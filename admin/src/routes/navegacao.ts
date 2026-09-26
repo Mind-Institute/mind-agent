@@ -1,23 +1,14 @@
 import {
   Building2,
-  CalendarDays,
-  ClipboardList,
   FileQuestion,
   FileText,
-  LayoutDashboard,
-  MapPin,
-  Megaphone,
   MessagesSquare,
-  MonitorSmartphone,
   Package,
-  Route,
   Settings,
   ShieldCheck,
   Star,
-  Store,
   Ticket,
   Users,
-  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
@@ -46,87 +37,6 @@ export interface GrupoNavegacao {
 }
 
 export const NAVEGACAO: GrupoNavegacao[] = [
-  {
-    id: 'painel',
-    rotulo: null,
-    itens: [
-      {
-        id: 'visao-geral',
-        rotulo: 'Visão geral',
-        caminho: '/',
-        icone: LayoutDashboard,
-        descricao: 'Números do evento e o que ainda falta preencher.',
-      },
-    ],
-  },
-  {
-    id: 'home-v3',
-    rotulo: 'Home V3',
-    itens: [
-      {
-        id: 'home-visualizacao',
-        rotulo: 'Visualização',
-        caminho: '/home/visualizacao',
-        icone: MonitorSmartphone,
-        descricao: 'Qual das quatro telas está no ar, na mão ou por horário.',
-      },
-      {
-        id: 'home-avisos',
-        rotulo: 'Avisos',
-        caminho: '/home/avisos',
-        icone: Megaphone,
-        descricao: 'O que aparece em "Avisos importantes", agora ou agendado.',
-      },
-    ],
-  },
-  {
-    id: 'evento',
-    rotulo: 'Evento',
-    itens: [
-      {
-        id: 'evento',
-        rotulo: 'Evento',
-        caminho: '/evento',
-        icone: CalendarDays,
-        descricao: 'Nome, datas, local, fuso e regras gerais.',
-      },
-      {
-        id: 'programacao',
-        rotulo: 'Programação',
-        caminho: '/programacao',
-        icone: ClipboardList,
-        descricao: 'Sessões, horários, espaços e trilhas.',
-      },
-      {
-        id: 'palestrantes',
-        rotulo: 'Palestrantes',
-        caminho: '/palestrantes',
-        icone: UsersRound,
-        descricao: 'Quem fala, sobre o quê, com que biografia.',
-      },
-      {
-        id: 'espacos',
-        rotulo: 'Espaços',
-        caminho: '/espacos',
-        icone: MapPin,
-        descricao: 'Palcos, salas e como o participante chega neles.',
-      },
-      {
-        id: 'rotas',
-        rotulo: 'Rotas',
-        caminho: '/rotas',
-        icone: Route,
-        descricao: 'Caminhos entre espaços, com distância e acessibilidade.',
-      },
-      {
-        id: 'estandes',
-        rotulo: 'Estandes',
-        caminho: '/estandes',
-        icone: Store,
-        descricao: 'Quem expõe e onde.',
-      },
-    ],
-  },
   {
     id: 'conteudo',
     rotulo: 'Conteúdo e comercial',

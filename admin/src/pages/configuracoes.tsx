@@ -84,29 +84,23 @@ export function PaginaConfiguracoes() {
 
             {provedor.modo === 'mock' ? (
               <p className="text-muted-foreground">
-                Os dados são simulados e vivem na memória do navegador. Evento, temas, sessões e
-                pessoas vêm de <code className="font-mono">../dados/summit.json</code>; espaços,
-                rotas, estandes, ofertas, conteúdo, documentos, conversas e auditoria são mocks
-                pequenos. Recarregar a página desfaz qualquer alteração.
+                Os dados são simulados e vivem na memória do navegador: catálogo, ofertas,
+                conteúdo, documentos, conversas, perguntas, usuários e auditoria. Recarregar a
+                página desfaz qualquer alteração.
               </p>
             ) : provedor.modo === 'hybrid' ? (
               <div className="space-y-2 text-muted-foreground">
                 <p>
-                  <strong className="text-foreground">Núcleo real:</strong> visão geral, evento,
-                  programação, palestrantes, espaços e temas vêm da API administrativa, com o token
-                  da sessão no header <code className="font-mono">Authorization</code>. Escrita
-                  incluída — temas são somente leitura.
-                </p>
-                <p>
                   <strong className="text-foreground">Catálogo real:</strong> os produtos de{' '}
                   <code className="font-mono">catalogo.produtos</code> vêm da{' '}
                   <code className="font-mono">mindagent-catalogo</code> — leitura e edição; criar e
-                  arquivar produto ainda não existem.
+                  arquivar produto ainda não existem. O token da sessão vai no header{' '}
+                  <code className="font-mono">Authorization</code>.
                 </p>
                 <p>
-                  <strong className="text-foreground">Apoio em demonstração:</strong> rotas,
-                  estandes, ofertas, conteúdo, documentos, conversas, perguntas, usuários e auditoria
-                  continuam no banco em memória. Salvar ali mexe só nesta aba.
+                  <strong className="text-foreground">Em demonstração:</strong> ofertas, conteúdo,
+                  documentos, conversas, perguntas, usuários e auditoria continuam no banco em
+                  memória. Salvar ali mexe só nesta aba.
                 </p>
                 <p>
                   As respostas dos módulos reais são validadas contra os schemas do painel. Formato
