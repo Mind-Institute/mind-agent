@@ -7,17 +7,24 @@
    O catálogo (`catalogo.produtos`) é a origem de tudo: CRM, conhecimento
    e agentes referenciam os códigos dele. Pedido da Adriana, 25/09/2026:
    ler e editar pelo painel, e a edição ir para o banco quando ela salvar.
+   Desde 26/09 (`1.3.0`), o mesmo schema guarda ofertas e cupons — "o
+   painel é o controle deste schema" —, e esta função os serve também.
 
    ROTAS
 
      GET   /admin/products          lista, com busca, filtros, ordem e paginação
      GET   /admin/products/:id      um produto
      PATCH /admin/products/:id      edição de um produto que já existe
+     GET   /admin/offers            ofertas (catalogo.ofertas + preços, bônus, bump/upgrade)
+     GET   /admin/offers/:id        uma oferta
+     GET   /admin/coupons           cupons (catalogo.cupons)
+     GET   /admin/coupons/:id       um cupom
      GET   /health
 
-   Não há criar nem arquivar: por enquanto o catálogo se edita, não se
-   cria por aqui. `codigo` e `schema_dados` não se editam — ver a
-   migration 20260925183716.
+   Produto: não há criar nem arquivar; `codigo` e `schema_dados` não se
+   editam — ver a migration 20260925183716. Oferta e cupom: só leitura por
+   enquanto (migration 20260926202049); a edição é o Passo 4 de
+   docs/PLANO_OFERTAS_PASSO_A_PASSO.md.
 
    Exige sessão de administrador — a mesma verificação da `mindagent-admin`
    e da `mindagent-home`, no mesmo lugar (`mind_admin_users`), com os
@@ -41,7 +48,50 @@ const DEFAULT_ORIGINS = new Set(["http://localhost:5174", "http://127.0.0.1:5174
    subdomínio com prefixo — o mesmo recorte da `mindagent-home`. */
 const WORKER = /^https:\/\/(?:[a-z0-9][a-z0-9-]*-)?mind-agent\.adriana-3eb\.workers\.dev$/;
 
-const RECURSO = "products";
+/* Cada recurso do catálogo: a porta de leitura (e de edição, quando
+   existe), como a tela o chama, onde a busca olha, os filtros e as colunas
+   que ordenam. Recurso novo do schema `catalogo` entra aqui. */
+type Recurso = {
+  ler: string;
+  editar?: string;
+  naoEncontrado: string;
+  busca: (item: Record<string, unknown>) => unknown[];
+  filtros: string[];
+  ordem: Set<string>;
+};
+
+const RECURSOS: Record<string, Recurso> = {
+  products: {
+    ler: "mind_admin_read_catalogo",
+    editar: "mind_admin_mutate_catalogo",
+    naoEncontrado: "Produto não encontrado.",
+    busca: (i) => [i.codigo, i.nome, i.descricaoCurta, i.descricao],
+    filtros: ["vertical", "tipo", "ativo", "vende"],
+    /* As colunas da tela, uma a uma (pedido da Adriana, 26/09/2026: ordenar
+       por qualquer coluna, crescente e decrescente). */
+    ordem: new Set([
+      "codigo", "nome", "vertical", "tipo", "ativo", "vende",
+      "vendeDe", "vendeAte", "comecaEm", "encerraEm", "atualizadoEm",
+    ]),
+  },
+  offers: {
+    ler: "mind_admin_read_ofertas",
+    naoEncontrado: "Oferta não encontrada.",
+    busca: (i) => {
+      const precos = Array.isArray(i.precos) ? i.precos as Record<string, unknown>[] : [];
+      return [i.codigo, i.nome, i.descricao, ...precos.flatMap((p) => [p.codigo, p.nome, p.produtoCodigo, p.produtoNome])];
+    },
+    filtros: ["situacao", "tipo", "verticais", "produtos", "historico", "noSite"],
+    ordem: new Set(["situacaoOrdem", "codigo", "nome", "tipo", "iniciaEm", "encerraEm", "atualizadoEm"]),
+  },
+  coupons: {
+    ler: "mind_admin_read_cupons",
+    naoEncontrado: "Cupom não encontrado.",
+    busca: (i) => [i.codigo, i.descricao],
+    filtros: ["situacao", "tipo", "sistema", "ativo", "historico"],
+    ordem: new Set(["situacaoOrdem", "codigo", "tipo", "valor", "usos", "iniciaEm", "encerraEm", "atualizadoEm"]),
+  },
+};
 
 const ACOES_POR_PAPEL: Record<AdminRole, Set<string>> = {
   administrador: new Set(["view", "edit"]),
@@ -152,34 +202,32 @@ function semAcento(v: unknown) {
 }
 
 /* Busca e filtros do painel. O filtro chega como texto na query string:
-   `vertical=institute`, `vertical=null` (sem vertical), `ativo=true`. */
-function combina(item: Record<string, unknown>, url: URL) {
+   `vertical=institute`, `vertical=null` (sem vertical), `ativo=true`.
+   Campo que é lista (as verticais e os produtos de uma oferta) combina
+   quando contém o valor pedido. */
+function combina(item: Record<string, unknown>, url: URL, recurso: Recurso) {
   const busca = semAcento(url.searchParams.get("busca"));
-  if (busca && ![item.codigo, item.nome, item.descricaoCurta, item.descricao]
-    .some((v) => semAcento(v).includes(busca))) return false;
+  if (busca && !recurso.busca(item).some((v) => semAcento(v).includes(busca))) return false;
 
-  for (const chave of ["vertical", "tipo", "ativo", "vende"]) {
+  for (const chave of recurso.filtros) {
     const pedido = url.searchParams.get(chave);
     if (!pedido || pedido === "todos") continue;
     const valor = item[chave];
+    if (Array.isArray(valor)) {
+      if (!valor.map(String).includes(pedido)) return false;
+      continue;
+    }
     if (pedido === "null" ? valor !== null && valor !== undefined : String(valor) !== pedido) return false;
   }
   return true;
 }
 
-/* As colunas da tela, uma a uma (pedido da Adriana, 26/09/2026: ordenar
-   por qualquer coluna, crescente e decrescente). */
-const CAMPOS_ORDEM = new Set([
-  "codigo", "nome", "vertical", "tipo", "ativo", "vende",
-  "vendeDe", "vendeAte", "comecaEm", "encerraEm", "atualizadoEm",
-]);
-
-function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
+function ordenar(itens: Record<string, unknown>[], pedido: string | null, campos: Set<string>) {
   /* Sem pedido, fica a ordem do banco: por vertical, depois por nome. */
   const cru = pedido ?? "";
   const desc = cru.startsWith("-");
   const campo = desc ? cru.slice(1) : cru;
-  if (!campo || !CAMPOS_ORDEM.has(campo)) return itens;
+  if (!campo || !campos.has(campo)) return itens;
   const vazio = (v: unknown) => v === null || v === undefined || v === "";
   return [...itens].sort((a, b) => {
     const x = a[campo];
@@ -191,12 +239,14 @@ function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
   });
 }
 
-/* Instante compara como instante, mesmo com fusos diferentes; o resto —
-   datas sem hora, `false` antes de `true`, nome, vertical e tipo — como
-   texto, no alfabeto do português. O mock do painel compara igual. */
+/* Instante compara como instante, mesmo com fusos diferentes; número como
+   número (preço, usos, a ordem da situação); o resto — datas sem hora,
+   `false` antes de `true`, nome, vertical e tipo — como texto, no alfabeto
+   do português. O mock do painel compara igual. */
 const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
 
 function comparar(a: unknown, b: unknown) {
+  if (typeof a === "number" && typeof b === "number") return a === b ? 0 : a < b ? -1 : 1;
   if (typeof a === "string" && typeof b === "string" && INSTANTE.test(a) && INSTANTE.test(b)) {
     const ta = Date.parse(a);
     const tb = Date.parse(b);
@@ -214,7 +264,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   }
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.2.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.3.0" }, requestId);
   }
 
   const origem = req.headers.get("Origin");
@@ -254,29 +304,33 @@ Deno.serve(async (req: Request) => {
   }
 
   const iAdmin = partes.lastIndexOf("admin");
-  const recurso = iAdmin >= 0 ? partes[iAdmin + 1] : undefined;
+  const nomeRecurso = iAdmin >= 0 ? partes[iAdmin + 1] : undefined;
   const id = iAdmin >= 0 ? partes[iAdmin + 2] : undefined;
   const sobra = iAdmin >= 0 ? partes[iAdmin + 3] : undefined;
+  /* Só as chaves do próprio mapa: "/admin/constructor" não é recurso. */
+  const recurso = nomeRecurso && Object.hasOwn(RECURSOS, nomeRecurso) ? RECURSOS[nomeRecurso] : undefined;
 
-  if (recurso !== RECURSO || sobra) {
+  if (!recurso || sobra) {
     return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
   }
   if (id && !UUID.test(id)) {
-    return json(req, 404, { codigo: "nao_encontrado", mensagem: "Produto não encontrado." }, requestId);
+    return json(req, 404, { codigo: "nao_encontrado", mensagem: recurso.naoEncontrado }, requestId);
   }
 
   /* ---------- Leitura ---------- */
   if (req.method === "GET") {
-    const { data, error } = await comSegredo.rpc("mind_admin_read_catalogo", { p_id: id ?? null });
+    const { data, error } = await comSegredo.rpc(recurso.ler, { p_id: id ?? null });
     if (error) return erroDeRpc(req, error, requestId);
 
     const itens = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
     if (id) {
       return itens[0]
         ? json(req, 200, itens[0], requestId)
-        : json(req, 404, { codigo: "nao_encontrado", mensagem: "Produto não encontrado." }, requestId);
+        : json(req, 404, { codigo: "nao_encontrado", mensagem: recurso.naoEncontrado }, requestId);
     }
-    const filtrados = ordenar(itens.filter((i) => combina(i, url)), url.searchParams.get("ordenar"));
+    const filtrados = ordenar(
+      itens.filter((i) => combina(i, url, recurso)), url.searchParams.get("ordenar"), recurso.ordem,
+    );
     const pagina = Math.max(1, Number(url.searchParams.get("pagina") ?? 1) || 1);
     const porPagina = Math.min(500, Math.max(1, Number(url.searchParams.get("porPagina") ?? 100) || 100));
     const inicio = (pagina - 1) * porPagina;
@@ -287,6 +341,12 @@ Deno.serve(async (req: Request) => {
   }
 
   /* ---------- Edição ---------- */
+  if (!recurso.editar) {
+    return json(req, 405, {
+      codigo: "validacao",
+      mensagem: "Ofertas e cupons ainda são só leitura no painel; a edição é o próximo passo.",
+    }, requestId);
+  }
   if (req.method !== "PATCH" || !id) {
     return json(req, 405, {
       codigo: "validacao",
@@ -304,7 +364,7 @@ Deno.serve(async (req: Request) => {
   const esperado = req.headers.get("If-Unmodified-Since-Version")
     ?? (typeof payload.atualizadoEmEsperado === "string" ? payload.atualizadoEmEsperado : null);
 
-  const { data, error } = await comSegredo.rpc("mind_admin_mutate_catalogo", {
+  const { data, error } = await comSegredo.rpc(recurso.editar, {
     p_action: "atualizar", p_id: id, p_payload: payload,
     p_expected_updated_at: esperado, p_actor_id: usuario.user.id, p_request_id: requestId,
   });

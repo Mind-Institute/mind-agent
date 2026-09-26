@@ -18,6 +18,7 @@ import type { MapaRecursos, NomeRecurso } from '@/contracts';
 import { produtosSemente } from './seed/catalogo';
 import { adminsSemente } from './seed/admins';
 import { sessoesSummit2026Semente } from './seed/summit';
+import { cuponsSemente, ofertasSemente } from './seed/ofertas';
 
 export type BancoMock = {
   [K in NomeRecurso]: MapaRecursos[K][];
@@ -33,5 +34,7 @@ export function criarBanco(): BancoMock {
     products: clonar(produtosSemente),
     admins: clonar(adminsSemente),
     summit_2026_sessions: clonar(sessoesSummit2026Semente),
+    offers: clonar(ofertasSemente),
+    coupons: clonar(cuponsSemente),
   };
 }

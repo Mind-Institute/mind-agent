@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
   AdminApiError,
   adminSistemaSchema,
+  cupomCatalogoSchema,
+  ofertaCatalogoSchema,
   produtoCatalogoSchema,
   sessaoSummit2026Schema,
   type ListResult,
@@ -37,6 +39,8 @@ const SCHEMAS = {
   products: produtoCatalogoSchema,
   admins: adminSistemaSchema,
   summit_2026_sessions: sessaoSummit2026Schema,
+  offers: ofertaCatalogoSchema,
+  coupons: cupomCatalogoSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

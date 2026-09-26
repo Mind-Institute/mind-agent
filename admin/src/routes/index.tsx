@@ -3,6 +3,8 @@ import { AdminLayout } from '@/layouts/admin-layout';
 import { PaginaCatalogo } from '@/pages/catalogo';
 import { PaginaAdmins } from '@/pages/admins';
 import { PaginaSummitProgramacao } from '@/pages/summit-programacao';
+import { PaginaOfertas } from '@/pages/ofertas';
+import { PaginaCupons } from '@/pages/cupons';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -27,6 +29,12 @@ export const rotasAdmin: RouteObject[] = [
 
       { path: 'catalogo', element: <PaginaCatalogo /> },
       { path: 'catalogo/:id', element: <PaginaCatalogo /> },
+
+      /* O schema `catalogo` inteiro no painel (Adriana, 26/09/2026): ofertas e cupons. */
+      { path: 'ofertas', element: <PaginaOfertas /> },
+      { path: 'ofertas/:id', element: <PaginaOfertas /> },
+      { path: 'cupons', element: <PaginaCupons /> },
+      { path: 'cupons/:id', element: <PaginaCupons /> },
 
       { path: 'summit/2026/programacao', element: <PaginaSummitProgramacao /> },
       { path: 'summit/2026/programacao/:id', element: <PaginaSummitProgramacao /> },

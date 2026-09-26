@@ -355,6 +355,32 @@ volta à página 1 e é feita pela `mindagent-catalogo` na lista inteira, antes 
 paginar. Vazio fica no fim nos dois sentidos; em Situação e Venda, "não" vem
 antes de "sim"; a Janela de venda ordena pela data em que o produto sai de venda.
 
+## Ofertas e Cupons — o schema `catalogo` no painel
+
+Decisão da Adriana (26/09/2026): preço, oferta, order bump e cupom moram no
+schema `catalogo`, em tabelas separadas, e "o painel é o controle deste
+schema". Plano: `docs/PLANO_OFERTAS_PASSO_A_PASSO.md`. Hoje as duas telas são
+**só leitura** (Passo 2); a edição é o Passo 4.
+
+- **Ofertas** (`/ofertas`): cada oferta de `catalogo.ofertas` com os preços
+  (um por produto, com o código vendável), o bônus, o que ela exige (order
+  bump no carrinho, upgrade para quem já comprou) e a **situação** calculada
+  pelo banco com as mesmas pontas de janela do site: no ar, só por link,
+  agendada, encerrada, desligada, histórico. O selo **no site** marca o
+  preço que o site lê agora (`api.ofertas`). O detalhe mostra ainda o preço
+  de lista na cópia da Eduzz, quando a linha tem o código do produto lá, e
+  "de onde veio" cada linha importada.
+- **Cupons** (`/cupons`): `catalogo.cupons` (até 26/09, `checkout.cupons`), com
+  desconto, situação (valendo, agendado, esgotado, encerrado, desligado,
+  histórico), onde se aplica, usos e prazo.
+- Hoje o catálogo tem o histórico do Summit 2026 (14 ofertas, 28 preços, 3
+  upgrades, 3 cupons). As ofertas do Institute entram na virada (Passo 5).
+- Porta: `mindagent-catalogo` 1.3.0 (`/admin/offers`, `/admin/coupons`), que
+  chama `mind_admin_read_ofertas` e `mind_admin_read_cupons` (só
+  `service_role`; contrato `tests/ofertas_painel_contract.sql` →
+  `OFERTAS_PAINEL_OK`). Preço em reais (`formatarReais`), não em centavos.
+- Qualquer papel do painel vê. Escrever é recusado antes de sair.
+
 ## Summit → Mind Summit 2026 → Programação
 
 Pedido da Adriana (26/09/2026): no menu SUMMIT, um submenu por produto — hoje

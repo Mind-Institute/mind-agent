@@ -1,4 +1,4 @@
-import { CalendarDays, ListOrdered, Package, UserCog, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -12,7 +12,9 @@ import type { Acao } from '@/lib/permissions';
    Adriana (26/09/2026). Por ora são só os títulos: as principais tabelas
    de cada vertical entram quando ela as mapear. Dentro de uma vertical,
    um submenu agrupa as tabelas de um produto: SUMMIT → Mind Summit 2026 →
-   Programação (pedido dela no mesmo dia). Por último, a Administração:
+   Programação (pedido dela no mesmo dia). No topo, o schema `catalogo`
+   inteiro — produtos, ofertas e cupons —, porque "o painel é o controle
+   deste schema" (Adriana, 26/09/2026). Por último, a Administração:
    quem entra no painel. */
 
 export interface ItemNavegacao {
@@ -51,6 +53,20 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/catalogo',
         icone: Package,
         descricao: 'A lista oficial de produtos do Mind — a origem de tudo.',
+      },
+      {
+        id: 'ofertas',
+        rotulo: 'Ofertas',
+        caminho: '/ofertas',
+        icone: Tag,
+        descricao: 'Preços, condições, bônus, order bumps e upgrades do schema catalogo.',
+      },
+      {
+        id: 'cupons',
+        rotulo: 'Cupons',
+        caminho: '/cupons',
+        icone: TicketPercent,
+        descricao: 'Os cupons de desconto do schema catalogo.',
       },
     ],
   },
