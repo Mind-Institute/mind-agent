@@ -8,6 +8,7 @@ import { PaginaEspacos } from '@/pages/espacos';
 import { PaginaRotas } from '@/pages/rotas';
 import { PaginaEstandes } from '@/pages/estandes';
 import { PaginaOfertas } from '@/pages/ofertas';
+import { PaginaCatalogo } from '@/pages/catalogo';
 import { PaginaConteudo } from '@/pages/conteudo';
 import { PaginaDocumentos } from '@/pages/documentos';
 import { PaginaConversas } from '@/pages/conversas';
@@ -51,6 +52,9 @@ export const rotasAdmin: RouteObject[] = [
 
       { path: 'estandes', element: <PaginaEstandes /> },
       { path: 'estandes/:id', element: <PaginaEstandes /> },
+
+      { path: 'catalogo', element: <PaginaCatalogo /> },
+      { path: 'catalogo/:id', element: <PaginaCatalogo /> },
 
       { path: 'ofertas', element: <PaginaOfertas /> },
       { path: 'ofertas/:id', element: <PaginaOfertas /> },

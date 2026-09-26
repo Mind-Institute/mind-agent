@@ -46,7 +46,8 @@
     // precisa servir SÓ a pesquisa. Essa decisão depende de olhar o
     // Host, e o pipeline de assets não olha: sem passar pelo Worker, a
     // raiz daquele domínio é servida direto e entrega o app inteiro —
-    // conferido, era o que acontecia.
+    // conferido, era o que acontecia. Hoje quem depende disso é o
+    // admin.minddash.pro (só o painel), pelo mesmo motivo.
     //
     // O QUE ISSO PODIA QUEBRAR, e não quebra: o recorte antigo era o que
     // mantinha o fallback de SPA restrito ao painel — o chat não tem
@@ -63,6 +64,12 @@
     "not_found_handling": "none"
   }
 
+  // Domínios ligados pelo painel da Cloudflare, e não daqui:
+  // admin.minddash.pro (só o painel, 26/09/2026). avaliacao.mindsummit.com.br
+  // foi desligado por ela no mesmo dia; a regra dele no Worker fica parada,
+  // sem efeito. O deploy não mexe nos domínios enquanto esta config não
+  // declarar "routes". Quem decide o que cada endereço serve é o Worker.
+  //
   // Domínio próprio: descomente quando o DNS estiver pronto.
   // "routes": [
   //   { "pattern": "mindagent.mindsummit.com.br", "custom_domain": true }

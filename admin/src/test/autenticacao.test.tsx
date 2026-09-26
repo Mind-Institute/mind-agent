@@ -370,3 +370,85 @@ describe('sessão expirada no meio do uso', () => {
     await waitFor(() => expect(porta.chamadas.sair).toBe(1));
   });
 });
+
+describe('login com o Google da Mind', () => {
+  const ACESSO = 'https://api.exemplo.invalido/mindagent-acesso';
+
+  it('mostra o botão quando a porta oferece Google e leva ao Google', async () => {
+    const usuario = userEvent.setup();
+    const porta = criarPortaFalsa({ sessaoInicial: null, aoEntrarComGoogle: async () => undefined });
+    const falso = criarFetchFalso({ '/admin/me': { corpo: PERFIL_OK } });
+    renderizarPainel({ porta, baseUrlApi: API, baseUrlAcesso: ACESSO, fetchImpl: falso.fetch });
+
+    const botao = await screen.findByRole('button', { name: /entrar com o google da mind/i });
+    await usuario.click(botao);
+    await waitFor(() => expect(porta.chamadas.google).toBe(1));
+    /* Ir ao Google não pergunta papel a ninguém: a sessão ainda não existe. */
+    expect(falso.ultima('/admin/me')).toBeUndefined();
+  });
+
+  it('sem Google na porta, o botão não aparece', async () => {
+    const porta = criarPortaFalsa({ sessaoInicial: null });
+    renderizarPainel({ porta, baseUrlApi: API, baseUrlAcesso: ACESSO, fetchImpl: criarFetchFalso({}).fetch });
+    expect(await screen.findByLabelText(/^E-mail/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /google/i })).not.toBeInTheDocument();
+  });
+
+  it('primeiro login: /admin/me recusa, o painel liga a conta e entra', async () => {
+    const porta = criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE });
+    const falso = criarFetchFalso({
+      '/admin/me': {
+        sequencia: [
+          { status: 403, corpo: { codigo: 'sem_permissao', mensagem: 'Usuário sem acesso ao painel.' } },
+          { corpo: PERFIL_OK },
+        ],
+      },
+      'POST /admin/vincular': { corpo: { vinculado: true, papel: 'administrador', nome: 'Ana Ribeiro' } },
+      '/admin/dashboard': { corpo: RESUMO_VAZIO },
+    });
+    renderizarPainel({ porta, baseUrlApi: API, baseUrlAcesso: ACESSO, fetchImpl: falso.fetch });
+
+    expect(await screen.findByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible();
+    const vinculo = falso.ultima('/admin/vincular');
+    expect(vinculo?.metodo).toBe('POST');
+    expect(vinculo?.url).toBe(`${ACESSO}/admin/vincular`);
+    expect(vinculo?.cabecalhos.Authorization).toBe(`Bearer ${SESSAO_DE_TESTE.accessToken}`);
+    expect(falso.chamadas.filter((c) => c.url.includes('/admin/me'))).toHaveLength(2);
+  });
+
+  it('recusa do banco aparece com a frase dele, sem tentar de novo', async () => {
+    const porta = criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE });
+    const falso = criarFetchFalso({
+      '/admin/me': { status: 403, corpo: { codigo: 'sem_permissao', mensagem: 'Usuário sem acesso ao painel.' } },
+      'POST /admin/vincular': {
+        status: 403,
+        corpo: {
+          codigo: 'sem_permissao',
+          motivo: 'sem_acesso',
+          mensagem: 'Você ainda não está na lista de admins do sistema.',
+        },
+      },
+    });
+    renderizarPainel({ porta, baseUrlApi: API, baseUrlAcesso: ACESSO, fetchImpl: falso.fetch });
+
+    expect(
+      await screen.findByRole('heading', { name: /sua conta não tem acesso ao painel/i }),
+    ).toBeVisible();
+    expect(screen.getByText('Você ainda não está na lista de admins do sistema.')).toBeVisible();
+    expect(falso.chamadas.filter((c) => c.url.includes('/admin/vincular'))).toHaveLength(1);
+    expect(falso.chamadas.filter((c) => c.url.includes('/admin/me'))).toHaveLength(1);
+  });
+
+  it('sem o endereço de acesso, 403 de /admin/me não tenta ligar conta', async () => {
+    const porta = criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE });
+    const falso = criarFetchFalso({
+      '/admin/me': { status: 403, corpo: { codigo: 'sem_permissao', mensagem: 'Usuário sem papel administrativo.' } },
+    });
+    renderizarPainel({ porta, baseUrlApi: API, fetchImpl: falso.fetch });
+
+    expect(
+      await screen.findByRole('heading', { name: /sua conta não tem acesso ao painel/i }),
+    ).toBeVisible();
+    expect(falso.ultima('/admin/vincular')).toBeUndefined();
+  });
+});

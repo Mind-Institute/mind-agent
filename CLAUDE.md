@@ -30,8 +30,7 @@ Não transformar espera de CI, preview ou review em motivo para encerrar a lane.
 
 ## Papéis vigentes
 
-- **Adriana**: produto/negócio e gates sensíveis. Por **D2**, também a **única aprovadora** de mudança estrutural de banco.
-- **Vinicius**: **dono da execução do banco** — migration, coluna, índice, constraint, backfill. Dentro de casa existente, executa direto; tabela nova, schema novo ou troca de autoridade vão à Adriana antes. Ele executa, ela aprova.
+- **Adriana**: produto/negócio e gates sensíveis. Por **D2**, também a **única aprovadora** de mudança estrutural de banco: tabela nova, schema novo ou troca de autoridade vão a ela antes; dentro de casa existente, a mudança segue sem passar por ela.
 - **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, fecha a menor mudança, coordena lanes, revisa PRs, decide integração e registra o checkpoint.
 - **Claude Code**: investiga e implementa o escopo delegado em branch `claude/...`; traz evidência independente; não amplia escopo e não mergeia por conta própria.
 - **GitHub**: memória compartilhada e barramento entre lanes.
@@ -88,6 +87,7 @@ CANAL/ENTRADA
 - use casas/taxonomias existentes;
 - antes de criar tabela, prove que falta uma casa;
 - **Regra #1 (D5):** toda tabela que fala de pessoa tem `mind_id` (D6: é o nome da coluna do ID universal em toda tabela), resolvido ou criado pela porta única `mind_identidade_resolver` **antes** da escrita (`mind_pessoa_ligar_tabela` põe uma tabela nova na regra); nunca grave pessoa ou identificador fora dela; nunca funda pessoas fora de `mind_fusao_decidir` — a fusão é decisão da Adriana;
+- **função nasce fechada** (desde 25/09): o banco não dá mais EXECUTE a PUBLIC em função nova; a migration faz `revoke all ... from public, anon, authenticated` e concede só a quem chama — RPC interna é `service_role`, porta do app ou do site é `grant ... to anon`/`authenticated` de propósito (contrato: `tests/permissoes_funcoes_contract.sql`);
 - não transforme hipótese futura em hardening atual;
 - não exponha memória ao Agent sem o contrato de sensibilidade aprovado;
 - não ligue outbound sem gate;

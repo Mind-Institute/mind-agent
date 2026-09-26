@@ -10,6 +10,9 @@
      essas rotas não cabiam na outra sem editar função viva de outra
      lane, e porque o conteúdo é de outra natureza: o que o painel
      PUBLICA, não o que a grade informa;
+   - o catálogo (`catalogo.produtos`) vem da `mindagent-catalogo`, outra
+     função separada, pelo mesmo motivo. Lê e edita — criar e arquivar
+     produto não existem por aqui;
    - rotas, estandes, ofertas, conteúdo institucional, documentos,
      conversas, perguntas, usuários e auditoria continuam no banco em
      memória.
@@ -60,6 +63,17 @@ const CONJUNTO_HOME = new Set<string>(RECURSOS_DA_HOME);
 export function ehRecursoDaHome(resource: NomeRecurso): boolean {
   return CONJUNTO_HOME.has(resource);
 }
+
+/** Servido pela `mindagent-catalogo`: ler e editar, nada além. */
+export const RECURSOS_DO_CATALOGO = ['products'] as const satisfies readonly NomeRecurso[];
+
+const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
+
+export function ehRecursoDoCatalogo(resource: NomeRecurso): boolean {
+  return CONJUNTO_CATALOGO.has(resource);
+}
+
+const OPERACOES_DO_CATALOGO = new Set(['list', 'get', 'update']);
 
 const CONJUNTO_REAIS = new Set<string>(RECURSOS_REAIS);
 
@@ -128,10 +142,14 @@ export class HybridAdminDataProvider implements AdminDataProvider {
     /* Ausente, o módulo Home V3 continua em memória — é o que acontece
        nos testes e em qualquer build sem `VITE_HOME_API_BASE_URL`. */
     private readonly home?: AdminDataProvider,
+    /* Ausente, o catálogo fica em memória — nos testes e em build sem
+       endereço do Supabase. */
+    private readonly catalogo?: AdminDataProvider,
   ) {}
 
   origemDoRecurso(resource: NomeRecurso): 'http' | 'mock' {
     if (ehRecursoDaHome(resource)) return this.home ? 'http' : 'mock';
+    if (ehRecursoDoCatalogo(resource)) return this.catalogo ? 'http' : 'mock';
     return ehRecursoReal(resource) ? 'http' : 'mock';
   }
 
@@ -141,6 +159,17 @@ export class HybridAdminDataProvider implements AdminDataProvider {
        usam — não passa pela tabela de OPERACOES, que existe para
        descrever as lacunas da API do evento. */
     if (ehRecursoDaHome(resource)) return this.home ?? this.mock;
+    if (ehRecursoDoCatalogo(resource)) {
+      /* A recusa vale também em demonstração: a tela não pode ensinar um
+         botão que a API de verdade não tem. */
+      if (!OPERACOES_DO_CATALOGO.has(operacao)) {
+        throw new AdminApiError(
+          'validacao',
+          `O catálogo aceita leitura e edição; ${NOME_OPERACAO[operacao] ?? operacao} produto ainda não existe no painel.`,
+        );
+      }
+      return this.catalogo ?? this.mock;
+    }
     if (!ehRecursoReal(resource)) return this.mock;
 
     const permitidas = OPERACOES[resource as RecursoReal];

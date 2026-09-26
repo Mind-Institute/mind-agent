@@ -7,6 +7,7 @@ import type { PortaAutenticacao } from '@/services/auth';
 import { criarPortaSupabaseDoAmbiente } from '@/services/auth-supabase';
 import { ProvedorDeDados, type FabricaProvedor } from '@/services/provider-context';
 import { ProvedorDeSessao } from '@/hooks/use-sessao';
+import { enderecoDoAcesso } from '@/services/perfil-admin';
 import { GuardaAutenticacao } from '@/components/admin/guarda-autenticacao';
 import { rotasAdmin } from '@/routes';
 
@@ -40,6 +41,7 @@ export function Provedores({
   papelInicial,
   porta,
   baseUrlApi = import.meta.env.VITE_ADMIN_API_BASE_URL,
+  baseUrlAcesso = enderecoDoAcesso(),
   chavePublicavel = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
   fetchImpl,
 }: {
@@ -51,6 +53,8 @@ export function Provedores({
   porta?: PortaAutenticacao | null;
   /** Explícito nos testes, para `/admin/me` não depender do ambiente. */
   baseUrlApi?: string;
+  /** `mindagent-acesso`, para o primeiro login com Google. */
+  baseUrlAcesso?: string | null;
   chavePublicavel?: string | null;
   fetchImpl?: typeof fetch;
 }) {
@@ -61,6 +65,7 @@ export function Provedores({
         porta={porta}
         papelInicial={papelInicial}
         baseUrlApi={baseUrlApi}
+        baseUrlAcesso={baseUrlAcesso}
         chavePublicavel={chavePublicavel}
         fetchImpl={fetchImpl}
       >
