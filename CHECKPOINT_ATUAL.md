@@ -196,8 +196,12 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   agora vale antes e depois (`OFERTAS_EDICAO_OK` antes). **Ensaio C** (troca real das portas + os 2 contratos + a
   volta, uma transação desfeita): `ENSAIO_C_OK`, portas presas 1.053 ms no total (na virada de verdade, só troca e
   conferência: < 0,1 s), nenhuma leitura do site falhou, sem rastro. O site lê `api.ofertas` ~250 vezes/hora,
-  constante, dia e noite. **Falta:** as 2 respostas dela ("vale até" nos textos e FAQ da condição; bump fora da
-  lista de preços da página) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
+  constante, dia e noite. **Pergunta (b), saída melhor que tirar o bump:** no checkout próprio do Join, o bump
+  aceito entra no carrinho buscando o preço em `api.ofertas` pelo código — tirá-lo de lá quebraria isso. Então
+  `03-bump-fora-da-lista.sql` (só com o OK dela) entrega o bump sem programa: ele sai das listas por programa (a
+  "Avulsas" deixa de mostrar R$ 1.497) e o checkout segue igual. Ensaio D (virada + 03 + volta, reais, desfeitos):
+  `ENSAIO_D_OK`, 250 ms, sem rastro. **Falta:** as 2 respostas dela ("vale até" nos textos e FAQ da condição; a
+  pergunta b) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
   `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
   vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
 - **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo

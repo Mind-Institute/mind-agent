@@ -6,6 +6,7 @@ Rascunhos do Passo 5 de [`docs/PLANO_OFERTAS_PASSO_A_PASSO.md`](../../PLANO_OFER
 |---|---|
 | [`01-virada.sql`](01-virada.sql) | A virada, numa transação só. Carrega as 16 ofertas do Institute no catálogo, põe as 3 funções de pedido e as 3 portas do site para ler o catálogo e congela a casa antiga. Confere a paridade antes e depois. |
 | [`02-volta.sql`](02-volta.sql) | A volta, só para emergência. Primeiro copia para a casa antiga o que foi mudado no painel, depois devolve as portas e as funções. |
+| [`03-bump-fora-da-lista.sql`](03-bump-fora-da-lista.sql) | Só com o OK da Adriana (pergunta b), depois da virada e antes de 30/09 23h59. Em `api.ofertas`, o bump passa a vir sem programa: ele sai das listas de preço por programa (a "Avulsas" deixa de mostrar R$ 1.497 na Liderança Consciente) e continua funcionando no checkout próprio. |
 | [`../../../tests/virada_institute_contract.sql`](../../../tests/virada_institute_contract.sql) | O contrato de depois da virada. Termina em `VIRADA_OK`. |
 
 ## No dia
@@ -27,3 +28,4 @@ Rascunhos do Passo 5 de [`docs/PLANO_OFERTAS_PASSO_A_PASSO.md`](../../PLANO_OFER
 | 26/09 | **B.** A virada, cinco edições no painel e a volta: preço editado, bônus novo, oferta nova com 2 produtos, bump novo e bump tirado do ar. Um rascunho fica de fora. | `ENSAIO_B_OK`: depois da volta, as portas da casa antiga iguais às do catálogo (16/5/9); a casa antiga com 19 ofertas, 9 bônus e 6 regras; o rascunho não foi |
 | 26/09 | Contrato do Passo 4, antes da virada | `OFERTAS_EDICAO_OK` |
 | 26/09 | **C.** A troca real das portas, com os 2 contratos e a volta na mesma transação. O site lê a porta de preços num ritmo constante, cerca de 250 vezes por hora, dia e noite; não há horário mais quieto. | `ENSAIO_C_OK`: virada com paridade, `VIRADA_OK`, `OFERTAS_EDICAO_OK` no modo de depois da virada e a volta com paridade, incluindo tudo o que os contratos criaram. As portas ficaram presas 1.053 ms no total: a virada e o contrato dela 476 ms, o contrato do Passo 4 495 ms, a volta o resto. Na virada de verdade só a troca e a conferência seguram as portas: menos de 0,1 s, como no ensaio A. Nenhuma leitura do site falhou. Sem rastro. |
+| 26/09 | **D.** A virada, o `03-bump-fora-da-lista.sql` e a volta, com as portas reais. | `ENSAIO_D_OK`: os 3 bumps saíram sem programa de `api.ofertas` (fora das listas por programa, como a "Avulsas"); as outras portas e o bloco do agente iguais; a volta, que agora ignora o programa do bump na comparação, fechou em 14/5/8. Portas presas 250 ms no total. Sem rastro. |
