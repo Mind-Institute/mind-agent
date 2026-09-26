@@ -6,6 +6,110 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### Catálogo no painel · Summit fora de venda · Join no mesmo banco — 25/09/2026
+
+Da Adriana (25/09): *"O Summit não tá mais à venda. Pode parar de copiar a cada 30 minutos."* ·
+*"As ofertas do instituto precisam ser todas as ofertas do Mind. Vão ser manipuladas a partir de um
+painel de admin ligado ao agente aqui."* · *"comece a tela de catálogo primeiro"* · *"vou querer editar
+no frontend e essa edição ir para o backend quando eu quiser salvar"* · *"o git deve ser o git do mind
+agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
+
+- **Catálogo no painel — EM PRODUÇÃO no banco e na função; a tela sai no merge.** `/catalogo` no
+  `admin/` lê e edita `catalogo.produtos`. Banco: `mind_admin_read_catalogo` e
+  `mind_admin_mutate_catalogo` (ledger `20260925183716`, arquivo com o mesmo número e md5), só
+  `service_role` executa; papel conferido de novo, versão obrigatória (409 em conflito), antes/depois em
+  `mind_admin_audit` (`resource = 'products'`); `codigo` (chave de 13 tabelas) e `schema_dados` não se
+  editam; nada se cria nem se apaga. Contrato `tests/catalogo_painel_contract.sql` → `CATALOGO_OK`
+  (rodado em produção, sem rastro). Edge Function nova `mindagent-catalogo` **v2 viva = o código do
+  repo**, `verify_jwt = false` (valida a sessão por dentro, como a `mindagent-home`); conferida pelo
+  `pg_net`: `health` 200, sem login 401, origem estranha 403, token falso 401. A tela manda ao banco só
+  o que mudou (a janela de venda guarda segundos). Painel: 218/218 testes, build Cloudflare verde.
+- **Summit fora de venda — executado.** Jobs `mindagent-sync-precos` (30 min, ledger `20260925181108`)
+  e `mindagent-sync-disponibilidade-diaria` (21h, ledger `20260925182409`) desligados, não apagados. As
+  3 linhas do Lote 7 passaram a `ativo = false`, `publico = false`. Nenhuma oferta do Summit ativa.
+- **Projetos do Summit fora deste banco — decisão dela:** `mind-summit-vendas-dashboard` **nunca
+  apagar** (pode virar "mind financeiro"; renomear não quebra nada, este banco usa o ref
+  `tkludhksqcnhhpgqyfqq`) — é a única conta com token válido da Eduzz e a origem do
+  `eduzz-espelho-sync`, por onde entram as vendas do Institute (30 desde 18/09). `app-palestrantes` e
+  `convites-temporario` ficam. O site do Summit fica no ar como está. `mind-summit-propostas`: **deixar
+  inativo, não apagar** — **não pausado ainda**: o site do Summit ainda chama a função `site-lote` dele
+  (10 vezes em 24 h, de um worker Cloudflare) e a `pricing` foi aberta por navegadores; pausar faz essas
+  chamadas falharem. Decisão dela (25/09): não mexer nele por enquanto.
+- **Decidido (produto):** o painel único é o `admin/` deste repo, servido pelo worker `mind-agent`. O
+  modelo de oferta do Institute vira o de todas as ofertas do Mind; **onde ele mora** (generalizar
+  `institute.ofertas` por `produto_codigo` ou ocupar `catalogo.ofertas`, hoje vazia) é troca de
+  autoridade — D2 antes de implementar. Docs (`CLAUDE.md`, `AGENTS.md`, `PROJECT_STATE.md`, mapa vivo):
+  D2 continua com ela como única aprovadora; a atribuição de execução ao Vinicius saiu.
+- **Verificado — Join:** `joinmind.com.br` e `mindinstitute` usam este projeto (`ymnmotgglsrxmjmonwjz`).
+  O `/admin` do joinmind está no código publicado, mas não está em uso: a única conta da equipe não é a
+  da Adriana (último login 17/09), nas últimas 24 h só houve acesso sem login (401), 7 das 9 telas servem
+  o checkout próprio, desligado desde 16/09, e a última mudança de oferta (21/09) foi SQL direto.
+- **Auditoria de acesso (login com Google — auditar antes, implementar depois):** 4.156 usuários de
+  login, 4.155 anônimos (o app); **uma** conta com e-mail e senha, a única de `mind_admin_users` e de
+  `seguranca.equipe`. Nenhuma identidade Google. A Adriana não tem conta própria neste projeto.
+  A equipe do Mind está em `pessoas.pessoas.relacionamento_mind` (15 pessoas `staff`, 14 com e-mail
+  `@joinmind.com.br` em `engagement.identidades`) — ser staff não dá acesso ao painel; quem dá é
+  `mind_admin_users`, por `user_id`.
+- **Permissões de função — EXECUTADO (decisão dela, 25/09).** As 19 funções internas das filas
+  (`silence_*`, `summit_*` de status/contato, `treble_*` de evento/status) e `espelho_para_mind` passaram
+  a ser só do `service_role` (ledger `20260925201217`, arquivo com o mesmo número e md5). Quem as chama
+  é o próprio sistema (chave secreta e os jobs `treble_status_dia`/`treble_status_noite`); nada mais
+  dependia delas, e as chamadas do sistema seguiram em 200 depois da troca. **Função nova nasce sem
+  EXECUTE para PUBLIC** (padrão global do postgres): a migration concede explicitamente a quem chama.
+  Contrato `tests/permissoes_funcoes_contract.sql` → `PERMISSOES_OK`. Pedido dela, na sequência: as duas
+  portas do site, `mind_origem` e `mind_utm_registrar`, também fecharam (ledger `20260925212628`; sem uso:
+  `engagement.utm_sessoes` parou em 22/08). Aberta de propósito ficou só `mind_fusao_decidir`, que confere
+  admin/aprovador por dentro. No `mind-summit-vendas-dashboard` (fora deste git), as 4 funções do espelho
+  de lá (`espelho_blinket_*` e `espelho_cupons_*`, fire e load) passaram a ser só do sistema (ledger de lá
+  `20260925212819`); os jobs delas rodam como o dono e seguem iguais.
+- **Segredo do espelho de vendas — trocado (25/09).** O par `intelligence.config.vendas_espelho_segredo`
+  (aqui) ↔ `mind_agent_espelho_segredo` (Vault do `mind-summit-vendas-dashboard`) ganhou valor novo,
+  gerado no banco e levado de um projeto ao outro por `pg_net`, sem passar pela conversa; a porta
+  temporária da troca foi apagada. Sessões antigas da conta admin encerradas.
+- **Admins do sistema por Mind ID — banco e função no ar; o login Google espera a configuração dela.**
+  Da Adriana (25/09): *"não é backoffice mas admins deste sistema e daí sim podemos fazer por Mind ID e
+  sempre antes de colocar a pessoa ela deve existir como um Mind ID e em Mind ID da equipe tem que poder
+  marcar equipe para não confundir com lead"*; e, antes, *"mesmo banco, porta própria"*.
+  - `mind_admin_users` ganhou `mind_id` (ledger `20260925232508`, arquivo com o mesmo número e md5):
+    a pessoa tem que existir, não pode ser fundida e, com acesso ativo, tem que estar marcada como
+    equipe (`staff` em `relacionamento_mind`, a marca de 23/09). A lista nunca cria pessoa. `user_id`
+    fica vazio até o primeiro login; chave nova `id`. A conta genérica antiga (sem pessoa) vale até o
+    Google entrar e depois sai.
+  - `mind_admin_vincular_login` (só `service_role`) liga a conta no primeiro login: Google, e-mail
+    verificado @joinmind.com.br, uma pessoa só com esse e-mail, acesso ativo e equipe; o login vira
+    identidade pela porta única, sem criar pessoa. Contrato `tests/admins_do_sistema_contract.sql` →
+    `ADMINS_OK` (12 casos, rodado em produção, sem rastro).
+  - A Adriana é a primeira admin, pelo Mind ID. Edge Function nova `mindagent-acesso`
+    (`POST /admin/vincular`), **v1 viva = o código do repo**, conferida pelo `pg_net`. Painel: botão
+    "Entrar com o Google da Mind" (PKCE, `hd=joinmind.com.br`); 403 em `/admin/me` → vincula uma vez
+    → `/admin/me` de novo. Painel 223/223, raiz 419/419, build verde.
+  - **Falta (dela):** app de login "Interno" no Google Workspace; Client ID e Secret colados no
+    provedor Google do Supabase; Redirect URLs do painel (produção e previews). Depois: tirar e-mail e
+    senha do painel, apagar a conta genérica, aposentar `seguranca.equipe` e o admin antigo do Join,
+    endereço próprio do painel e a tela "Admins do sistema" para ela dar e tirar acesso.
+- **Painel em `admin.minddash.pro` (pedido dela, 26/09).** O domínio foi ligado por ela ao worker
+  `mind-agent` pelo painel da Cloudflare. O mesmo worker separa por endereço: ali só o painel (raiz e
+  navegação levam a `/admin/`, arquivo do app público é 404); o `/admin` de **qualquer outro endereço**
+  do worker — o `workers.dev`, o domínio do app, um domínio ligado depois — leva para lá (302); só os
+  endereços de teste (previews e máquina local) seguem com o painel no próprio endereço. Pedido dela:
+  *"duas coisas diferentes em dois endereços distintos"*. Regras em `cloudflare/roteamento.js`, teste
+  `tests/roteamento_painel.test.mjs`. `avaliacao.mindsummit.com.br` foi desligado do worker por ela
+  (26/09, *"não vou usar ele aqui"*): a regra da pesquisa no Worker fica parada, sem efeito. **Aberto
+  (dela):** um worker ou dois. Código do app na raiz, do painel em `admin/` (não importa nada de
+  fora); separar depois muda só o worker atrás do endereço — Supabase e Google não se refazem. **Falta (dela):** secret `ADMIN_ALLOWED_ORIGINS =
+  https://admin.minddash.pro` nas Edge Functions (hoje as quatro do painel recusam a origem nova) e a
+  Redirect URL `https://admin.minddash.pro/admin/` no Auth. Previews montam sem as variáveis de build do
+  Supabase e abrem em demonstração: o teste de login é em produção.
+- **Conteúdo do admin — ela define.** Da Adriana (26/09): *"eu quero um admin da empresa, da
+  inteligência da empresa de modo geral"* · *"eu prefiro construir do que você assumir o que eu quero"*.
+  O painel atual nasceu como admin do app do Summit; o que entra no admin da empresa sai dela, sem
+  proposta pronta.
+- **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
+  o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
+  toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
+- **Próximo:** decidir o login com Google (provedor no
+  Supabase, app OAuth do Google Workspace e como liberar a equipe por e-mail) · D2 da casa das ofertas.
+
 ### Empresa dos participantes do Summit 2026 + espelho de Companies do HubSpot — 24/09/2026, EM PRODUÇÃO
 
 Pedido da Adriana (24/09, madrugada): *"verifique se todos os atendentes do Summit 2026 têm empresa

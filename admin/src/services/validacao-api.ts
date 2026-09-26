@@ -4,6 +4,7 @@ import {
   espacoSchema,
   eventoSchema,
   palestranteSchema,
+  produtoCatalogoSchema,
   sessaoSchema,
   temaSchema,
   type ListResult,
@@ -41,6 +42,7 @@ const SCHEMAS = {
   speakers: palestranteSchema,
   spaces: espacoSchema,
   themes: temaSchema,
+  products: produtoCatalogoSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

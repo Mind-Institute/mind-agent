@@ -9,6 +9,7 @@ import {
   Megaphone,
   MessagesSquare,
   MonitorSmartphone,
+  Package,
   Route,
   Settings,
   ShieldCheck,
@@ -129,6 +130,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
     id: 'conteudo',
     rotulo: 'Conteúdo e comercial',
     itens: [
+      {
+        id: 'catalogo',
+        rotulo: 'Catálogo',
+        caminho: '/catalogo',
+        icone: Package,
+        descricao: 'A lista oficial de produtos do Mind — a origem de tudo.',
+      },
       {
         id: 'ofertas',
         rotulo: 'Ingressos e ofertas',

@@ -24,6 +24,7 @@ import {
 import { auditoriaSemente, conversasSemente, perguntasSemente } from './seed/atendimento';
 import { espacosSemente, palestrantesSemente, sessoesSemente, temasSemente } from './seed/summit';
 import { avisosHomeSemente, estadoHomeSemente, trocasHomeSemente } from './seed/home-v3';
+import { produtosSemente } from './seed/catalogo';
 
 export type BancoMock = {
   [K in NomeRecurso]: MapaRecursos[K][];
@@ -57,6 +58,7 @@ export function criarBanco(agora: number = Date.now()): BancoMock {
     home_state: clonar([estadoHomeSemente]),
     home_schedule: clonar(trocasHomeSemente),
     home_notices: clonar(avisosHomeSemente),
+    products: clonar(produtosSemente),
   };
 }
 

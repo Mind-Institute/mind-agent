@@ -47,6 +47,8 @@ export interface OpcoesRender {
   /** Ausente = modo simulado, sem login. */
   porta?: PortaAutenticacao | null;
   baseUrlApi?: string;
+  /** `mindagent-acesso`. Ausente = o painel não tenta ligar conta Google. */
+  baseUrlAcesso?: string | null;
   chavePublicavel?: string | null;
   fetchImpl?: typeof fetch;
   /** Prefixo do roteador, como em produção (`/admin`). */
@@ -69,6 +71,7 @@ export function renderizarPainel({
   agora,
   porta,
   baseUrlApi,
+  baseUrlAcesso = null,
   chavePublicavel = null,
   fetchImpl,
   basename,
@@ -86,6 +89,7 @@ export function renderizarPainel({
       queryClient={cliente}
       porta={porta}
       baseUrlApi={baseUrlApi}
+      baseUrlAcesso={baseUrlAcesso}
       chavePublicavel={chavePublicavel}
       fetchImpl={fetchImpl}
     >
@@ -117,7 +121,7 @@ export const SESSAO_DE_TESTE: SessaoAuth = {
 export interface PortaFalsa extends PortaAutenticacao {
   /** Empurra uma sessão (ou `null`) como se o Supabase tivesse avisado. */
   emitir: (sessao: SessaoAuth | null) => void;
-  chamadas: { entrar: number; sair: number; encerrar: number };
+  chamadas: { entrar: number; sair: number; encerrar: number; google: number };
   ouvintes: number;
 }
 
@@ -126,11 +130,13 @@ export function criarPortaFalsa(
     sessaoInicial?: SessaoAuth | null;
     aoEntrar?: (email: string, senha: string) => Promise<SessaoAuth>;
     aoSair?: () => Promise<void>;
+    /** Liga o "Entrar com Google". A função faz as vezes da ida e volta ao Google. */
+    aoEntrarComGoogle?: () => Promise<void>;
   } = {},
 ): PortaFalsa {
   let sessao = opcoes.sessaoInicial ?? null;
   const ouvintes = new Set<(s: SessaoAuth | null) => void>();
-  const chamadas = { entrar: 0, sair: 0, encerrar: 0 };
+  const chamadas = { entrar: 0, sair: 0, encerrar: 0, google: 0 };
 
   const porta: PortaFalsa = {
     chamadas,
@@ -152,6 +158,14 @@ export function criarPortaFalsa(
       sessao = nova;
       return nova;
     },
+    ...(opcoes.aoEntrarComGoogle
+      ? {
+          async entrarComGoogle() {
+            chamadas.google += 1;
+            await opcoes.aoEntrarComGoogle?.();
+          },
+        }
+      : {}),
     async sair() {
       chamadas.sair += 1;
       await opcoes.aoSair?.();
@@ -197,6 +211,8 @@ export interface RotaFalsa {
   status?: number;
   corpo?: unknown;
   erroDeRede?: boolean;
+  /** Respostas em ordem, uma por chamada; a última se repete. Ignora os campos acima. */
+  sequencia?: Omit<RotaFalsa, 'sequencia'>[];
 }
 
 /**
@@ -210,6 +226,8 @@ export interface RotaFalsa {
  */
 export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
   const chamadas: ChamadaHttp[] = [];
+  /* Quantas vezes cada rota com `sequencia` já respondeu. */
+  const usos = new Map<RotaFalsa, number>();
 
   const definicoes = Object.entries(rotas).map(([chave, rota]) => {
     const partes = chave.trim().split(' ');
@@ -245,12 +263,18 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
     }
     chamadas.push({ url, metodo, cabecalhos });
 
-    const rota = escolher(url, metodo);
-    if (!rota) {
+    const escolhida = escolher(url, metodo);
+    if (!escolhida) {
       return new Response(JSON.stringify({ codigo: 'nao_encontrado', mensagem: 'sem rota falsa' }), {
         status: 404,
         headers: { 'content-type': 'application/json' },
       });
+    }
+    let rota: Omit<RotaFalsa, 'sequencia'> = escolhida;
+    if (escolhida.sequencia?.length) {
+      const vez = usos.get(escolhida) ?? 0;
+      usos.set(escolhida, vez + 1);
+      rota = escolhida.sequencia[Math.min(vez, escolhida.sequencia.length - 1)];
     }
     if (rota.erroDeRede) throw new TypeError('Failed to fetch');
 

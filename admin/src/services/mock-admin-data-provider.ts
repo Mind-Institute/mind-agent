@@ -49,6 +49,7 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   home_state: ['momento', 'modo'],
   home_schedule: ['momento', 'nota'],
   home_notices: ['titulo', 'subtitulo', 'descricao'],
+  products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
 };
 
 /** Filtro cujo nome na URL difere do campo do registro. */

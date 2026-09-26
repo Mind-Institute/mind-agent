@@ -6,6 +6,7 @@
      /        → Mind Agent, o chat público (estático, sem rota de cliente)
      /admin/  → Painel Admin (SPA com BrowserRouter)
      avaliacao.mindsummit.com.br → 404 em tudo (a pesquisa avulsa foi apagada)
+     admin.minddash.pro          → só o painel; nos outros endereços, /admin leva para lá
 
    O Worker atende TODOS os caminhos (`run_worker_first` no
    `wrangler.jsonc`). Era só `/admin` antes; ampliou porque a trava do
@@ -26,7 +27,8 @@
 
 import {
   INDICE_PAINEL,
-  decidirAntes, decidirApos404, ehDaPesquisa, ehDoPainel,
+  decidirAntes, decidirApos404, decidirNoHostDoPainel,
+  destinoDoPainelForaDoDominio, ehDaPesquisa, ehDoHostDoPainel, ehDoPainel,
 } from './roteamento.js';
 
 export interface Env {
@@ -50,6 +52,38 @@ export default {
         status: 404,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       });
+    }
+
+    /* ============================================================
+       O DOMÍNIO DO PAINEL
+       ============================================================
+       Em `admin.minddash.pro` só existe o painel: a raiz e qualquer
+       navegação fora de `/admin` levam para `/admin/`, e arquivo que não
+       é do painel é 404. O que é do painel segue o fluxo de sempre, logo
+       abaixo. Em qualquer outro endereço deste worker — o do app, o
+       `workers.dev`, um domínio ligado amanhã —, o painel manda para cá e o
+       app fica onde está; só os endereços de teste (previews e máquina local)
+       seguem com o painel no próprio endereço. Redirecionamento temporário
+       (302) enquanto o domínio novo se firma — trocar para 301 é uma linha. */
+    if (ehDoHostDoPainel(url.hostname)) {
+      const decisao = decidirNoHostDoPainel(url.pathname);
+      if (decisao.tipo === 'recusado') {
+        return new Response('Não encontrado.', {
+          status: 404,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+      if (decisao.tipo === 'redirecionar') {
+        url.pathname = decisao.para;
+        return Response.redirect(url.toString(), 302);
+      }
+    } else {
+      const destino = destinoDoPainelForaDoDominio(url.hostname, url.pathname);
+      if (destino) {
+        const alvo = new URL(destino);
+        alvo.search = url.search;
+        return Response.redirect(alvo.toString(), 302);
+      }
     }
 
     if (request.method === 'GET' && /^\/c\/[0-9a-f-]{36}$/i.test(url.pathname)) {

@@ -98,6 +98,12 @@ export function PaginaConfiguracoes() {
                   incluída — temas são somente leitura.
                 </p>
                 <p>
+                  <strong className="text-foreground">Catálogo real:</strong> os produtos de{' '}
+                  <code className="font-mono">catalogo.produtos</code> vêm da{' '}
+                  <code className="font-mono">mindagent-catalogo</code> — leitura e edição; criar e
+                  arquivar produto ainda não existem.
+                </p>
+                <p>
                   <strong className="text-foreground">Apoio em demonstração:</strong> rotas,
                   estandes, ofertas, conteúdo, documentos, conversas, perguntas, usuários e auditoria
                   continuam no banco em memória. Salvar ali mexe só nesta aba.
