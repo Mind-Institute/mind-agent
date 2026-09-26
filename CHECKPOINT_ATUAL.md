@@ -164,6 +164,20 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   ofertas, cupons etc. lerem `inicia_em` estava errada). Agora o painel calcula igual; o contrato
   `CATALOGO_OK` confere produto a produto contra `api.programas` (falhou no código antigo, passa no novo,
   sem rastro). Hoje a cópia do catálogo bate com o site em 1 de 12 datas.
+- **Fonte da verdade dos sites e plano de preços no `catalogo` (26/09, pedidos dela).** *"sites do Join e
+  Institute não são um único projeto mas se alimentam do mesmo banco — preciso saber qual a fonte da
+  verdade"* e *"as tabelas de preços de quaisquer coisas a serem vendidas no Mind ... devem vir para o
+  schema catalogo — faça uma auditoria da database e mapeie o que precisa ser migrado fazendo um plano"*.
+  Dois documentos, só leitura, sem PII, números de venda nem achados de segurança (esses foram a ela à
+  parte): `docs/FONTE_DA_VERDADE_SITES.md` (os dois sites leem as mesmas 6 views `api.*` sobre
+  `institute.*`; só o `/admin` do Join e SQL escrevem; link de compra e preço cobrado estão na Eduzz; em
+  01/10 o site passa ao preço de balcão e a Eduzz continua cobrando a Condição se ninguém mudar lá) e
+  `docs/PLANO_PRECOS_CATALOGO.md` (estado, destino de cada objeto, modelo alvo nas 4 tabelas `oferta*` que
+  já existem e estão vazias, etapas E0–E9 reversíveis com paridade na mesma transação, e 18 perguntas
+  para ela). **Aguarda a D2 dela**; nada foi executado. **Descoberta lateral para a lane #40:** o bloco
+  `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
+  `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
+  e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
 - **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
   e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
   (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,
@@ -752,6 +766,12 @@ tabela).
 
 **PR aberto no repo do site:** Mind-Institute/mindsummit2026#31 — `schedule` de 07:00 e
 19:00 BRT no workflow, parando sozinho depois de 16/09.
+
+**Baixa em 26/09/2026:** a `summit-programacao-sync` foi aposentada (v10 responde 410, sem o segredo no
+código, `verify_jwt = true`); a programação se lê no painel (`/summit/2026/programacao`, só leitura). As
+pendências abaixo sobre `SYNC_SECRET`, o PR mindsummit2026#31 e o segredo no código deixam de valer.
+Falta: apagar a função no painel do Supabase (a Adriana; o MCP não apaga) e desligar o workflow
+`sync-programacao.yml` no repo do site, que passa a falhar.
 
 **Pendências que são gate da Adriana, não minhas:**
 - criar `SYNC_SECRET` em `mindsummit2026`. Sem isso o job continua 401, agendado ou não;
