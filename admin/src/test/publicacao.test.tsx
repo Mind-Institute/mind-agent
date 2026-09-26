@@ -23,9 +23,9 @@ import { renderizarPainel } from './utils';
 
 describe('rotas sob /admin (basename)', () => {
   it('monta a página no deep link, com o prefixo de produção', async () => {
-    renderizarPainel({ rota: '/admin/documentos', basename: '/admin' });
+    renderizarPainel({ rota: '/admin/configuracoes', basename: '/admin' });
 
-    expect(await screen.findByRole('heading', { name: 'FAQ e documentos', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Configurações', level: 1 })).toBeVisible();
   });
 
   it('a raiz do painel sob /admin abre o Catálogo', async () => {
@@ -50,9 +50,9 @@ describe('rotas sob /admin (basename)', () => {
   });
 
   it('sem basename as rotas seguem na raiz — é o que as outras suítes usam', async () => {
-    renderizarPainel({ rota: '/documentos' });
+    renderizarPainel({ rota: '/configuracoes' });
 
-    expect(await screen.findByRole('heading', { name: 'FAQ e documentos', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Configurações', level: 1 })).toBeVisible();
     const menu = screen.getByRole('navigation', { name: /navegação principal/i });
     expect(within(menu).getByRole('link', { name: /^Catálogo/ })).toHaveAttribute('href', '/catalogo');
   });
@@ -75,7 +75,7 @@ describe('regras de roteamento do Worker', () => {
   it('/admin sem barra redireciona para /admin/', () => {
     expect(decidirAntes('GET', '/admin')).toEqual({ tipo: 'redirecionar', para: '/admin/' });
     expect(decidirAntes('GET', '/admin/')).toEqual({ tipo: 'asset' });
-    expect(decidirAntes('GET', '/admin/conteudo')).toEqual({ tipo: 'asset' });
+    expect(decidirAntes('GET', '/admin/configuracoes')).toEqual({ tipo: 'asset' });
   });
 
   it('distingue pedido de ARQUIVO de navegação', () => {
@@ -96,7 +96,7 @@ describe('regras de roteamento do Worker', () => {
   });
 
   it('404 de navegação cai no index do painel', () => {
-    for (const caminho of ['/admin/', '/admin/catalogo', '/admin/conteudo', '/admin/documentos/doc_1']) {
+    for (const caminho of ['/admin/', '/admin/catalogo', '/admin/configuracoes', '/admin/catalogo/prd_dash']) {
       expect(decidirApos404('GET', caminho), caminho).toEqual({ tipo: 'indice' });
     }
     expect(INDICE_PAINEL).toBe('/admin/index.html');
@@ -115,7 +115,7 @@ describe('regras de roteamento do Worker', () => {
 
   it('método que não é navegação não recebe fallback', () => {
     expect(decidirApos404('POST', '/admin/catalogo')).toEqual({ tipo: 'asset' });
-    expect(decidirApos404('DELETE', '/admin/conteudo')).toEqual({ tipo: 'asset' });
-    expect(decidirApos404('HEAD', '/admin/conteudo')).toEqual({ tipo: 'indice' });
+    expect(decidirApos404('DELETE', '/admin/configuracoes')).toEqual({ tipo: 'asset' });
+    expect(decidirApos404('HEAD', '/admin/configuracoes')).toEqual({ tipo: 'indice' });
   });
 });

@@ -1,14 +1,7 @@
 import {
-  Building2,
-  FileQuestion,
-  FileText,
-  MessagesSquare,
   Package,
   Settings,
-  ShieldCheck,
   Star,
-  Ticket,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
@@ -48,48 +41,12 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         icone: Package,
         descricao: 'A lista oficial de produtos do Mind — a origem de tudo.',
       },
-      {
-        id: 'ofertas',
-        rotulo: 'Ingressos e ofertas',
-        caminho: '/ofertas',
-        icone: Ticket,
-        descricao: 'Códigos, valores, checkout e vigência.',
-      },
-      {
-        id: 'conteudo',
-        rotulo: 'Conteúdo da Mind',
-        caminho: '/conteudo',
-        icone: Building2,
-        descricao: 'Textos institucionais que o agente usa para falar da Mind.',
-      },
-      {
-        id: 'documentos',
-        rotulo: 'FAQ e documentos',
-        caminho: '/documentos',
-        icone: FileText,
-        descricao: 'Fontes, documentos e estado de indexação.',
-      },
     ],
   },
   {
     id: 'atendimento',
     rotulo: 'Atendimento',
     itens: [
-      {
-        id: 'conversas',
-        rotulo: 'Conversas',
-        caminho: '/conversas',
-        icone: MessagesSquare,
-        permissao: 'ver_conversas',
-        descricao: 'Histórico somente leitura, com dado pessoal mascarado.',
-      },
-      {
-        id: 'perguntas',
-        rotulo: 'Perguntas sem resposta',
-        caminho: '/perguntas',
-        icone: FileQuestion,
-        descricao: 'A fila de melhoria do agente.',
-      },
       {
         id: 'avaliacao-do-dia',
         rotulo: 'Avaliação do dia',
@@ -110,22 +67,6 @@ export const NAVEGACAO: GrupoNavegacao[] = [
     id: 'administracao',
     rotulo: 'Administração',
     itens: [
-      {
-        id: 'usuarios',
-        rotulo: 'Usuários e permissões',
-        caminho: '/usuarios',
-        icone: Users,
-        permissao: 'gerir_usuarios',
-        descricao: 'Papéis do painel. A autorização real é do backend.',
-      },
-      {
-        id: 'auditoria',
-        rotulo: 'Auditoria',
-        caminho: '/auditoria',
-        icone: ShieldCheck,
-        permissao: 'ver_auditoria',
-        descricao: 'Quem mudou o quê, quando, e o que havia antes.',
-      },
       {
         id: 'configuracoes',
         rotulo: 'Configurações',

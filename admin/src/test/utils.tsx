@@ -43,7 +43,6 @@ export interface OpcoesRender {
   rota?: string;
   papel?: Papel;
   provedor?: AdminDataProvider | FabricaProvedor;
-  agora?: number;
   /** Ausente = modo simulado, sem login. */
   porta?: PortaAutenticacao | null;
   baseUrlApi?: string;
@@ -68,7 +67,6 @@ export function renderizarPainel({
   rota = '/',
   papel = 'administrador',
   provedor,
-  agora,
   porta,
   baseUrlApi,
   baseUrlAcesso = null,
@@ -76,7 +74,7 @@ export function renderizarPainel({
   fetchImpl,
   basename,
 }: OpcoesRender = {}): ResultadoRender {
-  const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0, agora });
+  const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0 });
   const instancia = typeof usado === 'function' ? null : usado;
   const roteador = createMemoryRouter(rotasAdmin, { initialEntries: [rota], basename });
   const cliente = criarClienteDeConsulta();
@@ -335,13 +333,6 @@ export function renderizarHibrido({ rota = '/', rotas = {}, perfil }: OpcoesHibr
     fetchImpl: falso.fetch,
     provedor: (o) =>
       new HybridAdminDataProvider(
-        new HttpAdminDataProvider({
-          baseUrl: API_FALSA,
-          fetchImpl: falso.fetch,
-          chavePublicavel: CHAVE_FALSA,
-          obterToken: o.obterToken,
-          aoNaoAutorizado: o.aoNaoAutorizado,
-        }),
         mock,
         /* O catálogo real, como em produção: é a tela inicial do painel. */
         new HttpAdminDataProvider({

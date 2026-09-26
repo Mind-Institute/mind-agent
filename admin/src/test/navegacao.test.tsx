@@ -5,11 +5,11 @@ import { renderizarPainel } from './utils';
 import { ITENS_NAVEGACAO } from '@/routes/navegacao';
 
 describe('navegação', () => {
-  it('mostra os onze módulos do menu lateral', async () => {
+  it('mostra os quatro módulos do menu lateral', async () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO).toHaveLength(11);
+    expect(ITENS_NAVEGACAO).toHaveLength(4);
     for (const item of ITENS_NAVEGACAO) {
       /* NOME INTEIRO, e não pedaço: "Avaliação do dia" e "Avaliação do
          evento" são dois itens do menu, e um regex solto casa com os dois. */
@@ -19,21 +19,25 @@ describe('navegação', () => {
     }
   });
 
-  /* Decisão da Adriana (26/09/2026): o que era do app do Summit saiu do
-     painel. Promessa negativa apodrece calada — daí o teste. */
-  it('não mostra o que saiu do painel: visão geral, Home V3 e Evento', async () => {
+  /* Decisões da Adriana (26/09/2026): o que era do app do Summit saiu do
+     painel, e depois tudo o que não era dado real. Promessa negativa
+     apodrece calada — daí o teste. */
+  it('não mostra o que saiu do painel: app do Summit e módulos em demonstração', async () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
     for (const rotulo of ['Visão geral', 'Home V3', 'Visualização', 'Avisos', 'Evento', 'Programação',
-                          'Palestrantes', 'Espaços', 'Rotas', 'Estandes']) {
+                          'Palestrantes', 'Espaços', 'Rotas', 'Estandes', 'Ingressos e ofertas',
+                          'Conteúdo da Mind', 'FAQ e documentos', 'Conversas', 'Perguntas sem resposta',
+                          'Usuários e permissões', 'Auditoria']) {
       expect(
         within(menu).queryByRole('link', { name: (nome) => nome.trim() === rotulo }),
         `${rotulo} não deveria estar no menu`,
       ).toBeNull();
     }
     for (const caminho of ['/evento', '/programacao', '/palestrantes', '/espacos', '/rotas', '/estandes',
-                           '/home/visualizacao', '/home/avisos']) {
+                           '/home/visualizacao', '/home/avisos', '/ofertas', '/conteudo', '/documentos',
+                           '/conversas', '/perguntas', '/usuarios', '/auditoria']) {
       expect(ITENS_NAVEGACAO.some((item) => item.caminho === caminho), caminho).toBe(false);
     }
   });
@@ -45,10 +49,14 @@ describe('navegação', () => {
   });
 
   it('endereço de módulo que saiu do painel cai na página de não encontrada', async () => {
-    renderizarPainel({ rota: '/programacao' });
-    expect(
-      await screen.findByRole('heading', { name: /não existe no painel/i }),
-    ).toBeVisible();
+    for (const rota of ['/programacao', '/ofertas', '/usuarios']) {
+      const { unmount } = renderizarPainel({ rota });
+      expect(
+        await screen.findByRole('heading', { name: /não existe no painel/i }),
+        rota,
+      ).toBeVisible();
+      unmount();
+    }
   });
 
   it('navega do Catálogo para outro módulo pelo menu', async () => {
@@ -56,9 +64,9 @@ describe('navegação', () => {
     renderizarPainel();
 
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
-    await usuario.click(within(menu).getByRole('link', { name: /conteúdo da mind/i }));
+    await usuario.click(within(menu).getByRole('link', { name: /configurações/i }));
 
-    expect(await screen.findByRole('heading', { name: 'Conteúdo da Mind', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Configurações', level: 1 })).toBeVisible();
   });
 
   /* O TEMPO DESTE TESTE CRESCE COM O MENU: ele monta e desmonta o painel

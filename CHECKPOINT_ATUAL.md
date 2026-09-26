@@ -104,16 +104,20 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   inteligência da empresa de modo geral"* · *"eu prefiro construir do que você assumir o que eu quero"*.
   O painel atual nasceu como admin do app do Summit; o que entra no admin da empresa sai dela, sem
   proposta pronta.
-- **O que era do app saiu do painel (26/09, pedido dela).** *"aqui estamos fazendo o painel de controle
-  da inteligência do Mind"*. Saíram do código do painel: a **Home V3** (visualização e avisos — *"isso é
-  sobre o app"*), o grupo **Evento** (evento, programação, palestrantes, espaços, rotas, estandes) e a
-  **visão geral**; por escolha dela, a raiz abre no **Catálogo** até ela definir a tela inicial. Menu com
-  11 itens; teste impede os removidos de voltarem. Backend intocado: `mindagent-admin` (continua sendo a
-  porta de `/admin/me`) e `mindagent-home` (o app lê a home dela) seguem vivas, e nenhuma tabela mudou.
-  **Ficou para depois:** a camada de dados do painel ainda conhece os recursos do evento e o dashboard
-  (tipos, sementes do mock, encaminhamento híbrido para a `mindagent-admin`) — nenhuma tela usa; limpar
-  quando ela definir o conteúdo. A variável de build `VITE_HOME_API_BASE_URL`, se existir na Cloudflare,
-  não é mais lida. Painel 183/183, `tsc` limpo, build verde.
+- **O painel mostra só dado real (26/09, pedidos dela).** *"aqui estamos fazendo o painel de controle
+  da inteligência do Mind"*. Saíram do código do painel, em dois passos: primeiro o que era do app — a
+  **Home V3** (*"isso é sobre o app"*), o grupo **Evento** (evento, programação, palestrantes, espaços,
+  rotas, estandes) e a **visão geral**; depois, *"limpa tudo que não for dado real"* — **ofertas,
+  conteúdo, documentos, conversas, perguntas, usuários e auditoria**, que eram demonstração. Com eles
+  saiu a camada de dados que só os servia (tipos, sementes, dashboard, reindexação, rotas do evento no
+  provedor híbrido). Ficaram: **Catálogo** (real, `mindagent-catalogo`), **Avaliação do dia** e **do
+  evento** (reais, `mindagent-avaliacao`, leitura) e **Configurações**; a raiz abre no Catálogo, por
+  escolha dela, até ela definir a tela inicial. O mock ficou só como arnês de teste e do preview (sem
+  variáveis do Supabase), com a semente do catálogo; em produção o selo do topo diz *dados reais*.
+  Backend intocado: `mindagent-admin` (porta de `/admin/me`, e ainda serve as rotas do evento a quem
+  usar) e `mindagent-home` (o app lê a home dela) seguem vivas; nenhuma tabela mudou. A variável de build
+  `VITE_HOME_API_BASE_URL`, se existir na Cloudflare, não é mais lida. Painel 141/141, `tsc` limpo,
+  build verde; raiz 426/426. PR [#137](https://github.com/Mind-Institute/mind-agent/pull/137).
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.

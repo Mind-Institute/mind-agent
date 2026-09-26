@@ -17,7 +17,7 @@ import {
 /* Selo curto; a faixa logo abaixo nomeia módulo por módulo. */
 const ROTULO_MODO: Record<string, { texto: string; variante: 'sucesso' | 'destructive' | 'atencao' }> = {
   mock: { texto: 'dados simulados', variante: 'destructive' },
-  hybrid: { texto: 'parte real · parte em demonstração', variante: 'atencao' },
+  hybrid: { texto: 'dados reais', variante: 'sucesso' },
   http: { texto: 'API administrativa', variante: 'sucesso' },
 };
 

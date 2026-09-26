@@ -30,12 +30,6 @@ const LISTA_VAZIA = { itens: [], total: 0, pagina: 1, porPagina: 1 };
 function comCatalogoReal(falso: { fetch: typeof fetch }) {
   return (opcoes: { obterToken?: () => Promise<string | null>; aoNaoAutorizado?: (erro: AdminApiError) => void }) =>
     new HybridAdminDataProvider(
-      new HttpAdminDataProvider({
-        baseUrl: API,
-        fetchImpl: falso.fetch,
-        obterToken: opcoes.obterToken,
-        aoNaoAutorizado: opcoes.aoNaoAutorizado,
-      }),
       new MockAdminDataProvider({ latenciaMs: 0 }),
       new HttpAdminDataProvider({
         baseUrl: CATALOGO,
@@ -272,24 +266,26 @@ describe('papel e permissões vêm de /admin/me', () => {
   });
 
   it('o papel do backend governa o que a interface libera', async () => {
-    renderizarAutenticado({ perfil: { ...PERFIL_OK, papel: 'editor' }, rota: '/usuarios' });
+    renderizarAutenticado({ perfil: { ...PERFIL_OK, papel: 'analista' }, rota: '/catalogo/prd_dash' });
 
-    expect(await screen.findByText('Sem permissão')).toBeVisible();
-    expect(screen.getByText(/não pode gerir usuários e permissões/i)).toBeVisible();
+    const nome = await screen.findByLabelText(/^Nome/);
+    await waitFor(() => expect(nome).toHaveValue('Mind Dash'));
+    /* Analista é somente leitura na matriz: vê o produto e não salva. */
+    expect(nome).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Salvar$/ })).toBeDisabled();
   });
 
   it('a lista de permissões do backend tem precedência sobre o papel', async () => {
-    /* Papel de editor, que na matriz local não publica — mas o backend
-       mandou `publicar` na lista, e é a lista que vale. */
+    /* Papel de analista, que na matriz local só lê — mas o backend mandou
+       `editar` na lista, e é a lista que vale. */
     renderizarAutenticado({
-      perfil: { ...PERFIL_OK, papel: 'editor', permissoes: ['ver', 'editar', 'publicar'] },
-      rota: '/conteudo/con_produtos',
+      perfil: { ...PERFIL_OK, papel: 'analista', permissoes: ['ver', 'editar'] },
+      rota: '/catalogo/prd_dash',
     });
 
-    await screen.findByDisplayValue('Plataformas e produtos');
-    expect(screen.getByRole('button', { name: /publicar/i })).toBeVisible();
-    /* E o que não está na lista continua fora, mesmo sendo de editor. */
-    expect(screen.queryByRole('button', { name: /arquivar/i })).not.toBeInTheDocument();
+    const nome = await screen.findByLabelText(/^Nome/);
+    await waitFor(() => expect(nome).toHaveValue('Mind Dash'));
+    expect(nome).toBeEnabled();
   });
 });
 

@@ -1,9 +1,4 @@
-import {
-  ROTULO_STATUS_EDITORIAL,
-  ROTULO_STATUS_INDEXACAO,
-  type StatusEditorial,
-  type StatusIndexacao,
-} from '@/contracts';
+import { ROTULO_STATUS_EDITORIAL, type StatusEditorial } from '@/contracts';
 import { Badge } from '@/components/ui/badge';
 
 /* Selos de estado. Cor é significado, não decoração:
@@ -18,22 +13,6 @@ const VARIANTE_EDITORIAL: Record<StatusEditorial, 'sucesso' | 'atencao' | 'neutr
 
 export function SeloEditorial({ status }: { status: StatusEditorial }) {
   return <Badge variant={VARIANTE_EDITORIAL[status]}>{ROTULO_STATUS_EDITORIAL[status]}</Badge>;
-}
-
-const VARIANTE_INDEXACAO: Record<
-  StatusIndexacao,
-  'sucesso' | 'atencao' | 'neutro' | 'destructive' | 'outline'
-> = {
-  indexado: 'sucesso',
-  na_fila: 'atencao',
-  indexando: 'atencao',
-  nao_indexado: 'outline',
-  desatualizado: 'atencao',
-  erro: 'destructive',
-};
-
-export function SeloIndexacao({ status }: { status: StatusIndexacao }) {
-  return <Badge variant={VARIANTE_INDEXACAO[status]}>{ROTULO_STATUS_INDEXACAO[status]}</Badge>;
 }
 
 export function SeloAtivo({ ativo }: { ativo: boolean }) {

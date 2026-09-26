@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { registroBaseSchema } from './common';
 
 /* ============================================================
    PAPÉIS
@@ -33,13 +32,3 @@ export const DESCRICAO_PAPEL: Record<Papel, string> = {
   atendimento: 'Lê conversas e trabalha a fila de perguntas sem resposta.',
   analista: 'Somente leitura: visão geral, listagens e auditoria.',
 };
-
-
-export const usuarioSchema = registroBaseSchema.extend({
-  nome: z.string(),
-  email: z.string(),
-  papel: papelSchema,
-  ativo: z.boolean(),
-  ultimoAcessoEm: z.string().nullable(),
-});
-export type Usuario = z.infer<typeof usuarioSchema>;

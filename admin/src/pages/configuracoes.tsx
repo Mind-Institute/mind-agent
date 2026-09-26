@@ -84,9 +84,9 @@ export function PaginaConfiguracoes() {
 
             {provedor.modo === 'mock' ? (
               <p className="text-muted-foreground">
-                Os dados são simulados e vivem na memória do navegador: catálogo, ofertas,
-                conteúdo, documentos, conversas, perguntas, usuários e auditoria. Recarregar a
-                página desfaz qualquer alteração.
+                Modo demonstração: sem as variáveis do Supabase, o catálogo mostra uma semente
+                local que vive na memória do navegador. Recarregar a página desfaz qualquer
+                alteração. Em produção o painel só mostra dado real.
               </p>
             ) : provedor.modo === 'hybrid' ? (
               <div className="space-y-2 text-muted-foreground">
@@ -98,13 +98,13 @@ export function PaginaConfiguracoes() {
                   <code className="font-mono">Authorization</code>.
                 </p>
                 <p>
-                  <strong className="text-foreground">Em demonstração:</strong> ofertas, conteúdo,
-                  documentos, conversas, perguntas, usuários e auditoria continuam no banco em
-                  memória. Salvar ali mexe só nesta aba.
+                  <strong className="text-foreground">Avaliações reais:</strong> a do dia e a do
+                  evento vêm da <code className="font-mono">mindagent-avaliacao</code>, só leitura.
                 </p>
                 <p>
-                  As respostas dos módulos reais são validadas contra os schemas do painel. Formato
-                  incompatível vira erro na tela — não campo preenchido por conta própria.
+                  Nada aqui é demonstração: o painel mostra só dado real. As respostas são
+                  validadas contra os schemas do painel — formato incompatível vira erro na tela,
+                  não campo preenchido por conta própria.
                 </p>
               </div>
             ) : (

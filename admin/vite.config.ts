@@ -5,8 +5,7 @@ import react from '@vitejs/plugin-react';
 /**
  * O painel vive em `admin/`, ao lado do chat estático da raiz. Ele nunca
  * importa código do chat: a única coisa que atravessa a fronteira são os
- * dados de demonstração (`../dados/summit.json`) e os assets de marca
- * (`../assets/`) — leitura, nunca escrita.
+ * assets de marca (`../assets/`) — leitura, nunca escrita.
  */
 export default defineConfig({
   /* O painel é servido sob /admin, o chat na raiz. Sem isto o build
@@ -18,7 +17,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@dados': path.resolve(__dirname, '../dados'),
       '@marca': path.resolve(__dirname, '../assets'),
     },
   },

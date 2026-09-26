@@ -1,12 +1,3 @@
-import {
-  ROTULO_FORMATO_SESSAO,
-  ROTULO_TIPO_ESPACO,
-  ROTULO_TIPO_SESSAO,
-  type FormatoSessao,
-  type TipoEspaco,
-  type TipoSessao,
-} from '@/contracts';
-
 /* ============================================================
    RÓTULOS DE CATEGORIA
    ============================================================
@@ -24,26 +15,6 @@ export interface Rotulo {
   /** `false` quando o valor não está no vocabulário do painel. */
   conhecido: boolean;
 }
-
-function resolver<T extends string>(mapa: Record<T, string>, valor: string): Rotulo {
-  const conhecido = Object.prototype.hasOwnProperty.call(mapa, valor);
-  return conhecido
-    ? { texto: mapa[valor as T], conhecido: true }
-    : { texto: valor || '—', conhecido: false };
-}
-
-export function rotuloTipoSessao(tipo: string): Rotulo {
-  return resolver<TipoSessao>(ROTULO_TIPO_SESSAO, tipo);
-}
-
-export function rotuloFormatoSessao(formato: string): Rotulo {
-  return resolver<FormatoSessao>(ROTULO_FORMATO_SESSAO, formato);
-}
-
-export function rotuloTipoEspaco(tipo: string): Rotulo {
-  return resolver<TipoEspaco>(ROTULO_TIPO_ESPACO, tipo);
-}
-
 
 export interface OpcaoCategoria {
   valor: string;
