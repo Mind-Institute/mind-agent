@@ -29,6 +29,11 @@
 //   empresa seguem como para todo mundo; `icp`, `icp_confianca`, `jtbd` e o resumo que está no HubSpot
 //   são limpos, seja de quem for o valor, e vão para `limpezas` (motivo `nao_e_lead`).
 //
+// - Credenciamento manda (Adriana, 24/09/2026): quando o plano traz `forcar = true` (o cargo veio do que a
+//   pessoa escreveu no credenciamento do Summit), cargo, empresa e ICP sobrescrevem o que estiver no
+//   HubSpot, inclusive valor editado lá ou ICP manual — a troca vai para `substituicoes`. Continuam
+//   valendo `pior` (headline/URL/e-mail) e `equivalentes` (mesma coisa escrita de outro jeito).
+//
 // Também mora aqui `montarOpcoes`, que decide as opções finais de uma propriedade de
 // enumeração a partir do catálogo do banco sem apagar valor que já existe no HubSpot.
 
@@ -74,6 +79,11 @@ export type Linha = {
    * pessoas.relacionamento_mind): ICP, JTBD e resumo não vão, e o que estiver no HubSpot é limpo.
    */
   nao_lead?: boolean | null;
+  /**
+   * true quando o cargo veio do credenciamento (o que a pessoa escreveu): cargo, empresa e ICP
+   * sobrescrevem o que estiver no HubSpot, mesmo editado lá (Adriana, 24/09/2026).
+   */
+  forcar?: boolean | null;
 };
 
 export type OpcaoHubSpot = {
@@ -327,6 +337,7 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
   }
 
   const propriedades: Record<string, string> = {};
+  const forcar = linha.forcar === true;
   const preservar = (prop: string, atualTexto: string, desejado: string) =>
     preservados.push({ email, propriedade: prop, atual: atualTexto, desejado, motivo: "editado_no_hubspot" });
 
@@ -367,7 +378,7 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
       return;
     }
     const ultimo = ultimoEscrito(linha, prop);
-    if (ultimo !== null && chaveDe(ultimo) !== kAtual) {
+    if (!forcar && ultimo !== null && chaveDe(ultimo) !== kAtual) {
       preservar(prop, atualTexto, novo);
       return;
     }
@@ -412,7 +423,7 @@ export function planejar(linha: Linha, atual: ContatoAtual | null, defs: Definic
         const atualTexto = String(cur).trim();
         if (atualTexto.toLowerCase() !== novo.toLowerCase()) {
           const ultimo = ultimoEscrito(linha, "icp");
-          if (ultimo !== null && ultimo.toLowerCase() === atualTexto.toLowerCase()) {
+          if (forcar || (ultimo !== null && ultimo.toLowerCase() === atualTexto.toLowerCase())) {
             escreverIcp();
             substituicoes.push({ email, propriedade: "icp", atual: atualTexto, novo });
           } else {
