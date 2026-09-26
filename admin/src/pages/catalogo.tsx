@@ -54,6 +54,32 @@ import {
 
 const ID_FORM = 'form-produto';
 
+/* Ativo e Vende são duas perguntas diferentes sobre cada produto — o texto
+   é o que a Adriana pediu na tela (26/09/2026). Conferido no banco:
+   "vendável agora" é `ativo and vende` (`mind_produto_da_rota_status`), o
+   kit do agente só lista quem vende e o CRM comercial só olha os
+   pipelines de produto ativo que vende (`mind_crm_comercial`). */
+const EXPLICACAO_ATIVO =
+  'O produto existe hoje no vocabulário do Mind: os agentes falam dele, o CRM registra negócios com ele e a base de conhecimento está ligada a ele. Inativo é o que ficou para trás, como as edições de 2025, e fica guardado por causa do histórico de vendas e do NPS.';
+const EXPLICACAO_VENDE =
+  'Dá para comprar agora. O agente só oferece compra quando os dois estão ligados — "vendável agora" é ativo e vende —, e o CRM comercial também só olha os pipelines desses produtos.';
+
+function AtivoEVende() {
+  return (
+    <div
+      className="grid gap-3 rounded-lg border bg-muted/30 p-4 text-sm sm:grid-cols-2"
+      data-testid="explicacao-ativo-vende"
+    >
+      <p>
+        <strong>Ativo</strong> — {EXPLICACAO_ATIVO}
+      </p>
+      <p>
+        <strong>Vende</strong> — {EXPLICACAO_VENDE}
+      </p>
+    </div>
+  );
+}
+
 /* Radix não aceita item de valor vazio; "sem vertical" usa este. */
 const SEM_VERTICAL = '__sem_vertical__';
 
@@ -229,13 +255,16 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
               </Campo>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center gap-3">
-                  <Switch
-                    id="produto-ativo"
-                    checked={formulario.watch('ativo')}
-                    onCheckedChange={(v) => formulario.setValue('ativo', v, { shouldDirty: true })}
-                  />
-                  <Label htmlFor="produto-ativo">Produto ativo</Label>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="produto-ativo"
+                      checked={formulario.watch('ativo')}
+                      onCheckedChange={(v) => formulario.setValue('ativo', v, { shouldDirty: true })}
+                    />
+                    <Label htmlFor="produto-ativo">Produto ativo</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{EXPLICACAO_ATIVO}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
@@ -246,9 +275,7 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
                     />
                     <Label htmlFor="produto-vende">Está à venda</Label>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Desligado, o agente não oferece checkout deste produto.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{EXPLICACAO_VENDE}</p>
                 </div>
               </div>
 
@@ -436,6 +463,7 @@ export function PaginaCatalogo() {
             ],
           },
         ]}
+        antesDaTabela={() => <AtivoEVende />}
         estadoVazio={
           <EstadoVazio
             titulo="Nenhum produto no recorte"

@@ -274,6 +274,17 @@ describe('catálogo — a tela', () => {
     expect(salvo.codigo).toBe('mind-summit-2026');
   });
 
+  it('explica na tela a diferença entre ativo e vende', async () => {
+    renderizarPainel({ rota: '/catalogo/prd_dash' });
+    const explicacao = await screen.findByTestId('explicacao-ativo-vende');
+    expect(explicacao).toHaveTextContent(/Ativo — O produto existe hoje no vocabulário do Mind/);
+    expect(explicacao).toHaveTextContent(/Vende — Dá para comprar agora/);
+    /* E junto de cada chave, na edição do produto. */
+    const dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).getByText(/fica guardado por causa do histórico de vendas e do NPS/)).toBeVisible();
+    expect(within(dialogo).getByText(/"vendável agora" é ativo e vende/)).toBeVisible();
+  });
+
   it('quem só visualiza vê o produto e não salva', async () => {
     renderizarPainel({ rota: '/catalogo/prd_dash', papel: 'analista' });
     const nome = await screen.findByLabelText(/^Nome/);
