@@ -46,15 +46,9 @@ Nunca transforme memória de conversa em fato do sistema quando puder verificar.
 
 Dona de produto/negócio e dos gates sensíveis. **Não é gerente de transporte entre agentes.**
 
-Desde **D2** (21/09/2026), é também a **única aprovadora de mudança estrutural de banco**:
-fonte nova, casa nova, mudança de proveniência e o gate do §8 deste documento.
-
-Dentro de casa existente e comentada, a mudança de banco segue sem passar pela aprovação dela.
-O que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai a ela
-antes, pela Inbox (§12.11 do `BACKLOG.md`), não por conversa.
-
-O limite existe para proteger o tempo dela: a régua separa mudança que muda o que o sistema
-afirma ser verdade de mudança que não muda.
+Desde **D2** (21/09/2026), é a **única aprovadora e a única executora de mudança de banco**
+(24/09/2026): migration, coluna, índice, constraint, backfill, fonte nova, casa nova, mudança de
+proveniência e o gate do §8 deste documento. Agentes preparam; ela decide e executa.
 
 ### ChatGPT arquiteto/supervisor
 

@@ -30,7 +30,7 @@ Não transformar espera de CI, preview ou review em motivo para encerrar a lane.
 
 ## Papéis vigentes
 
-- **Adriana**: produto/negócio e gates sensíveis. Por **D2**, também a **única aprovadora** de mudança estrutural de banco: tabela nova, schema novo ou troca de autoridade vão a ela antes; dentro de casa existente, a mudança segue sem passar por ela.
+- **Adriana**: produto/negócio e gates sensíveis. Por **D2**, é a **única aprovadora e a única executora** de mudança de banco: migration, coluna, índice, constraint, backfill, tabela nova, schema novo ou troca de autoridade. Ninguém mais executa no banco; agentes preparam e ela decide.
 - **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, fecha a menor mudança, coordena lanes, revisa PRs, decide integração e registra o checkpoint.
 - **Claude Code**: investiga e implementa o escopo delegado em branch `claude/...`; traz evidência independente; não amplia escopo e não mergeia por conta própria.
 - **GitHub**: memória compartilhada e barramento entre lanes.

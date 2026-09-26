@@ -13,17 +13,6 @@ import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServi
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem, enviarSinalJornada } from './chat-service.js';
 import { ligarTeclado, tecladoAberto } from './teclado.js';
-/* As duas pesquisas: módulos à parte, isolados. Nada do app depende
-   deles, e eles não dependem de nada do app além da identidade e da
-   configuração. */
-import { abrirAvaliacao, subtituloDaAvaliacao } from './avaliacao/avaliacao.js';
-import { abrirAvaliacaoDoEvento, subtituloDaAvaliacaoDoEvento } from './avaliacao/evento.js';
-import {
-  carregarEstado as carregarEstadoDaAvaliacao,
-  carregarEstadoDoEvento as carregarEstadoDaAvaliacaoDoEvento,
-  definirConvite,
-  pesquisaConfigurada,
-} from './avaliacao/servico.js';
 
 /* A altura do app passa a vir do viewport VISUAL, antes de qualquer tela
    aparecer: é o que impede o Safari de rolar a página inteira quando o teclado
@@ -117,7 +106,6 @@ const FALA = [
 const vistas = {
   home: document.getElementById('vista-home'),
   avisos: document.getElementById('vista-avisos'),
-  avaliacao: document.getElementById('vista-avaliacao'),
   chat: document.getElementById('vista-chat'),
   summit: document.getElementById('vista-summit'),
   tour: document.getElementById('vista-tour'),
@@ -159,8 +147,6 @@ function acaoDaHome(acao) {
   if (acao === 'insight') return irParaConversa('insight');
   if (acao === 'entrevista') return irParaConversa('plano');
   if (acao === 'insights') return abrirVista('summit');
-  if (acao === 'avaliacao') return abrirTelaDaAvaliacao();
-  if (acao === 'avaliacao-evento') return abrirTelaDaAvaliacaoDoEvento();
   if (acao === 'avisos') return abrirAvisos();
   if (acao.startsWith('aviso:')) return abrirAvisos(acao.slice(6));
   if (acao.startsWith('em-breve:')) return painelEmBreve(acao.slice(9));
@@ -258,10 +244,6 @@ function contextoDaHome() {
   if (ingressoDoParticipante) ctx.ingresso = ingressoDoParticipante;
   const emCurso = sessaoDoInsight();
   if (emCurso) ctx.sessaoDoInsight = emCurso.titulo;
-  const cartaoDaAvaliacao = cardDaAvaliacao();
-  if (cartaoDaAvaliacao) ctx.avaliacao = cartaoDaAvaliacao;
-  const cartaoDoEvento = cardDaAvaliacaoDoEvento();
-  if (cartaoDoEvento) ctx.avaliacaoEvento = cartaoDoEvento;
   const p = proximaExperiencia();
   if (!p) return ctx;
   /* Etiqueta curta, não frase: o card logo abaixo já diz a hora, a sala
@@ -520,129 +502,6 @@ function atualizarContadorAvisos() {
     selo.setAttribute('aria-label', n === 1 ? '1 aviso não lido' : n + ' avisos não lidos');
   });
 }
-
-/* ---------- Avaliação do dia ----------
-   Módulo à parte, com tela própria. Este trecho é tudo que o app sabe
-   sobre ele: qual card mostrar na home e como abrir a tela.
-
-   FALHA AQUI NÃO DERRUBA NADA. `estadoDaAvaliacao` fica `null` quando a
-   pesquisa está desligada, quando não há sessão ou quando a rede cai — e
-   `null` quer dizer "a home fica como sempre foi". */
-let estadoDaAvaliacao = null;
-
-async function carregarAvaliacaoDoDia() {
-  if (!pesquisaConfigurada()) return;
-  try {
-    estadoDaAvaliacao = await carregarEstadoDaAvaliacao(null);
-  } catch (e) {
-    estadoDaAvaliacao = null;
-  }
-}
-
-/* O que o card da home mostra, ou `null` para ele não existir. */
-function cardDaAvaliacao() {
-  const e = estadoDaAvaliacao;
-  if (!e || !e.ativo || !e.identificado) return null;
-  if (e.enviado) {
-    /* Enviada: o card fica, desativado, dizendo que está feito. Sem
-       `acao` ele não é botão de verdade — `acaoDaHome` devolve na
-       primeira linha quando a ação é vazia. */
-    return {
-      pergunta: 'Avaliação de hoje enviada ✓',
-      cta: 'Obrigado por avaliar',
-      variante: 'av-enviada',
-      estado: 'concluido',
-      acao: null,
-    };
-  }
-  return { estado: 'disponivel' };
-}
-
-/* ---------- Avaliação do evento ----------
-   Mesma regra da do dia, com estado próprio: são duas pesquisas, e uma
-   não responde pela outra. `null` continua querendo dizer "a home de
-   sempre". */
-let estadoDaAvaliacaoDoEvento = null;
-
-async function carregarAvaliacaoDoEvento() {
-  if (!pesquisaConfigurada()) return;
-  try {
-    estadoDaAvaliacaoDoEvento = await carregarEstadoDaAvaliacaoDoEvento();
-  } catch (e) {
-    estadoDaAvaliacaoDoEvento = null;
-  }
-}
-
-/* O que o card da home mostra, ou `null` para ele não existir. */
-function cardDaAvaliacaoDoEvento() {
-  const e = estadoDaAvaliacaoDoEvento;
-  /* NÃO EXIGE IDENTIDADE, e essa é a diferença para o card da pesquisa
-     do dia. Quem abre o app sem o link da Yazo ganha uma sessão anônima
-     nova, e o servidor responde `identificado: false` — depois do evento
-     isso é quase todo mundo. Exigir identidade aqui escondia a pesquisa
-     exatamente de quem ela precisa alcançar.
-
-     O card pode aparecer porque o formulário SABE perguntar quem é a
-     pessoa: sem identidade, ele abre pedindo nome e e-mail. A pesquisa
-     do dia não tem esse caminho e por isso continua exigindo. */
-  if (!e || !e.ativo) return null;
-  if (e.enviado) {
-    return {
-      pergunta: 'Avaliação do evento enviada ✓',
-      cta: 'Obrigado por avaliar',
-      variante: 'av-enviada',
-      estado: 'concluido',
-      acao: null,
-    };
-  }
-  return { estado: 'disponivel' };
-}
-
-const avaliacaoCorpo = document.getElementById('avaliacao-corpo');
-const avaliacaoSub = document.getElementById('avaliacao-sub');
-const avaliacaoTitulo = document.getElementById('avaliacao-titulo');
-
-function abrirTelaDaAvaliacao() {
-  abrirVista('avaliacao');
-  avaliacaoCorpo.scrollTop = 0;
-  avaliacaoTitulo.textContent = 'Avaliação do dia';
-  abrirAvaliacao(
-    avaliacaoCorpo,
-    voltarDaAvaliacao,
-    (novo) => {
-      /* Só aqui, depois da confirmação do servidor, o card muda. */
-      estadoDaAvaliacao = novo;
-      avaliacaoSub.textContent = subtituloDaAvaliacao();
-    },
-  ).then(() => { avaliacaoSub.textContent = subtituloDaAvaliacao(); })
-   .catch(() => { /* o módulo já desenhou o próprio erro */ });
-}
-
-/* A MESMA VISTA serve as duas telas: o que muda é o título e qual
-   módulo desenha dentro. Uma segunda `<section>` no HTML seria uma
-   segunda casca idêntica para manter em dobro. */
-function abrirTelaDaAvaliacaoDoEvento() {
-  abrirVista('avaliacao');
-  avaliacaoCorpo.scrollTop = 0;
-  avaliacaoTitulo.textContent = 'Avaliação do evento';
-  avaliacaoSub.textContent = subtituloDaAvaliacaoDoEvento();
-  abrirAvaliacaoDoEvento(
-    avaliacaoCorpo,
-    voltarDaAvaliacao,
-    (novo) => {
-      /* Só aqui, depois da confirmação do servidor, o card muda. */
-      estadoDaAvaliacaoDoEvento = novo;
-    },
-  ).catch(() => { /* o módulo já desenhou o próprio erro */ });
-}
-
-function voltarDaAvaliacao() {
-  abrirVista('home');
-  /* O card acompanha: quem enviou volta para a home e vê "enviada". */
-  montarHomeV3();
-}
-
-document.getElementById('avaliacao-voltar').addEventListener('click', voltarDaAvaliacao);
 
 document.getElementById('btn-perfil').addEventListener('click', () => abrirVista('summit'));
 
@@ -2058,12 +1917,6 @@ async function carregarDados() {
     definirAvisos(homeDoEvento.avisos);
     definirMomentoDoServidor(homeDoEvento.home && homeDoEvento.home.momento);
   }
-
-  /* A pesquisa é a última coisa a ser perguntada, e a única que pode
-     falhar sem consequência: `carregarAvaliacaoDoDia` engole o próprio
-     erro e deixa `estadoDaAvaliacao` nulo, que é "a home de sempre". */
-  await carregarAvaliacaoDoDia();
-  await carregarAvaliacaoDoEvento();
 }
 
 
@@ -3012,80 +2865,6 @@ function desenharSummit() {
     '<h3>' + t + '</h3><p>' + txt + (sub ? '<em>' + sub + '</em>' : '') + '</p>').join('');
 }
 
-/* ---------- Quem chega por convite ----------
-   O link da pesquisa traz o token no FRAGMENTO (`#c=…`), que o navegador
-   não manda ao servidor. Ele é lido uma vez, guardado só na memória do
-   serviço e APAGADO DA BARRA DE ENDEREÇO no mesmo instante: a partir daí
-   a pessoa não copia o próprio link por engano, o token não vai parar num
-   print e não sobra no histórico da aba.
-
-   `replaceState` e não `location.hash = ''`: o segundo deixa o `#` na
-   barra e empilha uma entrada no histórico.
-
-   Quem entra assim NÃO vê a home nem o chat: o link é para responder uma
-   pesquisa, e mais nada. */
-function conviteDaUrl() {
-  const achado = /^#c=([0-9a-f]{64})$/.exec(location.hash || '');
-  if (!achado) return false;
-  const aceito = definirConvite(achado[1]);
-  history.replaceState(null, '', location.pathname + location.search);
-  return aceito;
-}
-
-/* A OUTRA ENTRADA DIRETA: `#avaliacao`, sem token.
-   É o link que vai por fora do app — e-mail, WhatsApp, o que for. Ele
-   abre a pesquisa na cara, em vez de largar a pessoa na home para
-   procurar o card. Quem é ela: o que vier na URL da Yazo, e se não vier
-   nada, o próprio formulário pergunta.
-
-   Diferente do convite, aqui EXISTE home atrás: é o mesmo app, e a
-   sessão anônima nasce sozinha. Então o voltar continua valendo.
-
-   O fragmento sai da barra pelo mesmo motivo de sempre: ele não faz
-   parte do endereço que a pessoa deveria guardar ou repassar. */
-function avaliacaoDaUrl() {
-  if (!/^#avaliacao$/.test(location.hash || '')) return false;
-  history.replaceState(null, '', location.pathname + location.search);
-  return true;
-}
-
-/* COLAR O LINK NUMA ABA QUE JÁ TEM O APP ABERTO trocava só o fragmento, e
-   trocar fragmento não recarrega a página: o código acima não rodava e
-   não acontecia nada — falha silenciosa, e a pessoa conclui que o link
-   está quebrado. Recarregar devolve o caso ao mesmo caminho de partida,
-   em vez de abrir uma segunda porta de entrada para manter. */
-addEventListener('hashchange', () => {
-  if (/^(#c=[0-9a-f]{64}|#avaliacao)$/.test(location.hash || '')) location.reload();
-});
-
-if (avaliacaoDaUrl()) {
-  /* A home sobe do mesmo jeito, por baixo: quem fechar a pesquisa cai
-     nela pronta, em vez de numa tela vazia. */
-  montarHomeV3();
-  carregarDados().then(montarHomeV3).catch(() => { /* a home cuida do próprio aviso */ });
-  abrirTelaDaAvaliacaoDoEvento();
-} else if (conviteDaUrl()) {
-  document.body.dataset.porConvite = 'sim';
-  abrirVista('avaliacao');
-  avaliacaoTitulo.textContent = 'Avaliação do evento';
-  /* O subtítulo já vale antes de o servidor responder: a tela de erro
-     também é a tela desta pesquisa, e não da do dia. */
-  avaliacaoSub.textContent = subtituloDaAvaliacaoDoEvento();
-  /* O VOLTAR DO CABEÇALHO SAI JUNTO. Ele leva para a home, e por convite
-     não existe home atrás: a pessoa cairia numa tela que não é dela e
-     que pede login. Esconder é o certo — desabilitar deixaria um botão
-     morto no canto. */
-  document.getElementById('avaliacao-voltar').hidden = true;
-  avaliacaoCorpo.scrollTop = 0;
-  abrirAvaliacaoDoEvento(
-    avaliacaoCorpo,
-    /* Sem home atrás: não há para onde voltar, e a tela não oferece. */
-    null,
-    null,
-    (subtitulo) => { avaliacaoSub.textContent = subtitulo; },
-  ).catch(() => { /* o módulo já desenhou o próprio erro */ });
-} else {
-
 /* ---------- Partida ---------- */
 /* A home V3 não depende da programação para existir: ela sobe primeiro,
    e os dados chegam para quem precisa deles (o chat, o tour). */
@@ -3099,5 +2878,3 @@ carregarDados().then(montarHomeV3).catch((e) => {
     'e a leitura falhou (' + e.message + '). Recarregue em um instante.';
   document.getElementById('home-v3').prepend(aviso);
 });
-
-}

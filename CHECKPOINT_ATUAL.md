@@ -164,6 +164,61 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
 - **Próximo:** decidir o login com Google (provedor no
   Supabase, app OAuth do Google Workspace e como liberar a equipe por e-mail) · D2 da casa das ofertas.
 
+### Empresa dos participantes do Summit 2026 + espelho de Companies do HubSpot — 24/09/2026, EM PRODUÇÃO
+
+Pedido da Adriana (24/09, madrugada): *"verifique se todos os atendentes do Summit 2026 têm empresa
+associada"* — regra: 1 empresa declarada no `"Relatorio Yazzo Consolidado"` (vence) → 2 domínio do
+e-mail corporativo → 3 contato do HubSpot associado a uma company → 4 checar no espelho do HubSpot e
+**usar o nome da company de lá, sem criar nem duplicar** → 5 gravar em `pessoas.pessoas.empresa`.
+E, no meio: *"crie sim em schema CRM, faça um espelho das empresas… que estão hoje no HubSpot"* (D2
+exercida por ela).
+
+- **Espelho novo:** `crm.empresa_espelho` (4.424 companies = total do HubSpot; colunas de setor,
+  funcionários, receita, cidade, contatos/negócios associados + `propriedades` com tudo;
+  `nome_chave` = `intelligence.texto_chave(name, true)`). Entrou no motor existente: fonte
+  `hubspot_empresas` em `crm.sync_estado`, `companies` em `mind_espelho_remover_objeto`, Edge
+  Function `hubspot-sync` **v23** (fonte nova + `CHAVE_DO_OBJETO`; código agora versionado em
+  `supabase/functions/hubspot-sync/`), cron `hubspot-empresas-diario` (`32 */6 * * *`). Ledger `20260924002737`.
+- **Regra:** `crm.empresa_participantes_summit_2026()` (leitura) e `…_gravar(p_gravar)` (ensaio por
+  padrão; gravação deixa antes/depois em `mind_admin_audit`, resource `pessoas_empresa_summit_2026`).
+  Casamento com o HubSpot: mesma chave de nome → nome compatível com a company associada ao contato
+  ou do domínio → grafia quase igual (≥0,8 e mesma primeira palavra). Domínio usa o **consenso** dos
+  colegas do mesmo domínio (Heineken, não "HNK BR Indústria de Bebidas"). Fonte inferida (e-mail,
+  HubSpot) não sobrescreve empresa diferente que já existia → `preservados`. Ledger `004435`, `004813`, `005201`.
+- **Executado (00:52 UTC):** 2.421 participantes (Yazo ∪ `participantes` ativos, pessoa canônica):
+  **2.022 com empresa** (Yazo 1.698 · e-mail 266 · HubSpot 58), **1.104 casadas com uma company do
+  HubSpot**, 918 com empresa que não existe no HubSpot (ficou o nome declarado), **399 sem nenhuma
+  fonte** (344 webmail sem empresa declarada nem contato associado, 28 sem e-mail, 27 domínio
+  corporativo sem par). 817 linhas gravadas; 1 preservada (e-mail `berkeley.edu` × "Mind").
+  Reexecução = 0 mudanças.
+- **Para revisar (duplicatas/aliases no HubSpot, não resolvidos aqui):** "BDF Nivea" (8, declarado) ×
+  "Beiersdorf Ind e com Ltda." (13); "Editora Sextante" (6) × "GMT Editores Ltda"; "Faculdade BP" ×
+  "Real e Benemérita Associação Portuguesa de Beneficência"; "Heineken" × "HNK BR Indústria de Bebidas"
+  como duas companies no HubSpot. 48 linhas da Yazo seguem sem `mind_id` (não entram em `pessoas`).
+
+- **Relatório de patrocinadores (24/09, 01:40 UTC):** base `intelligence.v_relatorio_patrocinador_audiencia`
+  (1 linha por pessoa da audiência, sem palestrantes/staff; presença, ingresso, patrocinador de origem,
+  senioridade/área por `intelligence.senioridade_por_cargo`/`area_por_cargo` sobre cargo + ICP, empresa com
+  setor/porte do espelho, engajamento Yazo). Números em `docs/RELATORIO_PATROCINADORES_DADOS.md`. Ledger `013841`.
+- **Colisão corrigida (ledger `014238`):** `perfil_projetar_todos` (cron :36) passou a chamar
+  `perfil_gravar_pessoas`, que regravava a grafia da Yazo em `pessoas.empresa` (285 linhas desfeitas às
+  01:36). A parte de empresa agora delega para `crm.empresa_participantes_summit_2026_gravar`; cargo e ICP
+  sem mudança. Ensaio após o ajuste: 0 empresas a mudar.
+
+- **Lusha + registro de empresas (24/09, 02:20 UTC; ledger `020853`, `021415`, `021452`, `021730`):**
+  `crm.empresa_lusha` (838 empresas sem porte/setor consultadas sem reveal, ~36 créditos; 674 achadas;
+  328 aceitas por `crm.v_empresa_lusha_aceita`: domínio bateu, ou nome equivalente + mesma 1ª palavra +
+  sede no Brasil + nome não genérico). `intelligence.setor_macro` traduz HubSpot/Lusha para 19 setores.
+  **`pessoas.empresas`** (pedido/aprovação da Adriana, D2): registro de empresas do Mind — 4.051 do espelho
+  (`pessoas.empresas_sincronizar_espelho`, cron :42 a cada 6 h), 798 novas do credenciamento, 326
+  enriquecidas pela Lusha; `pessoas.pessoas.empresa_id` liga 2.007 participantes.
+- **Write-back de empresas no HubSpot (24/09, 02:36 UTC; Edge Function `hubspot-empresas-writeback` v1,
+  `public.mind_empresas_hubspot_disparar(p_executar)`, ensaio por padrão):** aprovação da Adriana ("criar só as
+  que têm domínio corporativo ou porte confirmado, e atualizar as existentes"). **98 companies criadas, 59
+  atualizadas (só campos vazios), 103 contatos associados, 0 falhas.** Ficam para revisão: 197 cujo domínio já
+  é de uma company do HubSpot (aliases) e 32 com nome/domínio que não combinam. Setor: HubSpot vence a Lusha;
+  consultoria aberta em 5 (`intelligence.setor_detalhe`). Ledger `023002`–`023805`.
+
 ### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
 
 Pedidos da Adriana (23/09, manhã): *"crie essas duas tabelas na intelligence"*, *"colocar todas as

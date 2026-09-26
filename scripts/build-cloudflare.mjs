@@ -37,9 +37,6 @@ const BUILD_ADMIN = join(RAIZ, 'admin', 'dist');
 const DO_CHAT = [
   /* Central do Evento — a home */
   'index.html',
-  /* A pesquisa sozinha, servida em avaliacao.mindsummit.com.br. O Worker
-     decide pelo Host; aqui ela só precisa existir no disco. */
-  'avaliacao.html',
   'styles.css',
   'app.js',
   /* Importado por `app.js` no topo. Sem ele o módulo inteiro não
@@ -51,10 +48,6 @@ const DO_CHAT = [
   'chat-service.js',
   /* Os componentes da home V3 */
   'home',
-  /* As duas pesquisas — a do dia e a do evento inteiro: telas, as peças
-     que elas dividem, o serviço e a folha de estilo própria. A pasta
-     inteira entra, então tela nova ali não exige mexer aqui. */
-  'avaliacao',
   'assets',
   'dados',
 ];
