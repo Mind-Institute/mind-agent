@@ -140,6 +140,11 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
   (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
   dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
+- **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
+  e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
+  (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,
+  saiu da lista a conta antiga de senha (sem Mind ID), com registro em `mind_admin_audit`; a conta de login
+  dela no Auth ficou (sem linha na lista, não entra no painel).
 - **`public.mind_conteudo` apagada (26/09, pedido dela).** Lia `summit.conhecimento`, que não existe mais;
   conferido antes: nenhuma função, view ou job do banco, nenhuma das 35 Edge Functions publicadas, nenhum
   código do repo e nenhuma chamada nos logs de 24 h. Ledger `20260926152044`, arquivo com o mesmo número e md5.

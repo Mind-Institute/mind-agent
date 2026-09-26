@@ -1,6 +1,7 @@
 -- Contrato: admins do sistema no painel — ver e cadastrar quem entra no Mind Intelligence Admin.
 --
--- Migrations: supabase/migrations/*_admins_do_sistema_no_painel.sql e *_auditoria.sql.
+-- Migrations: supabase/migrations/*_admins_do_sistema_no_painel.sql, *_auditoria.sql e
+-- *_admins_no_painel_email_da_mind.sql.
 -- Roda numa transação e termina em rollback: pessoas, contas e acessos de teste somem junto.
 -- Sucesso é o erro `ADMINS_PAINEL_OK: ...`; qualquer outro erro é quebra.
 
@@ -12,6 +13,7 @@ declare
   v_editor uuid := gen_random_uuid();
   v_equipe uuid := gen_random_uuid();
   v_lead uuid := gen_random_uuid();
+  v_pessoal uuid := gen_random_uuid();
   v_conta_adm uuid := gen_random_uuid();
   v_conta_editor uuid := gen_random_uuid();
   v_linha_adm uuid;
@@ -26,7 +28,11 @@ begin
     (v_adm, 'contrato.painel.adm@joinmind.com.br', 'Contrato', 'Adm', 'manual', array['staff']),
     (v_editor, 'contrato.painel.editor@joinmind.com.br', 'Contrato', 'Editor', 'manual', array['staff']),
     (v_equipe, 'contrato.painel.equipe@joinmind.com.br', 'Contrato', 'Equipe', 'manual', array['staff']),
-    (v_lead, 'contrato.painel.lead@joinmind.com.br', 'Contrato', 'Lead', 'manual', array['lead']);
+    (v_lead, 'contrato.painel.lead@joinmind.com.br', 'Contrato', 'Lead', 'manual', array['lead']),
+    -- Alguém da equipe cujo e-mail principal no Mind ID é pessoal; o da Mind é uma identidade.
+    (v_pessoal, 'contrato.painel.pessoal@exemplo.com', 'Contrato', 'Pessoal', 'manual', array['staff']);
+  insert into engagement.identidades (mind_id, canal, identificador) values
+    (v_pessoal, 'email', 'contrato.painel.pessoal@joinmind.com.br');
   insert into auth.users (id, email, email_confirmed_at, aud, role) values
     (v_conta_adm, 'contrato.painel.adm@joinmind.com.br', now(), 'authenticated', 'authenticated'),
     (v_conta_editor, 'contrato.painel.editor@joinmind.com.br', now(), 'authenticated', 'authenticated');
@@ -218,7 +224,15 @@ begin
     raise exception 'QUEBRADA (15b): service_role não executa';
   end if;
 
-  raise exception 'ADMINS_PAINEL_OK: 15 casos';
+  -- 16. A lista mostra o e-mail da Mind, com que a pessoa entra — não o pessoal do Mind ID.
+  v_r := public.mind_admin_mutate_admins('conceder', null,
+    jsonb_build_object('email', 'contrato.painel.pessoal@joinmind.com.br', 'papel', 'analista'),
+    null, v_conta_adm, gen_random_uuid());
+  if v_r->>'email' <> 'contrato.painel.pessoal@joinmind.com.br' or (v_r->>'loginLigado')::boolean then
+    raise exception 'QUEBRADA (16): %', v_r;
+  end if;
+
+  raise exception 'ADMINS_PAINEL_OK: 16 casos';
 end
 $$;
 
