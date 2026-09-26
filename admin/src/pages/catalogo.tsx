@@ -122,6 +122,8 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
   const { errors } = formulario.formState;
   const podeEditar = sessao.pode('editar');
   const vertical = formulario.watch('vertical');
+  /* Produto do Institute com turma: as datas vêm dela e ficam travadas. */
+  const turma = registro?.datasDaTurma ?? null;
 
   return (
     <>
@@ -296,22 +298,35 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
                 </Campo>
               </div>
 
-              {vertical === 'institute' ? (
-                <Alert variant="atencao">
-                  <AlertTriangle />
+              {turma ? (
+                <Alert variant="info" data-testid="datas-da-turma">
+                  <Lock />
                   <AlertDescription>
-                    No Institute, as datas que valem são as da turma, em{' '}
-                    <code className="font-mono">institute.programas</code>. As datas abaixo são uma
-                    cópia.
+                    Estas datas vêm da turma <code className="font-mono">{turma.programa}</code>, em{' '}
+                    <code className="font-mono">institute.programas</code> — é de lá que o site, o
+                    checkout e os agentes leem. Aqui elas só aparecem; mudam na turma.
+                    {turma.inicioPrevisto ? ' O início ainda é previsão.' : ''}
                   </AlertDescription>
                 </Alert>
               ) : null}
               <div className="grid gap-4 sm:grid-cols-3">
-                <Campo rotulo="Começa em" erro={errors.comecaEm?.message} dica="Quando acontece.">
-                  {(p) => <Input type="date" {...p} {...formulario.register('comecaEm')} />}
+                <Campo
+                  rotulo="Começa em"
+                  erro={errors.comecaEm?.message}
+                  dica={turma ? 'Da turma. Não se edita aqui.' : 'Quando acontece.'}
+                >
+                  {(p) => (
+                    <Input type="date" {...p} {...formulario.register('comecaEm')} disabled={Boolean(turma)} />
+                  )}
                 </Campo>
-                <Campo rotulo="Encerra em" erro={errors.encerraEm?.message}>
-                  {(p) => <Input type="date" {...p} {...formulario.register('encerraEm')} />}
+                <Campo
+                  rotulo="Encerra em"
+                  erro={errors.encerraEm?.message}
+                  dica={turma ? 'Da turma. Não se edita aqui.' : undefined}
+                >
+                  {(p) => (
+                    <Input type="date" {...p} {...formulario.register('encerraEm')} disabled={Boolean(turma)} />
+                  )}
                 </Campo>
                 <Campo rotulo="Período" erro={errors.periodo?.message} dica="Em texto: outubro de 2025.">
                   {(p) => <Input {...p} {...formulario.register('periodo')} />}

@@ -134,3 +134,22 @@ test('ordena a lista inteira antes de paginar', async () => {
 test('campo que não é coluna da tela não muda a ordem', async () => {
   assert.deepEqual(codigos(await listar('?ordenar=schemaDados')), PRODUTOS.map((p) => p.codigo));
 });
+
+test('a recusa das datas da turma chega na frase certa', async () => {
+  globalThis.__MIND_EDGE_TESTE__ = {
+    getUser: async () => ({ data: { user: { id: 'ator' } }, error: null }),
+    from: () => ({ select: () => ({ eq: () => ({
+      maybeSingle: async () => ({ data: { display_name: 'Ana', role: 'editor', active: true }, error: null }),
+    }) }) }),
+    rpc: async () => ({ data: null, error: { message: 'admin_validation:datas_da_turma', code: '22023' } }),
+  };
+  const h = await carregar();
+  const r = await h(new Request(`${BASE}/admin/products/6f1c2d3e-4b5a-4c6d-8e9f-0a1b2c3d4e5f`, {
+    method: 'PATCH',
+    headers: { Origin: ORIGEM, Authorization: 'Bearer token', 'Content-Type': 'application/json',
+               'If-Unmodified-Since-Version': '2026-09-26T00:00:00+00:00' },
+    body: JSON.stringify({ comecaEm: '2030-01-01' }),
+  }));
+  assert.equal(r.status, 422);
+  assert.match((await r.json()).mensagem, /datas vêm da turma/);
+});

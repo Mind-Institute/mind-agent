@@ -340,6 +340,11 @@ Três regras seguram a edição:
   (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
   diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
 
+**No Institute, as datas são as da turma** (pedido da Adriana, 26/09/2026): o site,
+o checkout e os agentes leem as datas de `institute.programas`. Produto com turma
+mostra as datas dela, travadas, com a turma indicada; salvar nunca as manda, e o
+banco recusa (`datas_da_turma`) se alguém tentar por fora da tela.
+
 **Ordenar pelas colunas** (pedido da Adriana, 26/09/2026): todo cabeçalho do
 Catálogo ordena. Um clique é crescente, o segundo decrescente, o terceiro volta à
 ordem do banco (por vertical e nome). A ordem mora na URL (`?ordenar=-comecaEm`),

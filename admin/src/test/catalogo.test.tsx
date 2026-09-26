@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdminApiError, codigoDoErro, type ProdutoCatalogo } from '@/contracts';
@@ -39,6 +39,7 @@ const DO_BANCO: ProdutoCatalogo = {
   periodo: null,
   schemaDados: 'summit_2026',
   pipelinesHubspot: [],
+  datasDaTurma: null,
 };
 
 describe('catálogo — conversão entre banco e formulário', () => {
@@ -82,6 +83,12 @@ describe('catálogo — conversão entre banco e formulário', () => {
       pipelinesHubspot: ['123', '456'],
       vertical: null,
     });
+  });
+
+  it('produto com turma: as datas ficam fora do salvar, mesmo que o formulário mude', () => {
+    const comTurma = { ...DO_BANCO, datasDaTurma: { programa: 'turma-x', inicioPrevisto: false } };
+    const valores = { ...paraFormularioProduto(comTurma), comecaEm: '2030-01-01', nome: 'Outro nome' };
+    expect(payloadDaEdicaoProduto(valores, comTurma)).toEqual({ nome: 'Outro nome' });
   });
 
   it('sem o registro de origem, manda o formulário inteiro', () => {
@@ -272,6 +279,36 @@ describe('catálogo — a tela', () => {
     /* O que ninguém tocou ficou exatamente como estava. */
     expect(salvo.vendeAte).toBe('2026-09-18T02:59:59+00:00');
     expect(salvo.codigo).toBe('mind-summit-2026');
+  });
+
+  it('no Institute, as datas vêm da turma: aparecem travadas e não vão no salvar', async () => {
+    const usuario = userEvent.setup();
+    const { provedor } = renderizarPainel({ rota: '/catalogo/prd_cert_lideranca_2027' });
+
+    const aviso = await screen.findByTestId('datas-da-turma');
+    expect(aviso).toHaveTextContent('certificacao-lideranca-positiva');
+    expect(aviso).toHaveTextContent('O início ainda é previsão.');
+    expect(screen.getByLabelText(/^Começa em/)).toBeDisabled();
+    expect(screen.getByLabelText(/^Encerra em/)).toBeDisabled();
+    expect(screen.getByLabelText(/^Começa em/)).toHaveValue('2027-01-28');
+
+    const espiao = vi.spyOn(provedor, 'update');
+    const curta = screen.getByLabelText(/^Descrição curta/);
+    await usuario.clear(curta);
+    await usuario.type(curta, 'Nova descrição');
+    await usuario.click(screen.getByRole('button', { name: /^Salvar$/ }));
+    await screen.findByText('Salvo');
+    expect(espiao).toHaveBeenCalledWith(
+      'products', 'prd_cert_lideranca_2027', { descricaoCurta: 'Nova descrição' }, expect.anything(),
+    );
+  });
+
+  it('produto sem turma continua com as datas editáveis', async () => {
+    renderizarPainel({ rota: '/catalogo/prd_summit_2026' });
+    const comeca = await screen.findByLabelText(/^Começa em/);
+    await waitFor(() => expect(comeca).toHaveValue('2026-09-16'));
+    expect(comeca).toBeEnabled();
+    expect(screen.queryByTestId('datas-da-turma')).toBeNull();
   });
 
   it('explica na tela a diferença entre ativo e vende', async () => {
