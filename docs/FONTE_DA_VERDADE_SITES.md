@@ -54,7 +54,7 @@ Pergunta da Adriana: *"sites do Join e Institute não são um único projeto mas
 
 1. **O preço tem duas fontes, e elas vão se separar em 01/10.**
    - Hoje o preço-base dos 6 produtos no espelho da Eduzz é igual ao da Condição Summit no banco: R$4.997 na Certificação e na Especialização, R$1.997 nas três formações e no Journey.
-   - Às 23h59 de 30/09 as ofertas da condição vencem, e o site passa sozinho a mostrar o preço de balcão: R$5.997 e R$2.497. O Journey continua R$1.997.
+   - Às 23h59 de 30/09 as ofertas da condição vencem. A maior parte do site passa sozinha ao preço de balcão (R$5.997 e R$2.497; o Journey continua R$1.997), **mas não tudo** (conferido no código em 26/09): a seção "Avulsas" da Certificação, nos dois sites, pega a oferta com prazo que está valendo e, sem ela, a primeira da lista, que vem ordenada por preço. Sem nada feito, ela mostraria o bump de R$1.497 na Liderança Consciente e a condição vencida (com bônus e prazo de 30/09) nas outras duas formações. A correção pelos dados é o Passo 1 de [`PLANO_OFERTAS_PASSO_A_PASSO.md`](PLANO_OFERTAS_PASSO_A_PASSO.md).
    - A Eduzz continua cobrando o que estiver cadastrado lá até alguém mudar.
    - O que não confirmei: qual produto da Eduzz cada link abre, e o preço da oferta específica de cada link. A Certificação tem duas versões no espelho, e uma delas está marcada como arquivada.
 2. **Mudar o preço em `/admin/precos` não muda a parcela.** A função `salvar_oferta` não mexe em `parcelas` nem em `valor_parcela`, e nenhum gatilho do banco recalcula. Os sites mostram "12x de" usando o `valor_parcela` do banco. Quem trocar o valor pela tela deixa a parcela antiga na página.

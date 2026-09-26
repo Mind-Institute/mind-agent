@@ -171,13 +171,27 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   Dois documentos, só leitura, sem PII, números de venda nem achados de segurança (esses foram a ela à
   parte): `docs/FONTE_DA_VERDADE_SITES.md` (os dois sites leem as mesmas 6 views `api.*` sobre
   `institute.*`; só o `/admin` do Join e SQL escrevem; link de compra e preço cobrado estão na Eduzz; em
-  01/10 o site passa ao preço de balcão e a Eduzz continua cobrando a Condição se ninguém mudar lá) e
+  01/10 o site passa ao preço de balcão — menos a seção "Avulsas", ver abaixo — e a Eduzz continua cobrando a Condição se ninguém mudar lá) e
   `docs/PLANO_PRECOS_CATALOGO.md` (estado, destino de cada objeto, modelo alvo nas 4 tabelas `oferta*` que
   já existem e estão vazias, etapas E0–E9 reversíveis com paridade na mesma transação, e 18 perguntas
   para ela). **Aguarda a D2 dela**; nada foi executado. **Descoberta lateral para a lane #40:** o bloco
   `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
   `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
   e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Plano passo a passo: todas as ofertas no `catalogo`, editáveis no painel (26/09, pedido dela).** *"quero
+  trazer as ofertas para catalogo inclusive as do institute ... e também o histórico, quero ter tudo no schema
+  catalogo e espelhado e editável no admin assim sei o que está no ar e controlo na mão — fazer plano passo a
+  passo"*. `docs/PLANO_OFERTAS_PASSO_A_PASSO.md` (só leitura; investigação em 3 frentes, 2 críticas
+  independentes, fechamento conferido) substitui a §4 do plano anterior: **P1** virada de 30/09 pelos dados
+  (desligar os 3 bumps já; às 00h00 BRT de 01/10 = 03h00 UTC, um agendamento de uma vez desliga as 5 condições,
+  4 textos e 4 perguntas do FAQ), **P2** tela "Ofertas" só leitura com a Eduzz ao lado, **P3** forma do
+  `catalogo` (D2) + histórico do Summit 2026, **P4** edição no painel, **P5** virada do Institute depois de
+  01/10, P6–P7 histórico opcional, **P8** Summit 2027, **P9** aposentar. 10 decisões dela. **Nada executado.**
+  **Conferido por mim no código e no banco (26/09):** a seção "Avulsas" da Certificação nos dois sites pega
+  `find(vigente && encerra_em) ?? ofertas[0]` sobre `api.ofertas` ordenada por valor — depois de 30/09 23h59,
+  sem o P1, mostra o bump de R$1.497 na Liderança Consciente e a condição vencida nas outras duas; a cópia da
+  Eduzz copia a cada 30 min, mas a última leitura da Eduzz é de 24/09 21h02 BRT (`eduzz.produtos.last_synced_at`);
+  `cron.timezone` = GMT.
 - **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
   e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
   (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,
