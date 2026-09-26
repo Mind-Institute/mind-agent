@@ -2,7 +2,8 @@
 -- no Passo 4 (migration 20260926210134_ofertas_edicao_no_painel). Sempre termina em rollback: a exceção
 -- OFERTAS_EDICAO_OK é o resultado. Usa um administrador ativo de mind_admin_users como autor, cria ofertas
 -- de teste (códigos contrato-*) e, para ensaiar a vida depois da virada, troca por dentro da transação a
--- regra de quem lê o catálogo — tudo desfeito no fim.
+-- regra de quem lê o catálogo — tudo desfeito no fim. Vale antes e depois da virada do Passo 5: depois dela,
+-- "pôr no ar" já está destravado e cada produto do Institute já tem o preço de balcão no ar.
 begin;
 
 -- A recusa esperada, com o motivo exato, e sem rastro (a escrita recusada é desfeita inteira).
@@ -47,7 +48,12 @@ declare
   v_hist record;
   n_audit int;
   n int;
+  v_virou boolean;
 begin
+  -- A virada do Passo 5 já aconteceu? (api.ofertas lê o catálogo)
+  v_virou := exists (select 1 from pg_depend d join pg_rewrite rw on rw.oid = d.objid join pg_class c on c.oid = d.refobjid
+                      where d.classid = 'pg_rewrite'::regclass and d.refclassid = 'pg_class'::regclass
+                        and rw.ev_class = 'api.ofertas'::regclass and c.relnamespace = 'catalogo'::regnamespace);
   select user_id into v_ator from public.mind_admin_users
    where active and role in ('administrador', 'editor', 'aprovador') limit 1;
   if v_ator is null then raise exception 'sem administrador ativo em mind_admin_users para o teste'; end if;
@@ -86,9 +92,9 @@ begin
      or jsonb_array_length(r->'bonus') <> 1 or (r->'bonus'->0->>'valor')::numeric <> 0
      or r->'meiosPagamento' <> '["cartao", "pix"]'::jsonb then
     raise exception 'criar: %', r; end if;
-  -- Antes da virada, ninguém lê o catálogo: pôr no ar fica travado, com o motivo.
-  if r->>'bloqueioPorNoAr' is distinct from 'sem_leitor' then
-    raise exception 'criar: bloqueio antes da virada = %', r->>'bloqueioPorNoAr'; end if;
+  -- Antes da virada, ninguém lê o catálogo: pôr no ar fica travado, com o motivo. Depois, nada impede.
+  if r->>'bloqueioPorNoAr' is distinct from (case when v_virou then null else 'sem_leitor' end) then
+    raise exception 'criar: bloqueio (virada: %) = %', v_virou, r->>'bloqueioPorNoAr'; end if;
   if jsonb_array_length(r->'alteracoes') <> 1 or r->'alteracoes'->0->>'acao' <> 'criar' then
     raise exception 'criar: alterações = %', r->'alteracoes'; end if;
   if not exists (select 1 from public.mind_admin_audit
@@ -217,10 +223,12 @@ begin
   v_versao := r->>'atualizadoEm';
 
   -- 4. Pôr no ar antes da virada: ninguém lê o catálogo, e a recusa não deixa rastro.
-  perform pg_temp.recusa('publicar', v_id, '{}', v_versao, v_ator, 'admin_validation:sem_leitor');
-  if (select atualizado_em from catalogo.ofertas where id = v_id) <> v_versao::timestamptz
-     or (select ativo from catalogo.ofertas where id = v_id) then
-    raise exception 'recusa de pôr no ar mexeu na oferta'; end if;
+  if not v_virou then
+    perform pg_temp.recusa('publicar', v_id, '{}', v_versao, v_ator, 'admin_validation:sem_leitor');
+    if (select atualizado_em from catalogo.ofertas where id = v_id) <> v_versao::timestamptz
+       or (select ativo from catalogo.ofertas where id = v_id) then
+      raise exception 'recusa de pôr no ar mexeu na oferta'; end if;
+  end if;
 
   -- 5. Depois da virada, ensaiado aqui dentro: api.ofertas lendo o catálogo. Produto sem programa no
   --    Institute continua sem leitor.
@@ -303,15 +311,21 @@ begin
                                                                          'valor', 2497, 'parcelas', 12, 'valorParcela', 209))),
        null, v_ator, gen_random_uuid());
   v_b1 := (r->>'id')::uuid;
-  r := public.mind_admin_mutate_ofertas('publicar', v_b1, '{}', r->>'atualizadoEm', v_ator, gen_random_uuid());
-  if not (r->>'ativo')::boolean then raise exception 'base 1 no ar: %', r; end if;
-  r := public.mind_admin_mutate_ofertas('criar', null, jsonb_build_object('codigo', 'contrato-base-2', 'nome', 'Balcão 2',
-         'tipo', 'base', 'precos', jsonb_build_array(jsonb_build_object('produtoCodigo', v_pb, 'codigo', 'contrato-base-2',
-                                                                         'valor', 2297))),
-       null, v_ator, gen_random_uuid());
-  v_b2 := (r->>'id')::uuid;
-  if r->>'bloqueioPorNoAr' <> 'base_duplicada' then raise exception 'base 2: bloqueio = %', r->>'bloqueioPorNoAr'; end if;
-  perform pg_temp.recusa('publicar', v_b2, '{}', r->>'atualizadoEm', v_ator, 'admin_validation:base_duplicada');
+  if v_virou then
+    -- Depois da virada, o preço de balcão carregado já é o preço sem prazo deste produto.
+    if r->>'bloqueioPorNoAr' <> 'base_duplicada' then raise exception 'base 1: bloqueio = %', r->>'bloqueioPorNoAr'; end if;
+    perform pg_temp.recusa('publicar', v_b1, '{}', r->>'atualizadoEm', v_ator, 'admin_validation:base_duplicada');
+  else
+    r := public.mind_admin_mutate_ofertas('publicar', v_b1, '{}', r->>'atualizadoEm', v_ator, gen_random_uuid());
+    if not (r->>'ativo')::boolean then raise exception 'base 1 no ar: %', r; end if;
+    r := public.mind_admin_mutate_ofertas('criar', null, jsonb_build_object('codigo', 'contrato-base-2', 'nome', 'Balcão 2',
+           'tipo', 'base', 'precos', jsonb_build_array(jsonb_build_object('produtoCodigo', v_pb, 'codigo', 'contrato-base-2',
+                                                                           'valor', 2297))),
+         null, v_ator, gen_random_uuid());
+    v_b2 := (r->>'id')::uuid;
+    if r->>'bloqueioPorNoAr' <> 'base_duplicada' then raise exception 'base 2: bloqueio = %', r->>'bloqueioPorNoAr'; end if;
+    perform pg_temp.recusa('publicar', v_b2, '{}', r->>'atualizadoEm', v_ator, 'admin_validation:base_duplicada');
+  end if;
 
   -- Aviso, não recusa: outra oferta com prazo valendo junto para o mesmo produto.
   r := public.mind_admin_mutate_ofertas('criar', null, jsonb_build_object('codigo', 'contrato-outra', 'nome', 'Outra condição',

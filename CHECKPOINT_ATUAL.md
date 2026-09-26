@@ -178,6 +178,32 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
   `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
   e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Passo 5 — a virada do Institute preparada e ensaiada (26/09, noite; nada aplicado).** Rascunhos fora de
+  `supabase/migrations/` até o dia (`docs/sql/virada-institute/`): `01-virada.sql` carrega as 16 ofertas do
+  Institute no `catalogo` (copiadas dentro do banco, com a linha original em `origem`; os 2 testes como histórico;
+  o teste sem programa sem preço; os 8 bônus — o ingresso 2027 aponta para `mind-summit-2027-mind`, que não abre
+  acesso; as 5 regras de bump como exigência de carrinho), cria `catalogo.institute_ofertas` (a forma antiga,
+  lida do catálogo; rascunho que nunca foi ao ar e upgrade ficam de fora), põe `criar_pedido`, `validar_cupom` e
+  `cadastrar_compra_manual` para ler dela (só o nome muda), destrava "pôr no ar" (`produto_tem_leitor` aceita
+  leitura por qualquer relação do `catalogo`), congela as 3 tabelas antigas (gatilho; as 5 funções de edição do
+  /admin do Join passam a responder "Preços, ofertas e bumps agora se editam no painel do Mind. Nada foi
+  alterado.") e, por último, troca as 3 portas (`api.ofertas` só o que vale agora — decisão 8), com a paridade
+  conferida na mesma transação (portas, bloco do agente, fonte das funções, dono/permissões/tipos). `02-volta.sql`
+  devolve tudo e antes copia para a casa antiga o que o painel mudou. **Ensaios no banco real, desfeitos, sem
+  rastro:** A (portas em cópias temporárias) 14 = 14, 5 = 5, 8 = 8, carga 16/15/8/5, 64 ms; B (virada + 5 edições
+  no painel + volta) portas da casa antiga = do catálogo (16/5/9), rascunho fora. Contratos:
+  `tests/virada_institute_contract.sql` (`VIRADA_OK`, roda depois da virada) e `tests/ofertas_edicao_contract.sql`
+  agora vale antes e depois (`OFERTAS_EDICAO_OK` antes). **Ensaio C** (troca real das portas + os 2 contratos + a
+  volta, uma transação desfeita): `ENSAIO_C_OK`, portas presas 1.053 ms no total (na virada de verdade, só troca e
+  conferência: < 0,1 s), nenhuma leitura do site falhou, sem rastro. O site lê `api.ofertas` ~250 vezes/hora,
+  constante, dia e noite. **Pergunta (b), saída melhor que tirar o bump:** no checkout próprio do Join, o bump
+  aceito entra no carrinho buscando o preço em `api.ofertas` pelo código — tirá-lo de lá quebraria isso. Então
+  `03-bump-fora-da-lista.sql` (só com o OK dela) entrega o bump sem programa: ele sai das listas por programa (a
+  "Avulsas" deixa de mostrar R$ 1.497) e o checkout segue igual. Ensaio D (virada + 03 + volta, reais, desfeitos):
+  `ENSAIO_D_OK`, 250 ms, sem rastro. **Falta:** as 2 respostas dela ("vale até" nos textos e FAQ da condição; a
+  pergunta b) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
+  `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
+  vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
 - **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
   md5): `mind_admin_mutate_ofertas` (só `service_role`) — criar (nasce desligada), atualizar (listas de
   preços, bônus e exigências inteiras), publicar e arquivar (os nomes que `mind_admin_audit` aceita); trava de
