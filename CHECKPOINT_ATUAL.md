@@ -193,9 +193,13 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   rastro:** A (portas em cópias temporárias) 14 = 14, 5 = 5, 8 = 8, carga 16/15/8/5, 64 ms; B (virada + 5 edições
   no painel + volta) portas da casa antiga = do catálogo (16/5/9), rascunho fora. Contratos:
   `tests/virada_institute_contract.sql` (`VIRADA_OK`, roda depois da virada) e `tests/ofertas_edicao_contract.sql`
-  agora vale antes e depois (`OFERTAS_EDICAO_OK` antes). **Falta:** o ensaio C com a troca real das portas em
-  horário sem movimento; as 2 respostas dela ("vale até" nos textos e FAQ da condição; bump fora da lista de
-  preços da página); e aplicar (plano: madrugada de 29/09).
+  agora vale antes e depois (`OFERTAS_EDICAO_OK` antes). **Ensaio C** (troca real das portas + os 2 contratos + a
+  volta, uma transação desfeita): `ENSAIO_C_OK`, portas presas 1.053 ms no total (na virada de verdade, só troca e
+  conferência: < 0,1 s), nenhuma leitura do site falhou, sem rastro. O site lê `api.ofertas` ~250 vezes/hora,
+  constante, dia e noite. **Falta:** as 2 respostas dela ("vale até" nos textos e FAQ da condição; bump fora da
+  lista de preços da página) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
+  `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
+  vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
 - **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
   md5): `mind_admin_mutate_ofertas` (só `service_role`) — criar (nasce desligada), atualizar (listas de
   preços, bônus e exigências inteiras), publicar e arquivar (os nomes que `mind_admin_audit` aceita); trava de
