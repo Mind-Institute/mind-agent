@@ -178,6 +178,20 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
   `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
   e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Casa das ofertas no `catalogo` — Passo 3 APLICADO (26/09, noite).** Respostas dela ao plano: tudo de
+  preço, oferta, order bump e cupom no `catalogo` (tabelas separadas), espelhado e editável no painel; o
+  checkout próprio (InfinitePay) *"não tem nada relevante ... podemos migrar sem medo de quebrar"*; bumps
+  não saem do ar; nada desligado à mão — virada antes de 30/09; agente nunca com preço escrito (regra no
+  `CLAUDE.md`). Migration `20260926201053_catalogo_ofertas_forma_historico_e_cupons` (ledger = arquivo,
+  md5 igual): colunas novas nas 4 tabelas `oferta*` (código vendável único, origem, bônus com texto e
+  prazo, exigência com modo carrinho/posse, `condicional`, produto com preço não se apaga), `produtos.produto_pai`,
+  `checkout.cupons` → `catalogo.cupons` (`criar_pedido`, `validar_cupom` e `salvar_cupom` regravadas só no
+  nome da tabela; grants e SECURITY DEFINER iguais; a tela de cupons do /admin do Join deixa de abrir),
+  produtos `mind-summit-2026-{mind,vip,prime}` e `mind-summit-2027(-mind)` desligados/sem venda/sem funil, e o
+  histórico do Summit 2026 (14 ofertas, 28 preços, 3 upgrades, 3 cupons) copiado dentro do banco. Contratos
+  `CATALOGO_OFERTAS_OK` (novo, `tests/catalogo_ofertas_contract.sql`) e `CATALOGO_OK` em produção, sem rastro;
+  ensaio completo rodado antes, desfeito. Site e agente intocados. **Aberto com ela:** "vale até" nos textos e
+  no FAQ da condição, e bump fora da lista de preços da página. **Próximo:** Passo 2 (tela "Ofertas").
 - **Plano passo a passo: todas as ofertas no `catalogo`, editáveis no painel (26/09, pedido dela).** *"quero
   trazer as ofertas para catalogo inclusive as do institute ... e também o histórico, quero ter tudo no schema
   catalogo e espelhado e editável no admin assim sei o que está no ar e controlo na mão — fazer plano passo a
