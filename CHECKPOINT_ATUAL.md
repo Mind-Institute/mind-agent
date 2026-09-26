@@ -185,7 +185,10 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   sem rastro. `mindagent-catalogo` 1.3.0 serve `offers` e `coupons` (GET; escrita → 405), recurso só por
   chave própria do mapa. Painel: menu Catálogo · Ofertas · Cupons, listas com filtros e ordem, detalhe
   com preços, bônus, exigência (bump/upgrade), origem e colunas do banco. Painel 174/174, raiz 458/458.
-  **Publicar a `mindagent-catalogo` 1.3.0 à mão logo depois do merge.**
+  **NO AR (26/09, noite):** #147 mergeada (`1abcd87`); `mindagent-catalogo` **v6 viva = o código do repo**
+  (md5 `f73cf90b…`), conferida pelo `pg_net`: `health` 1.3.0, sem login 401, origem estranha 403; o bundle
+  publicado em admin.minddash.pro já tem as duas telas. Hoje elas mostram só o histórico do Summit 2026
+  (14 ofertas, 28 preços, 3 cupons); as ofertas do Institute entram no `catalogo` na virada (Passo 5).
 - **Casa das ofertas no `catalogo` — Passo 3 APLICADO (26/09, noite).** Respostas dela ao plano: tudo de
   preço, oferta, order bump e cupom no `catalogo` (tabelas separadas), espelhado e editável no painel; o
   checkout próprio (InfinitePay) *"não tem nada relevante ... podemos migrar sem medo de quebrar"*; bumps
