@@ -10,7 +10,7 @@
 
    ROTAS
 
-     GET   /admin/products          lista, com busca, filtros e paginação
+     GET   /admin/products          lista, com busca, filtros, ordem e paginação
      GET   /admin/products/:id      um produto
      PATCH /admin/products/:id      edição de um produto que já existe
      GET   /health
@@ -166,7 +166,12 @@ function combina(item: Record<string, unknown>, url: URL) {
   return true;
 }
 
-const CAMPOS_ORDEM = new Set(["codigo", "nome", "vertical", "tipo", "atualizadoEm"]);
+/* As colunas da tela, uma a uma (pedido da Adriana, 26/09/2026: ordenar
+   por qualquer coluna, crescente e decrescente). */
+const CAMPOS_ORDEM = new Set([
+  "codigo", "nome", "vertical", "tipo", "ativo", "vende",
+  "vendeDe", "vendeAte", "comecaEm", "encerraEm", "atualizadoEm",
+]);
 
 function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
   /* Sem pedido, fica a ordem do banco: por vertical, depois por nome. */
@@ -174,8 +179,29 @@ function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
   const desc = cru.startsWith("-");
   const campo = desc ? cru.slice(1) : cru;
   if (!campo || !CAMPOS_ORDEM.has(campo)) return itens;
-  return [...itens].sort((a, b) =>
-    String(a[campo] ?? "").localeCompare(String(b[campo] ?? ""), "pt-BR") * (desc ? -1 : 1));
+  const vazio = (v: unknown) => v === null || v === undefined || v === "";
+  return [...itens].sort((a, b) => {
+    const x = a[campo];
+    const y = b[campo];
+    /* Vazio vai para o fim nos dois sentidos: produto sem data não é o
+       "mais antigo" nem o "mais novo". */
+    if (vazio(x) || vazio(y)) return vazio(x) === vazio(y) ? 0 : vazio(x) ? 1 : -1;
+    return comparar(x, y) * (desc ? -1 : 1);
+  });
+}
+
+/* Instante compara como instante, mesmo com fusos diferentes; o resto —
+   datas sem hora, `false` antes de `true`, nome, vertical e tipo — como
+   texto, no alfabeto do português. O mock do painel compara igual. */
+const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
+
+function comparar(a: unknown, b: unknown) {
+  if (typeof a === "string" && typeof b === "string" && INSTANTE.test(a) && INSTANTE.test(b)) {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    if (!Number.isNaN(ta) && !Number.isNaN(tb)) return ta === tb ? 0 : ta < tb ? -1 : 1;
+  }
+  return String(a).localeCompare(String(b), "pt-BR");
 }
 
 Deno.serve(async (req: Request) => {
@@ -187,7 +213,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   }
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.0.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.1.0" }, requestId);
   }
 
   const origem = req.headers.get("Origin");

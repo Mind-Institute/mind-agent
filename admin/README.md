@@ -340,6 +340,13 @@ Três regras seguram a edição:
   (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
   diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
 
+**Ordenar pelas colunas** (pedido da Adriana, 26/09/2026): todo cabeçalho do
+Catálogo ordena. Um clique é crescente, o segundo decrescente, o terceiro volta à
+ordem do banco (por vertical e nome). A ordem mora na URL (`?ordenar=-comecaEm`),
+volta à página 1 e é feita pela `mindagent-catalogo` na lista inteira, antes de
+paginar. Vazio fica no fim nos dois sentidos; em Situação e Venda, "não" vem
+antes de "sim"; a Janela de venda ordena pela data em que o produto sai de venda.
+
 ## Admins do sistema
 
 Pedido da Adriana (26/09/2026): ver e cadastrar quem entra no painel. A casa é a

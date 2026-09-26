@@ -73,6 +73,24 @@ function combinaFiltro(registro: unknown, chave: string, valor: unknown): boolea
   return String(doRegistro) === String(valor);
 }
 
+/* A mesma comparação da `mindagent-catalogo`, para a demonstração ordenar
+   como o banco: vazio no fim nos dois sentidos, instante como instante
+   (fusos diferentes) e texto no alfabeto do português. */
+const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
+
+function vazio(valor: unknown): boolean {
+  return valor === null || valor === undefined || valor === '';
+}
+
+function comparar(a: unknown, b: unknown): number {
+  if (typeof a === 'string' && typeof b === 'string' && INSTANTE.test(a) && INSTANTE.test(b)) {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    if (!Number.isNaN(ta) && !Number.isNaN(tb)) return ta === tb ? 0 : ta < tb ? -1 : 1;
+  }
+  return String(a).localeCompare(String(b), 'pt-BR');
+}
+
 function ordenarItens<T>(itens: T[], ordenar?: string): T[] {
   if (!ordenar) return itens;
   const desc = ordenar.startsWith('-');
@@ -80,11 +98,8 @@ function ordenarItens<T>(itens: T[], ordenar?: string): T[] {
   return [...itens].sort((a, b) => {
     const va = valorDoCampo(a, campo);
     const vb = valorDoCampo(b, campo);
-    if (va === vb) return 0;
-    if (va === null || va === undefined) return 1;
-    if (vb === null || vb === undefined) return -1;
-    const cmp = va > vb ? 1 : -1;
-    return desc ? -cmp : cmp;
+    if (vazio(va) || vazio(vb)) return vazio(va) === vazio(vb) ? 0 : vazio(va) ? 1 : -1;
+    return comparar(va, vb) * (desc ? -1 : 1);
   });
 }
 

@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, CheckCircle2, UserPlus } from 'lucide-react';
@@ -324,6 +324,8 @@ function DrawerAdmin({ id, aoFechar }: { id: string | undefined; aoFechar: () =>
 export function PaginaAdmins() {
   const { id } = useParams();
   const navegar = useNavigate();
+  /* Fechar o drawer volta à lista como estava: busca, filtros, página e ordem. */
+  const { search } = useLocation();
   const sessao = useSessao();
   const origem = useOrigemRecurso('admins');
   const podeGerir = sessao.pode('gerir_usuarios');
@@ -426,7 +428,7 @@ export function PaginaAdmins() {
             aoFechar={() => setDandoAcesso(false)}
             aoConcedido={(admin, email) => setConcedido({ nome: admin.nome || email, email })}
           />
-          <DrawerAdmin id={id} aoFechar={() => navegar('/admins')} />
+          <DrawerAdmin id={id} aoFechar={() => navegar({ pathname: '/admins', search })} />
         </>
       ) : null}
     </>

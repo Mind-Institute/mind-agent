@@ -22,5 +22,8 @@ export function createClient(_url, _key, _options) {
       getUser: async (token) => cenario().getUser(token),
     },
     rpc: async (nome, args) => cenario().rpc(nome, args),
+    /* Leitura por tabela (`from().select().eq().maybeSingle()`), para as
+       funções do painel que conferem o papel em `mind_admin_users`. */
+    from: (tabela) => cenario().from(tabela),
   };
 }
