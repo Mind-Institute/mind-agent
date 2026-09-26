@@ -191,8 +191,9 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `mindagent-catalogo` 1.4.0: `POST /admin/offers`, `PATCH /:id`, `POST /:id/publish` e `/:id/archive`; cupom
   segue só leitura. Painel: Nova oferta, formulário com preços, bônus e exigências, Duplicar, Pôr no ar / Tirar
   do ar com confirmação, histórico de alterações. Raiz 467/467, painel 189/189, build verde. Caiu a regra
-  "nenhuma condicional no ar" (ela manteve os bumps). **Depois do merge: publicar a `mindagent-catalogo` 1.4.0
-  à mão.** Divergência vista no ledger, de outra frente: `20260926210031_masterclasses_duplicadas_sao_turma_hnk`
+  "nenhuma condicional no ar" (ela manteve os bumps). **NO AR (26/09, noite):** #149 mergeada (`aa60742`);
+  `mindagent-catalogo` **v7 viva = o código do repo** (md5 `02fe24d2…`), conferida pelo `pg_net`: `health` 1.4.0,
+  criar sem login 401, pôr no ar de origem estranha 403. Divergência vista no ledger, de outra frente: `20260926210031_masterclasses_duplicadas_sao_turma_hnk`
   aplicada sem arquivo em `main`.
 - **Passo 2 — telas Ofertas e Cupons no painel, só leitura (26/09, noite).** Portas
   `mind_admin_read_ofertas` / `mind_admin_read_cupons` (ledger `20260926202049`, mesmo md5; situação
