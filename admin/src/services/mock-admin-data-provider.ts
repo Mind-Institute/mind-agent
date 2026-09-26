@@ -30,6 +30,8 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
   admins: ['nome', 'email'],
   summit_2026_sessions: ['titulo', 'descricao', 'espaco', 'palestrantes'],
+  offers: ['codigo', 'nome', 'descricao', 'precos'],
+  coupons: ['codigo', 'descricao'],
 };
 
 /* O que o banco preenche ao criar, para a linha nova aparecer inteira na
@@ -56,7 +58,14 @@ function combinaBusca(registro: unknown, campos: string[], termo: string): boole
   if (!alvo) return true;
   return campos.some((campo) => {
     const valor = valorDoCampo(registro, campo);
-    if (Array.isArray(valor)) return valor.some((v) => normalizar(v).includes(alvo));
+    if (Array.isArray(valor)) {
+      /* Lista de objetos (os preços de uma oferta): olha os campos de cada um. */
+      return valor.some((v) =>
+        v && typeof v === 'object'
+          ? Object.values(v as Record<string, unknown>).some((x) => normalizar(x).includes(alvo))
+          : normalizar(v).includes(alvo),
+      );
+    }
     return normalizar(valor).includes(alvo);
   });
 }
@@ -75,8 +84,8 @@ function combinaFiltro(registro: unknown, chave: string, valor: unknown): boolea
 }
 
 /* A mesma comparação da `mindagent-catalogo`, para a demonstração ordenar
-   como o banco: vazio no fim nos dois sentidos, instante como instante
-   (fusos diferentes) e texto no alfabeto do português. */
+   como o banco: vazio no fim nos dois sentidos, número como número,
+   instante como instante (fusos diferentes) e texto no alfabeto do português. */
 const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
 
 function vazio(valor: unknown): boolean {
@@ -84,6 +93,7 @@ function vazio(valor: unknown): boolean {
 }
 
 function comparar(a: unknown, b: unknown): number {
+  if (typeof a === 'number' && typeof b === 'number') return a === b ? 0 : a < b ? -1 : 1;
   if (typeof a === 'string' && typeof b === 'string' && INSTANTE.test(a) && INSTANTE.test(b)) {
     const ta = Date.parse(a);
     const tb = Date.parse(b);

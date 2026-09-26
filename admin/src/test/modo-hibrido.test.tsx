@@ -49,8 +49,9 @@ const ROTAS_BASICAS = {
 
 describe('encaminhamento', () => {
   it('cada recurso do painel tem a sua função', () => {
-    expect([...NOMES_RECURSOS]).toEqual(['products', 'admins', 'summit_2026_sessions']);
-    expect([...RECURSOS_DO_CATALOGO]).toEqual(['products']);
+    expect([...NOMES_RECURSOS]).toEqual(['products', 'admins', 'summit_2026_sessions', 'offers', 'coupons']);
+    /* O schema `catalogo` inteiro na mesma função: produtos, ofertas e cupons. */
+    expect([...RECURSOS_DO_CATALOGO]).toEqual(['products', 'offers', 'coupons']);
     expect([...RECURSOS_DO_ACESSO]).toEqual(['admins']);
     expect([...RECURSOS_DO_SUMMIT]).toEqual(['summit_2026_sessions']);
   });

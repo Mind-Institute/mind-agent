@@ -178,6 +178,14 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
   `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
   e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Passo 2 — telas Ofertas e Cupons no painel, só leitura (26/09, noite).** Portas
+  `mind_admin_read_ofertas` / `mind_admin_read_cupons` (ledger `20260926202049`, mesmo md5; situação
+  calculada com as pontas de janela de `api.ofertas`; `noSite` = o código está em `api.ofertas`; preço
+  de lista da cópia da Eduzz quando há código do produto lá); contrato `OFERTAS_PAINEL_OK` em produção,
+  sem rastro. `mindagent-catalogo` 1.3.0 serve `offers` e `coupons` (GET; escrita → 405), recurso só por
+  chave própria do mapa. Painel: menu Catálogo · Ofertas · Cupons, listas com filtros e ordem, detalhe
+  com preços, bônus, exigência (bump/upgrade), origem e colunas do banco. Painel 174/174, raiz 458/458.
+  **Publicar a `mindagent-catalogo` 1.3.0 à mão logo depois do merge.**
 - **Casa das ofertas no `catalogo` — Passo 3 APLICADO (26/09, noite).** Respostas dela ao plano: tudo de
   preço, oferta, order bump e cupom no `catalogo` (tabelas separadas), espelhado e editável no painel; o
   checkout próprio (InfinitePay) *"não tem nada relevante ... podemos migrar sem medo de quebrar"*; bumps

@@ -7,6 +7,8 @@
 
    - o Catálogo (`catalogo.produtos`), na `mindagent-catalogo`: lê e
      edita — criar, publicar e arquivar produto não existem por aqui;
+   - as ofertas e os cupons do mesmo schema, na mesma função: por
+     enquanto só leitura (a edição é o Passo 4 do plano de ofertas);
    - os admins do sistema (`mind_admin_users`), na `mindagent-acesso`:
      vê, dá acesso e muda papel ou situação — tirar o acesso é desligar
      a situação, e a linha fica;
@@ -32,8 +34,8 @@ import type {
 import { AdminApiError } from '@/contracts';
 import type { AdminDataProvider } from './admin-data-provider';
 
-/** Servido pela `mindagent-catalogo`: ler e editar, nada além. */
-export const RECURSOS_DO_CATALOGO = ['products'] as const satisfies readonly NomeRecurso[];
+/** Servido pela `mindagent-catalogo`: o schema `catalogo` — produtos, ofertas e cupons. */
+export const RECURSOS_DO_CATALOGO = ['products', 'offers', 'coupons'] as const satisfies readonly NomeRecurso[];
 
 /** Servido pela `mindagent-acesso`: quem entra no painel. */
 export const RECURSOS_DO_ACESSO = ['admins'] as const satisfies readonly NomeRecurso[];
@@ -58,6 +60,8 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   products: new Set(['list', 'get', 'update']),
   admins: new Set(['list', 'get', 'create', 'update']),
   summit_2026_sessions: new Set(['list', 'get']),
+  offers: new Set(['list', 'get']),
+  coupons: new Set(['list', 'get']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -66,6 +70,8 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
     `A lista de admins aceita ver, dar acesso e mudar papel ou situação; ${op} admin não existe no painel.`,
   summit_2026_sessions: (op) =>
     `A programação do Summit 2026 é só leitura no painel; ${op} sessão não existe por aqui.`,
+  offers: (op) => `As ofertas ainda são só leitura no painel; ${op} oferta chega no próximo passo.`,
+  coupons: (op) => `Os cupons ainda são só leitura no painel; ${op} cupom chega no próximo passo.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {

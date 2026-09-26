@@ -4,4 +4,5 @@ export * from './auth';
 export * from './product';
 export * from './admin-sistema';
 export * from './summit';
+export * from './offer';
 export * from './resources';
