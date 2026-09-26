@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
 import { produtoCatalogoFormSchema, type ProdutoCatalogo, type ProdutoCatalogoForm } from '@/contracts';
@@ -360,6 +360,8 @@ function JanelaDeVenda({ p }: { p: ProdutoCatalogo }) {
 export function PaginaCatalogo() {
   const { id } = useParams();
   const navegar = useNavigate();
+  /* Fechar o drawer volta à lista como estava: busca, filtros, página e ordem. */
+  const { search } = useLocation();
 
   const colunas: Coluna<ProdutoCatalogo>[] = [
     {
@@ -472,7 +474,7 @@ export function PaginaCatalogo() {
         }
       />
 
-      <DrawerProduto id={id} aoFechar={() => navegar('/catalogo')} />
+      <DrawerProduto id={id} aoFechar={() => navegar({ pathname: '/catalogo', search })} />
     </>
   );
 }

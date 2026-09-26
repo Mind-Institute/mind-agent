@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowDown,
   ArrowUp,
@@ -49,21 +49,34 @@ function CabecalhoOrdenavel({
   rotulo,
   campo,
   ordem,
+  escolhida,
   aoOrdenar,
 }: {
   rotulo: string;
   campo: string;
   ordem: { campo: string; desc: boolean } | null;
+  /** `false` quando a ordem vigente é a padrão da página, não um clique. */
+  escolhida: boolean;
   aoOrdenar: (proxima: string | null) => void;
 }) {
   const ativa = ordem?.campo === campo ? ordem : null;
   const Icone = !ativa ? ArrowUpDown : ativa.desc ? ArrowDown : ArrowUp;
-  const proxima = !ativa ? campo : !ativa.desc ? `-${campo}` : null;
-  const dica = !ativa
-    ? `Ordenar por ${rotulo}, crescente`
-    : !ativa.desc
-      ? `Ordenar por ${rotulo}, decrescente`
-      : 'Voltar à ordem padrão';
+  /* Crescente → decrescente → padrão. Se a coluna já está ordenada pelo
+     padrão da página, o clique inverte — "voltar ao padrão" ali não
+     mudaria nada. */
+  const proxima = !ativa
+    ? campo
+    : !escolhida
+      ? ativa.desc
+        ? campo
+        : `-${campo}`
+      : !ativa.desc
+        ? `-${campo}`
+        : null;
+  const dica =
+    proxima === null
+      ? 'Voltar à ordem padrão'
+      : `Ordenar por ${rotulo}, ${proxima.startsWith('-') ? 'decrescente' : 'crescente'}`;
   return (
     <button
       type="button"
@@ -139,6 +152,7 @@ export function PaginaListagem<K extends NomeRecurso>({
   antesDaTabela?: (itens: MapaRecursos[K][]) => ReactNode;
 }) {
   const navegar = useNavigate();
+  const { search } = useLocation();
   const sessao = useSessao();
   const origem = useOrigemRecurso(recurso);
   const { filtros, paraProvedor, definir, definirVarios, limpar } = useFiltrosUrl();
@@ -184,7 +198,9 @@ export function PaginaListagem<K extends NomeRecurso>({
 
   function abrir(item: MapaRecursos[K]) {
     if (aoClicarItem) return aoClicarItem(item);
-    if (destinoItem) return navegar(destinoItem(item));
+    /* A busca, os filtros, a página e a ordem ficam na URL: abrir um
+       registro leva a query junto, para a lista atrás do drawer não mudar. */
+    if (destinoItem) return navegar({ pathname: destinoItem(item), search });
     return undefined;
   }
 
@@ -215,7 +231,7 @@ export function PaginaListagem<K extends NomeRecurso>({
             aoFiltrar={(chave, valor) => definirVarios({ pagina: null, [chave]: valor })}
             aoLimpar={() => {
               setBusca('');
-              limpar();
+              limpar(['ordenar']);
             }}
             placeholderBusca={placeholderBusca}
           />
@@ -257,6 +273,7 @@ export function PaginaListagem<K extends NomeRecurso>({
                             rotulo={coluna.cabecalho}
                             campo={coluna.ordenarPor}
                             ordem={ordem}
+                            escolhida={Boolean(filtros.ordenar)}
                             aoOrdenar={(proxima) => definirVarios({ ordenar: proxima, pagina: null })}
                           />
                         ) : (

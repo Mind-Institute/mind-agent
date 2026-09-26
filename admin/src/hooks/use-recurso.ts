@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ListFilters,
   ListResult,
@@ -26,6 +26,10 @@ export function useLista<K extends NomeRecurso>(
     queryFn: () => provedor.list(recurso, filtros),
     enabled: opcoes.enabled ?? true,
     retry: false,
+    /* Trocar ordem, filtro ou página mantém a lista anterior na tela até a
+       nova chegar: a tabela não pisca e o cabeçalho clicado não perde o
+       foco — pelo teclado, o segundo Enter continua o ciclo da ordem. */
+    placeholderData: keepPreviousData,
   });
 }
 

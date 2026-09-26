@@ -186,10 +186,22 @@ function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
     /* Vazio vai para o fim nos dois sentidos: produto sem data não é o
        "mais antigo" nem o "mais novo". */
     if (vazio(x) || vazio(y)) return vazio(x) === vazio(y) ? 0 : vazio(x) ? 1 : -1;
-    /* Datas ISO e booleanos comparam como texto (`false` antes de `true`);
-       nome, vertical e tipo, no alfabeto do português. */
-    return String(x).localeCompare(String(y), "pt-BR") * (desc ? -1 : 1);
+    return comparar(x, y) * (desc ? -1 : 1);
   });
+}
+
+/* Instante compara como instante, mesmo com fusos diferentes; o resto —
+   datas sem hora, `false` antes de `true`, nome, vertical e tipo — como
+   texto, no alfabeto do português. O mock do painel compara igual. */
+const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
+
+function comparar(a: unknown, b: unknown) {
+  if (typeof a === "string" && typeof b === "string" && INSTANTE.test(a) && INSTANTE.test(b)) {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    if (!Number.isNaN(ta) && !Number.isNaN(tb)) return ta === tb ? 0 : ta < tb ? -1 : 1;
+  }
+  return String(a).localeCompare(String(b), "pt-BR");
 }
 
 Deno.serve(async (req: Request) => {

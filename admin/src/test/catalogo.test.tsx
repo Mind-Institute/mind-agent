@@ -329,11 +329,56 @@ describe('catálogo — ordenar pelas colunas', () => {
   });
 
   it('toda coluna do catálogo ordena', async () => {
+    const usuario = userEvent.setup();
     const { container } = renderizarPainel({ rota: '/catalogo' });
     await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
     for (const coluna of ['Produto', 'Vertical', 'Tipo', 'Situação', 'Venda', 'Janela de venda', 'Acontece']) {
-      expect(within(cabecalho(new RegExp(`^${coluna}`))).getByRole('button'), coluna).toBeVisible();
+      await usuario.click(within(cabecalho(new RegExp(`^${coluna}`))).getByRole('button'));
+      await waitFor(() => expect(cabecalho(new RegExp(`^${coluna}`)), coluna).toHaveAttribute('aria-sort', 'ascending'));
     }
+  });
+
+  it('pelo teclado o ciclo continua: o foco fica no cabeçalho', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+
+    within(cabecalho(/^Acontece/)).getByRole('button').focus();
+    await usuario.keyboard('{Enter}');
+    await waitFor(() => expect(cabecalho(/^Acontece/)).toHaveAttribute('aria-sort', 'ascending'));
+    expect(document.activeElement).toBe(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await usuario.keyboard('{Enter}');
+    await waitFor(() => expect(cabecalho(/^Acontece/)).toHaveAttribute('aria-sort', 'descending'));
+  });
+
+  it('abrir um produto e fechar mantém a ordem da lista', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending'));
+    const decrescente = nomesNaTela(container);
+
+    await usuario.click(container.querySelector('tbody tr') as HTMLElement);
+    const dialogo = await screen.findByRole('dialog');
+    expect(nomesNaTela(container)).toEqual(decrescente);
+
+    await usuario.click(within(dialogo).getByRole('button', { name: /^Fechar$/ }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+    expect(nomesNaTela(container)).toEqual(decrescente);
+  });
+
+  it('"Limpar" tira busca e filtros, e a ordem fica', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo?ordenar=-nome&ativo=true' });
+    await waitFor(() => expect(contarLinhas(container)).toBeGreaterThan(0));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+
+    await usuario.click(screen.getByRole('button', { name: /Limpar/ }));
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
   });
 
   it('a ordem vai para a função do catálogo e volta à página 1', async () => {

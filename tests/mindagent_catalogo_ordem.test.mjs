@@ -63,6 +63,10 @@ const PRODUTOS = [
 ];
 
 async function listar(query) {
+  return listarCom(PRODUTOS, query);
+}
+
+async function listarCom(produtos, query) {
   globalThis.__MIND_EDGE_TESTE__ = {
     getUser: async () => ({ data: { user: { id: 'ator' } }, error: null }),
     from: () => ({
@@ -74,7 +78,7 @@ async function listar(query) {
     }),
     rpc: async (nome) => {
       assert.equal(nome, 'mind_admin_read_catalogo');
-      return { data: structuredClone(PRODUTOS), error: null };
+      return { data: structuredClone(produtos), error: null };
     },
   };
   const h = await carregar();
@@ -110,6 +114,15 @@ test('data vazia vai para o fim nos dois sentidos', async () => {
     ['lideranca', 'engajamento', 'mind-summit-2026', 'oxford', 'mind']);
   assert.deepEqual(codigos(await listar('?ordenar=-vendeAte')).slice(-3).sort(), ['engajamento', 'lideranca', 'mind']);
   assert.deepEqual(codigos(await listar('?ordenar=vendeAte')).slice(0, 2), ['oxford', 'mind-summit-2026']);
+});
+
+test('instante com fusos diferentes ordena pelo instante, não pelo texto', async () => {
+  const corpo = await listarCom([
+    { codigo: 'a', nome: 'A', vendeAte: '2026-09-17T23:30:00-03:00' },
+    { codigo: 'b', nome: 'B', vendeAte: '2026-09-18T01:00:00+00:00' },
+  ], '?ordenar=vendeAte');
+  /* 23:30 em Brasília é 02:30 UTC do dia 18 — depois da 01:00 UTC. */
+  assert.deepEqual(codigos(corpo), ['b', 'a']);
 });
 
 test('ordena a lista inteira antes de paginar', async () => {

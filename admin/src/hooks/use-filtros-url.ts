@@ -48,7 +48,18 @@ export function useFiltrosUrl(padrao: Record<string, string> = {}) {
     [params, setParams],
   );
 
-  const limpar = useCallback(() => setParams(new URLSearchParams(), { replace: true }), [setParams]);
+  /** Tira tudo da URL, menos as chaves em `manter` (a ordem, por exemplo). */
+  const limpar = useCallback(
+    (manter: string[] = []) => {
+      const proximos = new URLSearchParams();
+      for (const chave of manter) {
+        const valor = params.get(chave);
+        if (valor) proximos.set(chave, valor);
+      }
+      setParams(proximos, { replace: true });
+    },
+    [params, setParams],
+  );
 
   const ativos = useMemo(
     () => Array.from(params.keys()).filter((c) => params.get(c)),
