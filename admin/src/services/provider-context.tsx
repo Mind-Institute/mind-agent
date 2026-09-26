@@ -22,6 +22,8 @@ import { enderecoDoAcesso } from './perfil-admin';
    - os admins do sistema falam com a `mindagent-acesso`, pelo mesmo
      caminho (`VITE_ACESSO_API_BASE_URL` ou o `VITE_SUPABASE_URL`) — é a
      função que já liga a conta Google no primeiro login.
+   - a programação do Summit fala com a `mindagent-summit`, no mesmo
+     projeto (`VITE_SUPABASE_URL` + `/functions/v1/mindagent-summit`).
    - com a URL, `VITE_ADMIN_DATA_MODE` escolhe entre `mock`, `hybrid`
      (o catálogo real, na `mindagent-catalogo`) e `http` (tudo na
      `mindagent-admin`). Ausente, o padrão é `hybrid`, o de produção. */
@@ -73,6 +75,7 @@ export function criarProvedorPadrao(opcoes: OpcoesFabrica = {}): AdminDataProvid
     new MockAdminDataProvider(),
     conectar(enderecoDoCatalogo()),
     conectar(enderecoDoAcesso()),
+    conectar(enderecoDoSummit()),
   );
 }
 
@@ -85,6 +88,12 @@ export function enderecoDoCatalogo(
   if (direto) return direto.replace(/\/+$/, '');
   const projeto = supabaseUrl?.trim().replace(/\/+$/, '');
   return projeto ? `${projeto}/functions/v1/mindagent-catalogo` : null;
+}
+
+/** Onde mora a `mindagent-summit`: no mesmo projeto do login. */
+export function enderecoDoSummit(supabaseUrl = import.meta.env.VITE_SUPABASE_URL): string | null {
+  const projeto = supabaseUrl?.trim().replace(/\/+$/, '');
+  return projeto ? `${projeto}/functions/v1/mindagent-summit` : null;
 }
 
 const Contexto = createContext<AdminDataProvider | null>(null);

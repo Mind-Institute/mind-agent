@@ -9,7 +9,9 @@
      edita — criar, publicar e arquivar produto não existem por aqui;
    - os admins do sistema (`mind_admin_users`), na `mindagent-acesso`:
      vê, dá acesso e muda papel ou situação — tirar o acesso é desligar
-     a situação, e a linha fica.
+     a situação, e a linha fica;
+   - a programação do Mind Summit 2026 (`summit_2026.sessions`), na
+     `mindagent-summit`: só leitura.
 
    Sem a função configurada (os testes e o preview de cada versão, que é
    montado sem as variáveis do Supabase), o recurso fica no banco em
@@ -36,8 +38,12 @@ export const RECURSOS_DO_CATALOGO = ['products'] as const satisfies readonly Nom
 /** Servido pela `mindagent-acesso`: quem entra no painel. */
 export const RECURSOS_DO_ACESSO = ['admins'] as const satisfies readonly NomeRecurso[];
 
+/** Servido pela `mindagent-summit`: as tabelas do Summit, só leitura. */
+export const RECURSOS_DO_SUMMIT = ['summit_2026_sessions'] as const satisfies readonly NomeRecurso[];
+
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
 const CONJUNTO_ACESSO = new Set<string>(RECURSOS_DO_ACESSO);
+const CONJUNTO_SUMMIT = new Set<string>(RECURSOS_DO_SUMMIT);
 
 /**
  * O que cada função aceita.
@@ -51,12 +57,15 @@ const CONJUNTO_ACESSO = new Set<string>(RECURSOS_DO_ACESSO);
 const OPERACOES: Record<NomeRecurso, Set<string>> = {
   products: new Set(['list', 'get', 'update']),
   admins: new Set(['list', 'get', 'create', 'update']),
+  summit_2026_sessions: new Set(['list', 'get']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   products: (op) => `O catálogo aceita leitura e edição; ${op} produto ainda não existe no painel.`,
   admins: (op) =>
     `A lista de admins aceita ver, dar acesso e mudar papel ou situação; ${op} admin não existe no painel.`,
+  summit_2026_sessions: (op) =>
+    `A programação do Summit 2026 é só leitura no painel; ${op} sessão não existe por aqui.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {
@@ -77,12 +86,14 @@ export class HybridAdminDataProvider implements AdminDataProvider {
        endereço do Supabase. */
     private readonly catalogo?: AdminDataProvider,
     private readonly acesso?: AdminDataProvider,
+    private readonly summit?: AdminDataProvider,
   ) {}
 
   /** A função real do recurso, quando configurada. */
   private real(resource: NomeRecurso): AdminDataProvider | undefined {
     if (CONJUNTO_CATALOGO.has(resource)) return this.catalogo;
     if (CONJUNTO_ACESSO.has(resource)) return this.acesso;
+    if (CONJUNTO_SUMMIT.has(resource)) return this.summit;
     return undefined;
   }
 

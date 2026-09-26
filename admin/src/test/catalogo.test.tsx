@@ -424,7 +424,7 @@ describe('catálogo — ordenar pelas colunas', () => {
       rota: '/catalogo?pagina=2',
       rotas: { '/admin/products': { corpo: lista([DO_BANCO], { total: 120, pagina: 2, porPagina: 50 }) } },
     });
-    await screen.findByText('Mind Summit 2026');
+    await screen.findByTestId(`linha-${DO_BANCO.id}`);
     const pedido = () => new URL(falso.ultima('/admin/products')!.url).searchParams;
     expect(pedido().get('pagina')).toBe('2');
 
@@ -445,7 +445,7 @@ describe('catálogo — ordenar pelas colunas', () => {
       rota: '/catalogo?pagina=2',
       rotas: { '/admin/products': { corpo: lista([DO_BANCO], { total: 120, pagina: 2, porPagina: 50 }) } },
     });
-    await screen.findByText('Mind Summit 2026');
+    await screen.findByTestId(`linha-${DO_BANCO.id}`);
     const pedido = () => new URL(falso.ultima('/admin/products')!.url).searchParams;
 
     await usuario.click(screen.getByRole('combobox', { name: 'Situação' }));

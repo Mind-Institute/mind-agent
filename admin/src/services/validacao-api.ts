@@ -3,6 +3,7 @@ import {
   AdminApiError,
   adminSistemaSchema,
   produtoCatalogoSchema,
+  sessaoSummit2026Schema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -35,6 +36,7 @@ import {
 const SCHEMAS = {
   products: produtoCatalogoSchema,
   admins: adminSistemaSchema,
+  summit_2026_sessions: sessaoSummit2026Schema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

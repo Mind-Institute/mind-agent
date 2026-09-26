@@ -303,6 +303,7 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
 export const API_FALSA = 'https://api.exemplo.invalido/mindagent-admin';
 export const CATALOGO_FALSO = 'https://api.exemplo.invalido/mindagent-catalogo';
 export const ACESSO_FALSO = 'https://api.exemplo.invalido/mindagent-acesso';
+export const SUMMIT_FALSO = 'https://api.exemplo.invalido/mindagent-summit';
 
 /** Publicável de mentira. A real nunca entra em teste nem em commit. */
 export const CHAVE_FALSA = 'sb_publishable_de_teste';
@@ -344,9 +345,14 @@ export function renderizarHibrido({ rota = '/', rotas = {}, perfil }: OpcoesHibr
           obterToken: o.obterToken,
           aoNaoAutorizado: o.aoNaoAutorizado,
         });
-      /* Como em produção: o catálogo (a tela inicial) e os admins do
-         sistema, cada um na sua função. */
-      return new HybridAdminDataProvider(mock, conectar(CATALOGO_FALSO), conectar(ACESSO_FALSO));
+      /* Como em produção: o catálogo (a tela inicial), os admins do
+         sistema e as tabelas do Summit, cada um na sua função. */
+      return new HybridAdminDataProvider(
+        mock,
+        conectar(CATALOGO_FALSO),
+        conectar(ACESSO_FALSO),
+        conectar(SUMMIT_FALSO),
+      );
     },
   });
 
