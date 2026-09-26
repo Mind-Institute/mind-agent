@@ -1124,3 +1124,32 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; 
     genéricos (empresa Heineken também no ingresso da Ivana). Conferir na Yazo/Eduzz antes de usar CPF desses
     ingressos para identidade.
 
+
+## 22. Summit 2026 — ID da sessão/palestrante interligando tudo (26/09/2026, Adriana)
+
+Pedido da Adriana: o ID da sessão (e do palestrante) tem de funcionar como o `mind_id` das pessoas —
+perguntado sobre uma sessão ou um palestrante, o sistema precisa saber que há mais informação sobre ele em
+outros lugares. Programação e palestrantes do Summit 2026 foram completados no banco em 26/09 (PR #142).
+
+### O que já existe (verificado em 26/09)
+
+- `summit_2026.sessions.id` (uuid) é a chave de fato. FKs para ela: `summit_2026.session_speakers`,
+  `credenciamento_summit_2026."Reservas_Agenda_APP"` (21.032/21.032 ligadas), `"Check Ins Summit"`
+  (9.718/9.718), `engagement.sessao_feedback`, `engagement.jornada_sessao`, `engagement.jornada_eventos`,
+  `intelligence.recomendacoes`. Nome legível e único: `site_session_id` (82/82). Id do app: `yazo_ids`
+  (81/82; as 4 masterclasses têm 2 — turma HNK × demais; `d2-1430-modo-ativar` não existe no app).
+- `engagement.pesquisa_summit_2026.notas_atividades` (origens `app_dia`/`app_evento`) já grava `sessao_id`:
+  798 notas, todas apontando para sessão existente.
+- `public.mind_intelligence_ler(p_tipo, p_id, p_corte)` já lê `sessao` e `palestrante` por id, mas **não**
+  segue para reservas, check-ins nem notas de pesquisa.
+
+### Pendências
+
+1. **(a) Ficha completa da sessão** — leitura por id que junte palestrantes, reservas, check-ins e notas das
+   pesquisas (só agregados, sem dado pessoal). Coletor factual: não decide nem pontua.
+2. **(b) Ficha completa do palestrante** — sessões de que participou, notas recebidas e, quando houver, o
+   `mind_id` dele.
+3. **(d) Pesquisa do Mind Dash ("Mind Summit 2026 - Participante")** — as linhas das grades (P22–P61)
+   identificam a sessão só pelo texto. Antes de importar as respostas para `engagement`, montar a tabela de
+   correspondência linha → `summit_2026.sessions.id` (ou `site_session_id`), senão a nota não se liga à
+   sessão, aos palestrantes nem aos check-ins. A Adriana faz depois.
