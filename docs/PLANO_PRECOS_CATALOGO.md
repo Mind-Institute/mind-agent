@@ -2,6 +2,8 @@
 
 26/09/2026 · Status: proposta, aguarda aprovação da Adriana (D2)
 
+> **Atualização de 26/09 (pedido dela: tudo no `catalogo`, inclusive o histórico, espelhado e editável no painel):** a ordem de execução e o desenho do painel agora estão em [`PLANO_OFERTAS_PASSO_A_PASSO.md`](PLANO_OFERTAS_PASSO_A_PASSO.md), que substitui a §4 deste documento. O inventário e os riscos daqui continuam valendo.
+
 *Esta auditoria só leu dados, no projeto `ymnmotgglsrxmjmonwjz` e no repositório (HEAD `def4bd2`). Nada foi alterado no banco nem no repositório. O documento propõe; quem aprova as mudanças estruturais é a Adriana (regra D2). A decisão dela de 26/09 fecha a "D2 da casa das ofertas": a casa é o `catalogo`, e não uma `institute.ofertas` generalizada.*
 
 *O repositório é público: achados de segurança e números de venda desta auditoria foram entregues à Adriana à parte e não constam aqui. Companheiro deste plano: [`FONTE_DA_VERDADE_SITES.md`](FONTE_DA_VERDADE_SITES.md), de onde cada site lê cada informação.*
@@ -38,7 +40,7 @@ Hoje o preço do Mind está espalhado por 5 lugares:
 
 **O problema:** o mesmo preço chega a existir em até 5 cópias, e nenhuma garante que as outras estejam certas.
 - O site mostra um número e quem cobra é outro sistema.
-- Exemplo concreto: os 7 produtos Eduzz de 2027 fora do Summit estão cadastrados com o preço da Condição Summit (7 de 7). Em 01/10 o site e o agente passam ao preço de balcão, mas a Eduzz continua cobrando a Condição se ninguém mudar o preço lá.
+- Exemplo concreto: os 7 produtos Eduzz de 2027 fora do Summit estão cadastrados com o preço da Condição Summit (7 de 7). Em 01/10 o site e o agente passam ao preço de balcão (com exceção da seção "Avulsas", ver o Passo 1 do plano passo a passo), mas a Eduzz continua cobrando a Condição se ninguém mudar o preço lá.
 
 Além disso, `catalogo.produtos` mistura três níveis:
 - a **empresa**: `mind`, do tipo `empresa`;
