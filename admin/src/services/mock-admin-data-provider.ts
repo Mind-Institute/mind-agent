@@ -29,6 +29,7 @@ import type { AdminDataProvider, ContextoAutor } from './admin-data-provider';
 const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
   admins: ['nome', 'email'],
+  summit_2026_sessions: ['titulo', 'descricao', 'espaco', 'palestrantes'],
 };
 
 /* O que o banco preenche ao criar, para a linha nova aparecer inteira na

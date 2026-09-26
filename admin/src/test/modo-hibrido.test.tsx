@@ -5,6 +5,7 @@ import {
   HybridAdminDataProvider,
   RECURSOS_DO_ACESSO,
   RECURSOS_DO_CATALOGO,
+  RECURSOS_DO_SUMMIT,
 } from '@/services/hybrid-admin-data-provider';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 import { CATALOGO_FALSO, SESSAO_DE_TESTE, lista, renderizarHibrido } from './utils';
@@ -47,10 +48,11 @@ const ROTAS_BASICAS = {
 };
 
 describe('encaminhamento', () => {
-  it('o painel tem dois recursos, cada um na sua função', () => {
-    expect([...NOMES_RECURSOS]).toEqual(['products', 'admins']);
+  it('cada recurso do painel tem a sua função', () => {
+    expect([...NOMES_RECURSOS]).toEqual(['products', 'admins', 'summit_2026_sessions']);
     expect([...RECURSOS_DO_CATALOGO]).toEqual(['products']);
     expect([...RECURSOS_DO_ACESSO]).toEqual(['admins']);
+    expect([...RECURSOS_DO_SUMMIT]).toEqual(['summit_2026_sessions']);
   });
 
   it('anuncia o modo como hybrid — nem mock, nem http', () => {

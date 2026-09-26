@@ -8,7 +8,7 @@ describe('navegação', () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Admins do sistema']);
+    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Programação', 'Admins do sistema']);
     for (const item of ITENS_NAVEGACAO) {
       expect(
         within(menu).getByRole('link', { name: (nome) => nome.trim() === item.rotulo }),
@@ -21,6 +21,12 @@ describe('navegação', () => {
     }
     expect(NAVEGACAO.filter((g) => ['summit', 'institute', 'dash'].includes(g.id)).map((g) => g.itens))
       .toEqual([[], [], []]);
+    /* Pedido dela: SUMMIT → Mind Summit 2026 → Programação. */
+    const summit2026 = within(menu).getByRole('list', { name: 'Mind Summit 2026' });
+    expect(within(summit2026).getByRole('link', { name: (nome) => nome.trim() === 'Programação' }))
+      .toHaveAttribute('href', '/summit/2026/programacao');
+    expect(NAVEGACAO.find((g) => g.id === 'institute')?.submenus ?? []).toEqual([]);
+    expect(NAVEGACAO.find((g) => g.id === 'dash')?.submenus ?? []).toEqual([]);
     /* Pedido dela no mesmo dia: no lugar do antigo grupo de administração,
        só o quadro de quem entra no painel. */
     expect(within(menu).getByText('Administração')).toBeVisible();
@@ -52,7 +58,9 @@ describe('navegação', () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    for (const rotulo of ['Visão geral', 'Home V3', 'Visualização', 'Avisos', 'Evento', 'Programação',
+    /* 'Programação' voltou, mas outra: a do Summit 2026 como está no banco, em /summit/2026/programacao
+       (a do app era /programacao, que continua fora). */
+    for (const rotulo of ['Visão geral', 'Home V3', 'Visualização', 'Avisos', 'Evento',
                           'Palestrantes', 'Espaços', 'Rotas', 'Estandes', 'Ingressos e ofertas',
                           'Conteúdo da Mind', 'FAQ e documentos', 'Conversas', 'Perguntas sem resposta',
                           'Usuários e permissões', 'Auditoria', 'Avaliação do dia', 'Avaliação do evento',

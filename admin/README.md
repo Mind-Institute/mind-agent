@@ -145,6 +145,7 @@ segunda a partir da primeira, e nunca lê `user_metadata`.
 |---|---|
 | `/` | leva ao Catálogo |
 | `/catalogo` · `/catalogo/:id` | Catálogo de produtos |
+| `/summit/2026/programacao` · `/summit/2026/programacao/:id` | SUMMIT → Mind Summit 2026 → Programação (só leitura) |
 | `/admins` · `/admins/:id` | Admins do sistema (só administrador) |
 
 Os módulos com edição em drawer têm **duas entradas para a mesma página**: a
@@ -352,6 +353,21 @@ volta à página 1 e é feita pela `mindagent-catalogo` na lista inteira, antes 
 paginar. Vazio fica no fim nos dois sentidos; em Situação e Venda, "não" vem
 antes de "sim"; a Janela de venda ordena pela data em que o produto sai de venda.
 
+## Summit → Mind Summit 2026 → Programação
+
+Pedido da Adriana (26/09/2026): no menu SUMMIT, um submenu por produto — hoje
+"Mind Summit 2026" — com a tabela de programação "conforme está no backend".
+É `summit_2026.sessions`, **só leitura**, pela `mindagent-summit`
+(`mind_admin_read_summit_2026_sessoes`, só `service_role`; contrato
+`tests/summit_programacao_contract.sql` → `SUMMIT_PROGRAMACAO_OK`).
+
+- A lista mostra dia, horário (fuso de São Paulo), sessão, tipo (o código do
+  banco), espaço, palestrantes e reserva; busca, filtros por dia, tipo e
+  reserva, e ordem por coluna.
+- Abrir uma sessão mostra **todas as colunas, com os nomes do banco** — coluna
+  nova aparece sem versão nova do painel.
+- Qualquer papel do painel vê. Escrever é recusado antes de sair.
+
 ## Admins do sistema
 
 Pedido da Adriana (26/09/2026): ver e cadastrar quem entra no painel. A casa é a
@@ -551,6 +567,7 @@ mindagent-admin      GET   /admin/me                  (quem é você e o que pod
 mindagent-acesso     POST  /admin/vincular            (primeiro login com Google)
 mindagent-acesso     GET   /admin/admins · /:id · POST /admin/admins · PATCH /:id
 mindagent-catalogo   GET   /admin/products · /:id · PATCH /:id
+mindagent-summit     GET   /admin/summit_2026_sessions · /:id   (só leitura)
 ```
 
 Toda escrita manda `If-Unmodified-Since-Version: <atualizadoEm>`, e `409` abre o

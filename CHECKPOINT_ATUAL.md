@@ -140,6 +140,14 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
   (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
   dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
+- **SUMMIT → Mind Summit 2026 → Programação (26/09, pedido dela).** *"em Summit quero um menu Mind Summit
+  2026 e dentro dele um menu com a tabela de programação conforme está no backend"*. `summit_2026.sessions`
+  (81 sessões), só leitura: porta `mind_admin_read_summit_2026_sessoes` (ledger `20260926154547`, mesmo md5;
+  contrato `SUMMIT_PROGRAMACAO_OK`), Edge Function nova `mindagent-summit` (v1 viva = repo), tela com lista,
+  filtros, ordem e detalhe com todas as colunas pelos nomes do banco; o menu ganhou submenu por produto dentro
+  da vertical. **Descoberta lateral:** a porta antiga `mind_admin_read_resource('sessions')` (usada pela
+  `mindagent-admin` em `/admin/sessions`) está quebrada — lê o schema `summit`, que virou `summit_2026`; nada no
+  painel a chama; registrada, sem ação.
 - **Institute: as datas do produto vêm da turma (26/09, pedido dela).** *"produtos do Institute devem
   carregar a cópia e não deixar editar esses campos quando a fonte da verdade vier de outro lugar"*.
   Conferido: checkout, ofertas, cupons, kits dos agentes, busca do chat e contexto do WhatsApp leem
