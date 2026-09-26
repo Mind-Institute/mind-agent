@@ -20,45 +20,14 @@ import {
   type NomeRecurso,
   type OpcoesEscrita,
   type CodigoErroAdmin,
-  type ReciboReindexacao,
-  type ResumoPainel,
-  type Documento,
   type StatusEditorial,
 } from '@/contracts';
-import { criarBanco, rotuloDoRegistro, type BancoMock } from '@/mocks/db';
-import { montarResumoPainel } from '@/mocks/dashboard';
+import { criarBanco, type BancoMock } from '@/mocks/db';
 import type { AdminDataProvider, ContextoAutor } from './admin-data-provider';
 
 /** Campos varridos pela busca textual de cada recurso. */
 const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
-  event: ['nome', 'slug', 'local', 'cidade'],
-  sessions: ['titulo', 'descricao', 'quemTexto'],
-  speakers: ['nome', 'organizacao', 'cargo', 'biografia'],
-  spaces: ['nome', 'slug', 'descricao', 'comoChegar', 'aliases'],
-  routes: ['instrucoes'],
-  booths: ['nome', 'slug', 'descricao', 'contato'],
-  offers: ['codigo', 'nome', 'descricao', 'elegibilidade'],
-  content: ['titulo', 'slug', 'conteudo'],
-  documents: ['titulo', 'previa', 'urlOrigem'],
-  sources: ['nome', 'descricao'],
-  conversations: ['assuntos'],
-  unanswered: ['pergunta', 'categoriaSugerida', 'responsavel'],
-  users: ['nome', 'papel'],
-  audit: ['usuario', 'recurso', 'registroRotulo', 'requestId'],
-  themes: ['codigo', 'rotulo'],
-  home_state: ['momento', 'modo'],
-  home_schedule: ['momento', 'nota'],
-  home_notices: ['titulo', 'subtitulo', 'descricao'],
   products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
-};
-
-/** Filtro cujo nome na URL difere do campo do registro. */
-const ALIAS_FILTRO: Record<string, string> = {
-  tema: 'temas',
-  palestranteId: 'palestranteIds',
-  agente: 'agentes',
-  trilha: 'trilhas',
-  assunto: 'assuntos',
 };
 
 const CHAVES_RESERVADAS = new Set(['busca', 'pagina', 'porPagina', 'ordenar']);
@@ -86,8 +55,7 @@ function combinaBusca(registro: unknown, campos: string[], termo: string): boole
 
 function combinaFiltro(registro: unknown, chave: string, valor: unknown): boolean {
   if (valor === undefined || valor === null || valor === '' || valor === 'todos') return true;
-  const campo = ALIAS_FILTRO[chave] ?? chave;
-  const doRegistro = valorDoCampo(registro, campo);
+  const doRegistro = valorDoCampo(registro, chave);
   if (Array.isArray(valor)) {
     if (valor.length === 0) return true;
     return valor.some((v) => combinaFiltro(registro, chave, v));
@@ -116,8 +84,6 @@ function ordenarItens<T>(itens: T[], ordenar?: string): T[] {
 export interface OpcoesMock {
   /** Latência simulada em ms. Os testes usam 0. */
   latenciaMs?: number;
-  /** Instante base das sementes que dependem de "agora". */
-  agora?: number;
   autor?: ContextoAutor;
   banco?: BancoMock;
 }
@@ -136,7 +102,7 @@ export class MockAdminDataProvider implements AdminDataProvider {
   private sequencia = 0;
 
   constructor(opcoes: OpcoesMock = {}) {
-    this.banco = opcoes.banco ?? criarBanco(opcoes.agora ?? Date.now());
+    this.banco = opcoes.banco ?? criarBanco();
     this.latenciaMs = opcoes.latenciaMs ?? 260;
     this.autor = opcoes.autor ?? { nome: 'Você (demonstração)' };
   }
@@ -145,8 +111,8 @@ export class MockAdminDataProvider implements AdminDataProvider {
   /* Instrumentação para testes e para o menu "simular erro"          */
   /* -------------------------------------------------------------- */
 
-  /** `configurarFalha('sessions', 'rede')` faz a próxima leitura falhar. */
-  configurarFalha(escopo: NomeRecurso | 'dashboard' | 'reindex', codigo: CodigoErroAdmin | null) {
+  /** `configurarFalha('products', 'rede')` faz a próxima leitura falhar. */
+  configurarFalha(escopo: NomeRecurso, codigo: CodigoErroAdmin | null) {
     if (codigo) this.falhas.set(escopo, codigo);
     else this.falhas.delete(escopo);
   }
@@ -171,7 +137,7 @@ export class MockAdminDataProvider implements AdminDataProvider {
     }
   }
 
-  private verificarFalha(escopo: NomeRecurso | 'dashboard' | 'reindex') {
+  private verificarFalha(escopo: NomeRecurso) {
     const codigo = this.falhas.get(escopo);
     if (!codigo) return;
     const mensagens: Record<CodigoErroAdmin, string> = {
@@ -228,27 +194,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     }
   }
 
-  private registrarAuditoria(
-    acao: 'criar' | 'atualizar' | 'publicar' | 'arquivar' | 'reindexar',
-    recurso: NomeRecurso | 'documents',
-    registro: Record<string, unknown>,
-    antes: Record<string, unknown> | null,
-    depois: Record<string, unknown> | null,
-  ) {
-    this.banco.audit.unshift({
-      id: `aud_mock_${String(this.banco.audit.length + 1).padStart(3, '0')}`,
-      usuario: this.autor.nome,
-      acao,
-      recurso,
-      registroId: String(registro.id ?? ''),
-      registroRotulo: rotuloDoRegistro(recurso as NomeRecurso, registro),
-      antes,
-      depois,
-      ocorridoEm: this.agora(),
-      requestId: this.proximoRequestId(),
-    });
-  }
-
   /* -------------------------------------------------------------- */
   /* Leitura                                                         */
   /* -------------------------------------------------------------- */
@@ -290,12 +235,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     return { ...this.encontrar(resource, id) };
   }
 
-  async getDashboard(): Promise<ResumoPainel> {
-    await this.esperar();
-    this.verificarFalha('dashboard');
-    return montarResumoPainel(this.banco);
-  }
-
   /* -------------------------------------------------------------- */
   /* Escrita                                                         */
   /* -------------------------------------------------------------- */
@@ -318,9 +257,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     } as MapaRecursos[K];
 
     tabela.unshift(registro);
-    this.registrarAuditoria('criar', resource, registro as Record<string, unknown>, null, {
-      ...(payload as Record<string, unknown>),
-    });
     return { ...registro };
   }
 
@@ -336,19 +272,11 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
-    const antes: Record<string, unknown> = {};
-    for (const chave of Object.keys(payload as Record<string, unknown>)) {
-      antes[chave] = registro[chave];
-    }
-
     Object.assign(registro, payload, {
       atualizadoEm: this.agora(),
       atualizadoPor: this.autor.nome,
     });
 
-    this.registrarAuditoria('atualizar', resource, registro, antes, {
-      ...(payload as Record<string, unknown>),
-    });
     return { ...(registro as MapaRecursos[K]) };
   }
 
@@ -363,7 +291,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
-    const antes = { status: registro.status as StatusEditorial | undefined };
     const agora = this.agora();
     Object.assign(registro, {
       status: 'publicado' satisfies StatusEditorial,
@@ -373,14 +300,13 @@ export class MockAdminDataProvider implements AdminDataProvider {
       atualizadoPor: this.autor.nome,
     });
 
-    this.registrarAuditoria('publicar', resource, registro, antes, { status: 'publicado' });
     return { ...(registro as MapaRecursos[K]) };
   }
 
   /**
-   * Arquivar é o "excluir" do painel. O registro continua no banco, sai
-   * das listagens ativas e mantém o rastro na auditoria — apagar de
-   * verdade não é oferecido nesta versão, de propósito.
+   * Arquivar é o "excluir" do painel. O registro continua no banco e sai
+   * das listagens ativas — apagar de verdade não é oferecido nesta
+   * versão, de propósito.
    */
   async archive<K extends NomeRecurso>(
     resource: K,
@@ -393,60 +319,10 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
-    const antes: Record<string, unknown> = {};
-    const depois: Record<string, unknown> = {};
-
-    if ('status' in registro) {
-      antes.status = registro.status;
-      depois.status = 'arquivado';
-      registro.status = 'arquivado';
-    }
-    if ('ativo' in registro) {
-      antes.ativo = registro.ativo;
-      depois.ativo = false;
-      registro.ativo = false;
-    }
+    if ('status' in registro) registro.status = 'arquivado';
+    if ('ativo' in registro) registro.ativo = false;
 
     Object.assign(registro, { atualizadoEm: this.agora(), atualizadoPor: this.autor.nome });
-    this.registrarAuditoria('arquivar', resource, registro, antes, depois);
     return { ...(registro as MapaRecursos[K]) };
-  }
-
-  /**
-   * Enfileira o documento e diz, em texto, que NÃO indexou.
-   *
-   * A tentação aqui seria mudar o status para `indexado` e mostrar um
-   * "pronto!" — o que faria o painel mentir sobre o estado do agente.
-   * O recibo carrega `simulado: true` e a tela repete isso.
-   */
-  async requestReindex(documentId: string): Promise<ReciboReindexacao> {
-    await this.esperar();
-    this.verificarFalha('reindex');
-
-    const documento = this.encontrar('documents', documentId) as Documento;
-    const statusAnterior = documento.statusIndexacao;
-
-    documento.statusIndexacao = 'na_fila';
-    documento.erroIndexacao = null;
-    documento.atualizadoEm = this.agora();
-    documento.atualizadoPor = this.autor.nome;
-
-    this.registrarAuditoria(
-      'reindexar',
-      'documents',
-      documento as unknown as Record<string, unknown>,
-      { statusIndexacao: statusAnterior },
-      { statusIndexacao: 'na_fila' },
-    );
-
-    return {
-      documentoId: documentId,
-      statusAnterior,
-      statusAtual: 'na_fila',
-      enfileiradoEm: this.agora(),
-      simulado: true,
-      mensagem:
-        'Pedido registrado em modo demonstração. Nada foi indexado: o pipeline de indexação vive no backend e ainda não está ligado.',
-    };
   }
 }

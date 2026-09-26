@@ -84,33 +84,27 @@ export function PaginaConfiguracoes() {
 
             {provedor.modo === 'mock' ? (
               <p className="text-muted-foreground">
-                Os dados são simulados e vivem na memória do navegador. Evento, temas, sessões e
-                pessoas vêm de <code className="font-mono">../dados/summit.json</code>; espaços,
-                rotas, estandes, ofertas, conteúdo, documentos, conversas e auditoria são mocks
-                pequenos. Recarregar a página desfaz qualquer alteração.
+                Modo demonstração: sem as variáveis do Supabase, o catálogo mostra uma semente
+                local que vive na memória do navegador. Recarregar a página desfaz qualquer
+                alteração. Em produção o painel só mostra dado real.
               </p>
             ) : provedor.modo === 'hybrid' ? (
               <div className="space-y-2 text-muted-foreground">
                 <p>
-                  <strong className="text-foreground">Núcleo real:</strong> visão geral, evento,
-                  programação, palestrantes, espaços e temas vêm da API administrativa, com o token
-                  da sessão no header <code className="font-mono">Authorization</code>. Escrita
-                  incluída — temas são somente leitura.
-                </p>
-                <p>
                   <strong className="text-foreground">Catálogo real:</strong> os produtos de{' '}
                   <code className="font-mono">catalogo.produtos</code> vêm da{' '}
                   <code className="font-mono">mindagent-catalogo</code> — leitura e edição; criar e
-                  arquivar produto ainda não existem.
+                  arquivar produto ainda não existem. O token da sessão vai no header{' '}
+                  <code className="font-mono">Authorization</code>.
                 </p>
                 <p>
-                  <strong className="text-foreground">Apoio em demonstração:</strong> rotas,
-                  estandes, ofertas, conteúdo, documentos, conversas, perguntas, usuários e auditoria
-                  continuam no banco em memória. Salvar ali mexe só nesta aba.
+                  <strong className="text-foreground">Avaliações reais:</strong> a do dia e a do
+                  evento vêm da <code className="font-mono">mindagent-avaliacao</code>, só leitura.
                 </p>
                 <p>
-                  As respostas dos módulos reais são validadas contra os schemas do painel. Formato
-                  incompatível vira erro na tela — não campo preenchido por conta própria.
+                  Nada aqui é demonstração: o painel mostra só dado real. As respostas são
+                  validadas contra os schemas do painel — formato incompatível vira erro na tela,
+                  não campo preenchido por conta própria.
                 </p>
               </div>
             ) : (

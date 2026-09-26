@@ -5,8 +5,7 @@ import react from '@vitejs/plugin-react';
 /**
  * O painel vive em `admin/`, ao lado do chat estático da raiz. Ele nunca
  * importa código do chat: a única coisa que atravessa a fronteira são os
- * dados de demonstração (`../dados/summit.json`) e os assets de marca
- * (`../assets/`) — leitura, nunca escrita.
+ * assets de marca (`../assets/`) — leitura, nunca escrita.
  */
 export default defineConfig({
   /* O painel é servido sob /admin, o chat na raiz. Sem isto o build
@@ -18,7 +17,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@dados': path.resolve(__dirname, '../dados'),
       '@marca': path.resolve(__dirname, '../assets'),
     },
   },
@@ -61,10 +59,6 @@ export default defineConfig({
       VITE_CATALOGO_API_BASE_URL: '',
       /* O primeiro login com Google também deriva de `VITE_SUPABASE_URL`. */
       VITE_ACESSO_API_BASE_URL: '',
-      /* Sem endereço do app, a prévia das telas mostra o aviso de
-         configuração em vez de montar um `iframe` — que no jsdom tentaria
-         buscar a página de verdade. */
-      VITE_APP_BASE_URL: '',
       /* A Avaliação do dia tem o endereço da Edge Function NO CÓDIGO, como
          fallback de quando a variável não existe — é URL pública, e assim o
          relatório não depende de alguém lembrar de configurá-la na

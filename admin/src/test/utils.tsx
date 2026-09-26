@@ -43,7 +43,6 @@ export interface OpcoesRender {
   rota?: string;
   papel?: Papel;
   provedor?: AdminDataProvider | FabricaProvedor;
-  agora?: number;
   /** Ausente = modo simulado, sem login. */
   porta?: PortaAutenticacao | null;
   baseUrlApi?: string;
@@ -68,7 +67,6 @@ export function renderizarPainel({
   rota = '/',
   papel = 'administrador',
   provedor,
-  agora,
   porta,
   baseUrlApi,
   baseUrlAcesso = null,
@@ -76,7 +74,7 @@ export function renderizarPainel({
   fetchImpl,
   basename,
 }: OpcoesRender = {}): ResultadoRender {
-  const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0, agora });
+  const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0 });
   const instancia = typeof usado === 'function' ? null : usado;
   const roteador = createMemoryRouter(rotasAdmin, { initialEntries: [rota], basename });
   const cliente = criarClienteDeConsulta();
@@ -300,6 +298,7 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
    método, URL e cabeçalhos. */
 
 export const API_FALSA = 'https://api.exemplo.invalido/mindagent-admin';
+export const CATALOGO_FALSO = 'https://api.exemplo.invalido/mindagent-catalogo';
 
 /** Publicável de mentira. A real nunca entra em teste nem em commit. */
 export const CHAVE_FALSA = 'sb_publishable_de_teste';
@@ -334,14 +333,15 @@ export function renderizarHibrido({ rota = '/', rotas = {}, perfil }: OpcoesHibr
     fetchImpl: falso.fetch,
     provedor: (o) =>
       new HybridAdminDataProvider(
+        mock,
+        /* O catálogo real, como em produção: é a tela inicial do painel. */
         new HttpAdminDataProvider({
-          baseUrl: API_FALSA,
+          baseUrl: CATALOGO_FALSO,
           fetchImpl: falso.fetch,
           chavePublicavel: CHAVE_FALSA,
           obterToken: o.obterToken,
           aoNaoAutorizado: o.aoNaoAutorizado,
         }),
-        mock,
       ),
   });
 

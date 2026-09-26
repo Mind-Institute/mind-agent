@@ -1,200 +1,138 @@
 import { describe, expect, it } from 'vitest';
-import { AdminApiError, ehErroAdmin } from '@/contracts';
+import { AdminApiError, ehErroAdmin, type ProdutoCatalogo } from '@/contracts';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 import { HttpAdminDataProvider } from '@/services/http-admin-data-provider';
+
+/* Desde 26/09/2026 o único recurso do painel é o Catálogo (`products`):
+   o resto não era dado real e saiu. O mock existe para os testes e para o
+   preview de cada versão; o contrato dele é o mesmo do provedor HTTP. */
 
 function criar() {
   return new MockAdminDataProvider({ latenciaMs: 0 });
 }
 
+/* Um produto como a `mindagent-catalogo` devolve. */
+const PRODUTO: ProdutoCatalogo = {
+  id: 'prd_1',
+  criadoEm: '',
+  atualizadoEm: '2026-09-13T15:30:00.123456+00:00',
+  atualizadoPor: null,
+  codigo: 'produto-1',
+  nome: 'Produto 1',
+  tipo: 'formacao',
+  vertical: 'institute',
+  categoria: null,
+  descricaoCurta: null,
+  descricao: null,
+  ativo: true,
+  vende: true,
+  vendeDe: null,
+  vendeAte: null,
+  comecaEm: null,
+  encerraEm: null,
+  periodo: null,
+  schemaDados: null,
+  pipelinesHubspot: [],
+};
+
 describe('MockAdminDataProvider', () => {
-  it('lista sessões vindas do summit.json', async () => {
+  it('lista os produtos da semente', async () => {
     const provedor = criar();
-    const { itens, total } = await provedor.list('sessions');
-    expect(total).toBeGreaterThan(0);
-    expect(itens[0]).toHaveProperty('titulo');
-    expect(itens[0]).toHaveProperty('dia');
+    const { itens, total } = await provedor.list('products');
+    expect(total).toBe(6);
+    expect(itens[0]).toHaveProperty('codigo');
+    expect(itens[0]).toHaveProperty('nome');
   });
 
-  it('filtra por campo simples e por campo de lista', async () => {
+  it('filtra por campo simples, booleano e nulo', async () => {
     const provedor = criar();
-    const todas = await provedor.list('sessions');
-    const doPrimeiroDia = await provedor.list('sessions', { dia: '2026-09-16' });
+    const todos = await provedor.list('products');
 
-    expect(doPrimeiroDia.total).toBeGreaterThan(0);
-    expect(doPrimeiroDia.total).toBeLessThan(todas.total);
-    expect(doPrimeiroDia.itens.every((s) => s.dia === '2026-09-16')).toBe(true);
+    const doInstitute = await provedor.list('products', { vertical: 'institute' });
+    expect(doInstitute.total).toBe(2);
+    expect(doInstitute.itens.every((p) => p.vertical === 'institute')).toBe(true);
 
-    const porTema = await provedor.list('sessions', { tema: 'performance' });
-    expect(porTema.itens.every((s) => s.temas.includes('performance'))).toBe(true);
-  });
+    const inativos = await provedor.list('products', { ativo: 'false' });
+    expect(inativos.itens.map((p) => p.id)).toEqual(['prd_summit_2025']);
 
-  it('filtra sessões sem espaço com espacoId=null — o link da visão geral', async () => {
-    const provedor = criar();
-    const semEspaco = await provedor.list('sessions', { espacoId: 'null' });
-    expect(semEspaco.total).toBeGreaterThan(0);
-    expect(semEspaco.itens.every((s) => s.espacoId === null)).toBe(true);
+    const semVertical = await provedor.list('products', { vertical: 'null' });
+    expect(semVertical.total).toBeGreaterThan(0);
+    expect(semVertical.total).toBeLessThan(todos.total);
+    expect(semVertical.itens.every((p) => p.vertical === null)).toBe(true);
   });
 
   it('busca textual ignora acento e caixa', async () => {
     const provedor = criar();
-    const resultado = await provedor.list('speakers', { busca: 'EDMONDSON' });
-    expect(resultado.total).toBeGreaterThan(0);
-    expect(resultado.itens[0].nome).toContain('Edmondson');
+    const resultado = await provedor.list('products', { busca: 'CERTIFICACAO' });
+    expect(resultado.itens.map((p) => p.id)).toEqual(['prd_cert_lideranca_2027']);
   });
 
   it('devolve nao_encontrado para id inexistente', async () => {
     const provedor = criar();
-    await expect(provedor.get('sessions', 'ses_inexistente')).rejects.toSatisfy(
+    await expect(provedor.get('products', 'prd_inexistente')).rejects.toSatisfy(
       (erro: unknown) => ehErroAdmin(erro) && erro.codigo === 'nao_encontrado',
     );
   });
 
-  it('publica mudando status, data e responsável', async () => {
-    const provedor = criar();
-    const { itens } = await provedor.list('content', { status: 'rascunho' });
-    const alvo = itens[0];
-    expect(alvo.status).toBe('rascunho');
-
-    const publicado = await provedor.publish('content', alvo.id);
-    expect(publicado.status).toBe('publicado');
-    expect(publicado.publicadoEm).toBeTruthy();
-    expect(publicado.publicadoPor).toBeTruthy();
-  });
-
   it('arquiva em vez de excluir — o registro continua na base', async () => {
     const provedor = criar();
-    const antes = await provedor.list('booths');
-    const alvo = antes.itens[0];
+    const antes = await provedor.list('products');
 
-    const arquivado = await provedor.archive('booths', alvo.id);
+    const arquivado = await provedor.archive('products', 'prd_dash');
     expect(arquivado.ativo).toBe(false);
 
-    const depois = await provedor.list('booths');
+    const depois = await provedor.list('products');
     expect(depois.total).toBe(antes.total);
   });
 
   it('recusa escrita quando o registro mudou (conflito de atualização)', async () => {
     const provedor = criar();
-    const { itens } = await provedor.list('spaces');
-    const espaco = itens[0];
-    const versaoAntiga = espaco.atualizadoEm;
+    const produto = await provedor.get('products', 'prd_dash');
+    const versaoAntiga = produto.atualizadoEm;
 
-    await provedor.update('spaces', espaco.id, { descricao: 'primeiro salvamento' });
+    await provedor.update('products', produto.id, { descricao: 'primeiro salvamento' });
 
     await expect(
       provedor.update(
-        'spaces',
-        espaco.id,
+        'products',
+        produto.id,
         { descricao: 'segundo salvamento' },
         { atualizadoEmEsperado: versaoAntiga },
       ),
     ).rejects.toSatisfy((erro: unknown) => ehErroAdmin(erro) && erro.codigo === 'conflito');
   });
 
-  it('registra auditoria de toda escrita, com antes e depois', async () => {
-    const provedor = criar();
-    const { itens } = await provedor.list('spaces');
-    const espaco = itens[0];
-
-    await provedor.update('spaces', espaco.id, { andar: 'Subsolo' });
-
-    const auditoria = await provedor.list('audit', { ordenar: '-ocorridoEm' });
-    const registro = auditoria.itens[0];
-    expect(registro.acao).toBe('atualizar');
-    expect(registro.recurso).toBe('spaces');
-    expect(registro.depois).toMatchObject({ andar: 'Subsolo' });
-    expect(registro.requestId).toMatch(/^req_/);
-  });
-
-  it('reindexação enfileira e marca o recibo como simulado', async () => {
-    const provedor = criar();
-    const recibo = await provedor.requestReindex('doc_mapa_pdf');
-
-    expect(recibo.simulado).toBe(true);
-    expect(recibo.statusAtual).toBe('na_fila');
-    expect(recibo.mensagem).toMatch(/nada foi indexado/i);
-
-    const documento = await provedor.get('documents', 'doc_mapa_pdf');
-    expect(documento.statusIndexacao).toBe('na_fila');
-  });
-
-  it('monta o resumo do painel com métricas e pendências', async () => {
-    const provedor = criar();
-    const resumo = await provedor.getDashboard();
-
-    const chaves = resumo.metricas.map((m) => m.chave);
-    expect(chaves).toEqual(
-      expect.arrayContaining([
-        'sessoes',
-        'palestrantes',
-        'espacos',
-        'estandes',
-        'ofertas',
-        'documentos_publicados',
-        'documentos_aguardando',
-        'perguntas',
-        'conversas_24h',
-        'dados_incompletos',
-      ]),
-    );
-
-    const categorias = resumo.pendencias.map((p) => p.categoria);
-    expect(categorias).toEqual([
-      'sessoes_sem_espaco',
-      'sessoes_sem_palestrante',
-      'espacos_sem_localizacao',
-      'palcos_sem_alias',
-      'ofertas_sem_checkout',
-      'documentos_sem_indexacao',
-      'conteudo_em_rascunho',
-    ]);
-
-    /* A divergência de local do evento é alerta, não decisão. */
-    expect(resumo.alertas.some((a) => a.id === 'alerta_local_evento')).toBe(true);
-  });
-
   it('injeta falha por recurso para exercitar a tela de erro', async () => {
     const provedor = criar();
-    provedor.configurarFalha('offers', 'rede');
-    await expect(provedor.list('offers')).rejects.toBeInstanceOf(AdminApiError);
+    provedor.configurarFalha('products', 'rede');
+    await expect(provedor.list('products')).rejects.toBeInstanceOf(AdminApiError);
 
     provedor.limparFalhas();
-    await expect(provedor.list('offers')).resolves.toBeTruthy();
+    await expect(provedor.list('products')).resolves.toBeTruthy();
   });
 
   it('cada instância trabalha em um banco próprio', async () => {
     const a = criar();
     const b = criar();
-    const { itens } = await a.list('spaces');
 
-    await a.update('spaces', itens[0].id, { nome: 'Renomeado em A' });
+    await a.update('products', 'prd_dash', { nome: 'Renomeado em A' });
 
-    const emB = await b.get('spaces', itens[0].id);
+    const emB = await b.get('products', 'prd_dash');
     expect(emB.nome).not.toBe('Renomeado em A');
   });
 });
 
 describe('HttpAdminDataProvider', () => {
-  it('recusa ser criado sem VITE_ADMIN_API_BASE_URL — não inventa endereço', () => {
+  it('recusa ser criado sem endereço — não inventa um', () => {
     expect(() => new HttpAdminDataProvider({ baseUrl: '' })).toThrow(AdminApiError);
   });
 
   it('monta os caminhos combinados com o backend', async () => {
     const chamadas: { url: string; init?: RequestInit }[] = [];
     /* Corpo válido conforme o contrato: envelope na listagem, registro
-       nas demais. Resposta fora do formato agora é erro — é o que o
-       teste de contrato em `api-real.test.tsx` verifica. */
+       nas demais. Resposta fora do formato é erro — é o que o teste de
+       contrato em `api-real.test.tsx` verifica. */
     const envelope = { itens: [], total: 0, pagina: 1, porPagina: 0 };
-    const registro = {
-      id: 'ses_1',
-      titulo: 'Sessão',
-      dia: '2026-09-16',
-      inicio: '09:00',
-      tipo: 'palestra',
-      status: 'publicado',
-      atualizadoEm: '2026-08-12T09:00:00.000Z',
-    };
     const fetchFalso = (async (url: string | URL, init?: RequestInit) => {
       chamadas.push({ url: String(url), init });
       const caminho = new URL(String(url)).pathname;
@@ -202,7 +140,7 @@ describe('HttpAdminDataProvider', () => {
          é criação e devolve um registro. */
       const metodo = (init?.method ?? 'GET').toUpperCase();
       const eListagem = metodo === 'GET' && /\/admin\/[a-z]+$/.test(caminho);
-      return new Response(JSON.stringify(eListagem ? envelope : registro), {
+      return new Response(JSON.stringify(eListagem ? envelope : PRODUTO), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
@@ -213,24 +151,20 @@ describe('HttpAdminDataProvider', () => {
       fetchImpl: fetchFalso,
     });
 
-    await provedor.list('sessions', { dia: '2026-09-16' });
-    await provedor.get('sessions', 'ses_1');
-    await provedor.create('sessions', { titulo: 'Nova' });
-    await provedor.update('sessions', 'ses_1', { titulo: 'Outra' });
-    await provedor.publish('sessions', 'ses_1');
-    await provedor.archive('sessions', 'ses_1');
-    await provedor.requestReindex('doc_1');
-    await provedor.getDashboard();
+    await provedor.list('products', { vertical: 'institute' });
+    await provedor.get('products', 'prd_1');
+    await provedor.create('products', { nome: 'Novo' });
+    await provedor.update('products', 'prd_1', { nome: 'Outro' });
+    await provedor.publish('products', 'prd_1');
+    await provedor.archive('products', 'prd_1');
 
     expect(chamadas.map((c) => `${c.init?.method ?? 'GET'} ${c.url}`)).toEqual([
-      'GET https://exemplo.invalido/api/admin/sessions?dia=2026-09-16',
-      'GET https://exemplo.invalido/api/admin/sessions/ses_1',
-      'POST https://exemplo.invalido/api/admin/sessions',
-      'PATCH https://exemplo.invalido/api/admin/sessions/ses_1',
-      'POST https://exemplo.invalido/api/admin/sessions/ses_1/publish',
-      'POST https://exemplo.invalido/api/admin/sessions/ses_1/archive',
-      'POST https://exemplo.invalido/api/admin/documents/doc_1/reindex',
-      'GET https://exemplo.invalido/api/admin/dashboard',
+      'GET https://exemplo.invalido/api/admin/products?vertical=institute',
+      'GET https://exemplo.invalido/api/admin/products/prd_1',
+      'POST https://exemplo.invalido/api/admin/products',
+      'PATCH https://exemplo.invalido/api/admin/products/prd_1',
+      'POST https://exemplo.invalido/api/admin/products/prd_1/publish',
+      'POST https://exemplo.invalido/api/admin/products/prd_1/archive',
     ]);
   });
 
@@ -246,7 +180,7 @@ describe('HttpAdminDataProvider', () => {
       fetchImpl: fetchFalso,
     });
 
-    await expect(provedor.update('sessions', 'x', {})).rejects.toSatisfy(
+    await expect(provedor.update('products', 'x', {})).rejects.toSatisfy(
       (erro: unknown) => ehErroAdmin(erro) && erro.codigo === 'conflito',
     );
   });
@@ -255,7 +189,10 @@ describe('HttpAdminDataProvider', () => {
     const chamadas: { url: string; init?: RequestInit }[] = [];
     const fetchFalso = (async (url: string | URL, init?: RequestInit) => {
       chamadas.push({ url: String(url), init });
-      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ itens: [], total: 0, pagina: 1, porPagina: 0 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     }) as unknown as typeof fetch;
 
     const provedor = new HttpAdminDataProvider({
@@ -264,7 +201,7 @@ describe('HttpAdminDataProvider', () => {
       obterToken: async () => 'token-de-teste',
     });
 
-    await provedor.getDashboard();
+    await provedor.list('products');
 
     const cabecalhos = chamadas[0].init?.headers as Record<string, string>;
     expect(cabecalhos.Authorization).toBe('Bearer token-de-teste');

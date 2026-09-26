@@ -9,11 +9,11 @@ export function PaginaNaoEncontrada() {
       <div className="space-y-1">
         <h1 className="text-xl font-black">Esta página não existe no painel</h1>
         <p className="text-sm text-muted-foreground">
-          Confira o endereço ou volte para a visão geral.
+          Confira o endereço ou volte para o início.
         </p>
       </div>
       <Button asChild>
-        <Link to="/">Ir para a visão geral</Link>
+        <Link to="/">Ir para o início</Link>
       </Button>
     </div>
   );

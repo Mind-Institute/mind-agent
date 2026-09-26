@@ -14,8 +14,6 @@ import type {
   MapaRecursos,
   NomeRecurso,
   OpcoesEscrita,
-  ReciboReindexacao,
-  ResumoPainel,
 } from '@/contracts';
 
 export interface AdminDataProvider {
@@ -62,11 +60,6 @@ export interface AdminDataProvider {
     id: string,
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]>;
-
-  /** Enfileira o documento para reindexação. Não indexa aqui. */
-  requestReindex(documentId: string): Promise<ReciboReindexacao>;
-
-  getDashboard(): Promise<ResumoPainel>;
 }
 
 /** Quem escreve fica no registro e na auditoria. */
