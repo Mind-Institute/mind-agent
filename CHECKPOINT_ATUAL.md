@@ -200,8 +200,11 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   aceito entra no carrinho buscando o preço em `api.ofertas` pelo código — tirá-lo de lá quebraria isso. Então
   `03-bump-fora-da-lista.sql` (só com o OK dela) entrega o bump sem programa: ele sai das listas por programa (a
   "Avulsas" deixa de mostrar R$ 1.497) e o checkout segue igual. Ensaio D (virada + 03 + volta, reais, desfeitos):
-  `ENSAIO_D_OK`, 250 ms, sem rastro. **Falta:** as 2 respostas dela ("vale até" nos textos e FAQ da condição; a
-  pergunta b) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
+  `ENSAIO_D_OK`, 250 ms, sem rastro. **Pergunta (a) pronta também:** `04-condicao-sai-sozinha.sql` (só com o OK
+  dela) desliga os 4 textos e as 4 perguntas do FAQ quando a última das 5 condições termina (agendamento de minuto
+  em minuto das 02h00 às 03h59 UTC de 01/10, que se apaga sozinho; se ela prorrogar no painel, eles ficam). Ensaio
+  E: `ENSAIO_E_OK`, sem rastro. **Falta:** o OK dela para (a) e (b), o texto novo das 3 perguntas que continuam
+  (opcional) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
   `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
   vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
 - **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
