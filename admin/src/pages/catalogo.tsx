@@ -338,6 +338,7 @@ export function PaginaCatalogo() {
     {
       chave: 'produto',
       cabecalho: 'Produto',
+      ordenarPor: 'nome',
       celula: (p) => (
         <div className="min-w-56">
           <p className="font-semibold">{p.nome}</p>
@@ -348,6 +349,7 @@ export function PaginaCatalogo() {
     {
       chave: 'vertical',
       cabecalho: 'Vertical',
+      ordenarPor: 'vertical',
       celula: (p) =>
         p.vertical ? (
           <SeloCategoria rotulo={rotuloVerticalProduto(p.vertical)} />
@@ -358,24 +360,30 @@ export function PaginaCatalogo() {
     {
       chave: 'tipo',
       cabecalho: 'Tipo',
+      ordenarPor: 'tipo',
       celula: (p) => <SeloCategoria rotulo={rotuloTipoProduto(p.tipo)} variante="secondary" />,
     },
-    { chave: 'ativo', cabecalho: 'Situação', celula: (p) => <SeloAtivo ativo={p.ativo} /> },
+    { chave: 'ativo', cabecalho: 'Situação', ordenarPor: 'ativo', celula: (p) => <SeloAtivo ativo={p.ativo} /> },
     {
       chave: 'vende',
       cabecalho: 'Venda',
+      ordenarPor: 'vende',
       celula: (p) =>
         p.vende ? <Badge variant="sucesso">à venda</Badge> : <Badge variant="neutro">não vende</Badge>,
     },
     {
       chave: 'janela',
       cabecalho: 'Janela de venda',
+      /* Pela data em que sai de venda: é a que quase todo produto com
+         janela tem preenchida. */
+      ordenarPor: 'vendeAte',
       className: 'whitespace-nowrap tabular',
       celula: (p) => <JanelaDeVenda p={p} />,
     },
     {
       chave: 'acontece',
       cabecalho: 'Acontece',
+      ordenarPor: 'comecaEm',
       className: 'whitespace-nowrap tabular',
       celula: (p) =>
         p.comecaEm || p.encerraEm ? (

@@ -15,7 +15,7 @@ import { HttpAdminDataProvider } from '@/services/http-admin-data-provider';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 import { enderecoDoCatalogo } from '@/services/provider-context';
 import { produtosSemente } from '@/mocks/seed/catalogo';
-import { CHAVE_FALSA, contarLinhas, criarFetchFalso, lista, renderizarPainel } from './utils';
+import { CHAVE_FALSA, contarLinhas, criarFetchFalso, lista, renderizarHibrido, renderizarPainel } from './utils';
 
 /* O produto como a `mindagent-catalogo` devolve. */
 const DO_BANCO: ProdutoCatalogo = {
@@ -282,5 +282,82 @@ describe('catálogo — a tela', () => {
     const rodape = screen.getByRole('button', { name: /^Salvar$/ });
     expect(rodape).toBeDisabled();
     expect(within(screen.getByRole('dialog')).getByText('mind-dash')).toBeVisible();
+  });
+});
+
+/* Pedido da Adriana (26/09/2026): ordenar os produtos por qualquer coluna,
+   em ordem crescente e decrescente. */
+describe('catálogo — ordenar pelas colunas', () => {
+  function nomesNaTela(container: HTMLElement) {
+    return [...container.querySelectorAll('tbody tr')].map((tr) => tr.querySelector('td p')?.textContent);
+  }
+  const cabecalho = (nome: RegExp) => screen.getByRole('columnheader', { name: nome });
+
+  it('um clique ordena crescente, o segundo decrescente, o terceiro volta à ordem padrão', async () => {
+    const usuario = userEvent.setup();
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    const padrao = nomesNaTela(container);
+    const crescente = [
+      'Certificação Avançada em Liderança Positiva', 'Mind', 'Mind Dash', 'Mind Journey',
+      'Mind Summit 2025', 'Mind Summit 2026',
+    ];
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'none');
+
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(nomesNaTela(container)).toEqual(crescente));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'ascending');
+
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(nomesNaTela(container)).toEqual([...crescente].reverse()));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'descending');
+
+    await usuario.click(within(cabecalho(/Produto/)).getByRole('button'));
+    await waitFor(() => expect(nomesNaTela(container)).toEqual(padrao));
+    expect(cabecalho(/Produto/)).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('toda coluna do catálogo ordena', async () => {
+    const { container } = renderizarPainel({ rota: '/catalogo' });
+    await waitFor(() => expect(contarLinhas(container)).toBe(produtosSemente.length));
+    for (const coluna of ['Produto', 'Vertical', 'Tipo', 'Situação', 'Venda', 'Janela de venda', 'Acontece']) {
+      expect(within(cabecalho(new RegExp(`^${coluna}`))).getByRole('button'), coluna).toBeVisible();
+    }
+  });
+
+  it('a ordem vai para a função do catálogo e volta à página 1', async () => {
+    const usuario = userEvent.setup();
+    const { falso } = renderizarHibrido({
+      rota: '/catalogo?pagina=2',
+      rotas: { '/admin/products': { corpo: lista([DO_BANCO], { total: 120, pagina: 2, porPagina: 50 }) } },
+    });
+    await screen.findByText('Mind Summit 2026');
+    const pedido = () => new URL(falso.ultima('/admin/products')!.url).searchParams;
+    expect(pedido().get('pagina')).toBe('2');
+
+    await usuario.click(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await waitFor(() => expect(pedido().get('ordenar')).toBe('comecaEm'));
+    expect(pedido().get('pagina')).toBe('1');
+
+    await usuario.click(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await waitFor(() => expect(pedido().get('ordenar')).toBe('-comecaEm'));
+
+    await usuario.click(within(cabecalho(/^Acontece/)).getByRole('button'));
+    await waitFor(() => expect(pedido().has('ordenar')).toBe(false));
+  });
+
+  it('trocar um filtro também volta à página 1', async () => {
+    const usuario = userEvent.setup();
+    const { falso } = renderizarHibrido({
+      rota: '/catalogo?pagina=2',
+      rotas: { '/admin/products': { corpo: lista([DO_BANCO], { total: 120, pagina: 2, porPagina: 50 }) } },
+    });
+    await screen.findByText('Mind Summit 2026');
+    const pedido = () => new URL(falso.ultima('/admin/products')!.url).searchParams;
+
+    await usuario.click(screen.getByRole('combobox', { name: 'Situação' }));
+    await usuario.click(await screen.findByRole('option', { name: 'Ativos' }));
+    await waitFor(() => expect(pedido().get('ativo')).toBe('true'));
+    expect(pedido().get('pagina')).toBe('1');
   });
 });

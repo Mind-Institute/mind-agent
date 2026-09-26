@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, FlaskConical, SatelliteDish } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  FlaskConical,
+  SatelliteDish,
+} from 'lucide-react';
 import type { ListFilters, MapaRecursos, NomeRecurso } from '@/contracts';
 import { useLista } from '@/hooks/use-recurso';
 import { useFiltrosUrl } from '@/hooks/use-filtros-url';
@@ -21,6 +29,55 @@ export interface Coluna<T> {
   cabecalho: string;
   celula: (item: T) => ReactNode;
   className?: string;
+  /** Campo do registro por onde a coluna ordena. Ausente, o cabeçalho não ordena. */
+  ordenarPor?: string;
+}
+
+/** A ordem pedida na URL: `nome` é crescente, `-nome` decrescente. */
+function lerOrdem(valor: string | undefined): { campo: string; desc: boolean } | null {
+  if (!valor) return null;
+  const desc = valor.startsWith('-');
+  const campo = desc ? valor.slice(1) : valor;
+  return campo ? { campo, desc } : null;
+}
+
+/**
+ * Cabeçalho que ordena. Um clique ordena crescente, o segundo
+ * decrescente, o terceiro volta à ordem do banco.
+ */
+function CabecalhoOrdenavel({
+  rotulo,
+  campo,
+  ordem,
+  aoOrdenar,
+}: {
+  rotulo: string;
+  campo: string;
+  ordem: { campo: string; desc: boolean } | null;
+  aoOrdenar: (proxima: string | null) => void;
+}) {
+  const ativa = ordem?.campo === campo ? ordem : null;
+  const Icone = !ativa ? ArrowUpDown : ativa.desc ? ArrowDown : ArrowUp;
+  const proxima = !ativa ? campo : !ativa.desc ? `-${campo}` : null;
+  const dica = !ativa
+    ? `Ordenar por ${rotulo}, crescente`
+    : !ativa.desc
+      ? `Ordenar por ${rotulo}, decrescente`
+      : 'Voltar à ordem padrão';
+  return (
+    <button
+      type="button"
+      onClick={() => aoOrdenar(proxima)}
+      title={dica}
+      className={cn(
+        '-mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted hover:text-foreground',
+        ativa && 'text-foreground',
+      )}
+    >
+      {rotulo}
+      <Icone className={cn('size-3.5 shrink-0', !ativa && 'opacity-40')} aria-hidden />
+    </button>
+  );
 }
 
 /** Quantos registros por página. A API já devolve `total` e `pagina`. */
@@ -84,10 +141,15 @@ export function PaginaListagem<K extends NomeRecurso>({
   const navegar = useNavigate();
   const sessao = useSessao();
   const origem = useOrigemRecurso(recurso);
-  const { filtros, paraProvedor, definir, limpar } = useFiltrosUrl();
+  const { filtros, paraProvedor, definir, definirVarios, limpar } = useFiltrosUrl();
   const [busca, setBusca] = useState(filtros.busca ?? '');
 
   const pagina = Math.max(1, Number(filtros.pagina ?? 1) || 1);
+
+  /* A ordem escolhida no cabeçalho mora na URL, como os filtros; sem ela,
+     vale a da página (ou a do banco). */
+  const ordemPedida = filtros.ordenar || ordenar;
+  const ordem = lerOrdem(ordemPedida);
 
   /* Busca nova recomeça na primeira página: continuar na página 3 de um
      recorte que agora tem 4 registros mostraria vazio.
@@ -106,11 +168,11 @@ export function PaginaListagem<K extends NomeRecurso>({
       ...filtrosFixos,
       ...paraProvedor,
       busca: busca || undefined,
-      ordenar,
+      ordenar: ordemPedida || undefined,
       pagina,
       porPagina: POR_PAGINA,
     }),
-    [filtrosFixos, paraProvedor, busca, ordenar, pagina],
+    [filtrosFixos, paraProvedor, busca, ordemPedida, pagina],
   );
 
   const podeVer = sessao.pode(permissaoNecessaria);
@@ -150,10 +212,7 @@ export function PaginaListagem<K extends NomeRecurso>({
             aoBuscar={setBusca}
             filtros={definicoesFiltro}
             valores={filtros}
-            aoFiltrar={(chave, valor) => {
-              definir('pagina', null);
-              definir(chave, valor);
-            }}
+            aoFiltrar={(chave, valor) => definirVarios({ pagina: null, [chave]: valor })}
             aoLimpar={() => {
               setBusca('');
               limpar();
@@ -180,8 +239,29 @@ export function PaginaListagem<K extends NomeRecurso>({
                 <TableHeader>
                   <TableRow>
                     {colunas.map((coluna) => (
-                      <TableHead key={coluna.chave} className={coluna.className}>
-                        {coluna.cabecalho}
+                      <TableHead
+                        key={coluna.chave}
+                        className={coluna.className}
+                        aria-sort={
+                          !coluna.ordenarPor
+                            ? undefined
+                            : ordem?.campo !== coluna.ordenarPor
+                              ? 'none'
+                              : ordem.desc
+                                ? 'descending'
+                                : 'ascending'
+                        }
+                      >
+                        {coluna.ordenarPor ? (
+                          <CabecalhoOrdenavel
+                            rotulo={coluna.cabecalho}
+                            campo={coluna.ordenarPor}
+                            ordem={ordem}
+                            aoOrdenar={(proxima) => definirVarios({ ordenar: proxima, pagina: null })}
+                          />
+                        ) : (
+                          coluna.cabecalho
+                        )}
                       </TableHead>
                     ))}
                   </TableRow>

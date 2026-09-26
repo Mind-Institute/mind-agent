@@ -133,6 +133,15 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `mind_admin_mutate_catalogo` → `catalogo.produtos` + auditoria). Painel 146/146, raiz 433/433, build
   verde. **Aberto para ela:** marcar equipe no Mind ID ainda não está no painel; aposentar a conta antiga
   de senha (aparece como *sem Mind ID*); um ou dois workers.
+- **Catálogo ordena por qualquer coluna (26/09, pedido dela).** *"quero poder ordenar os produtos de
+  acordo com as colunas em ordem crescente e decrescente"*. Cabeçalho clicável (crescente → decrescente →
+  ordem do banco), ordem na URL, feita pela `mindagent-catalogo` (`1.1.0`, v4 viva = repo) na lista
+  inteira antes de paginar. De carona, conserto: trocar filtro não voltava à página 1 (duas navegações
+  seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
+  (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
+  dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
+- **Descoberta lateral (26/09):** `public.mind_conteudo` lê `summit.conhecimento`, que não existe mais, e
+  ninguém a chama — código morto no banco; registrado, sem ação.
 - **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
   o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
   toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
