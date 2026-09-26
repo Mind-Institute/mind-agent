@@ -8,8 +8,9 @@
 
    Pedido da Adriana (26/09/2026): preço, oferta, order bump e cupom moram
    no schema `catalogo`, e o painel é o controle dele. Desde a `1.3.0` a
-   função serve `offers` e `coupons` — por enquanto só leitura; a edição é
-   o Passo 4 de docs/PLANO_OFERTAS_PASSO_A_PASSO.md. */
+   função serve `offers` e `coupons`; desde a `1.4.0` as ofertas também se
+   criam, editam, põem no ar e tiram do ar (Passo 4 de
+   docs/PLANO_OFERTAS_PASSO_A_PASSO.md). Os cupons seguem só leitura. */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -76,8 +77,12 @@ const CUPONS = [
 
 let portasChamadas = [];
 
-function cenario(papel = 'analista') {
+/* A resposta da porta de escrita; cada teste diz o que o banco devolve. */
+let respostaEscrita = { data: null, error: null };
+
+function cenario(papel = 'analista', escrita = { data: { id: OFERTAS[0].id, codigo: 'balcao-a' }, error: null }) {
   portasChamadas = [];
+  respostaEscrita = escrita;
   globalThis.__MIND_EDGE_TESTE__ = {
     getUser: async () => ({ data: { user: { id: 'ator' } }, error: null }),
     from: () => ({ select: () => ({ eq: () => ({
@@ -85,6 +90,7 @@ function cenario(papel = 'analista') {
     }) }) }),
     rpc: async (nome, args) => {
       portasChamadas.push({ nome, args });
+      if (nome === 'mind_admin_mutate_ofertas') return structuredClone(respostaEscrita);
       if (nome === 'mind_admin_read_ofertas') {
         const lista = structuredClone(OFERTAS);
         return { data: args.p_id ? lista.filter((o) => o.id === args.p_id) : lista, error: null };
@@ -154,22 +160,154 @@ test('ofertas: uma oferta, e id que não é UUID não chega ao banco', async () 
   assert.equal(portasChamadas.length, 0);
 });
 
-test('ofertas e cupons: escrever é recusado, só leitura por enquanto', async () => {
+test('cupons: escrever é recusado, só leitura por enquanto', async () => {
   for (const [metodo, caminho] of [
-    ['PATCH', `/admin/offers/${OFERTAS[0].id}`],
-    ['POST', '/admin/offers'],
     ['PATCH', `/admin/coupons/${CUPONS[0].id}`],
+    ['POST', '/admin/coupons'],
+    ['POST', `/admin/coupons/${CUPONS[0].id}/publish`],
   ]) {
     cenario('administrador');
     const r = await pedir(caminho, {
       method: metodo,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome: 'x' }),
+      body: JSON.stringify({ descricao: 'x' }),
     });
     assert.equal(r.status, 405, `${metodo} ${caminho}`);
     assert.match((await r.json()).mensagem, /só leitura/);
     assert.equal(portasChamadas.length, 0);
   }
+});
+
+const ID = OFERTAS[0].id;
+const VERSAO = '2026-09-26T21:00:00.123456+00:00';
+
+async function escrever(metodo, caminho, corpo, cabecalhos = {}) {
+  return pedir(caminho, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json', ...cabecalhos },
+    body: corpo === undefined ? undefined : JSON.stringify(corpo),
+  });
+}
+
+test('ofertas: criar é POST sem id, vai para a porta de escrita e volta 201', async () => {
+  cenario('editor');
+  const corpo = { codigo: 'nova', nome: 'Nova', tipo: 'periodo', precos: [{ produtoCodigo: 'formacao-a', codigo: 'nova', valor: 10 }] };
+  const r = await escrever('POST', '/admin/offers', corpo);
+  assert.equal(r.status, 201);
+  assert.equal((await r.json()).codigo, 'balcao-a');
+  assert.equal(portasChamadas.length, 1);
+  const { nome, args } = portasChamadas[0];
+  assert.equal(nome, 'mind_admin_mutate_ofertas');
+  assert.equal(args.p_action, 'criar');
+  assert.equal(args.p_id, null);
+  assert.deepEqual(args.p_payload, corpo);
+  assert.equal(args.p_expected_updated_at, null);
+  assert.equal(args.p_actor_id, 'ator');
+});
+
+test('ofertas: editar é PATCH com a versão, que não vai junto com os campos', async () => {
+  cenario('aprovador');
+  const r = await escrever('PATCH', `/admin/offers/${ID}`, { nome: 'Outro nome', atualizadoEmEsperado: 'ignorada' },
+    { 'If-Unmodified-Since-Version': VERSAO });
+  assert.equal(r.status, 200);
+  const { args } = portasChamadas[0];
+  assert.equal(args.p_action, 'atualizar');
+  assert.equal(args.p_id, ID);
+  assert.deepEqual(args.p_payload, { nome: 'Outro nome' });
+  assert.equal(args.p_expected_updated_at, VERSAO);
+
+  /* Sem o cabeçalho, a versão vem do corpo. */
+  cenario('administrador');
+  await escrever('PATCH', `/admin/offers/${ID}`, { nome: 'X', atualizadoEmEsperado: VERSAO });
+  assert.equal(portasChamadas[0].args.p_expected_updated_at, VERSAO);
+  assert.deepEqual(portasChamadas[0].args.p_payload, { nome: 'X' });
+});
+
+test('ofertas: pôr no ar e tirar do ar são POST em /publish e /archive, só com a versão', async () => {
+  for (const [sufixo, acao] of [['publish', 'publicar'], ['archive', 'arquivar']]) {
+    cenario('editor');
+    const r = await escrever('POST', `/admin/offers/${ID}/${sufixo}`, { atualizadoEmEsperado: VERSAO, ativo: true });
+    assert.equal(r.status, 200, sufixo);
+    const { args } = portasChamadas[0];
+    assert.equal(args.p_action, acao);
+    assert.equal(args.p_id, ID);
+    assert.deepEqual(args.p_payload, {});
+    assert.equal(args.p_expected_updated_at, VERSAO);
+  }
+  /* Sem corpo também vale: a versão vem do cabeçalho. */
+  cenario('editor');
+  const r = await escrever('POST', `/admin/offers/${ID}/publish`, undefined, { 'If-Unmodified-Since-Version': VERSAO });
+  assert.equal(r.status, 200);
+  assert.equal(portasChamadas[0].args.p_expected_updated_at, VERSAO);
+});
+
+test('ofertas: a recusa do banco chega na frase certa', async () => {
+  const casos = [
+    [{ message: 'admin_validation:sem_leitor', code: '22023' }, 422, /o Institute passa a ler na virada/],
+    [{ message: 'admin_validation:parcela_nao_fecha', code: '22023' }, 422, /não fecham com o preço à vista/],
+    [{ message: 'admin_validation:codigo_nao_editavel', code: '22023' }, 422, /já esteve no ar/],
+    [{ message: 'admin_validation:constructor', code: '22023' }, 422, /^Revise os campos enviados\.$/],
+    [{ message: 'admin_conflict', code: '40001' }, 409, /^A oferta foi alterada por outra pessoa/],
+    [{ message: 'admin_not_found', code: 'P0002' }, 404, /^Oferta não encontrada\.$/],
+    [{ message: 'admin_forbidden', code: '42501' }, 403, /permissão/],
+  ];
+  for (const [erro, status, frase] of casos) {
+    cenario('administrador', { data: null, error: erro });
+    const r = await escrever('POST', `/admin/offers/${ID}/publish`, { atualizadoEmEsperado: VERSAO });
+    assert.equal(r.status, status, erro.message);
+    assert.match((await r.json()).mensagem, frase, erro.message);
+  }
+});
+
+test('ofertas: papel só de leitura não escreve, e nada chega ao banco', async () => {
+  for (const papel of ['analista', 'atendimento']) {
+    cenario(papel);
+    const r = await escrever('PATCH', `/admin/offers/${ID}`, { nome: 'X' }, { 'If-Unmodified-Since-Version': VERSAO });
+    assert.equal(r.status, 403, papel);
+    assert.equal(portasChamadas.length, 0, papel);
+  }
+});
+
+test('ofertas: o que não é criar, editar, pôr no ar ou tirar do ar não existe', async () => {
+  const casos = [
+    ['DELETE', `/admin/offers/${ID}`, 405],
+    ['PUT', `/admin/offers/${ID}`, 405],
+    ['POST', `/admin/offers/${ID}`, 405],
+    ['PATCH', `/admin/offers/${ID}/publish`, 405],
+    ['POST', `/admin/offers/${ID}/apagar`, 404],
+    ['POST', `/admin/offers/${ID}/publish/de-novo`, 404],
+    ['GET', `/admin/offers/${ID}/publish`, 404],
+    ['POST', '/admin/offers/lote-1/publish', 404],
+  ];
+  for (const [metodo, caminho, status] of casos) {
+    cenario('administrador');
+    const r = await escrever(metodo, caminho, metodo === 'GET' ? undefined : { atualizadoEmEsperado: VERSAO });
+    assert.equal(r.status, status, `${metodo} ${caminho}`);
+    assert.equal(portasChamadas.length, 0, `${metodo} ${caminho}`);
+  }
+});
+
+test('ofertas: criar e editar exigem corpo JSON', async () => {
+  cenario('administrador');
+  const r = await pedir('/admin/offers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[1,2]' });
+  assert.equal(r.status, 422);
+  assert.equal((await r.json()).mensagem, 'Corpo JSON inválido.');
+  assert.equal(portasChamadas.length, 0);
+});
+
+test('produto: criar continua não existindo', async () => {
+  cenario('administrador');
+  const r = await escrever('POST', '/admin/products', { codigo: 'x' });
+  assert.equal(r.status, 405);
+  assert.match((await r.json()).mensagem, /criar e arquivar produto ainda não existem/);
+  assert.equal(portasChamadas.length, 0);
+});
+
+test('o navegador pode mandar POST (preflight)', async () => {
+  const h = await carregar();
+  const r = await h(new Request(`${BASE}/admin/offers`, { method: 'OPTIONS', headers: { Origin: ORIGEM } }));
+  assert.equal(r.status, 204);
+  assert.match(r.headers.get('Access-Control-Allow-Methods'), /POST/);
 });
 
 test('cupons: a lista vem da porta de cupons, com filtro e ordem', async () => {
@@ -192,8 +330,8 @@ test('recurso que não existe é rota não encontrada', async () => {
   }
 });
 
-test('health diz a versão 1.3.0', async () => {
+test('health diz a versão 1.4.0', async () => {
   const r = await pedir('/health');
   assert.equal(r.status, 200);
-  assert.equal((await r.json()).version, '1.3.0');
+  assert.equal((await r.json()).version, '1.4.0');
 });
