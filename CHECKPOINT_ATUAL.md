@@ -156,8 +156,14 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   (`datasDaTurma`) e `mind_admin_mutate_catalogo` recusa editá-las (`datas_da_turma`); ledger
   `20260926153820`, mesmo md5; contrato `CATALOGO_OK` com os casos novos, sem rastro; `mindagent-catalogo`
   1.2.0 (v5) com a frase. As colunas do catálogo NÃO foram sobrescritas: **aberto para ela** dizer quais
-  datas estão certas (4 turmas estão "a definir" na turma e com data no catálogo) — depois disso, alinhar
-  os dados e ligar a cópia à turma (gatilho).
+  datas estão certas — depois disso, alinhar os dados e ligar a cópia à turma (gatilho).
+  **Correção no mesmo dia (ledger `20260926163932`, mesmo md5):** a leitura pegava a coluna crua da turma,
+  vazia em 4 das 6 — o painel mostrava as datas em branco. Os dois sites e o kit do agente
+  (`mind_kit_institute_catalogo`) leem `api.programas`, que, com a coluna vazia, usa o primeiro e o último
+  encontro (da turma ou da composição); `api.criar_pedido` não lê datas (a frase acima sobre checkout,
+  ofertas, cupons etc. lerem `inicia_em` estava errada). Agora o painel calcula igual; o contrato
+  `CATALOGO_OK` confere produto a produto contra `api.programas` (falhou no código antigo, passa no novo,
+  sem rastro). Hoje a cópia do catálogo bate com o site em 1 de 12 datas.
 - **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
   e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
   (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,

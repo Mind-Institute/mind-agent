@@ -341,10 +341,12 @@ Três regras seguram a edição:
   (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
   diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
 
-**No Institute, as datas são as da turma** (pedido da Adriana, 26/09/2026): o site,
-o checkout e os agentes leem as datas de `institute.programas`. Produto com turma
-mostra as datas dela, travadas, com a turma indicada; salvar nunca as manda, e o
-banco recusa (`datas_da_turma`) se alguém tentar por fora da tela.
+**No Institute, as datas são as da turma** (pedido da Adriana, 26/09/2026): os dois
+sites e o agente leem `api.programas`, que usa a data de `institute.programas` e,
+quando ela está vazia, o primeiro e o último encontro da turma. Produto com turma
+mostra essas mesmas datas, travadas, com a turma indicada; salvar nunca as manda, e
+o banco recusa (`datas_da_turma`) se alguém tentar por fora da tela. O contrato
+`CATALOGO_OK` confere, produto a produto, que o painel mostra as datas do site.
 
 **Ordenar pelas colunas** (pedido da Adriana, 26/09/2026): todo cabeçalho do
 Catálogo ordena. Um clique é crescente, o segundo decrescente, o terceiro volta à

@@ -303,8 +303,9 @@ function DrawerProduto({ id, aoFechar }: { id: string | undefined; aoFechar: () 
                   <Lock />
                   <AlertDescription>
                     Estas datas vêm da turma <code className="font-mono">{turma.programa}</code>, em{' '}
-                    <code className="font-mono">institute.programas</code> — é de lá que o site, o
-                    checkout e os agentes leem. Aqui elas só aparecem; mudam na turma.
+                    <code className="font-mono">institute.programas</code> (sem data na turma, o
+                    primeiro e o último encontro) — são as mesmas que os sites e o agente mostram.
+                    Aqui elas só aparecem; mudam na turma.
                     {turma.inicioPrevisto ? ' O início ainda é previsão.' : ''}
                   </AlertDescription>
                 </Alert>
