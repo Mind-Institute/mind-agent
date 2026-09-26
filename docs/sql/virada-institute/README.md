@@ -16,7 +16,8 @@ Rascunhos do Passo 5 de [`docs/PLANO_OFERTAS_PASSO_A_PASSO.md`](../../PLANO_OFER
    - `tests/virada_institute_contract.sql`, que termina em `VIRADA_OK`;
    - `tests/ofertas_edicao_contract.sql`, que termina em `OFERTAS_EDICAO_OK` e vale antes e depois da virada.
 4. Conferir pela porta real, fora da transação, que `api.ofertas` tem as mesmas linhas de antes.
-5. Registrar no checkpoint e avisar a lane #40, porque o agente do Institute lê essas portas.
+5. No mesmo PR, trocar o aviso da tela Ofertas do painel (`aviso-virada`, em `admin/src/pages/ofertas.tsx`) e o teste dele: ele diz que o site ainda lê a casa antiga.
+6. Registrar no checkpoint e avisar a lane #40, porque o agente do Institute lê essas portas.
 
 ## Ensaios no banco real (desfeitos no fim, sem rastro)
 
