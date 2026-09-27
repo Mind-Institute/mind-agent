@@ -1,6 +1,6 @@
 # Plano passo a passo: todas as ofertas no catalogo, editáveis no painel
 
-26/09/2026 · Status: em execução — Passos 2, 3 e 4 feitos em 26/09; Passo 5 (a virada) preparado e ensaiado em 26/09, sem nada aplicado — ver [`docs/sql/virada-institute/`](sql/virada-institute/README.md)
+26/09/2026 · Status: em execução — Passos 2, 3 e 4 feitos em 26/09; Passo 5 (a virada) preparado e ensaiado em 26 e 27/09, sem nada aplicado: roda quando a Adriana escrever "pode virar" — ver [`docs/sql/virada-institute/`](sql/virada-institute/README.md)
 
 ## Atualização de 26/09, noite: as respostas da Adriana
 

@@ -1,6 +1,8 @@
--- O ORDER BUMP SAI DAS LISTAS DE PREÇO POR PROGRAMA. É a pergunta (b) da virada: só roda com o OK da Adriana.
+-- O ORDER BUMP SAI DAS LISTAS DE PREÇO POR PROGRAMA. É a pergunta (b) da virada, aprovada pela Adriana em
+-- 27/09/2026 ("1 - sim").
 --
--- RASCUNHO, como os outros desta pasta. Depende da virada (01-virada.sql) e tem de rodar antes de 30/09 23h59.
+-- Roda logo depois da virada (virada_institute_le_o_catalogo), no mesmo sinal dela ("pode virar"), antes de
+-- 30/09 23h59, com apply_migration e o nome bump_fora_da_lista_de_precos.
 --
 -- O problema: depois de 30/09 23h59, sem condição valendo, a seção "Avulsas" da página da Certificação, nos dois
 -- sites, pega a oferta mais barata do programa. Na Liderança Consciente, essa é o bump de R$ 1.497 do checkout do
@@ -16,7 +18,7 @@
 -- Tirar o bump de api.ofertas de vez quebraria o checkout próprio: o carrinho procura ali o preço do bump aceito.
 --
 -- Conferido na mesma transação: api.ofertas igual a antes, fora o programa_codigo dos bumps, que fica vazio; as
--- outras duas portas e o bloco do agente iguais. A volta é a definição de api.ofertas de 01-virada.sql.
+-- outras duas portas e o bloco do agente iguais. A volta é a definição de api.ofertas da virada.
 
 do $$
 begin
@@ -41,7 +43,7 @@ create temp table bump_antes_bloco on commit drop as
 select set_config('bump.troca_inicio', clock_timestamp()::text, true);
 set local lock_timeout = '1s';
 
--- A definição de 01-virada.sql, com uma diferença: o programa_codigo do bump.
+-- A definição da virada, com uma diferença: o programa_codigo do bump.
 create or replace view api.ofertas with (security_invoker = false) as
 select io.codigo,
        case when io.eh_bump then null else io.programa_codigo end as programa_codigo,

@@ -178,7 +178,7 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
   `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
   e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
-- **Passo 5 — a virada do Institute preparada e ensaiada (26/09, noite; nada aplicado).** Rascunhos fora de
+- **Passo 5 — a virada do Institute preparada e ensaiada (26–27/09; nada aplicado; espera o "pode virar").** Fora de
   `supabase/migrations/` até o dia (`docs/sql/virada-institute/`): `01-virada.sql` carrega as 16 ofertas do
   Institute no `catalogo` (copiadas dentro do banco, com a linha original em `origem`; os 2 testes como histórico;
   o teste sem programa sem preço; os 8 bônus — o ingresso 2027 aponta para `mind-summit-2027-mind`, que não abre
@@ -207,8 +207,14 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   virada) e "2- sim" (textos e FAQ): **APLICADO** `20260927133341_condicao_summit_sai_sozinha` (ledger = arquivo, md5
   `102b3325…`): agendamento `condicao-summit-2026-sai` ativo (`* 2-3 1 10 *`, UTC), função fechada, os 4 textos e as
   4 perguntas seguem no ar até a condição acabar. Sem texto novo para as 3 perguntas: elas só saem. Sobre a data da
-  virada, ela respondeu "não, eu vou virar" — pedi para ela dizer se quer apertar ela mesma ou se eu faço quando ela
-  mandar. **Falta:** esse combinado e aplicar a virada (01) e o 03. **Descoberta lateral (não é desta frente):**
+  virada, ela escolheu (27/09) "Você dá o sinal, eu aplico": **nada roda antes de ela escrever "pode virar"**.
+  **Pacote do sinal pronto (27/09):** cabeçalhos aprovados em 01 e 03, com os nomes das migrations
+  (`virada_institute_le_o_catalogo` e `bump_fora_da_lista_de_precos`); o contrato da virada agora também confere o
+  bump sem programa na porta de preços; o aviso novo da tela Ofertas testado (tela Ofertas 25/25, build verde) e
+  guardado para o PR do sinal, porque diz que o site já lê o catálogo — o texto está no runbook. **Ensaio F** (01 +
+  03 + a Condição Summit + os 2 contratos, com as portas reais, numa transação que não podia gravar): `ENSAIO_F_OK`,
+  virada e bump em 162 ms, a condição continua saindo só depois da hora, sem rastro. Runbook do sinal:
+  `docs/sql/virada-institute/README.md`. **Falta:** o sinal dela, antes de 30/09 23h59. **Descoberta lateral (não é desta frente):**
   `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
   vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
 - **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo

@@ -17,7 +17,7 @@
 --
 -- Conferido na mesma transação, com o mesmo relógio: as portas entregam o que entregavam antes da volta
 -- (api.ofertas volta a mostrar também oferta ligada fora do prazo, como antes da virada: compara-se o que está
--- valendo; e o bump volta a ter programa, se 03-bump-fora-da-lista.sql tiver rodado), o bloco do agente fica igual,
+-- valendo; e o bump volta a ter programa, se bump_fora_da_lista_de_precos tiver rodado), o bloco do agente fica igual,
 -- e as funções só com o nome trocado de volta.
 
 -- ---------------------------------------------------------------------------------------------------
@@ -237,7 +237,7 @@ do $$
 declare
   v_ms numeric;
 begin
-  -- O programa do bump não entra na comparação: se 03-bump-fora-da-lista.sql rodou, ele vinha vazio na porta.
+  -- O programa do bump não entra na comparação: se bump_fora_da_lista_de_precos rodou, ele vinha vazio na porta.
   if exists ((select codigo, case when elegibilidade->>'tipo' = 'order_bump' then null else programa_codigo end,
                      produto_codigo, nome, descricao, moeda, valor, parcelas, valor_parcela, condicoes_pagamento,
                      meios_pagamento, valor_referencia, economia, checkout_url, inicia_em, encerra_em, vigente, bonus,
