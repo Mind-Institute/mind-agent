@@ -1135,9 +1135,13 @@ outros lugares. Programação e palestrantes do Summit 2026 foram completados no
 
 - `summit_2026.sessions.id` (uuid) é a chave de fato. FKs para ela: `summit_2026.session_speakers`,
   `credenciamento_summit_2026."Reservas_Agenda_APP"` (21.032/21.032 ligadas), `"Check Ins Summit"`
-  (9.718/9.718), `engagement.sessao_feedback`, `engagement.jornada_sessao`, `engagement.jornada_eventos`,
-  `intelligence.recomendacoes`. Nome legível e único: `site_session_id` (82/82). Id do app: `yazo_ids`
-  (81/82; as 4 masterclasses têm 2 — turma HNK × demais; `d2-1430-modo-ativar` não existe no app).
+  (9.718/9.718) e, desde 27/09, `summit_2026.knowledge_documents.sessao_id` (transcrição de cada palestra,
+  uma linha por palestra; palestrantes vêm pela sessão). Nome legível e único: `site_session_id` (81/81).
+  Id do app: `yazo_ids` (as 4 masterclasses têm 2 — turma HNK × demais).
+- 27/09 (Adriana): saíram as quatro tabelas vazias que também apontavam para a sessão —
+  `engagement.sessao_feedback`, `engagement.jornada_sessao`, `engagement.jornada_eventos`,
+  `intelligence.recomendacoes` — com as visões `concierge.v_funil_valor`, `v_sessoes_avaliadas`,
+  `v_aderencia_por_area` e o gatilho da jornada (migration `20260927191158`).
 - `engagement.pesquisa_summit_2026.notas_atividades` (origens `app_dia`/`app_evento`) já grava `sessao_id`:
   798 notas, todas apontando para sessão existente.
 - `public.mind_intelligence_ler(p_tipo, p_id, p_corte)` já lê `sessao` e `palestrante` por id, mas **não**
@@ -1153,3 +1157,21 @@ outros lugares. Programação e palestrantes do Summit 2026 foram completados no
    identificam a sessão só pelo texto. Antes de importar as respostas para `engagement`, montar a tabela de
    correspondência linha → `summit_2026.sessions.id` (ou `site_session_id`), senão a nota não se liga à
    sessão, aos palestrantes nem aos check-ins. A Adriana faz depois.
+
+## 23. Funções de LGPD e resumo do dia apontando para casas que não existem (27/09/2026)
+
+Descoberta lateral ao apagar as tabelas vazias da jornada (migration `20260927191158`). Não corrigido:
+mexer em LGPD é gate da Adriana.
+
+- `mind.esquecer_participante(uuid)` já falhava antes de 27/09 e continua falhando: começa com
+  `insert into participantes` e depois atualiza `nps_summit`, e nenhuma das duas existe no `search_path`
+  dela (schemas `summit`/`comum` saíram). Hoje ninguém consegue ser "esquecido" por essa função. Falta
+  decidir qual é a porta de esquecimento do D5 (anonimizar `pessoas.pessoas`? apagar?) e reescrever a
+  função sobre as casas atuais.
+- `concierge.resumo_do_dia(uuid, date)` lia `summit.sessions` (não existe); em 27/09 passou a ler
+  `summit_2026.sessions` porque o banco não aceita recriar a função apontando para tabela inexistente.
+  Ninguém chama a função (nem banco, nem cron, nem Edge, nem app).
+- O contrato `tests/d5_identidade_universal_contract.sql` usava `engagement.jornada_sessao` como exemplo de
+  PK composta na fusão; passou a usar `crm.pessoa_nps` (PK `mind_id, produto_codigo`). A fusão varre as FKs
+  para `pessoas.pessoas` em tempo de execução, então a cobertura é a mesma. O contrato não foi rodado
+  inteiro em 27/09.
