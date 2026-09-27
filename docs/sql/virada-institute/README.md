@@ -6,8 +6,8 @@ Rascunhos do Passo 5 de [`docs/PLANO_OFERTAS_PASSO_A_PASSO.md`](../../PLANO_OFER
 |---|---|
 | [`01-virada.sql`](01-virada.sql) | A virada, numa transação só. Carrega as 16 ofertas do Institute no catálogo, põe as 3 funções de pedido e as 3 portas do site para ler o catálogo e congela a casa antiga. Confere a paridade antes e depois. |
 | [`02-volta.sql`](02-volta.sql) | A volta, só para emergência. Primeiro copia para a casa antiga o que foi mudado no painel, depois devolve as portas e as funções. |
-| [`03-bump-fora-da-lista.sql`](03-bump-fora-da-lista.sql) | Só com o OK da Adriana (pergunta b), depois da virada e antes de 30/09 23h59. Em `api.ofertas`, o bump passa a vir sem programa: ele sai das listas de preço por programa (a "Avulsas" deixa de mostrar R$ 1.497 na Liderança Consciente) e continua funcionando no checkout próprio. |
-| [`04-condicao-sai-sozinha.sql`](04-condicao-sai-sozinha.sql) | Só com o OK da Adriana (pergunta a). Os 4 textos e as 4 perguntas do FAQ da Condição Summit saem sozinhos às 23h59 de 30/09, quando a última das 5 condições termina. Se ela prorrogar uma condição no painel, eles ficam. O agendamento se apaga sozinho. Não depende da virada. |
+| [`03-bump-fora-da-lista.sql`](03-bump-fora-da-lista.sql) | Aprovado pela Adriana em 27/09 ("1 - sim"): roda logo depois da virada, antes de 30/09 23h59. Em `api.ofertas`, o bump passa a vir sem programa: ele sai das listas de preço por programa (a "Avulsas" deixa de mostrar R$ 1.497 na Liderança Consciente) e continua funcionando no checkout próprio. |
+| ~~`04-condicao-sai-sozinha.sql`~~ **Aplicado em 27/09** (OK da Adriana, "2- sim"): [`supabase/migrations/20260927133341_condicao_summit_sai_sozinha.sql`](../../../supabase/migrations/20260927133341_condicao_summit_sai_sozinha.sql). Os 4 textos e as 4 perguntas do FAQ da Condição Summit saem sozinhos às 23h59 de 30/09, quando a última das 5 condições termina. Se ela prorrogar uma condição no painel, eles ficam. O agendamento se apaga sozinho. |
 | [`../../../tests/virada_institute_contract.sql`](../../../tests/virada_institute_contract.sql) | O contrato de depois da virada. Termina em `VIRADA_OK`. |
 
 ## No dia

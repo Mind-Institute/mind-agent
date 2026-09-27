@@ -203,8 +203,12 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   `ENSAIO_D_OK`, 250 ms, sem rastro. **Pergunta (a) pronta também:** `04-condicao-sai-sozinha.sql` (só com o OK
   dela) desliga os 4 textos e as 4 perguntas do FAQ quando a última das 5 condições termina (agendamento de minuto
   em minuto das 02h00 às 03h59 UTC de 01/10, que se apaga sozinho; se ela prorrogar no painel, eles ficam). Ensaio
-  E: `ENSAIO_E_OK`, sem rastro. **Falta:** o OK dela para (a) e (b), o texto novo das 3 perguntas que continuam
-  (opcional) e aplicar (plano: madrugada de 29/09). **Descoberta lateral (não é desta frente):**
+  E: `ENSAIO_E_OK`, sem rastro. **Respostas dela (27/09):** "1 - sim" (bump sem programa: 03 roda logo depois da
+  virada) e "2- sim" (textos e FAQ): **APLICADO** `20260927133341_condicao_summit_sai_sozinha` (ledger = arquivo, md5
+  `102b3325…`): agendamento `condicao-summit-2026-sai` ativo (`* 2-3 1 10 *`, UTC), função fechada, os 4 textos e as
+  4 perguntas seguem no ar até a condição acabar. Sem texto novo para as 3 perguntas: elas só saem. Sobre a data da
+  virada, ela respondeu "não, eu vou virar" — pedi para ela dizer se quer apertar ela mesma ou se eu faço quando ela
+  mandar. **Falta:** esse combinado e aplicar a virada (01) e o 03. **Descoberta lateral (não é desta frente):**
   `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
   vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
 - **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
