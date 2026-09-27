@@ -1,7 +1,7 @@
 -- A CONDIÇÃO SUMMIT SAI SOZINHA ÀS 23H59 DE 30/09: OS 4 TEXTOS E AS 4 PERGUNTAS DO FAQ QUE FALAM DELA.
 --
--- É a pergunta (a) da virada: só roda com o OK da Adriana. RASCUNHO, como os outros desta pasta. Não depende da
--- virada: funciona antes e depois dela.
+-- Pergunta (a) da virada, aprovada pela Adriana em 27/09/2026 ("2- sim"). Não depende da virada: funciona antes e
+-- depois dela. Ensaiada no banco real (ENSAIO_E_OK, docs/sql/virada-institute/README.md).
 --
 -- As 5 ofertas da condição saem sozinhas da porta de preços às 23h59 de 30/09 (depois da virada, api.ofertas só
 -- entrega o que está valendo). Os textos (institute.condicoes) e o FAQ (institute.faq) não têm prazo, só liga e
@@ -17,8 +17,7 @@
 -- O relógio do agendador é UTC. Ele também não tem ano: por isso se apaga, senão rodaria de novo em 01/10/2027.
 -- Se este arquivo entrar depois da hora, age na hora.
 --
--- Das 4 perguntas, as 3 primeiras continuam boas perguntas. Quando ela mandar o texto novo, elas entram aqui como
--- linhas novas, desligadas, e a função as liga no mesmo minuto.
+-- Das 4 perguntas, as 3 primeiras continuam boas perguntas. Se ela mandar o texto novo, elas voltam reescritas.
 
 create function institute.condicao_summit_sai(p_agora timestamptz default now())
 returns boolean
