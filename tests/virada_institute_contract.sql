@@ -1,5 +1,5 @@
--- Contrato da virada do Passo 5: o site do Institute lê o catálogo (docs/sql/virada-institute/01-virada.sql,
--- que vira a migration *_virada_institute_le_o_catalogo no dia). Roda depois dela e sempre termina em
+-- Contrato da virada do Passo 5: o site do Institute lê o catálogo (a migration *_virada_institute_le_o_catalogo
+-- e, logo depois dela, *_bump_fora_da_lista_de_precos). Roda depois das duas e sempre termina em
 -- rollback: a exceção VIRADA_OK é o resultado. Usa o administrador ativo de mind_admin_users como autor das
 -- edições pelo painel e a pessoa de seguranca.equipe para falar com o /admin do Join; tudo desfeito no fim.
 begin;
@@ -263,11 +263,13 @@ begin
                     and oferta_programa_codigo = v_prog_journey and oferta_valor_riscado = 999
                     and oferta_nome = 'Bump do contrato da virada') then
     raise exception 'bump: api.bump_regras'; end if;
+  -- Sem programa na porta de preços: fica fora das listas por programa, como a "Avulsas".
   if not exists (select 1 from api.ofertas
-                  where codigo = 'contrato-virada-bump' and valor_referencia is null
+                  where codigo = 'contrato-virada-bump' and valor_referencia is null and programa_codigo is null
                     and elegibilidade = jsonb_build_object('tipo', 'order_bump', 'requer_no_carrinho', jsonb_build_array(v_prog_a),
                                                            'valor_riscado', 999)) then
-    raise exception 'bump: elegibilidade na porta: %', (select elegibilidade from api.ofertas where codigo = 'contrato-virada-bump'); end if;
+    raise exception 'bump: na porta de preços: %', (select jsonb_build_object('programa', programa_codigo, 'elegibilidade', elegibilidade)
+                                                      from api.ofertas where codigo = 'contrato-virada-bump'); end if;
   if position('Bump do contrato da virada' in public.mind_kit_institute_catalogo(null::uuid, '{}'::jsonb)::text) > 0 then
     raise exception 'bump: o agente não cita bump como preço'; end if;
   -- Tirar do ar tira do checkout.
@@ -291,6 +293,6 @@ begin
      or not has_table_privilege('anon', 'api.oferta_inclui', 'select') then
     raise exception 'permissões: o site perdeu a leitura das portas'; end if;
 
-  raise exception 'VIRADA_OK: portas lendo o catálogo, casa antiga congelada (também pelo /admin do Join), carga com origem, leitor só do Institute, nome mudado no painel na porta e no agente, só o que vale no site (vencida e agendada fora, rascunho e upgrade invisíveis), bônus que é programa abre acesso, bump do painel no checkout e fora ao tirar do ar, histórico só leitura e permissões conferem';
+  raise exception 'VIRADA_OK: portas lendo o catálogo, casa antiga congelada (também pelo /admin do Join), carga com origem, leitor só do Institute, nome mudado no painel na porta e no agente, só o que vale no site (vencida e agendada fora, rascunho e upgrade invisíveis), bônus que é programa abre acesso, bump do painel no checkout, fora das listas por programa e fora ao tirar do ar, histórico só leitura e permissões conferem';
 end $$;
 rollback;

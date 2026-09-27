@@ -1,7 +1,8 @@
 -- VIRADA: O SITE DO INSTITUTE PASSA A LER O CATÁLOGO (PASSO 5 DE docs/PLANO_OFERTAS_PASSO_A_PASSO.md).
 --
--- RASCUNHO. Este arquivo só vira migration no dia da virada: é aplicado com apply_migration e então
--- copiado para supabase/migrations/ com a versão do registro. Enquanto estiver aqui, nada o aplica.
+-- Aprovada no plano (D2). Em 27/09/2026 a Adriana ficou com o sinal da hora: só é aplicada quando ela escreve
+-- "pode virar", com apply_migration e o nome virada_institute_le_o_catalogo, e então vai para
+-- supabase/migrations/ com a versão do registro. Logo depois, no mesmo sinal, vem bump_fora_da_lista_de_precos.
 --
 -- Decisões da Adriana (26/09/2026): "no schema catálogo deve organizar as tabelas de preço, oferta, order
 -- bump, cupom"; "todas as infos importantes deste schema devem ser espelhadas e editáveis via painel"; os
