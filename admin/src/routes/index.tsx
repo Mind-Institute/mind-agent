@@ -6,6 +6,9 @@ import { PaginaSummitProgramacao } from '@/pages/summit-programacao';
 import { PaginaOfertas } from '@/pages/ofertas';
 import { PaginaCupons } from '@/pages/cupons';
 import { PaginaKnowledge } from '@/pages/knowledge';
+import { PaginaBusinessIntelligence } from '@/pages/business-intelligence';
+import { PaginaCustomerIntelligence } from '@/pages/customer-intelligence';
+import { PaginaAgentIntelligence } from '@/pages/agent-intelligence';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -44,6 +47,9 @@ export const rotasAdmin: RouteObject[] = [
       { path: 'summit/2026/programacao/:id', element: <PaginaSummitProgramacao /> },
 
       { path: 'knowledge', element: <PaginaKnowledge /> },
+      { path: 'business-intelligence', element: <PaginaBusinessIntelligence /> },
+      { path: 'customer-intelligence', element: <PaginaCustomerIntelligence /> },
+      { path: 'agent-intelligence', element: <PaginaAgentIntelligence /> },
 
       { path: 'admins', element: <PaginaAdmins /> },
       { path: 'admins/:id', element: <PaginaAdmins /> },
