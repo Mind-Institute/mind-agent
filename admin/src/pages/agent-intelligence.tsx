@@ -132,7 +132,7 @@ export function PaginaAgentIntelligence() {
                           <div className="mt-1 text-xs text-muted-foreground">{exemplar.description}</div>
                           <div className="mt-2 flex flex-wrap gap-1">
                             <Badge variant="outline">{exemplar.sourceCount} source{exemplar.sourceCount === 1 ? '' : 's'}</Badge>
-                            {exemplar.sensitivity ? <Badge variant={exemplar.sensitivity === 'sensitive' ? 'destrutivo' : exemplar.sensitivity === 'personal' ? 'atencao' : 'secondary'}>{exemplar.sensitivity}</Badge> : null}
+                            {exemplar.sensitivity ? <Badge variant={exemplar.sensitivity === 'sensitive' ? 'destructive' : exemplar.sensitivity === 'personal' ? 'atencao' : 'secondary'}>{exemplar.sensitivity}</Badge> : null}
                           </div>
                         </TableCell>
                         {agentes.map((agent) => {
