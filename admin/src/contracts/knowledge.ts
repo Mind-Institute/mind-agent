@@ -40,6 +40,37 @@ export const knowledgeAssetSchema = z.object({
 });
 export type KnowledgeAsset = z.infer<typeof knowledgeAssetSchema>;
 
+export const knowledgeSourceSchema = z.object({
+  id: z.string().uuid(),
+  titulo: z.string().min(1),
+  tituloOriginal: z.string().nullable().default(null),
+  autores: z.array(z.string()).default([]),
+  ano: z.number().int().nullable().default(null),
+  tipoFonte: z.string().nullable().default(null),
+  evidenceRole: z.string().nullable().default(null),
+  studyDesign: z.string().nullable().default(null),
+  peerReviewed: z.boolean().nullable().default(null),
+  doi: z.string().nullable().default(null),
+  isbn: z.string().nullable().default(null),
+  idioma: z.string().nullable().default(null),
+  acesso: z.enum(['mind_only', 'mind_public']),
+  publicavel: z.boolean(),
+  statusIngestao: z.string().nullable().default(null),
+  statusValidacao: z.string().nullable().default(null),
+  modoIngestao: z.string().nullable().default(null),
+  direitosUso: z.string().nullable().default(null),
+  pendenciaDecisao: z.string().nullable().default(null),
+  drivePath: z.string().nullable().default(null),
+  collections: z.array(z.object({
+    chave: z.string().min(1),
+    nome: z.string().min(1),
+  })).default([]),
+  metadata: z.record(z.unknown()).default({}),
+  criadoEm: z.string().min(1),
+  atualizadoEm: z.string().min(1),
+});
+export type KnowledgeSource = z.infer<typeof knowledgeSourceSchema>;
+
 export const agentKnowledgeAccessSchema = z.object({
   id: z.string().min(1),
   agentKey: z.string().min(1),
