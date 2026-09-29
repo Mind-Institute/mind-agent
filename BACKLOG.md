@@ -1237,21 +1237,62 @@ apresentação:
 
 Painéis, lançamentos e a entrevista também não têm slides; o normal é não terem.
 
-## 25. Transcrições do Summit 2026 — dia 1 carregado; o que o texto revelou (29/09/2026)
+## 25. Transcrições do Summit 2026 — carga da pasta "Transcritos" (29/09/2026)
 
-As 16 transcrições revisadas da pasta do Drive da Adriana (dia 1) estão em
-`summit_2026.knowledge_documents`:
+Pedido da Adriana: ingerir a pasta do Drive "Transcritos" (subpastas 16.09 e 17.09) e repetir o estudo/diff a
+cada hora até as 9h. Foram 7 rodadas, de 02:55 a 08:55 (horário de Brasília).
+
+### Estado em 29/09, 08:55
+
+54 transcrições em `summit_2026.knowledge_documents` (28 do dia 16, 26 do dia 17):
 - uma por palestra, `tipo_conteudo = 'transcricao'`;
 - texto em `transcrito`, repetido em `corpo`;
-- cabeçalho do arquivo em `metadata->'cabecalho'` (duração, correções, pontos a conferir);
-- todas desligadas (`ativo = false`, `audiencia = interno`).
+- cabeçalho do arquivo em `metadata->'cabecalho'`;
+- `metadata.drive_file_id` e `metadata.drive_modified_time` servem para o diff;
+- todas desligadas (`ativo = false`, `audiencia = interno`, 0 chunks).
+
+Conferências:
+- hash confere em todas;
+- palavras entre 100,6% e 101,4% do número declarado no cabeçalho de cada arquivo.
+
+Arquivos editados no Drive depois da carga:
+- Bel Mota e Liderança Consciente: atualizados no mesmo registro; a versão anterior fica em
+  `metadata->'versoes_anteriores'`.
+- Masterclasses de Sonja e Jan, palestra da Maslach e "Seu cérebro não foi feito para isso": só o cabeçalho
+  mudou. Nesses 4 foi atualizada só a data; o cabeçalho antigo, mais detalhado, continua no banco.
 
 Casos especiais:
-- `d1-0915-beneficio-transformacao`: a versão do PDF de 27/09 foi trocada pela versão revisada, no mesmo
-  registro. `metadata->'substituiu'` guarda a origem da versão anterior.
-- Avisos das 11h10 (Ivana Moreira e Tiago, parceiro do Mind): não há palestra nesse horário, então a
-  transcrição foi ligada a `d1-1110-intervalo`. Contém a oferta do Mind Institute falada no palco; não é
-  fonte de preço nem de condição comercial.
+- `d1-0915-beneficio-transformacao`: a versão do PDF de 27/09 foi trocada pela revisada, no mesmo registro.
+  `metadata->'substituiu'` guarda a origem da versão anterior.
+- Avisos das 11h10 (Ivana Moreira e Tiago): ligados a `d1-1110-intervalo`. Esta transcrição e a de
+  `d2-1020-obrigacao-gestao` contêm oferta comercial falada no palco; o `metadata` anota que não são fonte de
+  preço nem de condição comercial.
+
+### Fora do banco
+
+- **Masterclass da Amy Edmondson** (`d1-1500-tres-movimentos`, fileId `1bVBUuO6R65ZFw7mXHrPUAEEOKvozOLsO`):
+  um filtro de segurança interrompeu a cópia do texto e nada foi gravado. Não foi retentado nem contornado.
+  A Adriana decide se carrega por outro caminho, por exemplo a importação pelo painel do Supabase.
+- Sessões sem arquivo na pasta:
+  - alumni talks: `d1-1340`, `d1-1400`, `d1-1420`, `d1-1440`, `d2-1340`, `d2-1400-custo-caber`,
+    `d2-1420`, `d2-1440`;
+  - lançamentos: `d1-1430-virada-diversidade`, `d2-1400-poder-sororidade`.
+
+### Revisar antes de ligar para qualquer agente — `metadata.dados_sensiveis`
+
+8 transcrições têm relatos da plateia ou de terceiros com dado pessoal sensível (saúde, orientação sexual,
+luto, assédio, menor de idade, pessoa identificável pelo cargo, situação financeira de empresa):
+- `d1-1130-produtividade-sustentavel`
+- `d1-1600-curadoria`
+- `d2-1130-bem-estar`
+- `d2-1130-comeca-agenda`
+- `d2-1130-feedback-falta`
+- `d2-1130-voce-aguenta`
+- `d2-1500-desalinhamentos-burnout`
+- `d2-1500-sobreviver-destruir`
+
+Ligar essas transcrições depende do contrato de sensibilidade (CLAUDE.md), o que pede anonimizar ou recortar
+antes.
 
 ### Pessoas citadas nos cabeçalhos — decidido (Adriana, 29/09): nada entra no banco
 
