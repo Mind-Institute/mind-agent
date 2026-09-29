@@ -178,18 +178,24 @@ function RagPlayground({ accesses }: { accesses: AgentKnowledgeAccess[] }) {
 export function PaginaKnowledge() {
   const navigate = useNavigate();
   const collections = useLista('knowledge_collections', { porPagina: 500, ordenar: 'nome' });
+  const sources = useLista('knowledge_sources', { porPagina: 500, ordenar: '-atualizadoEm' });
   const assets = useLista('knowledge_assets', { porPagina: 500, ordenar: '-atualizadoEm' });
   const accesses = useLista('agent_knowledge_access', { porPagina: 500 });
   const [tab, setTab] = useState('collections');
   const [collection, setCollection] = useState<string | null>(null);
 
   const fontes = useMemo(() => {
+    const itens = sources.data?.itens ?? [];
+    return collection ? itens.filter((s) => s.collections.some((c) => c.chave === collection)) : itens;
+  }, [sources.data?.itens, collection]);
+
+  const assetsFiltrados = useMemo(() => {
     const itens = assets.data?.itens ?? [];
     return collection ? itens.filter((a) => a.collections.some((c) => c.chave === collection)) : itens;
   }, [assets.data?.itens, collection]);
 
-  const carregando = collections.isLoading || assets.isLoading || accesses.isLoading;
-  const erro = collections.error || assets.error || accesses.error;
+  const carregando = collections.isLoading || sources.isLoading || assets.isLoading || accesses.isLoading;
+  const erro = collections.error || sources.error || assets.error || accesses.error;
 
   function abrirSources(chave: string) {
     setCollection(chave);
@@ -271,12 +277,20 @@ export function PaginaKnowledge() {
                     <TableRow><TableHead>Source</TableHead><TableHead>Origem</TableHead><TableHead>Collections</TableHead><TableHead>Acesso</TableHead></TableRow>
                   </TableHeader>
                   <TableBody>
-                    {fontes.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell><div className="font-semibold">{a.titulo}</div><div className="text-xs text-muted-foreground">{a.assetType}</div></TableCell>
-                        <TableCell className="font-mono text-xs">{a.originSchema}.{a.originTable}</TableCell>
-                        <TableCell><div className="flex flex-wrap gap-1">{a.collections.map((c) => <Badge key={c.chave} variant={c.principal ? 'default' : 'secondary'}>{c.nome}</Badge>)}</div></TableCell>
-                        <TableCell><Badge variant={a.acesso === 'mind_only' ? 'atencao' : 'sucesso'}>{acessoLabel(a.acesso)}</Badge></TableCell>
+                    {fontes.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <div className="font-semibold">{s.titulo}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {[s.tipoFonte, s.autores.join(', '), s.ano].filter(Boolean).join(' · ') || 'fonte canônica'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs">{s.evidenceRole ?? '—'}</div>
+                          <div className="font-mono text-xs text-muted-foreground">{s.doi ?? s.isbn ?? s.drivePath ?? '—'}</div>
+                        </TableCell>
+                        <TableCell><div className="flex flex-wrap gap-1">{s.collections.map((c) => <Badge key={c.chave} variant="secondary">{c.nome}</Badge>)}</div></TableCell>
+                        <TableCell><Badge variant={s.acesso === 'mind_only' ? 'atencao' : 'sucesso'}>{acessoLabel(s.acesso)}</Badge></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -299,7 +313,7 @@ export function PaginaKnowledge() {
                     <TableRow><TableHead>Asset</TableHead><TableHead>Origem física</TableHead><TableHead>Tipo</TableHead><TableHead>Collections</TableHead></TableRow>
                   </TableHeader>
                   <TableBody>
-                    {fontes.map((a) => (
+                    {assetsFiltrados.map((a) => (
                       <TableRow key={a.id}>
                         <TableCell><div className="font-semibold">{a.titulo}</div></TableCell>
                         <TableCell className="font-mono text-xs">{a.originSchema}.{a.originTable} · {a.originId}</TableCell>
