@@ -35,6 +35,9 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   summit_2026_sessions: ['titulo', 'descricao', 'espaco', 'palestrantes'],
   offers: ['codigo', 'nome', 'descricao', 'precos'],
   coupons: ['codigo', 'descricao'],
+  knowledge_collections: ['chave', 'nome', 'descricao'],
+  knowledge_assets: ['titulo', 'assetType', 'originSchema', 'originTable', 'collections'],
+  agent_knowledge_access: ['agentKey', 'collectionKey', 'collectionName'],
 };
 
 /* O que o banco preenche ao criar, para a linha nova aparecer inteira na
