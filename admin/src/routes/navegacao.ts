@@ -68,6 +68,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         icone: TicketPercent,
         descricao: 'Os cupons de desconto do schema catalogo.',
       },
+      {
+        id: 'knowledge',
+        rotulo: 'Knowledge',
+        caminho: '/knowledge',
+        icone: BrainCircuit,
+        descricao: 'Base de conhecimento e control plane do RAG: collections, assets e acesso por agente.',
+      },
     ],
   },
   {
@@ -88,19 +95,6 @@ export const NAVEGACAO: GrupoNavegacao[] = [
             descricao: 'A programação do Mind Summit 2026 como está no banco (summit_2026.sessions).',
           },
         ],
-      },
-    ],
-  },
-  {
-    id: 'knowledge',
-    rotulo: 'Knowledge',
-    itens: [
-      {
-        id: 'knowledge',
-        rotulo: 'Knowledge Base',
-        caminho: '/knowledge',
-        icone: BrainCircuit,
-        descricao: 'Control plane do RAG: collections, assets e acesso por agente.',
       },
     ],
   },
