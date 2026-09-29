@@ -20,7 +20,7 @@ function agrupar(itens: CustomerKnowledgeGovernance[]) {
 }
 
 function sensibilidade(v: CustomerKnowledgeGovernance['sensitivity']) {
-  if (v === 'sensitive') return <Badge variant="destrutivo">sensitive</Badge>;
+  if (v === 'sensitive') return <Badge variant="destructive">sensitive</Badge>;
   if (v === 'personal') return <Badge variant="atencao">personal</Badge>;
   return <Badge variant="secondary">internal</Badge>;
 }
