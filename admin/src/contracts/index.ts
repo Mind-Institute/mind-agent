@@ -5,4 +5,5 @@ export * from './product';
 export * from './admin-sistema';
 export * from './summit';
 export * from './offer';
+export * from './knowledge';
 export * from './resources';

@@ -76,6 +76,7 @@ export function criarProvedorPadrao(opcoes: OpcoesFabrica = {}): AdminDataProvid
     conectar(enderecoDoCatalogo()),
     conectar(enderecoDoAcesso()),
     conectar(enderecoDoSummit()),
+    conectar(enderecoDoKnowledge()),
   );
 }
 
@@ -94,6 +95,17 @@ export function enderecoDoCatalogo(
 export function enderecoDoSummit(supabaseUrl = import.meta.env.VITE_SUPABASE_URL): string | null {
   const projeto = supabaseUrl?.trim().replace(/\/+$/, '');
   return projeto ? `${projeto}/functions/v1/mindagent-summit` : null;
+}
+
+/** Control plane de Knowledge/RAG, no mesmo projeto do Mind Intelligence. */
+export function enderecoDoKnowledge(
+  explicito = import.meta.env.VITE_KNOWLEDGE_API_BASE_URL,
+  supabaseUrl = import.meta.env.VITE_SUPABASE_URL,
+): string | null {
+  const direto = explicito?.trim();
+  if (direto) return direto.replace(/\/+$/, '');
+  const projeto = supabaseUrl?.trim().replace(/\/+$/, '');
+  return projeto ? `${projeto}/functions/v1/mindagent-knowledge` : null;
 }
 
 const Contexto = createContext<AdminDataProvider | null>(null);

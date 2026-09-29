@@ -6,6 +6,9 @@ import {
   ofertaCatalogoSchema,
   produtoCatalogoSchema,
   sessaoSummit2026Schema,
+  knowledgeCollectionSchema,
+  knowledgeAssetSchema,
+  agentKnowledgeAccessSchema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -41,6 +44,9 @@ const SCHEMAS = {
   summit_2026_sessions: sessaoSummit2026Schema,
   offers: ofertaCatalogoSchema,
   coupons: cupomCatalogoSchema,
+  knowledge_collections: knowledgeCollectionSchema,
+  knowledge_assets: knowledgeAssetSchema,
+  agent_knowledge_access: agentKnowledgeAccessSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

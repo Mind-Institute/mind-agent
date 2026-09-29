@@ -45,9 +45,17 @@ export const RECURSOS_DO_ACESSO = ['admins'] as const satisfies readonly NomeRec
 /** Servido pela `mindagent-summit`: as tabelas do Summit, só leitura. */
 export const RECURSOS_DO_SUMMIT = ['summit_2026_sessions'] as const satisfies readonly NomeRecurso[];
 
+/** Servido pela mindagent-knowledge: control plane transversal do RAG. */
+export const RECURSOS_DO_KNOWLEDGE = [
+  'knowledge_collections',
+  'knowledge_assets',
+  'agent_knowledge_access',
+] as const satisfies readonly NomeRecurso[];
+
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
 const CONJUNTO_ACESSO = new Set<string>(RECURSOS_DO_ACESSO);
 const CONJUNTO_SUMMIT = new Set<string>(RECURSOS_DO_SUMMIT);
+const CONJUNTO_KNOWLEDGE = new Set<string>(RECURSOS_DO_KNOWLEDGE);
 
 /**
  * O que cada função aceita.
@@ -64,6 +72,9 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   summit_2026_sessions: new Set(['list', 'get']),
   offers: new Set(['list', 'get', 'create', 'update', 'publish', 'archive']),
   coupons: new Set(['list', 'get']),
+  knowledge_collections: new Set(['list', 'get']),
+  knowledge_assets: new Set(['list', 'get']),
+  agent_knowledge_access: new Set(['list', 'get', 'update']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -74,6 +85,9 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
     `A programação do Summit 2026 é só leitura no painel; ${op} sessão não existe por aqui.`,
   offers: (op) => `Ofertas se criam, editam, põem no ar e tiram do ar; ${op} oferta não existe no painel.`,
   coupons: (op) => `Os cupons ainda são só leitura no painel; ${op} cupom chega no próximo passo.`,
+  knowledge_collections: (op) => `Collections são só leitura nesta primeira versão; ${op} collection ainda não existe no painel.`,
+  knowledge_assets: (op) => `Knowledge assets são só leitura nesta primeira versão; ${op} asset ainda não existe no painel.`,
+  agent_knowledge_access: (op) => `A matriz Agente × Knowledge aceita leitura e edição; ${op} ainda não existe.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {
@@ -95,6 +109,7 @@ export class HybridAdminDataProvider implements AdminDataProvider {
     private readonly catalogo?: AdminDataProvider,
     private readonly acesso?: AdminDataProvider,
     private readonly summit?: AdminDataProvider,
+    private readonly knowledge?: AdminDataProvider,
   ) {}
 
   /** A função real do recurso, quando configurada. */
@@ -102,6 +117,7 @@ export class HybridAdminDataProvider implements AdminDataProvider {
     if (CONJUNTO_CATALOGO.has(resource)) return this.catalogo;
     if (CONJUNTO_ACESSO.has(resource)) return this.acesso;
     if (CONJUNTO_SUMMIT.has(resource)) return this.summit;
+    if (CONJUNTO_KNOWLEDGE.has(resource)) return this.knowledge;
     return undefined;
   }
 

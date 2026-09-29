@@ -1,4 +1,4 @@
-import { CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, type LucideIcon } from 'lucide-react';
+import { BrainCircuit, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -67,6 +67,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/cupons',
         icone: TicketPercent,
         descricao: 'Os cupons de desconto do schema catalogo.',
+      },
+      {
+        id: 'knowledge',
+        rotulo: 'Knowledge',
+        caminho: '/knowledge',
+        icone: BrainCircuit,
+        descricao: 'Base de conhecimento e control plane do RAG: collections, assets e acesso por agente.',
       },
     ],
   },
