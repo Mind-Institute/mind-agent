@@ -56,7 +56,7 @@ export function PaginaCustomerIntelligence() {
           {grupos.map(([chave, fontes]) => {
             const primeira = fontes[0];
             const expandida = aberta === chave;
-            const maiorSensibilidade = fontes.some((f) => f.sensitivity === 'sensitive')
+            const maiorSensibilidade: CustomerKnowledgeGovernance['sensitivity'] = fontes.some((f) => f.sensitivity === 'sensitive')
               ? 'sensitive'
               : fontes.some((f) => f.sensitivity === 'personal')
                 ? 'personal'
