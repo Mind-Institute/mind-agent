@@ -1294,6 +1294,36 @@ luto, assédio, menor de idade, pessoa identificável pelo cargo, situação fin
 Ligar essas transcrições depende do contrato de sensibilidade (CLAUDE.md), o que pede anonimizar ou recortar
 antes.
 
+### Plateia anonimizada (decisão da Adriana, 29/09)
+
+Regra da Adriana: "pode anonimizar a plateia mas não precisa anonimizar o que foi dito pelos palestrantes".
+
+Onde ficou cada versão:
+- `corpo` (o que os agentes leem e o que vira chunk) tem a versão com a plateia anonimizada;
+- `transcrito` guarda o original, intacto;
+- `metadata->'anonimizacao'` registra cada troca pela marca de tempo, só o "depois".
+
+Resultado:
+- as 54 transcrições foram revisadas;
+- 24 tiveram trocas, 252 no total;
+- nas outras 30 não há plateia identificável.
+
+Critério aplicado:
+- nomes da plateia viram `[participante N]`;
+- detalhes que identificam a pessoa viram `[empresa]`, `[cargo]`, `[órgão público]`, `[cidade]`/`[estado]`, `[filho]`,
+  `[idade]`;
+- relatos pessoais sensíveis da plateia (saúde, orientação sexual, luto, situação familiar) viram marcador genérico.
+
+Casos para a Adriana confirmar:
+- em `d1-1720-lideranca-consciente` e `d2-1600-curadoria`, o cargo da pessoa da plateia foi tirado também da fala
+  da palestrante;
+- em `d1-1130-produtividade-sustentavel`, a titular de uma secretaria de educação foi anonimizada;
+- em `d1-1130-mensurar-intervir`, a empresa de uma participante dá para deduzir pela resposta do Jan (fala do palco,
+  mantida).
+
+`metadata->'cabecalho'` ainda cita nomes da plateia nas notas de revisão. Os agentes não leem esse campo; ele é
+interno, como `transcrito`.
+
 ### Pessoas citadas nos cabeçalhos — decidido (Adriana, 29/09): nada entra no banco
 
 - Adriana Drulla **não** é registrada como mediadora da palestra do Jan (`d1-0940-bem-estar`).
