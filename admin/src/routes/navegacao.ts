@@ -1,4 +1,4 @@
-import { CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, type LucideIcon } from 'lucide-react';
+import { BrainCircuit, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -88,6 +88,19 @@ export const NAVEGACAO: GrupoNavegacao[] = [
             descricao: 'A programação do Mind Summit 2026 como está no banco (summit_2026.sessions).',
           },
         ],
+      },
+    ],
+  },
+  {
+    id: 'knowledge',
+    rotulo: 'Knowledge',
+    itens: [
+      {
+        id: 'knowledge',
+        rotulo: 'Knowledge Base',
+        caminho: '/knowledge',
+        icone: BrainCircuit,
+        descricao: 'Control plane do RAG: collections, assets e acesso por agente.',
       },
     ],
   },
