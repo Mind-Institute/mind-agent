@@ -1235,3 +1235,35 @@ apresentação:
 - Michael E. Long — `d2-1600-quem-esta`.
 
 Painéis, lançamentos e a entrevista também não têm slides; o normal é não terem.
+
+## 25. Transcrições do Summit 2026 — dia 1 carregado; o que o texto revelou (29/09/2026)
+
+As 16 transcrições revisadas da pasta do Drive da Adriana (dia 1) estão em
+`summit_2026.knowledge_documents`:
+- uma por palestra, `tipo_conteudo = 'transcricao'`;
+- texto em `transcrito`, repetido em `corpo`;
+- cabeçalho do arquivo em `metadata->'cabecalho'` (duração, correções, pontos a conferir);
+- todas desligadas (`ativo = false`, `audiencia = interno`).
+
+Casos especiais:
+- `d1-0915-beneficio-transformacao`: a versão do PDF de 27/09 foi trocada pela versão revisada, no mesmo
+  registro. `metadata->'substituiu'` guarda a origem da versão anterior.
+- Avisos das 11h10 (Ivana Moreira e Tiago, parceiro do Mind): não há palestra nesse horário, então a
+  transcrição foi ligada a `d1-1110-intervalo`. Contém a oferta do Mind Institute falada no palco; não é
+  fonte de preço nem de condição comercial.
+
+### Decisão da Adriana — pessoas que o cabeçalho das transcrições cita e o banco não tem
+
+Nada foi alterado.
+- **Mediação:**
+  - Adriana Drulla mediou as perguntas do Jan (`d1-0940-bem-estar`);
+  - Virginie Leite mediou a Fernanda Catena (`d1-1230-nova-era`). Pela regra de formato, com 2 pessoas a
+    sessão passaria a `painel`.
+- **Apresentação** (papel `apresentacao`):
+  - Ivana Moreira em `d1-1130-emocoes-positivas`, `d1-1230-virada-diversidade`, `d1-1500-seu-emprego`,
+    `d1-1530-trabalho-anos`, `d1-1600-relacoes-sustentam`, `d1-1720-lideranca-consciente` e no
+    encerramento do dia em `d1-1810-mito-colaborador`;
+  - Izabella Camargo em `d1-1810-mito-colaborador`;
+  - Mariana Kaplan (Editora Sextante) em `d1-1130-trabalho-ainda`, `d1-1230-nova-era` e
+    `d1-1500-economia-distracao`. Ela não está no cadastro de palestrantes.
+- Tiago (parceiro do Mind) também não está no cadastro.
