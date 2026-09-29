@@ -101,7 +101,7 @@ Ainda não mergear antes de typecheck/build/review.
 
 ## Piloto científico
 
-Nove fontes registradas no inventário e na fonte canônica:
+Nove fontes do piloto foram registradas e processadas na fonte canônica:
 
 1. Frazier et al. (2017) — Psychological Safety meta-analysis.
 2. Keyes (2002) — Mental Health Continuum.
@@ -117,32 +117,76 @@ Direitos e ingest_policy estão explícitos por fonte.
 
 ### De Neve
 
-Fonte é `licensed_restricted + derived_only + mind_only`.
-Há aviso explícito no arquivo proibindo introdução do livro em retrieval system.
-Não persistir texto bruto.
+Fonte = `licensed_restricted + derived_only + mind_only`.
+O arquivo proíbe introdução do livro em retrieval system. Texto bruto não é persistido.
 
-Os 12 capítulos foram registrados como seções e locations.
-Capítulo 1, **Wellbeing at Work: An Overview**, foi processado:
-- 1/12 capítulos concluídos;
-- 20 insights derivados e parafraseados;
+Os 12 capítulos foram processados capítulo a capítulo:
+- 12/12 capítulos concluídos;
+- apenas inteligência derivada/parafraseada persistida;
 - raw text não armazenado;
-- reference leads criados para estudos que precisam ser verificados na fonte primária.
+- estudos citados relevantes viram `reference_lead` até a fonte primária ser ingerida e verificada.
+
+### Retrieval global
+
+Está viva a RPC `public.mind_knowledge_buscar_global`, service-role-only e SECURITY INVOKER.
+
+Fluxo:
+1. agente;
+2. collections habilitadas;
+3. acesso permitido;
+4. geração de candidatos lexical/vector;
+5. ranking híbrido;
+6. retorno com provenance, evidence status, causal status e localizador.
+
+O filtro de autorização ocorre antes do search/ranking.
+
+Teste de isolamento executado com a mesma query:
+- `knowledge_admin`: retornou resultados internos;
+- `institute`, `dash` e `summit_b2b`: zero resultados enquanto os insights continuam `mind_only`.
+
+Isso confirma que conteúdo interno não vaza para agentes configurados como `mind_public`.
+
+### Embeddings
+
+RPCs de fila/persistência:
+- `mind_knowledge_embedding_pending`
+- `mind_knowledge_embedding_save`
+
+Edge Function viva:
+- `mindagent-index-global-knowledge`
+
+Ela gera embedding 1536-d somente para `insights_conhecimento`; nunca envia raw text de fonte restricted/derived_only ao embedding pipeline.
+
+### Admin / RAG Playground
+
+A página `/knowledge` agora contém:
+- overview;
+- Collections;
+- Assets;
+- matriz Agent × Knowledge;
+- RAG Playground;
+- botão de geração de embeddings pendentes.
+
+O playground chama `POST /admin/knowledge_search` na Edge Function `mindagent-knowledge`.
+A rota valida sessão/admin, resolve retrieval server-side e tenta busca híbrida quando há embedding da query, com fallback lexical.
+
+Existe a persona técnica `knowledge_admin`, invisível na matriz normal, com acesso interno às 22 collections para teste administrativo. Ela não representa agente público.
 
 ## Próxima ordem
 
-1. Processar capítulos 2–12 do De Neve em `derived_only`.
-2. Processar as demais fontes piloto, respeitando rights/ingest_policy.
-3. Resolver reference leads importantes com fontes primárias.
-4. Implementar retrieval RPC que faça filtro por agente/collection/acesso antes de lexical/vector search.
-5. Implementar RAG Playground no admin.
-6. Rodar DB advisors e testes de segurança.
-7. Rodar typecheck/build do admin e revisar a branch.
-8. Só então propor merge.
-9. Escalar inventário/ingestão do Drive.
+1. Gerar embeddings dos insights derivados pelo fluxo autenticado do Admin.
+2. Resolver reference leads prioritários com fontes primárias.
+3. Definir, por fonte/insight, o que Adriana quer promover de `mind_only` para `mind_public`.
+4. Rodar typecheck/build final do admin e revisar a branch.
+5. Gerar a migration canônica do schema pelo workflow Supabase CLI.
+6. Só então propor merge.
+7. Escalar inventário/ingestão do Drive.
 
 ## Pendências técnicas
 
 - O schema já foi alterado em produção via SQL iterativo. Ainda falta gerar/registrar a migration canônica no repo pelo workflow Supabase CLI, sem inventar filename.
-- O frontend da branch ainda precisa de typecheck/build.
-- Embeddings ainda não foram gerados para os novos insights.
-- Retrieval global ainda não está conectado ao runtime existente.
+- O frontend da branch ainda precisa de typecheck/build final após o RAG Playground.
+- Embeddings ainda precisam ser gerados para os novos insights pelo fluxo autenticado.
+- O retrieval global está implementado e testado isoladamente, mas ainda não foi conectado ao runtime dos agentes existentes.
+- Advisors foram executados. O alerta `RLS enabled no policy` nos novos objetos é esperado no desenho fechado por service-role/backend; não foram abertas policies para anon/authenticated.
+- Índices novos aparecem como “unused” porque o corpus/control plane acabou de ser criado; não remover até existir workload real.
