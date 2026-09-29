@@ -14,6 +14,7 @@
      GET   /admin/agent_knowledge_access
      GET   /admin/agent_knowledge_access/:id
      PATCH /admin/agent_knowledge_access/:id
+     POST  /admin/knowledge_search
      GET   /health
 */
 
@@ -58,7 +59,7 @@ function cabecalhosCors(req: Request) {
   return {
     "Access-Control-Allow-Origin": origemPermitida(origem) && origem ? origem : "null",
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, if-unmodified-since-version",
-    "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Access-Control-Expose-Headers": "x-request-id",
     "Vary": "Origin",
   };
@@ -121,6 +122,33 @@ async function corpo(req: Request) {
   return valor as Record<string, unknown>;
 }
 
+async function embeddingDaQuery(query: string): Promise<number[] | null> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+  if (!apiKey) return null;
+  const model = (Deno.env.get("OPENAI_EMBEDDING_MODEL") ?? "text-embedding-3-small").trim();
+  try {
+    const resposta = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: query,
+        dimensions: 1536,
+        encoding_format: "float",
+      }),
+    });
+    if (!resposta.ok) return null;
+    const valor = await resposta.json() as { data?: Array<{ embedding?: number[] }> };
+    const embedding = valor.data?.[0]?.embedding;
+    return Array.isArray(embedding) && embedding.length === 1536 ? embedding : null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   const url = new URL(req.url);
@@ -163,8 +191,61 @@ Deno.serve(async (req: Request) => {
   const nome = iAdmin >= 0 ? partes[iAdmin + 1] : undefined;
   const id = iAdmin >= 0 ? partes[iAdmin + 2] : undefined;
   const sobra = iAdmin >= 0 ? partes[iAdmin + 3] : undefined;
-  const recurso = nome && Object.hasOwn(RECURSOS, nome) ? RECURSOS[nome as keyof typeof RECURSOS] : undefined;
 
+  if (req.method === "POST" && nome === "knowledge_search" && !id && !sobra) {
+    let payload: Record<string, unknown>;
+    try { payload = await corpo(req); }
+    catch { return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId); }
+
+    const query = String(payload.query ?? "").trim();
+    const agentKey = String(payload.agentKey ?? "knowledge_admin").trim();
+    const limit = Math.min(30, Math.max(1, Number(payload.limit ?? 10) || 10));
+
+    if (query.length < 2 || query.length > 4000 || !agentKey) {
+      return json(req, 422, { codigo: "validacao", mensagem: "Informe uma consulta válida." }, requestId);
+    }
+
+    if (agentKey === "knowledge_admin" && !["administrador","editor","aprovador"].includes(acesso.role)) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Seu papel não pode consultar o corpus interno completo." }, requestId);
+    }
+
+    const embedding = await embeddingDaQuery(query);
+    let resultado = await segredo.rpc("mind_knowledge_buscar_global", {
+      p_agent_key: agentKey,
+      p_query: query,
+      p_query_embedding: embedding,
+      p_limit: limit,
+    });
+
+    // Se a serialização do vector falhar por configuração do gateway,
+    // a busca lexical continua disponível em vez de derrubar o playground.
+    if (resultado.error && embedding) {
+      resultado = await segredo.rpc("mind_knowledge_buscar_global", {
+        p_agent_key: agentKey,
+        p_query: query,
+        p_query_embedding: null,
+        p_limit: limit,
+      });
+    }
+
+    if (resultado.error) {
+      console.error(JSON.stringify({
+        request_id: requestId,
+        error: "knowledge_search_failed",
+        code: resultado.error.code ?? null,
+      }));
+      return json(req, 503, { codigo: "indisponivel", mensagem: "Não foi possível buscar no Knowledge." }, requestId);
+    }
+
+    return json(req, 200, {
+      itens: Array.isArray(resultado.data) ? resultado.data : [],
+      query,
+      agentKey,
+      mode: embedding ? "hybrid" : "lexical",
+    }, requestId);
+  }
+
+  const recurso = nome && Object.hasOwn(RECURSOS, nome) ? RECURSOS[nome as keyof typeof RECURSOS] : undefined;
   if (!recurso || sobra) return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
 
   if (req.method === "GET") {
