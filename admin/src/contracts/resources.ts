@@ -2,6 +2,7 @@ import type { ProdutoCatalogo } from './product';
 import type { AdminSistema } from './admin-sistema';
 import type { SessaoSummit2026 } from './summit';
 import type { CupomCatalogo, OfertaCatalogo } from './offer';
+import type { AgentKnowledgeAccess, KnowledgeAsset, KnowledgeCollection } from './knowledge';
 
 /**
  * O nome do recurso é o mesmo na URL da Edge Function
@@ -28,11 +29,18 @@ export interface MapaRecursos {
   offers: OfertaCatalogo;
   /* Cupons do catálogo: `catalogo.cupons`, pela `mindagent-catalogo`. */
   coupons: CupomCatalogo;
+  /* Control plane transversal do Knowledge/RAG. */
+  knowledge_collections: KnowledgeCollection;
+  knowledge_assets: KnowledgeAsset;
+  agent_knowledge_access: AgentKnowledgeAccess;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
 
-export const NOMES_RECURSOS: NomeRecurso[] = ['products', 'admins', 'summit_2026_sessions', 'offers', 'coupons'];
+export const NOMES_RECURSOS: NomeRecurso[] = [
+  'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
+  'knowledge_collections', 'knowledge_assets', 'agent_knowledge_access',
+];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   products: 'Produto',
@@ -40,4 +48,7 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   summit_2026_sessions: 'Sessão',
   offers: 'Oferta',
   coupons: 'Cupom',
+  knowledge_collections: 'Collection',
+  knowledge_assets: 'Knowledge asset',
+  agent_knowledge_access: 'Acesso de agente',
 };
