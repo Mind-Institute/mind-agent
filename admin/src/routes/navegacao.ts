@@ -1,4 +1,4 @@
-import { BrainCircuit, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -70,10 +70,31 @@ export const NAVEGACAO: GrupoNavegacao[] = [
       },
       {
         id: 'knowledge',
-        rotulo: 'Knowledge',
+        rotulo: 'Global Knowledge',
         caminho: '/knowledge',
         icone: BrainCircuit,
-        descricao: 'Base de conhecimento e control plane do RAG: collections, assets e acesso por agente.',
+        descricao: 'Conhecimento científico, metodológico e transversal do Mind.',
+      },
+      {
+        id: 'business-intelligence',
+        rotulo: 'Business Intelligence',
+        caminho: '/business-intelligence',
+        icone: BriefcaseBusiness,
+        descricao: 'Governança do conhecimento de produto, oferta, comercial e operação.',
+      },
+      {
+        id: 'customer-intelligence',
+        rotulo: 'Customer Intelligence',
+        caminho: '/customer-intelligence',
+        icone: UsersRound,
+        descricao: 'Governança do conhecimento sobre clientes, empresas, conversas e sinais.',
+      },
+      {
+        id: 'agent-intelligence',
+        rotulo: 'Agent Intelligence',
+        caminho: '/agent-intelligence',
+        icone: Bot,
+        descricao: 'Matriz Agent × Knowledge para Global, Business e Customer Intelligence.',
       },
     ],
   },
