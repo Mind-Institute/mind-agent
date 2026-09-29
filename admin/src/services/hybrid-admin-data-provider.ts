@@ -48,6 +48,7 @@ export const RECURSOS_DO_SUMMIT = ['summit_2026_sessions'] as const satisfies re
 /** Servido pela mindagent-knowledge: control plane transversal do RAG. */
 export const RECURSOS_DO_KNOWLEDGE = [
   'knowledge_collections',
+  'knowledge_sources',
   'knowledge_assets',
   'agent_knowledge_access',
   'business_intelligence',
@@ -76,6 +77,7 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   offers: new Set(['list', 'get', 'create', 'update', 'publish', 'archive']),
   coupons: new Set(['list', 'get']),
   knowledge_collections: new Set(['list', 'get']),
+  knowledge_sources: new Set(['list', 'get']),
   knowledge_assets: new Set(['list', 'get']),
   agent_knowledge_access: new Set(['list', 'get', 'update']),
   business_intelligence: new Set(['list', 'get']),
@@ -92,6 +94,7 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   offers: (op) => `Ofertas se criam, editam, põem no ar e tiram do ar; ${op} oferta não existe no painel.`,
   coupons: (op) => `Os cupons ainda são só leitura no painel; ${op} cupom chega no próximo passo.`,
   knowledge_collections: (op) => `Collections são só leitura nesta primeira versão; ${op} collection ainda não existe no painel.`,
+  knowledge_sources: (op) => `Sources são só leitura nesta primeira versão; ${op} source ainda não existe no painel.`,
   knowledge_assets: (op) => `Knowledge assets são só leitura nesta primeira versão; ${op} asset ainda não existe no painel.`,
   agent_knowledge_access: (op) => `A matriz Agente × Knowledge aceita leitura e edição; ${op} ainda não existe.`,
   business_intelligence: (op) => `Business Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,

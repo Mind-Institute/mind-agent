@@ -37,6 +37,7 @@ export function criarBanco(): BancoMock {
     offers: clonar(ofertasSemente),
     coupons: clonar(cuponsSemente),
     knowledge_collections: [],
+    knowledge_sources: [],
     knowledge_assets: [],
     agent_knowledge_access: [],
     business_intelligence: [],

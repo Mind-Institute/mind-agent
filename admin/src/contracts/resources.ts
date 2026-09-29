@@ -6,6 +6,7 @@ import type {
   AgentKnowledgeAccess,
   KnowledgeAsset,
   KnowledgeCollection,
+  KnowledgeSource,
   BusinessKnowledgeGovernance,
   CustomerKnowledgeGovernance,
   AgentIntelligenceAccess,
@@ -38,6 +39,7 @@ export interface MapaRecursos {
   coupons: CupomCatalogo;
   /* Control plane transversal do Knowledge/RAG. */
   knowledge_collections: KnowledgeCollection;
+  knowledge_sources: KnowledgeSource;
   knowledge_assets: KnowledgeAsset;
   agent_knowledge_access: AgentKnowledgeAccess;
   business_intelligence: BusinessKnowledgeGovernance;
@@ -49,7 +51,7 @@ export type NomeRecurso = keyof MapaRecursos;
 
 export const NOMES_RECURSOS: NomeRecurso[] = [
   'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
-  'knowledge_collections', 'knowledge_assets', 'agent_knowledge_access',
+  'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
   'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
 ];
 
@@ -60,6 +62,7 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   offers: 'Oferta',
   coupons: 'Cupom',
   knowledge_collections: 'Collection',
+  knowledge_sources: 'Knowledge source',
   knowledge_assets: 'Knowledge asset',
   agent_knowledge_access: 'Acesso de agente',
   business_intelligence: 'Business Intelligence',

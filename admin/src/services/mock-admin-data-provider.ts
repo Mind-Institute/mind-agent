@@ -36,6 +36,7 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   offers: ['codigo', 'nome', 'descricao', 'precos'],
   coupons: ['codigo', 'descricao'],
   knowledge_collections: ['chave', 'nome', 'descricao'],
+  knowledge_sources: ['titulo', 'tituloOriginal', 'autores', 'tipoFonte', 'evidenceRole', 'doi', 'isbn', 'drivePath', 'collections'],
   knowledge_assets: ['titulo', 'assetType', 'originSchema', 'originTable', 'collections'],
   agent_knowledge_access: ['agentKey', 'collectionKey', 'collectionName'],
   business_intelligence: ['collectionKey', 'collectionName', 'knowledgeType', 'vertical', 'sourceSchema', 'sourceTable', 'description'],
