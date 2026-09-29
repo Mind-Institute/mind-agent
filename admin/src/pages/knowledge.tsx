@@ -4,9 +4,7 @@ import {
   BookOpen,
   Boxes,
   Bot,
-  Database,
   Search,
-  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 import type { AgentKnowledgeAccess, KnowledgeAsset, KnowledgeCollection } from '@/contracts';
@@ -86,47 +84,6 @@ function rotuloAgente(chave: string) {
 
 function acessoLabel(v: 'mind_only' | 'mind_public') {
   return v === 'mind_only' ? 'Mind only' : 'Mind + public';
-}
-
-function Resumo({
-  collections,
-  assets,
-  accesses,
-}: {
-  collections: KnowledgeCollection[];
-  assets: KnowledgeAsset[];
-  accesses: AgentKnowledgeAccess[];
-}) {
-  const pendencias = assets.filter((a) => a.pendenciaDecisao).length + accesses.filter((a) => a.pendenciaDecisao).length;
-  const agentes = new Set(accesses.filter((a) => a.agentKey !== 'knowledge_admin').map((a) => a.agentKey)).size;
-  const mindOnly = assets.filter((a) => a.acesso === 'mind_only').length;
-
-  const cards = [
-    { titulo: 'Collections', valor: collections.length, detalhe: 'taxonomia viva de routing', icone: Boxes },
-    { titulo: 'Knowledge assets', valor: assets.length, detalhe: 'fontes, sessões e materiais', icone: Database },
-    { titulo: 'Agentes', valor: agentes, detalhe: 'com matriz de conhecimento', icone: Bot },
-    { titulo: 'Mind only', valor: mindOnly, detalhe: 'assets protegidos por padrão', icone: ShieldCheck },
-    { titulo: 'Pendências', valor: pendencias, detalhe: 'decisões reservadas à Adriana', icone: AlertTriangle },
-  ];
-
-  return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-      {cards.map(({ titulo, valor, detalhe, icone: Icone }) => (
-        <Card key={titulo}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>{titulo}</CardDescription>
-              <Icone className="size-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-2xl">{valor}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">{detalhe}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
 }
 
 function TabelaCollections({ itens }: { itens: KnowledgeCollection[] }) {
@@ -531,12 +488,6 @@ export function PaginaKnowledge() {
 
       {!carregando && !erro ? (
         <>
-          <Resumo
-            collections={collections.data?.itens ?? []}
-            assets={assets.data?.itens ?? []}
-            accesses={accesses.data?.itens ?? []}
-          />
-
           <Tabs defaultValue="playground">
             <TabsList>
               <TabsTrigger value="playground"><Search className="mr-1 size-4" />Playground</TabsTrigger>
