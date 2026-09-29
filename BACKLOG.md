@@ -1183,18 +1183,19 @@ Os slides entraram em `summit_2026.knowledge_documents` (`tipo_conteudo = 'slide
 da mesma palestra é outro documento, com o texto em `transcrito`. Estado em 29/09: 37 arquivos em 31
 palestras. PR #142.
 
-### Decisão da Adriana
+### Quem lê — decidido (Adriana, 29/09)
 
-1. **Quem lê os slides.** 30 foram carregados desligados (`ativo = false`, `audiencia = interno`), como a
-   transcrição. Os outros 7, carregados por outra sessão, estão **ligados** com `agents` vazio. Por isso
-   o Concierge e o WhatsApp já os leem, via `mind_intelligence_buscar_contextual` e
-   `mind_intelligence_ler_contextual`:
-   - Jan De Neve: `d1-0940-bem-estar`;
-   - Amy Edmondson: `d1-1500-tres-movimentos` e `d2-1800-melhores-equipes`;
-   - Christina Maslach: `d1-1810-mito-colaborador` e `d2-1500-desalinhamentos-burnout`;
-   - Sonja Lyubomirsky: `d2-0930-programas-bem` e `d2-1130-bem-estar`.
+Slides e transcrições ficam **só para uso interno por enquanto**: todos com `ativo = false`, e os
+agentes não leem. As leituras (`mind_intelligence_*`) e o chunking só pegam documentos com `ativo`.
 
-   Sugestão: todos internos, fora do WhatsApp, até ela decidir.
+Os 7 slides que outra sessão tinha carregado ligados foram desligados em 29/09, com o motivo em
+`metadata->>'desligado_motivo'`:
+- Jan De Neve;
+- Amy Edmondson ×2;
+- Christina Maslach ×2;
+- Sonja Lyubomirsky ×2.
+
+Estado: 37 slides e 16 transcrições, todos desligados.
 
 ### Faltam — o Drive não devolveu texto (precisa de PDF com texto)
 
@@ -1252,18 +1253,13 @@ Casos especiais:
   transcrição foi ligada a `d1-1110-intervalo`. Contém a oferta do Mind Institute falada no palco; não é
   fonte de preço nem de condição comercial.
 
-### Decisão da Adriana — pessoas que o cabeçalho das transcrições cita e o banco não tem
+### Pessoas citadas nos cabeçalhos — decidido (Adriana, 29/09): nada entra no banco
 
-Nada foi alterado.
-- **Mediação:**
-  - Adriana Drulla mediou as perguntas do Jan (`d1-0940-bem-estar`);
-  - Virginie Leite mediou a Fernanda Catena (`d1-1230-nova-era`). Pela regra de formato, com 2 pessoas a
-    sessão passaria a `painel`.
-- **Apresentação** (papel `apresentacao`):
-  - Ivana Moreira em `d1-1130-emocoes-positivas`, `d1-1230-virada-diversidade`, `d1-1500-seu-emprego`,
-    `d1-1530-trabalho-anos`, `d1-1600-relacoes-sustentam`, `d1-1720-lideranca-consciente` e no
-    encerramento do dia em `d1-1810-mito-colaborador`;
-  - Izabella Camargo em `d1-1810-mito-colaborador`;
-  - Mariana Kaplan (Editora Sextante) em `d1-1130-trabalho-ainda`, `d1-1230-nova-era` e
-    `d1-1500-economia-distracao`. Ela não está no cadastro de palestrantes.
-- Tiago (parceiro do Mind) também não está no cadastro.
+- Adriana Drulla **não** é registrada como mediadora da palestra do Jan (`d1-0940-bem-estar`).
+- `d1-1230-nova-era` (Fernanda Catena) **fica `palestra`**. A mediação de Virginie Leite, citada no
+  cabeçalho, não é registrada.
+- As apresentações também não são registradas:
+  - Ivana Moreira;
+  - Izabella Camargo;
+  - Mariana Kaplan, que não está no cadastro de palestrantes.
+- Tiago (parceiro do Mind) não entra no cadastro.
