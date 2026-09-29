@@ -50,6 +50,9 @@ export const RECURSOS_DO_KNOWLEDGE = [
   'knowledge_collections',
   'knowledge_assets',
   'agent_knowledge_access',
+  'business_intelligence',
+  'customer_intelligence',
+  'agent_intelligence_access',
 ] as const satisfies readonly NomeRecurso[];
 
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
@@ -75,6 +78,9 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   knowledge_collections: new Set(['list', 'get']),
   knowledge_assets: new Set(['list', 'get']),
   agent_knowledge_access: new Set(['list', 'get', 'update']),
+  business_intelligence: new Set(['list', 'get']),
+  customer_intelligence: new Set(['list', 'get']),
+  agent_intelligence_access: new Set(['list', 'get', 'update']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -88,6 +94,9 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   knowledge_collections: (op) => `Collections são só leitura nesta primeira versão; ${op} collection ainda não existe no painel.`,
   knowledge_assets: (op) => `Knowledge assets são só leitura nesta primeira versão; ${op} asset ainda não existe no painel.`,
   agent_knowledge_access: (op) => `A matriz Agente × Knowledge aceita leitura e edição; ${op} ainda não existe.`,
+  business_intelligence: (op) => `Business Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
+  customer_intelligence: (op) => `Customer Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
+  agent_intelligence_access: (op) => `Agent Intelligence aceita leitura e edição da matriz; ${op} ainda não existe.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {

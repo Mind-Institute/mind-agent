@@ -2,7 +2,14 @@ import type { ProdutoCatalogo } from './product';
 import type { AdminSistema } from './admin-sistema';
 import type { SessaoSummit2026 } from './summit';
 import type { CupomCatalogo, OfertaCatalogo } from './offer';
-import type { AgentKnowledgeAccess, KnowledgeAsset, KnowledgeCollection } from './knowledge';
+import type {
+  AgentKnowledgeAccess,
+  KnowledgeAsset,
+  KnowledgeCollection,
+  BusinessKnowledgeGovernance,
+  CustomerKnowledgeGovernance,
+  AgentIntelligenceAccess,
+} from './knowledge';
 
 /**
  * O nome do recurso é o mesmo na URL da Edge Function
@@ -33,6 +40,9 @@ export interface MapaRecursos {
   knowledge_collections: KnowledgeCollection;
   knowledge_assets: KnowledgeAsset;
   agent_knowledge_access: AgentKnowledgeAccess;
+  business_intelligence: BusinessKnowledgeGovernance;
+  customer_intelligence: CustomerKnowledgeGovernance;
+  agent_intelligence_access: AgentIntelligenceAccess;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
@@ -40,6 +50,7 @@ export type NomeRecurso = keyof MapaRecursos;
 export const NOMES_RECURSOS: NomeRecurso[] = [
   'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
   'knowledge_collections', 'knowledge_assets', 'agent_knowledge_access',
+  'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
 ];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
@@ -51,4 +62,7 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   knowledge_collections: 'Collection',
   knowledge_assets: 'Knowledge asset',
   agent_knowledge_access: 'Acesso de agente',
+  business_intelligence: 'Business Intelligence',
+  customer_intelligence: 'Customer Intelligence',
+  agent_intelligence_access: 'Agent Intelligence',
 };
