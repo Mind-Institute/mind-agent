@@ -1175,3 +1175,63 @@ mexer em LGPD é gate da Adriana.
   PK composta na fusão; passou a usar `crm.pessoa_nps` (PK `mind_id, produto_codigo`). A fusão varre as FKs
   para `pessoas.pessoas` em tempo de execução, então a cobertura é a mesma. O contrato não foi rodado
   inteiro em 27/09.
+
+## 24. Slides do Summit 2026 — pendências (29/09/2026, Adriana)
+
+Os slides entraram em `summit_2026.knowledge_documents` (`tipo_conteudo = 'slides'`, texto na coluna
+`slides`, repetido em `corpo`), um documento por arquivo, ligado à palestra por `sessao_id`. A transcrição
+da mesma palestra é outro documento, com o texto em `transcrito`. Estado em 29/09: 37 arquivos em 31
+palestras. PR #142.
+
+### Decisão da Adriana
+
+1. **Quem lê os slides.** 30 foram carregados desligados (`ativo = false`, `audiencia = interno`), como a
+   transcrição. Os outros 7, carregados por outra sessão, estão **ligados** com `agents` vazio. Por isso
+   o Concierge e o WhatsApp já os leem, via `mind_intelligence_buscar_contextual` e
+   `mind_intelligence_ler_contextual`:
+   - Jan De Neve: `d1-0940-bem-estar`;
+   - Amy Edmondson: `d1-1500-tres-movimentos` e `d2-1800-melhores-equipes`;
+   - Christina Maslach: `d1-1810-mito-colaborador` e `d2-1500-desalinhamentos-burnout`;
+   - Sonja Lyubomirsky: `d2-0930-programas-bem` e `d2-1130-bem-estar`.
+
+   Sugestão: todos internos, fora do WhatsApp, até ela decidir.
+
+### Faltam — o Drive não devolveu texto (precisa de PDF com texto)
+
+- Michelle Schneider — `d1-1500-seu-emprego` (pptx de 788 MB);
+- Renata Rivetti — `d1-1500-autonomia-desorganizacao` (pptx grande);
+- Carla Tieppo, palestra — `d2-1130-onde-foi` (pptx grande; o workshop dela entrou);
+- Fernanda Craveiro — `d2-1440-segunda-feira` (PDF só de imagem; o Google Doc também veio vazio).
+
+Issao Imamura (`d2-0900-quem-enxerga`) fica **sem slides**, por decisão da Adriana (29/09).
+
+### Entraram cortados (refazer com PDF, se a Adriana quiser)
+
+- Igor Gomes Menezes e Esabela Cruz — `d1-1130-mensuracao-pgr`. Termina em "concausa para o seu adoe".
+- Cirlene Luiza Zimmermann — `d2-1130-riscos-psicossociais`. Termina em "poss"; os emojis vieram quebrados.
+
+### Conferir
+
+- Carol Romano — `d1-1600-relacoes-sustentam`: o texto do arquivo "NOVO: Carol Romano, Relações que
+  Sustentam 16h" começa como "Copy of luciana lima mind summit". Parece modelo reaproveitado; confirmar se é
+  a apresentação certa.
+- Fernanda Monteforte — `d2-1340-antes-cobrar`: só a capa tem texto.
+- Ivana Moreira, abertura — `d1-0900-abertura`: quase sem texto. A leitura trouxe um "الله" que não é
+  do slide.
+
+### Sem arquivo na pasta
+
+Palestras, masterclasses e workshops sem nenhum slide carregado. Pode ser que não tenham usado
+apresentação:
+
+- Adriana Drulla — `d1-0915-beneficio-transformacao`;
+- Jan De Neve, masterclass — `d1-1130-mensurar-intervir`;
+- Yuri Trafane — `d1-1130-trabalho-ainda`;
+- Fernanda Catena — `d1-1230-nova-era`;
+- Oscar de Bos — `d1-1500-economia-distracao`;
+- Ana Claudia Quintana Arantes — `d1-1600-consciencia-finitude`;
+- Clarissa Daroit, Esabela Cruz e Igor Gomes Menezes — `d2-1130-comeca-agenda`;
+- Alana Anijar — `d2-1230-lideranca-emocionalmente`;
+- Michael E. Long — `d2-1600-quem-esta`.
+
+Painéis, lançamentos e a entrevista também não têm slides; o normal é não terem.
