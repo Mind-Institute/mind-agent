@@ -9,6 +9,7 @@
    ROTAS
      GET   /admin/knowledge_collections
      GET   /admin/knowledge_collections/:id
+     GET   /admin/knowledge_sources
      GET   /admin/knowledge_assets
      GET   /admin/knowledge_assets/:id
      GET   /admin/agent_knowledge_access
@@ -33,6 +34,7 @@ const PAPEIS: AdminRole[] = ["administrador", "editor", "aprovador", "atendiment
 
 const RECURSOS = {
   knowledge_collections: { ler: "mind_admin_read_knowledge_collections", idParam: "p_chave" },
+  knowledge_sources: { ler: "mind_admin_read_knowledge_sources", idParam: "p_id" },
   knowledge_assets: { ler: "mind_admin_read_knowledge_assets", idParam: "p_id" },
   agent_knowledge_access: { ler: "mind_admin_read_agent_knowledge_access", idParam: "p_id" },
   business_intelligence: { ler: "mind_admin_read_business_intelligence", idParam: "p_id" },
