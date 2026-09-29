@@ -36,5 +36,8 @@ export function criarBanco(): BancoMock {
     summit_2026_sessions: clonar(sessoesSummit2026Semente),
     offers: clonar(ofertasSemente),
     coupons: clonar(cuponsSemente),
+    knowledge_collections: [],
+    knowledge_assets: [],
+    agent_knowledge_access: [],
   };
 }
