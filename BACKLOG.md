@@ -1242,9 +1242,10 @@ Painéis, lançamentos e a entrevista também não têm slides; o normal é não
 Pedido da Adriana: ingerir a pasta do Drive "Transcritos" (subpastas 16.09 e 17.09) e repetir o estudo/diff a
 cada hora até as 9h. Foram 7 rodadas, de 02:55 a 08:55 (horário de Brasília).
 
-### Estado em 29/09, 08:55
+### Estado em 29/09, fim do dia
 
-54 transcrições em `summit_2026.knowledge_documents` (28 do dia 16, 26 do dia 17):
+55 transcrições em `summit_2026.knowledge_documents` (29 do dia 16, 26 do dia 17). São as 54 da carga até 08:55
+mais a masterclass da Amy, colada depois pela Adriana (ver "Masterclass da Amy Edmondson" abaixo):
 - uma por palestra, `tipo_conteudo = 'transcricao'`;
 - texto em `transcrito`, repetido em `corpo`;
 - cabeçalho do arquivo em `metadata->'cabecalho'`;
@@ -1268,15 +1269,25 @@ Casos especiais:
   `d2-1020-obrigacao-gestao` contêm oferta comercial falada no palco; o `metadata` anota que não são fonte de
   preço nem de condição comercial.
 
-### Fora do banco
+### Masterclass da Amy Edmondson — carregada à mão
 
-- **Masterclass da Amy Edmondson** (`d1-1500-tres-movimentos`, fileId `1bVBUuO6R65ZFw7mXHrPUAEEOKvozOLsO`):
-  um filtro de segurança interrompeu a cópia do texto e nada foi gravado. Não foi retentado nem contornado.
-  A Adriana decide se carrega por outro caminho, por exemplo a importação pelo painel do Supabase.
-- Sessões sem arquivo na pasta:
-  - alumni talks: `d1-1340`, `d1-1400`, `d1-1420`, `d1-1440`, `d2-1340`, `d2-1400-custo-caber`,
-    `d2-1420`, `d2-1440`;
-  - lançamentos: `d1-1430-virada-diversidade`, `d2-1400-poder-sororidade`.
+Sessão `d1-1500-tres-movimentos`, fileId `1bVBUuO6R65ZFw7mXHrPUAEEOKvozOLsO`, documento
+`5cba5dfa-9650-4995-8a60-b970f6f7c886`:
+- na carga automática, um filtro de segurança interrompeu a cópia do texto e nada foi gravado; não foi retentado
+  nem contornado;
+- a Adriana autorizou a carga ("temos em contrato") e colou o texto ela mesma no SQL Editor do Supabase;
+- a conferência foi feita parágrafo a parágrafo contra o arquivo do Drive, sem recopiar o texto, e deu 88/88 iguais.
+  Foi restaurada a linha em branco entre parágrafos, perdida na colagem. Agora o md5 é igual ao do arquivo
+  processado como as outras;
+- o cabeçalho foi gravado em `metadata->'cabecalho'` e a plateia anonimizada (5 trocas);
+- a transcrição segue desligada, como as outras.
+
+### Sessões sem gravação — fechado (Adriana, 29/09: "não existem gravações")
+
+Estas 10 sessões aconteceram no intervalo do almoço, entre 13h40 e 14h40, e não foram gravadas. Não haverá
+transcrição:
+- alumni talks: `d1-1340`, `d1-1400`, `d1-1420`, `d1-1440`, `d2-1340`, `d2-1400-custo-caber`, `d2-1420`, `d2-1440`;
+- lançamentos: `d1-1430-virada-diversidade`, `d2-1400-poder-sororidade`.
 
 ### Revisar antes de ligar para qualquer agente — `metadata.dados_sensiveis`
 
@@ -1304,8 +1315,8 @@ Onde ficou cada versão:
 - `metadata->'anonimizacao'` registra cada troca pela marca de tempo, só o "depois".
 
 Resultado:
-- as 54 transcrições foram revisadas;
-- 24 tiveram trocas, 252 no total;
+- as 55 transcrições foram revisadas;
+- 25 tiveram trocas, 257 no total;
 - nas outras 30 não há plateia identificável.
 
 Critério aplicado:
@@ -1319,7 +1330,9 @@ Casos para a Adriana confirmar:
   da palestrante;
 - em `d1-1130-produtividade-sustentavel`, a titular de uma secretaria de educação foi anonimizada;
 - em `d1-1130-mensurar-intervir`, a empresa de uma participante dá para deduzir pela resposta do Jan (fala do palco,
-  mantida).
+  mantida);
+- em `d1-1500-tres-movimentos`, o cargo e o órgão público do 1º participante foram trocados, mas a resposta da Amy
+  (fala do palco, mantida) diz "firefighters", o que deixa o órgão dedutível. É o mesmo caso do Jan.
 
 `metadata->'cabecalho'` ainda cita nomes da plateia nas notas de revisão. Os agentes não leem esse campo; ele é
 interno, como `transcrito`.
