@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BookOpen, Boxes, Database, Search, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { AgentKnowledgeAccess, KnowledgeAsset, KnowledgeCollection } from '@/contracts';
+import type { AgentKnowledgeAccess } from '@/contracts';
 import { useLista } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
