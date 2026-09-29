@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, Boxes, Search, Sparkles } from 'lucide-react';
+import { BookOpen, Boxes, Database, Search, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { AgentKnowledgeAccess, KnowledgeAsset, KnowledgeCollection } from '@/contracts';
 import { useLista } from '@/hooks/use-recurso';
@@ -196,6 +196,11 @@ export function PaginaKnowledge() {
     setTab('sources');
   }
 
+  function abrirAssets(chave: string) {
+    setCollection(chave);
+    setTab('assets');
+  }
+
   return (
     <div className="space-y-6">
       <CabecalhoPagina
@@ -211,6 +216,7 @@ export function PaginaKnowledge() {
           <TabsList>
             <TabsTrigger value="collections"><Boxes className="mr-1 size-4" />Collections</TabsTrigger>
             <TabsTrigger value="sources"><BookOpen className="mr-1 size-4" />Sources</TabsTrigger>
+            <TabsTrigger value="assets"><Database className="mr-1 size-4" />Assets</TabsTrigger>
             <TabsTrigger value="playground"><Search className="mr-1 size-4" />Playground</TabsTrigger>
           </TabsList>
 
@@ -243,7 +249,7 @@ export function PaginaKnowledge() {
                         </TableCell>
                         <TableCell><Badge variant={c.acessoPadrao === 'mind_only' ? 'atencao' : 'sucesso'}>{acessoLabel(c.acessoPadrao)}</Badge></TableCell>
                         <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => abrirSources(c.chave)}>{c.sources}</Button></TableCell>
-                        <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => abrirSources(c.chave)}>{c.assets}</Button></TableCell>
+                        <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => abrirAssets(c.chave)}>{c.assets}</Button></TableCell>
                         <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => navigate(`/agent-intelligence?namespace=global&knowledge=${encodeURIComponent(c.chave)}`)}>{c.agents}</Button></TableCell>
                       </TableRow>
                     ))}
@@ -271,6 +277,34 @@ export function PaginaKnowledge() {
                         <TableCell className="font-mono text-xs">{a.originSchema}.{a.originTable}</TableCell>
                         <TableCell><div className="flex flex-wrap gap-1">{a.collections.map((c) => <Badge key={c.chave} variant={c.principal ? 'default' : 'secondary'}>{c.nome}</Badge>)}</div></TableCell>
                         <TableCell><Badge variant={a.acesso === 'mind_only' ? 'atencao' : 'sucesso'}>{acessoLabel(a.acesso)}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="assets" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>{collection ? `Assets · ${collections.data?.itens.find((x) => x.chave === collection)?.nome ?? collection}` : 'Assets'}</CardTitle>
+                <CardDescription>
+                  Assets são os ponteiros do control plane para unidades recuperáveis de conhecimento. Uma Source é a obra/documento canônico; um Asset pode representar essa fonte ou, futuramente, uma unidade derivada/estrutural sem duplicar o conteúdo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow><TableHead>Asset</TableHead><TableHead>Origem física</TableHead><TableHead>Tipo</TableHead><TableHead>Collections</TableHead></TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fontes.map((a) => (
+                      <TableRow key={a.id}>
+                        <TableCell><div className="font-semibold">{a.titulo}</div></TableCell>
+                        <TableCell className="font-mono text-xs">{a.originSchema}.{a.originTable} · {a.originId}</TableCell>
+                        <TableCell><Badge variant="outline">{a.assetType}</Badge></TableCell>
+                        <TableCell><div className="flex flex-wrap gap-1">{a.collections.map((x) => <Badge key={x.chave} variant={x.principal ? 'default' : 'secondary'}>{x.nome}</Badge>)}</div></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
