@@ -14,6 +14,10 @@
      GET   /admin/agent_knowledge_access
      GET   /admin/agent_knowledge_access/:id
      PATCH /admin/agent_knowledge_access/:id
+     GET   /admin/business_intelligence
+     GET   /admin/customer_intelligence
+     GET   /admin/agent_intelligence_access
+     PATCH /admin/agent_intelligence_access/:id
      POST  /admin/knowledge_search
      GET   /health
 */
@@ -31,6 +35,9 @@ const RECURSOS = {
   knowledge_collections: { ler: "mind_admin_read_knowledge_collections", idParam: "p_chave" },
   knowledge_assets: { ler: "mind_admin_read_knowledge_assets", idParam: "p_id" },
   agent_knowledge_access: { ler: "mind_admin_read_agent_knowledge_access", idParam: "p_id" },
+  business_intelligence: { ler: "mind_admin_read_business_intelligence", idParam: "p_id" },
+  customer_intelligence: { ler: "mind_admin_read_customer_intelligence", idParam: "p_id" },
+  agent_intelligence_access: { ler: "mind_admin_read_agent_intelligence_access", idParam: "p_id" },
 } as const;
 
 function lerChave(nome: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS", alternativa: string) {
@@ -266,6 +273,48 @@ Deno.serve(async (req: Request) => {
     const porPagina = Math.min(500, Math.max(1, Number(url.searchParams.get("porPagina") ?? 100) || 100));
     const inicio = (pagina - 1) * porPagina;
     return json(req, 200, { itens: filtrados.slice(inicio, inicio + porPagina), total: filtrados.length, pagina, porPagina }, requestId);
+  }
+
+  if (req.method === "PATCH" && nome === "agent_intelligence_access" && id) {
+    if (!["administrador","editor","aprovador"].includes(acesso.role)) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Seu papel não permite alterar Agent Intelligence." }, requestId);
+    }
+    let payload: Record<string, unknown>;
+    try { payload = await corpo(req); }
+    catch { return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId); }
+
+    const [agentKey, namespace, ...knowledgeParts] = id.split("::");
+    const knowledgeKey = knowledgeParts.join("::");
+    if (!agentKey || !namespace || !knowledgeKey) {
+      return json(req, 422, { codigo: "validacao", mensagem: "Identificador de acesso inválido." }, requestId);
+    }
+
+    const esperado = req.headers.get("If-Unmodified-Since-Version");
+    const { data, error } = await segredo.rpc("mind_admin_upsert_agent_intelligence_access", {
+      p_agent_key: agentKey,
+      p_namespace: namespace,
+      p_knowledge_key: knowledgeKey,
+      p_enabled: Boolean(payload.enabled),
+      p_priority: Number(payload.priority ?? 50),
+      p_access_max: String(payload.accessMax ?? "mind_public"),
+      p_customer_scope: payload.customerScope == null ? null : String(payload.customerScope),
+      p_updated_at_expected: esperado || null,
+    });
+    if (error) {
+      const m = error.message ?? "";
+      if (m.includes("admin_conflict") || error.code === "40001") {
+        return json(req, 409, { codigo: "conflito", mensagem: "Este acesso mudou. Recarregue antes de salvar." }, requestId);
+      }
+      if (m.includes("admin_not_found") || error.code === "P0002") {
+        return json(req, 404, { codigo: "nao_encontrado", mensagem: "Knowledge não encontrada." }, requestId);
+      }
+      if (m.includes("admin_validation") || error.code === "22023") {
+        return json(req, 422, { codigo: "validacao", mensagem: "Revise namespace, prioridade e escopo." }, requestId);
+      }
+      console.error(JSON.stringify({ request_id: requestId, error: "agent_intelligence_write_failed", code: error.code ?? null }));
+      return json(req, 503, { codigo: "indisponivel", mensagem: "Não foi possível salvar Agent Intelligence." }, requestId);
+    }
+    return json(req, 200, data, requestId);
   }
 
   if (req.method === "PATCH" && nome === "agent_knowledge_access" && id) {
