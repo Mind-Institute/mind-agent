@@ -298,6 +298,32 @@ Experiência desejada, em linguagem de usuário:
 
 O HubSpot continua sendo o CRM operacional. O Mind Intelligence agrega memória, contexto, conhecimento e inteligência. Não devemos criar um CRM paralelo.
 
+### 7.1 Laboratório manual antes de construir
+
+Antes de automatizar o Commercial Intelligence B2B, usar este chat como protótipo manual do futuro sistema.
+
+Quatro práticas ficam congeladas como método de descoberta:
+
+1. **Usar o Commercial B2B na prática** com o pipeline real e deixar o agente manual operar sobre HubSpot, Customer Intelligence, Commercial Intelligence, playbooks e conhecimento existente.
+2. **Mapear cada sessão de uso** em Intelligence / Playbook / Skill / Tool / Action, descobrindo a arquitetura por observação do trabalho real.
+3. **Estudar o que já existe no sistema antes de propor qualquer nova peça** — Supabase, HubSpot, prompts, RAG, Customer Intelligence, Commercial Intelligence e demais componentes existentes.
+4. **Atualizar continuamente este documento e o backlog**: algo que era hipótese pode virar NOW; algo que parecia necessário pode desaparecer; uma Skill pode surgir porque o mesmo processo se repetiu e mostrou valor.
+
+Regra de produto:
+
+> **Antes de construir uma Skill, fazemos o processo algumas vezes manualmente aqui.**
+
+A intenção é identificar empiricamente:
+- se o processo realmente se repete;
+- quais são suas entradas e saídas;
+- quais Intelligence ele usa;
+- quais Playbooks o orientam;
+- quais Tools são necessárias;
+- quais decisões exigem julgamento humano;
+- o que vale automatizar e o que deve permanecer flexível.
+
+Só depois dessa observação uma Skill deve ser promovida de hipótese para implementação.
+
 ---
 
 ## 8. Como priorizar o backlog
@@ -306,6 +332,9 @@ O HubSpot continua sendo o CRM operacional. O Mind Intelligence agrega memória,
 Trabalho necessário para um caso de uso real que está sendo desenhado ou usado.
 
 **Atual:**
+- usar o Commercial Intelligence B2B manualmente neste chat antes de automatizá-lo;
+- mapear as sessões reais em Intelligence / Playbook / Skill / Tool / Action;
+- registrar padrões repetidos e só então avaliar se merecem virar Skills;
 - continuar estudando o Commercial Intelligence B2B;
 - definir sua experiência real de uso antes de construir;
 - identificar, durante esse desenho, quais capacidades já existem e quais faltam;
@@ -361,7 +390,11 @@ Decisões/direções registradas:
 - princípio “use case first”;
 - proibição de criar arquitetura vazia por antecipação;
 - backlog dividido em Now / Next / Explore;
-- revisão diária e possibilidade explícita de reformular a visão.
+- revisão diária e possibilidade explícita de reformular a visão;
+- Commercial Intelligence B2B passa a ser usado primeiro como laboratório manual;
+- antes de construir uma Skill, o processo deve ser executado algumas vezes manualmente e observado;
+- sessões reais passam a ser mapeadas em Intelligence / Playbook / Skill / Tool / Action;
+- nenhuma nova peça deve ser proposta antes de estudar o que já existe no sistema.
 
 ---
 
