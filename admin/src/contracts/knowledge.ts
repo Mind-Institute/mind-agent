@@ -53,3 +53,66 @@ export const agentKnowledgeAccessSchema = z.object({
   atualizadoEm: z.string().min(1),
 });
 export type AgentKnowledgeAccess = z.infer<typeof agentKnowledgeAccessSchema>;
+
+
+export const businessKnowledgeGovernanceSchema = z.object({
+  id: z.string().uuid(),
+  collectionKey: z.string().min(1),
+  collectionName: z.string().min(1),
+  knowledgeType: z.string().min(1),
+  vertical: z.string().min(1),
+  sourceSchema: z.string().min(1),
+  sourceTable: z.string().min(1),
+  sourceFilter: z.record(z.unknown()).default({}),
+  sourceLocator: z.string().nullable().default(null),
+  description: z.string().nullable().default(null),
+  defaultAccess: z.enum(['mind_only', 'mind_public']),
+  retrievable: z.boolean(),
+  priority: z.number().int().min(0).max(100),
+  active: z.boolean(),
+  metadata: z.record(z.unknown()).default({}),
+  updatedAt: z.string().min(1),
+});
+export type BusinessKnowledgeGovernance = z.infer<typeof businessKnowledgeGovernanceSchema>;
+
+export const customerKnowledgeGovernanceSchema = z.object({
+  id: z.string().uuid(),
+  collectionKey: z.string().min(1),
+  collectionName: z.string().min(1),
+  intelligenceType: z.string().min(1),
+  sourceSchema: z.string().min(1),
+  sourceTable: z.string().min(1),
+  sourceFilter: z.record(z.unknown()).default({}),
+  sourceLocator: z.string().nullable().default(null),
+  description: z.string().nullable().default(null),
+  granularity: z.enum(['individual', 'company', 'conversation', 'segment', 'aggregate', 'mixed']),
+  sensitivity: z.enum(['internal', 'personal', 'sensitive']),
+  rowScopePolicy: z.string().min(1),
+  purposes: z.array(z.string()).default([]),
+  retrievable: z.boolean(),
+  priority: z.number().int().min(0).max(100),
+  active: z.boolean(),
+  metadata: z.record(z.unknown()).default({}),
+  updatedAt: z.string().min(1),
+});
+export type CustomerKnowledgeGovernance = z.infer<typeof customerKnowledgeGovernanceSchema>;
+
+export const agentIntelligenceAccessSchema = z.object({
+  id: z.string().min(1),
+  agentKey: z.string().min(1),
+  namespace: z.enum(['global', 'business', 'customer']),
+  knowledgeKey: z.string().min(1),
+  knowledgeName: z.string().min(1),
+  description: z.string().nullable().default(null),
+  ownerScope: z.string().nullable().default(null),
+  sourceCount: z.number().int().min(0),
+  sensitivity: z.enum(['internal', 'personal', 'sensitive']).nullable().default(null),
+  enabled: z.boolean(),
+  priority: z.number().int().min(0).max(100),
+  accessMax: z.enum(['mind_only', 'mind_public']),
+  customerScope: z.string().nullable().default(null),
+  pendingDecision: z.string().nullable().default(null),
+  metadata: z.record(z.unknown()).default({}),
+  updatedAt: z.string().min(1),
+});
+export type AgentIntelligenceAccess = z.infer<typeof agentIntelligenceAccessSchema>;
