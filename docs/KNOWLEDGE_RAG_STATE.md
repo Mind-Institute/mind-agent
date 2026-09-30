@@ -14,7 +14,7 @@
 - Retrieval: identidade do agente → collections habilitadas → acesso → hybrid search → reranking → contexto.
 - Autorização é pré-retrieval.
 - Livro inteiro = `mind_only`.
-- Livro com licença restrita = `derived_only`: texto bruto não entra no corpus; processar capítulo por capítulo.
+- A regra “livro com licença restrita = `derived_only`” foi removida por decisão da Adriana em 29/09/2026. Direitos e modo de ingestão continuam registrados fonte a fonte (`direitos_uso`, `modo_ingestao`, `provenance_notes`).
 - Referência citada por livro nasce como `reference_lead`; só vira evidência primária depois de ingerida/verificada.
 - Conteúdo do Summit não vira evidência científica automaticamente; preservar `expert_statement`/proveniência.
 - Decisões que exigem Adriana ficam em uma única coluna `pendencia_decisao`; execução continua com default conservador.
