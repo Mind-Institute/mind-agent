@@ -172,6 +172,16 @@ A rota valida sessão/admin, resolve retrieval server-side e tenta busca híbrid
 
 Existe a persona técnica `knowledge_admin`, invisível na matriz normal, com acesso interno às 22 collections para teste administrativo. Ela não representa agente público.
 
+## Piloto de livro em texto integral (30/09/2026)
+
+Relatório completo: `docs/KNOWLEDGE_PILOTO_LIVRO.md`.
+
+- Fonte `6b61c548-70c9-4d23-ba5e-ec12a6bfa147` (Henrich, *The Secret of Our Success*): `full_text`, `direitos_uso = unknown`, `mind_only`, `status_ingestao = processing`.
+- No banco: 18 locais (PDF mestre + 17 arquivos de parte), 22 itens de inventário (4 cópias idênticas excluídas), 138 seções hierárquicas, `page_map` de 456 páginas. O texto canônico está parcial (308.000 de 1.140.013 caracteres) e há 0 chunks.
+- A carga foi interrompida pela camada de segurança do Claude Code por causa da procedência da cópia. A decisão está pendente com a Adriana e registrada em `pendencia_decisao`.
+- Proposta ainda não aplicada: `docs/sql/knowledge-livro/proposta_busca_global_com_chunks.sql` (põe chunks de fontes `full_text` na fila de embeddings e na busca global, sem criar objetos novos).
+- Pipeline reaproveitável: `scripts/infra/knowledge-livro/`.
+
 ## Próxima ordem
 
 1. Gerar embeddings dos insights derivados pelo fluxo autenticado do Admin.
