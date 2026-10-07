@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -121,6 +121,21 @@ export const NAVEGACAO: GrupoNavegacao[] = [
   },
   { id: 'institute', rotulo: 'Institute', itens: [] },
   { id: 'dash', rotulo: 'Dash', itens: [] },
+  /* Pedido da Adriana (07/10/2026): o espelho das decisões D1–D6 e o mapa
+     de onde cada uma está aplicada. */
+  {
+    id: 'arquitetura',
+    rotulo: 'Arquitetura do sistema',
+    itens: [
+      {
+        id: 'arquitetura-decisoes',
+        rotulo: 'Decisões',
+        caminho: '/arquitetura/decisoes',
+        icone: Landmark,
+        descricao: 'As decisões congeladas (D1–D6) e onde cada uma está aplicada.',
+      },
+    ],
+  },
   {
     id: 'administracao',
     rotulo: 'Administração',
