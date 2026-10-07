@@ -6,6 +6,17 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### D8 · sem n8n — 07/10/2026
+
+Da Adriana: *"não quero usar n8n, e o que existia em n8n deve ser migrado para funções usando a
+API dos sistemas"*. Congelada em `PROJECT_STATE.md` v12 e `CLAUDE.md`. Nada foi migrado nem
+desligado ainda; cada substituição é proposta e aprovada por D7 antes. Workflows ativos vistos em
+07/10 que falam com o ecossistema: "Mind Vendas — Eduzz → HubSpot" (`hRHhDrckKD8Lj7VX`, webhook
+`/webhook/eduzz-events`, 62 nós, grava em `mind-hubpost`), "Mind Vendas — Blinket Ingressos
+(Eduzz → HubSpot)" (`9D1PYxk3wYHGYPEr`), "Mind — Summit 2026 Participação → HubSpot"
+(`zrHHtKHJ5BjxZ0A1`), "Mind — Validate Combo" (`73WDAsMt1GDz3M8P`). Inventário completo dos
+workflows ainda não feito.
+
 ### D7 · catálogo Eduzz autoral · funções Eduzz pendentes — 07/10/2026
 
 Da Adriana (07/10): *"a tabela eduzz.produto_catalogo em agents vai puxar direto da eduzz os

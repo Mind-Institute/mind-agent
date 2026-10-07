@@ -3,7 +3,19 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v11 — 07/10/2026.**
+> **Versão do checkpoint arquitetural: v12 — 07/10/2026.**
+>
+> **v12 acrescenta D8 — sem n8n: o que roda no n8n migra para funções que usam a API dos
+> sistemas.** Nas palavras da Adriana (07/10/2026): *"não quero usar n8n, e o que existia em n8n
+> deve ser migrado para funções usando a API dos sistemas"*. Nenhuma automação nova nasce no n8n;
+> cada workflow existente é substituído por função (Edge Function / função de banco) que fala
+> direto com a API do sistema de origem ou destino (Eduzz, HubSpot, Blinket, etc.). O workflow
+> só é desligado depois que a função substituta estiver no ar e conferida — mesma estratégia do
+> catálogo Eduzz: **construir o novo ao lado, desligar o velho quando estiver inativo**. **D8
+> não autoriza criar função:** cada substituição passa por **D7** (proposta com o que já existe
+> avaliado, "ok" dela antes). Maior consumidor hoje: "Mind Vendas — Eduzz → HubSpot"
+> (`hRHhDrckKD8Lj7VX`), que recebe o webhook da Eduzz e cria contato, empresa e negócio no
+> HubSpot lendo o catálogo do `mind-hubpost`.
 >
 > **v11 acrescenta D7 — nenhuma função nasce sem aprovação da Adriana.** Nas palavras dela
 > (07/10/2026): *"Você não pode criar nenhuma função sem eu aprovar"* e *"Antes de você sair
