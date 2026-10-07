@@ -86,6 +86,7 @@ CANAL/ENTRADA
 - não invente requisito, prompt, playbook ou conteúdo de negócio;
 - use casas/taxonomias existentes;
 - antes de criar tabela, prove que falta uma casa;
+- **D7 (07/10/2026): nenhuma função sem aprovação da Adriana.** Edge Function ou função de banco (SQL/RPC), em qualquer projeto Supabase do Mind: criar, alterar ou apagar exige o "ok" explícito dela **antes**. Primeiro investigue e melhore o que já existe; a proposta diz o quê, por quê e qual função existente foi avaliada. Pedido para mudar dado/tabela não autoriza criar função;
 - **Regra #1 (D5):** toda tabela que fala de pessoa tem `mind_id` (D6: é o nome da coluna do ID universal em toda tabela), resolvido ou criado pela porta única `mind_identidade_resolver` **antes** da escrita (`mind_pessoa_ligar_tabela` põe uma tabela nova na regra); nunca grave pessoa ou identificador fora dela; nunca funda pessoas fora de `mind_fusao_decidir` — a fusão é decisão da Adriana;
 - **função nasce fechada** (desde 25/09): o banco não dá mais EXECUTE a PUBLIC em função nova; a migration faz `revoke all ... from public, anon, authenticated` e concede só a quem chama — RPC interna é `service_role`, porta do app ou do site é `grant ... to anon`/`authenticated` de propósito (contrato: `tests/permissoes_funcoes_contract.sql`);
 - não transforme hipótese futura em hardening atual;

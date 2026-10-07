@@ -3,7 +3,20 @@
 > **Documento canônico de arquitetura e decisões congeladas.**
 > Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
 >
-> **Versão do checkpoint arquitetural: v10 — 23/09/2026.**
+> **Versão do checkpoint arquitetural: v11 — 07/10/2026.**
+>
+> **v11 acrescenta D7 — nenhuma função nasce sem aprovação da Adriana.** Nas palavras dela
+> (07/10/2026): *"Você não pode criar nenhuma função sem eu aprovar"* e *"Antes de você sair
+> criando coisa igual, você tem que melhorar o que já está aí"*. Vale para **Edge Function e
+> função de banco (SQL/RPC), em qualquer projeto Supabase do Mind**, e para alterar ou apagar
+> uma que já existe. O agente investiga o que já existe, propõe (o quê, por quê, qual função
+> existente foi avaliada e por que não serve ou como melhorá-la) e **espera o "ok" dela** antes
+> de executar. Pedido dela para mudar um dado ou uma tabela não autoriza, por tabela, criar
+> função para isso. Estende ao código a régua de `CLAUDE.md` para tabela ("antes de criar,
+> prove que falta uma casa"): antes de propor função nova, prove que nenhuma existente serve
+> ou pode ser melhorada. Origem: em 07/10 o Claude criou no mind-agent `eduzz-produtos-sync`,
+> `eduzz-api`, `eduzz_produtos_gravar` e `eduzz_produtos_arquivar_pais` sem aprovação — ver
+> `CHECKPOINT_ATUAL.md`. Ver §3.
 >
 > **v10 acrescenta D5 — identidade universal.** Nas palavras da Adriana (22–23/09): *"o
 > número de identidade único do sistema deve existir para todas as pessoas e, quando uma
@@ -110,6 +123,7 @@ Mudança pequena não vira revalidação ampla. Testar o que mudou e regressões
 ## 3. Modo operacional vigente — v9
 
 - **Adriana** = dona de produto/negócio e dos gates sensíveis. Por **D2**, é também a **única aprovadora** de mudança estrutural de banco: fonte nova, casa nova, mudança de proveniência e o gate do §8 de `AGENTS.md`. Dentro de casa existente e comentada, a mudança de banco segue sem passar pela aprovação dela; o que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai a ela antes.
+- Por **D7** (07/10/2026), **nenhuma função é criada, alterada ou apagada sem aprovação explícita da Adriana** — Edge Function ou função de banco, em qualquer projeto Supabase do Mind, inclusive dentro de casa existente. Diferente de D2, aqui não há exceção por "casa existente": a proposta vai a ela antes, sempre, dizendo qual função existente foi avaliada primeiro.
 - **ChatGPT arquiteto/supervisor** = mantém o modelo mental, verifica GitHub/Supabase, fecha a menor mudança, coordena lanes, revisa PRs/testes, decide ordem de integração, mergeia quando permitido e registra checkpoints.
 - **Claude Code** = investigador/executor escopado em branch `claude/...`; implementa o chunk fechado, testa o afetado, reporta evidência; não amplia escopo e não mergeia sozinho.
 - **GitHub** = memória compartilhada e barramento entre lanes. Coordenação deve ir direto às issues/PRs, evitando Adriana como transporte humano.
