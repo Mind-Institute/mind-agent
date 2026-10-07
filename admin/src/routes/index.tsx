@@ -9,6 +9,7 @@ import { PaginaKnowledge } from '@/pages/knowledge';
 import { PaginaBusinessIntelligence } from '@/pages/business-intelligence';
 import { PaginaCustomerIntelligence } from '@/pages/customer-intelligence';
 import { PaginaAgentIntelligence } from '@/pages/agent-intelligence';
+import { PaginaArquitetura } from '@/pages/arquitetura';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -53,6 +54,9 @@ export const rotasAdmin: RouteObject[] = [
 
       { path: 'admins', element: <PaginaAdmins /> },
       { path: 'admins/:id', element: <PaginaAdmins /> },
+
+      /* As decisões de arquitetura, só leitura (Adriana, 07/10/2026). */
+      { path: 'arquitetura', element: <PaginaArquitetura /> },
 
       { path: '*', element: <PaginaNaoEncontrada /> },
     ],

@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, BriefcaseBusiness, CalendarDays, ListOrdered, Package, ScrollText, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -15,7 +15,8 @@ import type { Acao } from '@/lib/permissions';
    Programação (pedido dela no mesmo dia). No topo, o schema `catalogo`
    inteiro — produtos, ofertas e cupons —, porque "o painel é o controle
    deste schema" (Adriana, 26/09/2026). Por último, a Administração:
-   quem entra no painel. */
+   quem entra no painel e, a pedido dela (07/10/2026), a Arquitetura do
+   sistema — as decisões congeladas, só leitura. */
 
 export interface ItemNavegacao {
   id: string;
@@ -132,6 +133,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         icone: UserCog,
         permissao: 'gerir_usuarios',
         descricao: 'Quem entra no Mind Intelligence Admin — por Mind ID, só da equipe.',
+      },
+      {
+        id: 'arquitetura',
+        rotulo: 'Arquitetura do sistema',
+        caminho: '/arquitetura',
+        icone: ScrollText,
+        descricao: 'As decisões congeladas (D1–D6) e as regras posteriores da Adriana.',
       },
     ],
   },
