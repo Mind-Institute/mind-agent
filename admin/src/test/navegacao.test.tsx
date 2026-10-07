@@ -8,7 +8,7 @@ describe('navegação', () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Ofertas', 'Cupons', 'Programação', 'Admins do sistema']);
+    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Ofertas', 'Cupons', 'Global Knowledge', 'Business Intelligence', 'Customer Intelligence', 'Agent Intelligence', 'Programação', 'Decisões', 'Admins do sistema']);
     for (const item of ITENS_NAVEGACAO) {
       expect(
         within(menu).getByRole('link', { name: (nome) => nome.trim() === item.rotulo }),
@@ -29,7 +29,7 @@ describe('navegação', () => {
     expect(NAVEGACAO.find((g) => g.id === 'dash')?.submenus ?? []).toEqual([]);
     /* O schema `catalogo` inteiro no topo (Adriana, 26/09/2026): "o painel é o
        controle deste schema" — produtos, ofertas e cupons, com dado real. */
-    expect(NAVEGACAO[0].itens.map((item) => item.caminho)).toEqual(['/catalogo', '/ofertas', '/cupons']);
+    expect(NAVEGACAO[0].itens.map((item) => item.caminho)).toEqual(['/catalogo', '/ofertas', '/cupons', '/knowledge', '/business-intelligence', '/customer-intelligence', '/agent-intelligence']);
     /* Pedido dela no mesmo dia: no lugar do antigo grupo de administração,
        só o quadro de quem entra no painel. */
     expect(within(menu).getByText('Administração')).toBeVisible();
