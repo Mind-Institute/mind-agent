@@ -6,6 +6,43 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### D7 · catálogo Eduzz autoral · funções Eduzz pendentes — 07/10/2026
+
+Da Adriana (07/10): *"a tabela eduzz.produto_catalogo em agents vai puxar direto da eduzz os
+produtos todos que estiverem la … ela nao mais sera espelho"* · *"Você não pode criar nenhuma
+função sem eu aprovar"* · *"Antes de você sair criando coisa igual, você tem que melhorar o que já
+está aí"*. Contexto: a Eduzz cria um produto novo a cada variação de oferta (preço, combo), por
+isso o catálogo dela tem centenas de itens; a estratégia combinada é **construir o novo ao lado e
+desligar o velho quando estiver inativo**, não migrar em bloco o `mind-hubpost`.
+
+- **D7 congelada** (`PROJECT_STATE.md` v11, `CLAUDE.md`): nenhuma função criada, alterada ou
+  apagada sem o "ok" dela.
+- **`eduzz.produto_catalogo` deixou de ser espelho do `mind-hubpost` — LOCAL_AUTHORITATIVE
+  (mudança de proveniência pedida por ela, D2).** Feito: fonte `produto_catalogo` removida do
+  `eduzz-espelho-sync` (v11 viva); `id` com default `gen_random_uuid()`, `updated_at` com default e
+  trigger `produto_catalogo_touch`; `sincronizado_em` virou histórico (nulo = nascida aqui); UNIQUE
+  em `eduzz_product_id`; trigger `produtos_garante_catalogo` em `eduzz.produtos` cria a linha
+  (sem mapeamento) para todo produto novo; backfill: **343 linhas = 193 mapeadas + 150 sem
+  mapeamento** (134 delas produto-pai arquivado). `mapped_at` nulo = ainda não mapeado.
+  Sobrou a linha `produto_catalogo` em `public.espelho_estado` (último status "ok"): o `delete`
+  pelo MCP travou à espera de confirmação — apagar à mão.
+- **Atenção:** o n8n "Mind Vendas — Eduzz → HubSpot" (`hRHhDrckKD8Lj7VX`) ainda lê o catálogo do
+  `mind-hubpost` (`get_catalog_with_combo`). Mapear no mind-agent **não** muda o que o n8n faz, e
+  o que se mapear no front antigo não chega mais aqui, até o n8n apontar para o mind-agent.
+- **`eduzz.produtos` continua espelho do `mind-hubpost`** (que puxa da API a cada 2 dias com o
+  `EDUZZ_API_TOKEN` de lá). A `EDUZZ_API_KEY` do mind-agent, trocada por ela em 07/10, **continua
+  recusada pela Eduzz** (`/accounts/v1/me` → 401 *invalid_token*; OAuth → *App not found*): é
+  chave do formato antigo, não token de acesso.
+- **Criadas SEM aprovação (violam D7) — aguardam a decisão dela, nada mais foi mexido:**
+  Edge Functions `eduzz-produtos-sync` (v3, não agendada, nunca sincronizou) e `eduzz-api` (v1,
+  leitura genérica, nunca usada); funções de banco `public.eduzz_produtos_gravar(jsonb)` e
+  `public.eduzz_produtos_arquivar_pais()` (só `service_role`; usadas apenas pela primeira).
+- **Inventário (07/10):** nenhuma função existente puxa "qualquer coisa" da Eduzz. As que falam
+  com a API estão todas no `mind-hubpost`, cada uma fixa: `sync-eduzz-products`,
+  `check-eduzz-sale-status`, `eduzz-ingest-desconto`, `eduzz-cupom-probe`, `eduzz-webhook-admin`
+  (todas com `EDUZZ_API_TOKEN` como Bearer em `api.eduzz.com`). No mind-agent só `eduzz-diag` e
+  `eduzz-espelho-sync`.
+
 ### Catálogo no painel · Summit fora de venda · Join no mesmo banco — 25/09/2026
 
 Da Adriana (25/09): *"O Summit não tá mais à venda. Pode parar de copiar a cada 30 minutos."* ·
