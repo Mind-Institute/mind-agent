@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,11 @@ import {
    ============================================================
    Pedido da Adriana (07/10/2026): o espelho das decisões D1–D6 e onde
    cada uma está aplicada. Só leitura; o conteúdo mora em
-   `lib/arquitetura.ts`, tirado dos documentos e do banco. */
+   `lib/arquitetura.ts`, tirado dos documentos e do banco.
+
+   Clicar numa linha do mapa abre a definição daquela decisão logo
+   embaixo — sem rolar a página (pedido dela, 07/10/2026). A escolhida
+   fica no endereço (`?d=D5`), para dar para mandar o link. */
 
 const COR_SITUACAO: Record<Situacao, BadgeProps['variant']> = {
   aplicada: 'sucesso',
@@ -25,6 +30,10 @@ const COR_SITUACAO: Record<Situacao, BadgeProps['variant']> = {
 };
 
 export function PaginaArquitetura() {
+  const [parametros, setParametros] = useSearchParams();
+  const escolhida = DECISOES.find((d) => d.id === parametros.get('d')) ?? DECISOES[0];
+  const escolher = (id: string) => setParametros({ d: id }, { replace: true });
+
   return (
     <div className="space-y-6">
       <CabecalhoPagina
@@ -49,9 +58,28 @@ export function PaginaArquitetura() {
             </thead>
             <tbody>
               {DECISOES.map((decisao) => (
-                <tr key={decisao.id} className="border-t">
+                <tr
+                  key={decisao.id}
+                  onClick={() => escolher(decisao.id)}
+                  aria-selected={decisao.id === escolhida.id}
+                  className={
+                    decisao.id === escolhida.id
+                      ? 'cursor-pointer border-t bg-verde-100'
+                      : 'cursor-pointer border-t hover:bg-muted/50'
+                  }
+                >
                   <th scope="row" className="px-3 py-2 text-left font-black">
-                    <a href={`#${decisao.id}`} className="hover:underline">{decisao.id}</a>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        escolher(decisao.id);
+                      }}
+                      aria-pressed={decisao.id === escolhida.id}
+                      className="hover:underline"
+                    >
+                      {decisao.id}
+                    </button>
                   </th>
                   <td className="px-3 py-2">
                     <Badge variant={COR_SITUACAO[decisao.situacao]}>{ROTULO_SITUACAO[decisao.situacao]}</Badge>
@@ -74,14 +102,12 @@ export function PaginaArquitetura() {
           </table>
         </div>
         <p className="text-xs text-muted-foreground">
-          Cada número é quantos lugares daquela camada aplicam a decisão. Clique na decisão para ver quais.
+          Cada número é quantos lugares daquela camada aplicam a decisão. Clique numa linha para ver a decisão aqui embaixo.
         </p>
       </section>
 
-      <section aria-label="Decisões" className="space-y-4">
-        {DECISOES.map((decisao) => (
-          <CartaoDecisao key={decisao.id} decisao={decisao} />
-        ))}
+      <section aria-label="Decisão escolhida">
+        <CartaoDecisao decisao={escolhida} />
       </section>
     </div>
   );
@@ -89,7 +115,7 @@ export function PaginaArquitetura() {
 
 function CartaoDecisao({ decisao }: { decisao: Decisao }) {
   return (
-    <Card id={decisao.id} className="scroll-mt-20">
+    <Card>
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="font-black">{decisao.id}</Badge>
