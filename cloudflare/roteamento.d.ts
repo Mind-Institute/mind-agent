@@ -27,3 +27,6 @@ export declare function pedeArquivo(pathname: string): boolean;
 export declare function ehDoPainel(pathname: string): boolean;
 export declare function decidirAntes(metodo: string, pathname: string): Decisao;
 export declare function decidirApos404(metodo: string, pathname: string): Decisao;
+
+export declare const HOST_DA_PESQUISA: 'avaliacao.mindsummit.com.br';
+export declare function ehDaPesquisa(hostname: string | null | undefined): boolean;

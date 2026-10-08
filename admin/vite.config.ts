@@ -59,14 +59,6 @@ export default defineConfig({
       VITE_CATALOGO_API_BASE_URL: '',
       /* O primeiro login com Google também deriva de `VITE_SUPABASE_URL`. */
       VITE_ACESSO_API_BASE_URL: '',
-      /* A Avaliação do dia tem o endereço da Edge Function NO CÓDIGO, como
-         fallback de quando a variável não existe — é URL pública, e assim o
-         relatório não depende de alguém lembrar de configurá-la na
-         Cloudflare. Zerar aqui é o que mantém a promessa deste bloco: vazia
-         (não ausente) desliga o fallback, e a suíte continua sem alcançar a
-         produção. Sem esta linha, `navegacao.test.tsx` — que abre todos os
-         módulos — passava a chamar o backend de verdade. */
-      VITE_AVALIACAO_API_BASE_URL: '',
     },
   },
 });
