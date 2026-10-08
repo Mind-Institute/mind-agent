@@ -121,7 +121,7 @@ export const NAVEGACAO: GrupoNavegacao[] = [
   },
   { id: 'institute', rotulo: 'Institute', itens: [] },
   { id: 'dash', rotulo: 'Dash', itens: [] },
-  /* Pedido da Adriana (07/10/2026): o espelho das decisões D1–D6 e o mapa
+  /* Pedido da Adriana (07/10/2026): o espelho das decisões oficiais e o mapa
      de onde cada uma está aplicada. */
   {
     id: 'arquitetura',
@@ -132,7 +132,7 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         rotulo: 'Decisões',
         caminho: '/arquitetura/decisoes',
         icone: Landmark,
-        descricao: 'As decisões congeladas (D1–D6) e onde cada uma está aplicada.',
+        descricao: 'As decisões oficiais no Supabase e o mapa de implementação.',
       },
     ],
   },

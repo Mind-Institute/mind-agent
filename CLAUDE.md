@@ -1,16 +1,22 @@
 # Mind — regras para Claude Code / agentes de execução
 
+**Primeiro: leia [`AGENTS.md`](AGENTS.md), começando pelo primeiro passo obrigatório,
+e estude as decisões e o schema `arquitetura` no Supabase antes de tocar no sistema.
+A fonte oficial está no Supabase; este arquivo contém instruções de uso, não outra
+lista de decisões.**
+
 ## Antes de trabalhar
 
 Leia, nesta ordem:
 
-0. **`READ_ME_FIRST.md`** — a Regra #1: toda linha sobre uma pessoa nasce com `mind_id` (D5/D6).
-1. **`CHECKPOINT_ATUAL.md`** — onde estamos exatamente agora.
-2. **`PROJECT_STATE.md`** — arquitetura, gates e decisões congeladas.
-3. **`GO_LIVE_PARALLEL_20260830.md`** — ownership da sua lane e ordem de integração.
-4. **`BACKLOG.md`** — somente o trecho relevante para não repetir investigação.
-5. **`docs/CORE_UNIVERSAL.md`** — o que já está vivo.
-6. Depois, **investigue o sistema real** diretamente relacionado ao seu chunk.
+0. **`AGENTS.md` e o schema `arquitetura` no Supabase** — entrada obrigatória e decisões oficiais.
+1. **`READ_ME_FIRST.md`** — instruções operacionais de identidade, após a arquitetura.
+2. **`CHECKPOINT_ATUAL.md`** — onde estamos exatamente agora.
+3. **`PROJECT_STATE.md`** — documentação do projeto; decisões somente no Supabase.
+4. **`GO_LIVE_PARALLEL_20260830.md`** — ownership da sua lane e ordem de integração.
+5. **`BACKLOG.md`** — somente o trecho relevante para não repetir investigação.
+6. **`docs/CORE_UNIVERSAL.md`** — o que está implementado.
+7. Depois, **investigue o sistema real** diretamente relacionado ao seu chunk.
 
 Uma IA nova deve conseguir retomar o projeto sem conversa anterior lendo esses arquivos e conferindo os HEADs das PRs citadas no checkpoint.
 
@@ -19,7 +25,7 @@ Uma IA nova deve conseguir retomar o projeto sem conversa anterior lendo esses a
 ```text
 INVESTIGAR
 → ENTENDER O QUE JÁ EXISTE
-→ DECIDIR A MENOR MUDANÇA
+→ PROPOR E OBTER APROVAÇÃO DA ARQUITETURA
 → IMPLEMENTAR
 → TESTAR SÓ O AFETADO
 → REGISTRAR CHECKPOINT NA ISSUE/PR
@@ -31,7 +37,7 @@ Não transformar espera de CI, preview ou review em motivo para encerrar a lane.
 ## Papéis vigentes
 
 - **Adriana**: produto/negócio e gates sensíveis. Por **D2**, também a **única aprovadora** de mudança estrutural de banco: tabela nova, schema novo ou troca de autoridade vão a ela antes; dentro de casa existente, a mudança segue sem passar por ela.
-- **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, fecha a menor mudança, coordena lanes, revisa PRs, decide integração e registra o checkpoint.
+- **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, propõe mudanças e implementa a arquitetura aprovada, coordena lanes e revisa PRs e registra o checkpoint.
 - **Claude Code**: investiga e implementa o escopo delegado em branch `claude/...`; traz evidência independente; não amplia escopo e não mergeia por conta própria.
 - **GitHub**: memória compartilhada e barramento entre lanes.
 
@@ -82,12 +88,13 @@ CANAL/ENTRADA
 
 ## Regras de implementação
 
+- Para decisões arquiteturais e aprovação, cumpra o primeiro passo de `AGENTS.md`
+  e consulte `arquitetura.decisoes`; não mantenha outra lista neste arquivo.
+
 - menor mudança correta; sem redesign lateral;
 - não invente requisito, prompt, playbook ou conteúdo de negócio;
 - use casas/taxonomias existentes;
 - antes de criar tabela, prove que falta uma casa;
-- **D7 (07/10/2026): nenhuma função sem aprovação da Adriana.** Edge Function ou função de banco (SQL/RPC), em qualquer projeto Supabase do Mind: criar, alterar ou apagar exige o "ok" explícito dela **antes**. Primeiro investigue e melhore o que já existe; a proposta diz o quê, por quê e qual função existente foi avaliada. Pedido para mudar dado/tabela não autoriza criar função;
-- **D8 (07/10/2026): sem n8n.** Nenhuma automação nova no n8n; o que roda lá migra para funções que usam a API dos sistemas (Eduzz, HubSpot…). Workflow só se desliga depois que a substituta estiver no ar e conferida. Cada função substituta passa por D7 antes;
 - **Regra #1 (D5):** toda tabela que fala de pessoa tem `mind_id` (D6: é o nome da coluna do ID universal em toda tabela), resolvido ou criado pela porta única `mind_identidade_resolver` **antes** da escrita (`mind_pessoa_ligar_tabela` põe uma tabela nova na regra); nunca grave pessoa ou identificador fora dela; nunca funda pessoas fora de `mind_fusao_decidir` — a fusão é decisão da Adriana;
 - **função nasce fechada** (desde 25/09): o banco não dá mais EXECUTE a PUBLIC em função nova; a migration faz `revoke all ... from public, anon, authenticated` e concede só a quem chama — RPC interna é `service_role`, porta do app ou do site é `grant ... to anon`/`authenticated` de propósito (contrato: `tests/permissoes_funcoes_contract.sql`);
 - não transforme hipótese futura em hardening atual;

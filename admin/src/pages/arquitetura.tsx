@@ -1,27 +1,19 @@
+import { useQuery } from '@tanstack/react-query';
+import { useSessao } from '@/hooks/use-sessao';
+import { buscarDecisoes } from '@/services/decisoes';
 import { useSearchParams } from 'react-router-dom';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   CAMADAS,
-  DECISOES,
-  MEDIDO_EM,
   ROTULO_SITUACAO,
-  TABELAS_NA_PORTA,
   type Decisao,
   type Situacao,
 } from '@/lib/arquitetura';
 
-/* ============================================================
-   ARQUITETURA DO SISTEMA — DECISÕES E MAPA
-   ============================================================
-   Pedido da Adriana (07/10/2026): o espelho das decisões D1–D6 e onde
-   cada uma está aplicada. Só leitura; o conteúdo mora em
-   `lib/arquitetura.ts`, tirado dos documentos e do banco.
-
-   Clicar numa linha do mapa abre a definição daquela decisão logo
-   embaixo — sem rolar a página (pedido dela, 07/10/2026). A escolhida
-   fica no endereço (`?d=D5`), para dar para mandar o link. */
+/* Espelho somente leitura de arquitetura.decisoes no Supabase.
+   Sem lista local ou fallback que possa apresentar uma decisão antiga. */
 
 const COR_SITUACAO: Record<Situacao, BadgeProps['variant']> = {
   aplicada: 'sucesso',
@@ -31,16 +23,35 @@ const COR_SITUACAO: Record<Situacao, BadgeProps['variant']> = {
 
 export function PaginaArquitetura() {
   const [parametros, setParametros] = useSearchParams();
-  const escolhida = DECISOES.find((d) => d.id === parametros.get('d')) ?? DECISOES[0];
+  const { simulada, obterToken, marcarSessaoExpirada } = useSessao();
+  const consulta = useQuery({
+    queryKey: ['arquitetura-decisoes', simulada],
+    enabled: !simulada,
+    queryFn: async ({ signal }) => {
+      const token = await obterToken();
+      if (!token) { marcarSessaoExpirada(); throw new Error('Sessão expirada. Entre novamente.'); }
+      return buscarDecisoes({ token, sinal: signal });
+    },
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+  });
+  const decisoes = consulta.data ?? [];
+  const escolhida = decisoes.find((d) => d.id === parametros.get('d')) ?? decisoes[0];
   const escolher = (id: string) => setParametros({ d: id }, { replace: true });
 
   return (
     <div className="space-y-6">
       <CabecalhoPagina
         titulo="Decisões do sistema"
-        descricao={`As decisões congeladas no PROJECT_STATE.md e onde cada uma está aplicada. Números medidos no banco em ${MEDIDO_EM}.`}
+        descricao="Decisões aprovadas no Supabase, em arquitetura.decisoes. Esta tela apenas consulta e mostra."
       />
 
+      {simulada ? <p role="status">Conecte o painel ao Supabase para consultar as decisões oficiais.</p>
+        : consulta.isPending ? <p role="status">Carregando decisões…</p>
+        : consulta.isError ? <div role="alert"><p>Não foi possível consultar as decisões oficiais.</p>
+          <button type="button" onClick={() => void consulta.refetch()}>Tentar novamente</button></div>
+        : decisoes.length === 0 ? <p role="status">Nenhuma decisão registrada.</p> : null}
+      {escolhida ? <>
       <section aria-labelledby="titulo-mapa" className="space-y-3">
         <h2 id="titulo-mapa" className="text-base font-black">Mapa</h2>
         <div className="overflow-x-auto rounded-lg border">
@@ -57,7 +68,7 @@ export function PaginaArquitetura() {
               </tr>
             </thead>
             <tbody>
-              {DECISOES.map((decisao) => (
+              {decisoes.map((decisao) => (
                 <tr
                   key={decisao.id}
                   onClick={() => escolher(decisao.id)}
@@ -82,7 +93,7 @@ export function PaginaArquitetura() {
                     </button>
                   </th>
                   <td className="px-3 py-2">
-                    <Badge variant={COR_SITUACAO[decisao.situacao]}>{ROTULO_SITUACAO[decisao.situacao]}</Badge>
+                    <BadgeSituacao decisao={decisao} />
                   </td>
                   {CAMADAS.map((camada) => {
                     const n = decisao.lugares.filter((l) => l.camada === camada.id).length;
@@ -109,8 +120,15 @@ export function PaginaArquitetura() {
       <section aria-label="Decisão escolhida">
         <CartaoDecisao decisao={escolhida} />
       </section>
+      </> : null}
     </div>
   );
+}
+
+function BadgeSituacao({ decisao }: { decisao: Decisao }) {
+  return <Badge variant={decisao.situacao ? COR_SITUACAO[decisao.situacao] : 'neutro'}>
+    {decisao.situacao ? ROTULO_SITUACAO[decisao.situacao] : 'Não aferida'}
+  </Badge>;
 }
 
 function CartaoDecisao({ decisao }: { decisao: Decisao }) {
@@ -119,14 +137,17 @@ function CartaoDecisao({ decisao }: { decisao: Decisao }) {
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="font-black">{decisao.id}</Badge>
-          <Badge variant={COR_SITUACAO[decisao.situacao]}>{ROTULO_SITUACAO[decisao.situacao]}</Badge>
-          <span className="text-xs text-muted-foreground">{decisao.data}</span>
+          <BadgeSituacao decisao={decisao} />
+          <span className="text-xs text-muted-foreground">{decisao.data} · Aprovada por {decisao.aprovadaPor} · {decisao.vigencia}</span>
         </div>
         <CardTitle className="text-base">{decisao.titulo}</CardTitle>
-        <CardDescription>{decisao.resumo}</CardDescription>
+        <CardDescription>{decisao.texto}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-sm">{decisao.significado}</p>
+        {decisao.substituidaPor ? <p className="text-sm">Substituída por {decisao.substituidaPor}.</p> : null}
         <p className="text-sm">{decisao.leitura}</p>
+        {decisao.medidoEm ? <p className="text-xs text-muted-foreground">Mapa de implementação aferido em {decisao.medidoEm}; pode não refletir alterações posteriores.</p> : null}
         <div className="space-y-3">
           {CAMADAS.map((camada) => {
             const lugares = decisao.lugares.filter((l) => l.camada === camada.id);
@@ -148,20 +169,6 @@ function CartaoDecisao({ decisao }: { decisao: Decisao }) {
             );
           })}
         </div>
-        {decisao.id === 'D5' ? (
-          <details className="text-sm">
-            <summary className="cursor-pointer font-semibold">
-              As {TABELAS_NA_PORTA.length} tabelas em que a porta roda antes de escrever
-            </summary>
-            <ul className="mt-2 grid gap-1 sm:grid-cols-2">
-              {TABELAS_NA_PORTA.map((tabela) => (
-                <li key={tabela}>
-                  <code className="break-all text-xs">{tabela}</code>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
       </CardContent>
     </Card>
   );

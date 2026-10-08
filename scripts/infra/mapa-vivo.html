@@ -25,8 +25,8 @@
   O consultor NUNCA escreve SQL: ele recebe o resultado da consulta fixa já pronto.
 
   O QUE ELA SABE ALÉM DO BANCO
-  As constantes DECISOES, AUTORIDADE e REGRAS, mais abaixo, carregam as decisões congeladas
-  (PROJECT_STATE.md v9) e as regras do CLAUDE.md. Elas vão para a tela e para o consultor.
+  As constantes AUTORIDADE e REGRAS, mais abaixo, carregam as decisões congeladas
+  como contexto histórico de implementação. As decisões oficiais são consultadas no Supabase.
   Quando uma decisão mudar no repositório, mude aqui também — senão a página aconselha
   dentro de uma regra que já caiu.
 
@@ -434,18 +434,7 @@ const ATALHOS = [
 
 /* As decisões congeladas. Vão para a tela E para o consultor: sem elas ele
    descreve o banco, mas não sabe para onde o banco deve ir. */
-const DECISOES = [
- {id:"D1", t:"O Supabase é a fonte da verdade do histórico do cliente",
-  c:"O HubSpot deixa de ser origem e vira destino. A leitura não muda hoje — ligar a escrita para o HubSpot continua atrás do gate. <b>A casa já existe e está vazia:</b> <code>crm.pessoa_produtos</code> foi criada em 29/08, tem FK, unique e RLS, e <code>crm.contexto_comercial</code> já lê ela. Nunca houve escritor. D1 é carga, não redesenho."},
- {id:"D2", t:"Uma aprovadora: a Adriana",
-  c:"Tabela nova, schema novo ou troca de quem manda no fato vão à aprovação dela antes; dentro de casa existente, a mudança segue sem passar por ela. Setembro teve 9 tabelas novas em 7 migrations — de um a três itens por semana."},
- {id:"D3", t:"Summit completo · Institute parcial · Dash fora",
-  c:"Dash sai por ausência de dado: o schema inteiro tem 2 linhas, ambas de documento, nenhuma de pessoa. Entra quando houver cliente. Institute tem oferta e programa, mas o histórico de matrícula ainda não veio do LearnWorlds."},
- {id:"D4", t:"Ligar NPS de verdade",
-  c:"A escala 0–10 já está no banco, com <code>CHECK</code>, em duas casas vazias de grão diferente: <code>engagement.nps</code> (por participante do evento) e <code>crm.pessoa_nps</code> (por pessoa e produto). Falta o escritor e a decisão de produto de onde perguntar, quando e com que frequência. Nota 0–5 de avaliação de atividade não é NPS."},
- {id:"D5", t:"Identidade universal: toda linha sobre uma pessoa nasce com mind_id",
-  c:"Decisão de 22–23/09 (Regra #1, <code>READ_ME_FIRST.md</code>). <code>pessoas.pessoas.id</code> é o id que persiste, para toda pessoa de qualquer fonte; os identificadores (e-mail, WhatsApp, ids de terceiros; CPF só como apoio) ficam em <code>engagement.identidades</code>. Toda tabela-fonte tem <code>mind_id</code> (D6) resolvido pela porta única <code>mind_identidade_resolver</code> <b>antes</b> da escrita (trigger). Antes de criar: enriquecer e unificar quem já existe. Duplicata vira proposta; <b>só a Adriana funde</b>, via <code>mind_fusao_decidir</code>. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados e ~900 compradores sem pessoa; 586 duplicatas com uma causa só (pessoa nascida do WhatsApp, ligada ao HubSpot sem o e-mail, recriada no login)."}
-];
+
 
 /* Quem manda em cada fato. O fato bruto continua de quem o observou;
    D1 decide o andar de cima, a síntese.
@@ -593,9 +582,7 @@ function explica(k){
 }
 
 function desenharDecisoes(){
-  $("decisoes").innerHTML = DECISOES.map(d =>
-    '<div class="decisao"><div class="d-id">'+d.id+'</div>' +
-    '<div><div class="d-t">'+d.t+'</div><p class="d-c">'+d.c+'</p></div></div>').join("");
+  $("decisoes").innerHTML = '<p>As decisões oficiais vivem em <code>arquitetura.decisoes</code> no Supabase. <a href="https://admin.minddash.pro/admin/arquitetura/decisoes">Consultar no painel autenticado</a>.</p>';
   $("autoridade").innerHTML = AUTORIDADE.map(([fato,quem,onde]) =>
     '<div class="aut"><span class="a-fato">'+esc(fato)+'</span>' +
     '<span class="pill p-'+(quem==="mind"?"uso":"parado")+'">'+quem+'</span>' +
@@ -686,8 +673,8 @@ Vereditos: uso = tem dado e alguém lê; parado = tem dado e nenhuma função ou
 
 ${resumo()}
 
-=== 2. DECISÕES JÁ CONGELADAS (v9, 21/09/2026) ===
-${DECISOES.map(d => d.id+" — "+d.t+": "+d.c.replace(/<[^>]+>/g,"")).join("\n")}
+=== 2. DECISÕES OFICIAIS ===
+As decisões vivem somente em arquitetura.decisoes no Supabase. Esta ferramenta não as carrega. Não proponha evolução arquitetural sem estudá-las; limite a resposta à descrição do estado recebido.
 
 === 3. QUEM MANDA EM CADA FATO ===
 O fato bruto continua de quem o observou; D1 decide a síntese consolidada.

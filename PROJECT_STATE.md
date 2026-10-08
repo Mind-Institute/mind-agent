@@ -1,89 +1,10 @@
-# Mind Agent — estado do projeto, arquitetura congelada e ordem de execução
+# Mind Agent — documentação do projeto e estado da implementação
 
-> **Documento canônico de arquitetura e decisões congeladas.**
-> Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
->
-> **Versão do checkpoint arquitetural: v12 — 07/10/2026.**
->
-> **v12 acrescenta D8 — sem n8n: o que roda no n8n migra para funções que usam a API dos
-> sistemas.** Nas palavras da Adriana (07/10/2026): *"não quero usar n8n, e o que existia em n8n
-> deve ser migrado para funções usando a API dos sistemas"*. Nenhuma automação nova nasce no n8n;
-> cada workflow existente é substituído por função (Edge Function / função de banco) que fala
-> direto com a API do sistema de origem ou destino (Eduzz, HubSpot, Blinket, etc.). O workflow
-> só é desligado depois que a função substituta estiver no ar e conferida — mesma estratégia do
-> catálogo Eduzz: **construir o novo ao lado, desligar o velho quando estiver inativo**. **D8
-> não autoriza criar função:** cada substituição passa por **D7** (proposta com o que já existe
-> avaliado, "ok" dela antes). Maior consumidor hoje: "Mind Vendas — Eduzz → HubSpot"
-> (`hRHhDrckKD8Lj7VX`), que recebe o webhook da Eduzz e cria contato, empresa e negócio no
-> HubSpot lendo o catálogo do `mind-hubpost`.
->
-> **v11 acrescenta D7 — nenhuma função nasce sem aprovação da Adriana.** Nas palavras dela
-> (07/10/2026): *"Você não pode criar nenhuma função sem eu aprovar"* e *"Antes de você sair
-> criando coisa igual, você tem que melhorar o que já está aí"*. Vale para **Edge Function e
-> função de banco (SQL/RPC), em qualquer projeto Supabase do Mind**, e para alterar ou apagar
-> uma que já existe. O agente investiga o que já existe, propõe (o quê, por quê, qual função
-> existente foi avaliada e por que não serve ou como melhorá-la) e **espera o "ok" dela** antes
-> de executar. Pedido dela para mudar um dado ou uma tabela não autoriza, por tabela, criar
-> função para isso. Estende ao código a régua de `CLAUDE.md` para tabela ("antes de criar,
-> prove que falta uma casa"): antes de propor função nova, prove que nenhuma existente serve
-> ou pode ser melhorada. Origem: em 07/10 o Claude criou no mind-agent `eduzz-produtos-sync`,
-> `eduzz-api`, `eduzz_produtos_gravar` e `eduzz_produtos_arquivar_pais` sem aprovação — ver
-> `CHECKPOINT_ATUAL.md`. Ver §3.
->
-> **v10 acrescenta D5 — identidade universal.** Nas palavras da Adriana (22–23/09): *"o
-> número de identidade único do sistema deve existir para todas as pessoas e, quando uma
-> pessoa nova chegar por qualquer lugar, deve procurar por ela e, se não achar, criar novo
-> ID — senão vai ficar uma porção de coisas soltas"*; *"toda tabela que tem pessoas deve ter
-> obrigatoriamente o ID da pessoa: resolver ID ou criar antes de escrever a pessoa no
-> sistema, sempre"*; *"antes de criar qualquer pessoa deve enriquecer as pessoas que já
-> existem com os dados que são usados para identidade dela, para não duplicar, e caso já
-> esteja duplicado unifique"*; *"antes de fundir deve sempre confirmar comigo"*; e sobre CPF:
-> *"CPF igual mas e-mail, WhatsApp ou nome diferente = pessoa diferente; muitas vezes é do
-> comprador ou porta-voz; mesmo assim pode servir para resolver conflitos; na dúvida
-> perguntar e não unificar"*. A forma operacional está em **`READ_ME_FIRST.md`** (Regra #1) e
-> em §7. Medido em 23/09: 7.832 contatos do HubSpot, 347 credenciados do Summit e ~900
-> compradores da Eduzz sem pessoa; **586 duplicatas** entre credenciados e CRM, todas com a
-> mesma causa (pessoa nascida do WhatsApp, ligada ao HubSpot só pelo id do contato, sem o
-> e-mail, e recriada no login do app). `pessoas.pessoas` deixa de ser "espelho de leitura do
-> HubSpot" e vira o registro de todo mundo. Migration
-> `20260923024555_d5_identidade_universal.sql`; passada em `scripts/infra/identidade/`.
->
-> v9 congela quatro decisões da Adriana, tomadas depois que o Summit 2026 acabou e o
-> inventário do banco ficou pronto (`MAPA_SUPABASE_20260921.md`):
->
-> **D1 — o Supabase passa a ser a fonte da verdade do histórico do cliente, e passa a
-> alimentar o HubSpot.** Nas palavras dela: *"o HubSpot estava com essa informação primária
-> antes da gente. Só que agora a gente já tem o espelho da Eduzz. A gente recebe a informação
-> da Eduzz ou de quem é o checkout, e a gente também é quem recebe a informação da Yazo sobre
-> quem foi. É a gente que precisa organizar nossa inteligência para entender, inclusive, como
-> alimentar o HubSpot."* Isto **inverte** a §5 de `docs/CORE_UNIVERSAL.md` e substitui o
-> parágrafo que dizia "não inventar uma". Ver §8 abaixo para a tabela de quem manda em cada
-> fato. O HubSpot deixa de ser origem e vira destino; **ligar a escrita continua atrás do
-> gate existente** — D1 decide a direção do fluxo, não autoriza o disparo.
->
-> **D2 — um único aprovador: a Adriana.** Ver §3.
->
-> **D3 — escopo do histórico do cliente:** Summit completo, Institute parcial, **Dash
-> declarado fora** enquanto não houver dado de cliente ali (hoje são 2 linhas no schema
-> inteiro, nenhuma de pessoa). Prometer as três verticais hoje seria ficção de dado.
->
-> **D4 — ligar NPS de verdade**, separado das notas 0–5 das avaliações do Summit, que
-> continuam não sendo NPS. **A escala 0–10 já está no banco**, com `CHECK` em duas casas de
-> grão diferente e ambas vazias: `engagement.nps` (por participante do evento) e
-> `crm.pessoa_nps` (por pessoa e produto). O que falta não é tabela nem constraint — é o
-> **escritor** e a **decisão de produto** de onde perguntar, quando e com que frequência.
-> Sem ela, escritor pronto e tabela vazia. Ver §8.
->
-> v8 congela o atalho comercial estreito do Treble, criado por causa da latência medida do
-> Router: B2C é padrão; B2B de ingressos exige destino corporativo e mais de uma pessoa;
-> suporte, outra solução e empresa sem quantidade seguem para o Router. O código e o
-> `router_universal` devem carregar exatamente o mesmo contrato.
->
-> v7 congela a correção de produto pedida pela Adriana: o App continua entrando como Concierge e usando momento do evento + contexto da pessoa, mas também pode vender quando houver intenção explícita de compra ou upgrade. O mesmo contrato de checkout atribuído vale no App e no WhatsApp e já nasce extensível para Institute e pré-venda do Summit seguinte quando essas ofertas oficiais entrarem nos Kits.
->
-> v6 substitui duas partes desatualizadas de v5: (1) o modelo operacional vigente volta a refletir o workflow realmente usado — **ChatGPT arquiteto/supervisor + Claude Code executor + GitHub como memória/barramento**; (2) `Passo 12B` deixou de ser “passo atual”: Kit/Gate/Core já estão integrados e o go-live está em lanes B/C/D/E. v6 também explicita a diferença entre merge de migrations/app e publicação manual das Edge Functions neste repo sem `supabase/config.toml`.
->
-> As decisões arquiteturais anteriores que não conflitam com v6 continuam vigentes.
+> **Antes de tocar no sistema, leia `AGENTS.md` e estude o schema `arquitetura` no Supabase.**
+> As decisões aprovadas vivem somente em `arquitetura.decisoes`, no projeto `mind-agent`
+> (`ymnmotgglsrxmjmonwjz`). Este documento não mantém uma lista ou exportação das decisões.
+> Para o estado operacional, leia `CHECKPOINT_ATUAL.md`. As seções técnicas abaixo descrevem
+> componentes e contexto de implementação; não substituem nem alteram as decisões no banco.
 
 ---
 
@@ -110,7 +31,7 @@ Cada arquivo tem um papel. Não misturar:
 ```text
 INVESTIGAR
 → ENTENDER O QUE JÁ EXISTE
-→ DECIDIR A MENOR MUDANÇA
+→ PROPOR E OBTER APROVAÇÃO DA ARQUITETURA
 → IMPLEMENTAR
 → TESTAR SÓ O AFETADO
 → REGISTRAR O ESTADO FINAL/CHECKPOINT
@@ -256,30 +177,8 @@ Regras:
 
 `pessoas.pessoas.id` é o **Mind ID** canônico; em toda outra tabela a coluna chama-se `mind_id` (D6). HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
 
-**D5 (23/09/2026) — identidade universal.** Toda pessoa, de qualquer fonte, existe em
-`pessoas.pessoas` com o id que persiste. Toda tabela que fala de pessoa tem `mind_id`,
-preenchido pela porta única `mind_identidade_resolver` **antes** da escrita (trigger
-`mind_pessoa_antes_de_escrever`; `mind_pessoa_ligar_tabela` põe uma tabela nova na regra).
-Força dos identificadores (quem reconhece sozinho): login 4 · WhatsApp, HubSpot, Yazo,
-credenciamento, Eduzz, LearnWorlds 3 · e-mail 2 · **CPF e CNPJ 1 — apoio, nunca decidem
-sozinhos** (o CPF do credenciamento e da Yazo é o do comprador). **Precedência (quem vence
-quando discordam — Adriana, 23/09): login > id de terceiro > e-mail > WhatsApp > CPF > CNPJ; e
-o nome veta**: pessoa achada só por telefone/CPF com nome divergente é outra pessoa; só por
-telefone com e-mail divergente é outra pessoa (suspeita se o nome for igual); por e-mail com nome
-claramente diferente não se liga. Nome parecido (grafia, sobrenome a mais/menos, apelido) é o
-mesmo nome (`mind_nomes_compativeis`). Linha comprada por terceiro (e-mail do participante ≠ do
-comprador) não entrega telefone nem CPF. Antes de criar: bater com `pessoas.pessoas`,
-enriquecer (`mind_pessoa_enriquecer`, ancorado, nunca cria) e unificar. A pessoa com todos os
-ids numa linha: `pessoas.v_pessoa_360`. Uma pessoa fundida fica com `fundida_em`; o id antigo
-continua resolvendo (`mind_pessoa_canonica`). Aplicada e executada em produção em 23/09
-(`CHECKPOINT_ATUAL.md`).
-
-**D6 (23/09/2026) — o ID universal chama-se `mind_id`.** Pedido da Adriana ("renomeie a coluna como
-universal MIND ID"). Em toda tabela que fala de pessoa a coluna do ID universal é `mind_id`
-(antes `pessoa_id`/`participante_id`/`participant_id`/`person_id`); as companheiras da Regra #1 são
-`mind_id_criterio` e `mind_id_resolvido_em`. O que não muda: as chaves dos payloads das funções
-(`pessoa_id`, `participante_id` em jsonb e em `returns table`) e os nomes de saída das views `api.*` — são
-contrato de API lido pelas Edge Functions e pelo app. `pessoas.v_pessoa_360` passa a expor `mind_id`.
+Os detalhes operacionais de identidade estão em `READ_ME_FIRST.md`. As decisões D5/D6
+são consultadas no Supabase, não copiadas nesta seção.
 
 Conflito de identidade:
 
@@ -399,6 +298,13 @@ este documento está velho. Mudar autoridade de uma fonte é decisão da Adriana
 registrada como pendência — não patch de quem consome.
 
 ---
+
+## 8A. Onde consultar as decisões
+
+Consulte `arquitetura.decisoes` no Supabase; leia o texto, o significado e a vigência.
+O mapa de implementação mora separadamente em `arquitetura.implementacao_decisoes` e
+informa a data da aferição. O painel consulta esses registros pela porta autenticada
+`mindagent-home/admin/decisoes`; não tem uma lista local nem fallback com decisões antigas.
 
 ## 9. Retrieval / Kit / RAG
 

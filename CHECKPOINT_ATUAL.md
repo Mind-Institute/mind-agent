@@ -6,6 +6,40 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### Arquitetura no Supabase — 07/10/2026
+
+- Fonte oficial: `arquitetura.decisoes`, projeto mind-agent (`ymnmotgglsrxmjmonwjz`).
+  D1–D11 transferidas e conferidas. Não manter cópias nem gerar exportações de decisões.
+- `arquitetura.implementacao_decisoes` separa a fotografia de aplicação do texto aprovado.
+  A data de aferição limita a validade dos números antigos; aplicação integral não é presumida.
+- `mindagent-home` v9 publicada: `GET /admin/decisoes`, mesma validação de sessão e admin
+  ativo existente. Leitura direta do schema arquitetura, sem view/RPC em outro schema.
+  Sem login: 401, inclusive com Origin do painel. POST recusado. Só service_role lê as
+  duas tabelas; visitantes não têm acesso e a porta não tem permissão de escrita.
+- `arquitetura` acrescentado aos schemas de PostgREST, preservando public/graphql_public/api.
+  Existia override no role authenticator; a migration preserva a lista e acrescenta o schema.
+- Entrada obrigatória de agentes/pessoas está no início de AGENTS.md, com referências
+  nos demais documentos da raiz. Estudar as decisões e o schema antes de tocar no sistema.
+- Frontend preparado para leitura do banco, sem lista fixa ou fallback local. Publicação
+  do frontend ainda em andamento; conferir este checkpoint após terminar.
+
+### Eduzz API2 — estado desta sessão, 07/10/2026
+
+- Adaptação da `eduzz-api` aprovada pela Adriana nesta conversa e publicada, v4.
+  É a porta central de leitura da API2 (`https://api2.eduzz.com`), não Bearer da API moderna.
+- Credenciais vivem nos secrets Edge do Supabase: `EDUZZ_API_KEY`, `EDUZZ_EMAIL`;
+  `EDUZZ_PUBLIC_KEY` opcional. Não copiar valores para código, documentos ou chat.
+  O email solicitado foi salvo em `EDUZZ_EMAIL`. O ambiente de desenvolvimento usa
+  `SUPABASE_ACCESS_TOKEN` para Management e `SUPABASE_Secret_Key` para REST de serviço;
+  essas variáveis não substituem os secrets de runtime da Eduzz.
+- Autenticação API2: POST /credential/generate_token com email/publickey/apikey;
+  chamadas GET usam header token, renovado por profile.token. `eduzz-api` não devolve
+  credenciais. Chamada exige o token interno existente em intelligence.config.
+- Leitura integral conferida: 373 produtos, 15 páginas. `eduzz.produtos` ainda tem 343;
+  o espelho continua ativo. Conversão da gravação NÃO publicada: o rascunho que misturava
+  entrada e tratamento foi retirado e preservado em /tmp, pois conflita com a decisão D9.
+  A definição da separação exige aprovação arquitetural antes da implementação.
+
 ### D8 · sem n8n — 07/10/2026
 
 Da Adriana: *"não quero usar n8n, e o que existia em n8n deve ser migrado para funções usando a
