@@ -20,8 +20,18 @@
   Existia override no role authenticator; a migration preserva a lista e acrescenta o schema.
 - Entrada obrigatória de agentes/pessoas está no início de AGENTS.md, com referências
   nos demais documentos da raiz. Estudar as decisões e o schema antes de tocar no sistema.
-- Frontend preparado para leitura do banco, sem lista fixa ou fallback local. Publicação
-  do frontend ainda em andamento; conferir este checkpoint após terminar.
+- Frontend PUBLICADO em produção pelo Workers Builds do commit `92fd46b` (check success).
+  Conferido em `https://admin.minddash.pro/admin/arquitetura/decisoes`: HTTP 200, bundle novo
+  `index-CyAMnyaI.js` contém a leitura `/admin/decisoes`, fonte arquitetura.decisoes e atualização
+  a cada 60 segundos. Sem lista fixa ou fallback local. Sessão real da Adriana não foi usada.
+- Validação: 13 testes de frontend/navegação e 8 testes da porta Edge passaram; typecheck,
+  build combinado e dry-run do Worker passaram; contrato SQL passou no banco vivo.
+- Supabase Preview segue falhando com "Remote migration versions not found in local migrations
+  directory". A mesma falha estava no commit anterior `e1b10ea`; não foi causada por esta entrega.
+  Estrutura aplicada diretamente e conferida; não tratar esse check como prova de ausência no banco.
+- A migration versionada contém somente estrutura/permissões; os textos foram transferidos
+  uma vez por SQL e vivem somente no Supabase. Uma instância vazia não recebe decisões falsas
+  de um arquivo de código. Não inserir seed local para substituir a fonte oficial.
 
 ### Eduzz API2 — estado desta sessão, 07/10/2026
 
