@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import simboloMind from '@marca/simbolo-mind-verde.png';
-import { NAVEGACAO } from '@/routes/navegacao';
+import { NAVEGACAO, type ItemNavegacao } from '@/routes/navegacao';
 import { useSessao } from '@/hooks/use-sessao';
 import { cn } from '@/lib/utils';
 
@@ -11,8 +11,6 @@ import { cn } from '@/lib/utils';
  * `AdminLayout`).
  */
 export function BarraLateral({ aoNavegar }: { aoNavegar?: () => void }) {
-  const sessao = useSessao();
-
   return (
     <nav aria-label="Navegação principal" className="flex h-full flex-col gap-1 overflow-y-auto p-3">
       <div className="mb-3 flex items-center gap-2.5 px-2 py-1">
@@ -33,36 +31,55 @@ export function BarraLateral({ aoNavegar }: { aoNavegar?: () => void }) {
             </p>
           ) : null}
           <ul className="space-y-0.5">
-            {grupo.itens.map((item) => {
-              const permitido = item.permissao ? sessao.pode(item.permissao) : true;
-              const Icone = item.icone;
-              return (
-                <li key={item.id}>
-                  <NavLink
-                    to={item.caminho}
-                    end={item.caminho === '/'}
-                    onClick={aoNavegar}
-                    title={permitido ? item.descricao : `Sem permissão · ${item.descricao}`}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-semibold transition-colors',
-                        isActive
-                          ? 'bg-verde-100 text-verde-900'
-                          : 'text-slate-600 hover:bg-muted hover:text-foreground',
-                        !permitido && 'opacity-50',
-                      )
-                    }
-                  >
-                    <Icone className="size-4 shrink-0" />
-                    <span className="truncate">{item.rotulo}</span>
-                    {!permitido ? <Lock className="ml-auto size-3 shrink-0" /> : null}
-                  </NavLink>
-                </li>
-              );
-            })}
+            {grupo.itens.map((item) => (
+              <LinkDoMenu key={item.id} item={item} aoNavegar={aoNavegar} />
+            ))}
           </ul>
+          {(grupo.submenus ?? []).map((submenu) => {
+            const IconeSubmenu = submenu.icone;
+            return (
+              <div key={submenu.id} className="mt-0.5">
+                <p className="flex items-center gap-2.5 px-2.5 py-2 text-sm font-semibold text-slate-700">
+                  <IconeSubmenu className="size-4 shrink-0" />
+                  <span className="truncate">{submenu.rotulo}</span>
+                </p>
+                <ul className="ml-4 space-y-0.5 border-l pl-2" aria-label={submenu.rotulo}>
+                  {submenu.itens.map((item) => (
+                    <LinkDoMenu key={item.id} item={item} aoNavegar={aoNavegar} />
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
       ))}
     </nav>
+  );
+}
+
+function LinkDoMenu({ item, aoNavegar }: { item: ItemNavegacao; aoNavegar?: () => void }) {
+  const sessao = useSessao();
+  const permitido = item.permissao ? sessao.pode(item.permissao) : true;
+  const Icone = item.icone;
+  return (
+    <li>
+      <NavLink
+        to={item.caminho}
+        end={item.caminho === '/'}
+        onClick={aoNavegar}
+        title={permitido ? item.descricao : `Sem permissão · ${item.descricao}`}
+        className={({ isActive }) =>
+          cn(
+            'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-semibold transition-colors',
+            isActive ? 'bg-verde-100 text-verde-900' : 'text-slate-600 hover:bg-muted hover:text-foreground',
+            !permitido && 'opacity-50',
+          )
+        }
+      >
+        <Icone className="size-4 shrink-0" />
+        <span className="truncate">{item.rotulo}</span>
+        {!permitido ? <Lock className="ml-auto size-3 shrink-0" /> : null}
+      </NavLink>
+    </li>
   );
 }

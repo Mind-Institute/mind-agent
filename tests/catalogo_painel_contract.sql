@@ -1,6 +1,7 @@
 -- Contrato do catálogo no painel: mind_admin_read_catalogo e mind_admin_mutate_catalogo
--- (migrations 20260925183716_catalogo_no_painel_leitura_e_edicao e
--- 20260926153820_catalogo_datas_da_turma_no_painel). Sempre termina em rollback:
+-- (migrations 20260925183716_catalogo_no_painel_leitura_e_edicao,
+-- 20260926153820_catalogo_datas_da_turma_no_painel e
+-- 20260926163932_catalogo_datas_da_turma_como_no_site). Sempre termina em rollback:
 -- a exceção CATALOGO_OK é o resultado. Usa um administrador ativo de mind_admin_users como
 -- autor e não cria pessoa nem produto.
 begin;
@@ -10,6 +11,8 @@ declare
   v_prod catalogo.produtos%rowtype;
   v_inst catalogo.produtos%rowtype;
   v_turma institute.programas%rowtype;
+  v_site record;
+  n_site int := 0;
   v_obj jsonb;
   v_lista jsonb;
   v_um jsonb;
@@ -184,17 +187,32 @@ begin
   if not has_function_privilege('service_role', 'public.mind_admin_mutate_catalogo(text,uuid,jsonb,text,uuid,uuid)', 'execute') then
     raise exception 'service_role precisa executar a edição'; end if;
 
-  -- No Institute, as datas são as da turma: a leitura mostra as da turma e a edição delas é recusada.
+  -- No Institute, as datas são as da turma, calculadas como em api.programas (o que os sites e o
+  -- agente leem: a data da turma e, vazia, o primeiro e o último encontro). Produto a produto, o
+  -- painel mostra as mesmas datas do site.
+  for v_obj in select e from jsonb_array_elements(public.mind_admin_read_catalogo()) e
+                where e->'datasDaTurma' <> 'null'::jsonb loop
+    select ap.inicia_em, ap.encerra_em into v_site
+      from api.programas ap where ap.codigo = v_obj->'datasDaTurma'->>'programa';
+    if found then
+      n_site := n_site + 1;
+      if v_obj->>'comecaEm' is distinct from v_site.inicia_em::text
+         or v_obj->>'encerraEm' is distinct from v_site.encerra_em::text then
+        raise exception 'datas da turma diferentes do site: painel % × site % a %',
+          v_obj, v_site.inicia_em, v_site.encerra_em; end if;
+    end if;
+  end loop;
+  if n_site = 0 then raise exception 'nenhum produto com turma no site para conferir as datas'; end if;
+
+  -- a leitura diz de qual turma vêm as datas, e a edição delas é recusada
   select p.* into v_inst from catalogo.produtos p
    where exists (select 1 from institute.programas pr where pr.produto_codigo = p.codigo)
    order by p.codigo limit 1;
   if v_inst.id is null then raise exception 'sem produto com turma em institute.programas para o teste'; end if;
-  select pr.* into v_turma from institute.programas pr where pr.produto_codigo = v_inst.codigo
-   order by pr.ativo desc, pr.inicia_em nulls last, pr.ordem nulls last, pr.codigo limit 1;
   v_obj := public.mind_admin_read_catalogo(v_inst.id)->0;
-  if v_obj->>'comecaEm' is distinct from v_turma.inicia_em::text
-     or v_obj->>'encerraEm' is distinct from v_turma.encerra_em::text
-     or v_obj->'datasDaTurma'->>'programa' is distinct from v_turma.codigo
+  select pr.* into v_turma from institute.programas pr
+   where pr.produto_codigo = v_inst.codigo and pr.codigo = v_obj->'datasDaTurma'->>'programa';
+  if v_turma.codigo is null
      or (v_obj->'datasDaTurma'->>'inicioPrevisto')::boolean is distinct from v_turma.inicio_previsto then
     raise exception 'datas da turma: a leitura trouxe %', v_obj; end if;
   begin
@@ -217,7 +235,7 @@ begin
   r := public.mind_admin_mutate_catalogo('atualizar', v_inst.id, '{"descricaoCurta":"Teste das datas da turma"}',
          v_obj->>'atualizadoEm', v_ator, gen_random_uuid());
   if r->>'descricaoCurta' <> 'Teste das datas da turma' or r->'datasDaTurma' is null
-     or r->>'comecaEm' is distinct from v_turma.inicia_em::text then
+     or r->>'comecaEm' is distinct from v_obj->>'comecaEm' then
     raise exception 'produto com turma: %', r; end if;
   if (select comeca_em from catalogo.produtos where id = v_inst.id) is distinct from v_inst.comeca_em
      or (select encerra_em from catalogo.produtos where id = v_inst.id) is distinct from v_inst.encerra_em then
@@ -227,6 +245,6 @@ begin
      and not exists (select 1 from institute.programas where produto_codigo = v_prod.codigo) then
     raise exception 'produto sem turma não pode trazer datasDaTurma'; end if;
 
-  raise exception 'CATALOGO_OK: leitura (todos, um, inexistente), edição parcial com auditoria, conflito, versão obrigatória, código e schema_dados travados, CHECK, nome, nulo, janela, papel, inexistente, criar recusado, recusa sem rastro, permissões e datas da turma no Institute conferem';
+  raise exception 'CATALOGO_OK: leitura (todos, um, inexistente), edição parcial com auditoria, conflito, versão obrigatória, código e schema_dados travados, CHECK, nome, nulo, janela, papel, inexistente, criar recusado, recusa sem rastro, permissões e datas da turma no Institute (as mesmas do site) conferem';
 end $$;
 rollback;

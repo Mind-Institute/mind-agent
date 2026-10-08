@@ -7,17 +7,30 @@
    O catálogo (`catalogo.produtos`) é a origem de tudo: CRM, conhecimento
    e agentes referenciam os códigos dele. Pedido da Adriana, 25/09/2026:
    ler e editar pelo painel, e a edição ir para o banco quando ela salvar.
+   Desde 26/09 (`1.3.0`), o mesmo schema guarda ofertas e cupons — "o
+   painel é o controle deste schema" —, e esta função os serve também.
+   Desde a `1.4.0` (26/09), as ofertas também se editam: criar, editar,
+   pôr no ar e tirar do ar (Passo 4 de docs/PLANO_OFERTAS_PASSO_A_PASSO.md).
 
    ROTAS
 
      GET   /admin/products          lista, com busca, filtros, ordem e paginação
      GET   /admin/products/:id      um produto
      PATCH /admin/products/:id      edição de um produto que já existe
+     GET   /admin/offers            ofertas (catalogo.ofertas + preços, bônus, bump/upgrade)
+     GET   /admin/offers/:id        uma oferta, com o histórico de alterações
+     POST  /admin/offers            criar: a oferta nasce desligada (rascunho)
+     PATCH /admin/offers/:id        editar
+     POST  /admin/offers/:id/publish  pôr no ar
+     POST  /admin/offers/:id/archive  tirar do ar (nada se apaga)
+     GET   /admin/coupons           cupons (catalogo.cupons)
+     GET   /admin/coupons/:id       um cupom
      GET   /health
 
-   Não há criar nem arquivar: por enquanto o catálogo se edita, não se
-   cria por aqui. `codigo` e `schema_dados` não se editam — ver a
-   migration 20260925183716.
+   Produto: não há criar nem arquivar; `codigo` e `schema_dados` não se
+   editam — ver a migration 20260925183716. Oferta: as regras moram no
+   banco (migration 20260926210134); aqui só a tradução de cada recusa.
+   Cupom: só leitura por enquanto (migration 20260926202049).
 
    Exige sessão de administrador — a mesma verificação da `mindagent-admin`
    e da `mindagent-home`, no mesmo lugar (`mind_admin_users`), com os
@@ -41,20 +54,29 @@ const DEFAULT_ORIGINS = new Set(["http://localhost:5174", "http://127.0.0.1:5174
    subdomínio com prefixo — o mesmo recorte da `mindagent-home`. */
 const WORKER = /^https:\/\/(?:[a-z0-9][a-z0-9-]*-)?mind-agent\.adriana-3eb\.workers\.dev$/;
 
-const RECURSO = "products";
+/* As escritas que uma porta de edição aceita. Os nomes são os da auditoria
+   (`mind_admin_audit`): publicar = pôr no ar, arquivar = tirar do ar. */
+type Acao = "criar" | "atualizar" | "publicar" | "arquivar";
 
-const ACOES_POR_PAPEL: Record<AdminRole, Set<string>> = {
-  administrador: new Set(["view", "edit"]),
-  editor: new Set(["view", "edit"]),
-  aprovador: new Set(["view", "edit"]),
-  atendimento: new Set(["view"]),
-  analista: new Set(["view"]),
+/* Cada recurso do catálogo: a porta de leitura (e de edição, quando
+   existe), as escritas que ela aceita, as frases de recusa, onde a busca
+   olha, os filtros e as colunas que ordenam. Recurso novo do schema
+   `catalogo` entra aqui. */
+type Recurso = {
+  ler: string;
+  editar?: string;
+  acoes: Set<Acao>;
+  recusaEscrita: string;
+  naoEncontrado: string;
+  conflito: string;
+  /* O motivo que o banco devolve (admin_validation:<motivo>), na frase que a tela mostra. */
+  motivos: Record<string, string>;
+  busca: (item: Record<string, unknown>) => unknown[];
+  filtros: string[];
+  ordem: Set<string>;
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/* O motivo que o banco devolve, na frase que a tela mostra. */
-const MOTIVO_VALIDACAO: Record<string, string> = {
+const MOTIVOS_PRODUTO: Record<string, string> = {
   versao_obrigatoria: "Recarregue o produto antes de salvar.",
   codigo_nao_editavel: "O código do produto não se edita pelo painel.",
   schema_dados_nao_editavel: "O schema de dados não se edita pelo painel.",
@@ -65,6 +87,103 @@ const MOTIVO_VALIDACAO: Record<string, string> = {
   pipelines_hubspot: "Os pipelines do HubSpot precisam vir como lista.",
   dados_invalidos: "Algum campo tem valor que o banco não aceita — tipo, vertical ou data.",
 };
+
+/* As recusas da `mind_admin_mutate_ofertas`, uma a uma (ver a migration 20260926210134). */
+const MOTIVOS_OFERTA: Record<string, string> = {
+  versao_obrigatoria: "Recarregue a oferta antes de salvar.",
+  acao_invalida: "Essa ação não existe para ofertas.",
+  corpo_invalido: "Corpo JSON inválido.",
+  id_obrigatorio: "Oferta não encontrada.",
+  ativo_pelos_botoes: "Para ligar ou desligar a oferta, use os botões Pôr no ar e Tirar do ar.",
+  historico_so_leitura: "Esta oferta é histórico: só consulta. Para usar como base, duplique.",
+  codigo_obrigatorio: "Informe o código da oferta.",
+  codigo_invalido: "O código usa só letras minúsculas, números e hífen (por exemplo: lideranca-consciente-balcao).",
+  codigo_repetido: "Este código já é usado por outra oferta, outro preço, um programa ou um produto.",
+  codigo_nao_editavel: "Esta oferta já esteve no ar: os códigos não mudam mais, porque links, pedidos e acessos usam esses códigos.",
+  nome_obrigatorio: "Informe o nome da oferta.",
+  tipo_invalido: "Escolha o tipo da oferta.",
+  base_sem_prazo: "Preço sem prazo não tem início nem fim. Para ter prazo, use o tipo Condição com prazo.",
+  janela_invertida: "O fim não pode ser antes do início.",
+  meios_pagamento: "Meios de pagamento: cartão, pix ou boleto, sem repetir.",
+  produto_desconhecido: "Produto não encontrado no catálogo.",
+  preco_repetido: "O mesmo produto aparece duas vezes nos preços.",
+  codigo_do_preco_obrigatorio: "Cada preço precisa do código vendável — o que links e pedidos usam.",
+  preco_negativo: "Valor não pode ser negativo.",
+  centavos: "Valor em reais com no máximo dois decimais.",
+  parcelas_incompletas: "Parcelas e valor da parcela vão juntos.",
+  parcela_nao_fecha: "As parcelas não fecham com o preço à vista: parcelas × valor da parcela tem de dar o à vista, arredondado para cima em até R$ 1 por parcela.",
+  link_invalido: "O link do checkout precisa começar com https://.",
+  sistema_externo: "Sistema do checkout: Eduzz ou InfinitePay.",
+  linha_nao_se_remove: "Esta oferta já esteve no ar: preço, bônus e exigência não saem, só mudam. Tire do ar ou crie outra oferta.",
+  bonus_sem_preco: "Cada bônus pertence a um produto que tem preço nesta oferta.",
+  bonus_de_si_mesmo: "O bônus não pode ser o próprio produto.",
+  bonus_repetido: "O mesmo bônus aparece duas vezes para o mesmo produto.",
+  requer_so_condicional: "Exigência (order bump ou upgrade) só em oferta do tipo Order bump / upgrade.",
+  requer_modo: "Exigência: no carrinho (order bump) ou já comprou (upgrade).",
+  requer_repetido: "O mesmo produto aparece duas vezes nas exigências.",
+  sem_preco: "Só vai ao ar oferta com valor em todos os preços.",
+  condicional_sem_exigencia: "Order bump ou upgrade só vai ao ar com pelo menos uma exigência ligada.",
+  prazo_vencido: "O prazo desta oferta já terminou. Mude o fim (prorrogar) antes de pôr no ar.",
+  sem_leitor: "Nenhum site lê ainda as ofertas deste produto no catálogo: o Institute passa a ler na virada; os outros produtos, quando um site passar a ler. Até lá, a oferta fica como rascunho.",
+  base_duplicada: "Este produto já tem um preço sem prazo no ar. Tire aquele do ar antes.",
+  dados_invalidos: "Algum campo tem valor que o banco não aceita — data, número ou texto.",
+};
+
+const RECURSOS: Record<string, Recurso> = {
+  products: {
+    ler: "mind_admin_read_catalogo",
+    editar: "mind_admin_mutate_catalogo",
+    acoes: new Set<Acao>(["atualizar"]),
+    recusaEscrita: "O catálogo aceita leitura e edição; criar e arquivar produto ainda não existem no painel.",
+    naoEncontrado: "Produto não encontrado.",
+    conflito: "O produto foi alterado por outra pessoa. Recarregue antes de salvar.",
+    motivos: MOTIVOS_PRODUTO,
+    busca: (i) => [i.codigo, i.nome, i.descricaoCurta, i.descricao],
+    filtros: ["vertical", "tipo", "ativo", "vende"],
+    /* As colunas da tela, uma a uma (pedido da Adriana, 26/09/2026: ordenar
+       por qualquer coluna, crescente e decrescente). */
+    ordem: new Set([
+      "codigo", "nome", "vertical", "tipo", "ativo", "vende",
+      "vendeDe", "vendeAte", "comecaEm", "encerraEm", "atualizadoEm",
+    ]),
+  },
+  offers: {
+    ler: "mind_admin_read_ofertas",
+    editar: "mind_admin_mutate_ofertas",
+    acoes: new Set<Acao>(["criar", "atualizar", "publicar", "arquivar"]),
+    recusaEscrita: "Ofertas se criam, editam, põem no ar e tiram do ar; apagar não existe.",
+    naoEncontrado: "Oferta não encontrada.",
+    conflito: "A oferta foi alterada por outra pessoa. Recarregue antes de salvar.",
+    motivos: MOTIVOS_OFERTA,
+    busca: (i) => {
+      const precos = Array.isArray(i.precos) ? i.precos as Record<string, unknown>[] : [];
+      return [i.codigo, i.nome, i.descricao, ...precos.flatMap((p) => [p.codigo, p.nome, p.produtoCodigo, p.produtoNome])];
+    },
+    filtros: ["situacao", "tipo", "verticais", "produtos", "historico", "noSite"],
+    ordem: new Set(["situacaoOrdem", "codigo", "nome", "tipo", "iniciaEm", "encerraEm", "atualizadoEm"]),
+  },
+  coupons: {
+    ler: "mind_admin_read_cupons",
+    acoes: new Set<Acao>(),
+    recusaEscrita: "Os cupons ainda são só leitura no painel; a edição é o próximo passo.",
+    naoEncontrado: "Cupom não encontrado.",
+    conflito: "O cupom foi alterado por outra pessoa. Recarregue antes de salvar.",
+    motivos: {},
+    busca: (i) => [i.codigo, i.descricao],
+    filtros: ["situacao", "tipo", "sistema", "ativo", "historico"],
+    ordem: new Set(["situacaoOrdem", "codigo", "tipo", "valor", "usos", "iniciaEm", "encerraEm", "atualizadoEm"]),
+  },
+};
+
+const ACOES_POR_PAPEL: Record<AdminRole, Set<string>> = {
+  administrador: new Set(["view", "edit"]),
+  editor: new Set(["view", "edit"]),
+  aprovador: new Set(["view", "edit"]),
+  atendimento: new Set(["view"]),
+  analista: new Set(["view"]),
+};
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function lerChave(nome: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS", alternativa: string) {
   const cru = Deno.env.get(nome);
@@ -92,7 +211,7 @@ function cabecalhosCors(req: Request) {
   return {
     "Access-Control-Allow-Origin": origemPermitida(origem) && origem ? origem : "null",
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, if-unmodified-since-version",
-    "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Access-Control-Expose-Headers": "x-request-id",
     "Vary": "Origin",
   };
@@ -112,22 +231,22 @@ function json(req: Request, status: number, corpo: unknown, requestId: string) {
   });
 }
 
-function erroDeRpc(req: Request, erro: { message?: string; code?: string }, requestId: string) {
+function erroDeRpc(req: Request, erro: { message?: string; code?: string }, requestId: string, recurso: Recurso) {
   const m = erro.message ?? "";
   if (m.includes("admin_conflict") || erro.code === "40001") {
-    return json(req, 409, { codigo: "conflito", mensagem: "O produto foi alterado por outra pessoa. Recarregue antes de salvar." }, requestId);
+    return json(req, 409, { codigo: "conflito", mensagem: recurso.conflito }, requestId);
   }
   if (m.includes("admin_forbidden") || erro.code === "42501") {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Você não tem permissão para esta operação." }, requestId);
   }
   if (m.includes("admin_not_found") || erro.code === "P0002") {
-    return json(req, 404, { codigo: "nao_encontrado", mensagem: "Produto não encontrado." }, requestId);
+    return json(req, 404, { codigo: "nao_encontrado", mensagem: recurso.naoEncontrado }, requestId);
   }
   if (m.includes("admin_validation") || erro.code === "22023") {
     const motivo = m.split("admin_validation:")[1]?.trim() ?? "";
     return json(req, 422, {
       codigo: "validacao",
-      mensagem: MOTIVO_VALIDACAO[motivo] ?? "Revise os campos enviados.",
+      mensagem: (Object.hasOwn(recurso.motivos, motivo) ? recurso.motivos[motivo] : null) ?? "Revise os campos enviados.",
     }, requestId);
   }
   console.error(JSON.stringify({ request_id: requestId, error: "catalogo_rpc_failed", code: erro.code ?? null }));
@@ -152,34 +271,32 @@ function semAcento(v: unknown) {
 }
 
 /* Busca e filtros do painel. O filtro chega como texto na query string:
-   `vertical=institute`, `vertical=null` (sem vertical), `ativo=true`. */
-function combina(item: Record<string, unknown>, url: URL) {
+   `vertical=institute`, `vertical=null` (sem vertical), `ativo=true`.
+   Campo que é lista (as verticais e os produtos de uma oferta) combina
+   quando contém o valor pedido. */
+function combina(item: Record<string, unknown>, url: URL, recurso: Recurso) {
   const busca = semAcento(url.searchParams.get("busca"));
-  if (busca && ![item.codigo, item.nome, item.descricaoCurta, item.descricao]
-    .some((v) => semAcento(v).includes(busca))) return false;
+  if (busca && !recurso.busca(item).some((v) => semAcento(v).includes(busca))) return false;
 
-  for (const chave of ["vertical", "tipo", "ativo", "vende"]) {
+  for (const chave of recurso.filtros) {
     const pedido = url.searchParams.get(chave);
     if (!pedido || pedido === "todos") continue;
     const valor = item[chave];
+    if (Array.isArray(valor)) {
+      if (!valor.map(String).includes(pedido)) return false;
+      continue;
+    }
     if (pedido === "null" ? valor !== null && valor !== undefined : String(valor) !== pedido) return false;
   }
   return true;
 }
 
-/* As colunas da tela, uma a uma (pedido da Adriana, 26/09/2026: ordenar
-   por qualquer coluna, crescente e decrescente). */
-const CAMPOS_ORDEM = new Set([
-  "codigo", "nome", "vertical", "tipo", "ativo", "vende",
-  "vendeDe", "vendeAte", "comecaEm", "encerraEm", "atualizadoEm",
-]);
-
-function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
+function ordenar(itens: Record<string, unknown>[], pedido: string | null, campos: Set<string>) {
   /* Sem pedido, fica a ordem do banco: por vertical, depois por nome. */
   const cru = pedido ?? "";
   const desc = cru.startsWith("-");
   const campo = desc ? cru.slice(1) : cru;
-  if (!campo || !CAMPOS_ORDEM.has(campo)) return itens;
+  if (!campo || !campos.has(campo)) return itens;
   const vazio = (v: unknown) => v === null || v === undefined || v === "";
   return [...itens].sort((a, b) => {
     const x = a[campo];
@@ -191,12 +308,14 @@ function ordenar(itens: Record<string, unknown>[], pedido: string | null) {
   });
 }
 
-/* Instante compara como instante, mesmo com fusos diferentes; o resto —
-   datas sem hora, `false` antes de `true`, nome, vertical e tipo — como
-   texto, no alfabeto do português. O mock do painel compara igual. */
+/* Instante compara como instante, mesmo com fusos diferentes; número como
+   número (preço, usos, a ordem da situação); o resto — datas sem hora,
+   `false` antes de `true`, nome, vertical e tipo — como texto, no alfabeto
+   do português. O mock do painel compara igual. */
 const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
 
 function comparar(a: unknown, b: unknown) {
+  if (typeof a === "number" && typeof b === "number") return a === b ? 0 : a < b ? -1 : 1;
   if (typeof a === "string" && typeof b === "string" && INSTANTE.test(a) && INSTANTE.test(b)) {
     const ta = Date.parse(a);
     const tb = Date.parse(b);
@@ -214,7 +333,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   }
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.2.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-catalogo", version: "1.4.0" }, requestId);
   }
 
   const origem = req.headers.get("Origin");
@@ -254,29 +373,36 @@ Deno.serve(async (req: Request) => {
   }
 
   const iAdmin = partes.lastIndexOf("admin");
-  const recurso = iAdmin >= 0 ? partes[iAdmin + 1] : undefined;
+  const nomeRecurso = iAdmin >= 0 ? partes[iAdmin + 1] : undefined;
   const id = iAdmin >= 0 ? partes[iAdmin + 2] : undefined;
   const sobra = iAdmin >= 0 ? partes[iAdmin + 3] : undefined;
+  const alem = iAdmin >= 0 ? partes[iAdmin + 4] : undefined;
+  /* Só as chaves do próprio mapa: "/admin/constructor" não é recurso. */
+  const recurso = nomeRecurso && Object.hasOwn(RECURSOS, nomeRecurso) ? RECURSOS[nomeRecurso] : undefined;
+  /* Depois do id, só as duas ações do painel: publish (pôr no ar) e archive (tirar do ar). */
+  const acaoDaRota: Acao | undefined = sobra === "publish" ? "publicar" : sobra === "archive" ? "arquivar" : undefined;
 
-  if (recurso !== RECURSO || sobra) {
+  if (!recurso || alem || (sobra && !acaoDaRota) || (sobra && req.method === "GET")) {
     return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
   }
   if (id && !UUID.test(id)) {
-    return json(req, 404, { codigo: "nao_encontrado", mensagem: "Produto não encontrado." }, requestId);
+    return json(req, 404, { codigo: "nao_encontrado", mensagem: recurso.naoEncontrado }, requestId);
   }
 
   /* ---------- Leitura ---------- */
   if (req.method === "GET") {
-    const { data, error } = await comSegredo.rpc("mind_admin_read_catalogo", { p_id: id ?? null });
-    if (error) return erroDeRpc(req, error, requestId);
+    const { data, error } = await comSegredo.rpc(recurso.ler, { p_id: id ?? null });
+    if (error) return erroDeRpc(req, error, requestId, recurso);
 
     const itens = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
     if (id) {
       return itens[0]
         ? json(req, 200, itens[0], requestId)
-        : json(req, 404, { codigo: "nao_encontrado", mensagem: "Produto não encontrado." }, requestId);
+        : json(req, 404, { codigo: "nao_encontrado", mensagem: recurso.naoEncontrado }, requestId);
     }
-    const filtrados = ordenar(itens.filter((i) => combina(i, url)), url.searchParams.get("ordenar"));
+    const filtrados = ordenar(
+      itens.filter((i) => combina(i, url, recurso)), url.searchParams.get("ordenar"), recurso.ordem,
+    );
     const pagina = Math.max(1, Number(url.searchParams.get("pagina") ?? 1) || 1);
     const porPagina = Math.min(500, Math.max(1, Number(url.searchParams.get("porPagina") ?? 100) || 100));
     const inicio = (pagina - 1) * porPagina;
@@ -286,28 +412,37 @@ Deno.serve(async (req: Request) => {
     }, requestId);
   }
 
-  /* ---------- Edição ---------- */
-  if (req.method !== "PATCH" || !id) {
-    return json(req, 405, {
-      codigo: "validacao",
-      mensagem: "O catálogo aceita leitura e edição; criar e arquivar produto ainda não existem no painel.",
-    }, requestId);
+  /* ---------- Escrita ----------
+     POST sem id cria; PATCH com id edita; POST em /:id/publish e /:id/archive
+     põe no ar e tira do ar. O resto não existe. */
+  const acao: Acao | undefined =
+    req.method === "POST" && !id ? "criar"
+    : req.method === "PATCH" && id && !sobra ? "atualizar"
+    : req.method === "POST" && id ? acaoDaRota
+    : undefined;
+  if (!recurso.editar || !acao || !recurso.acoes.has(acao)) {
+    return json(req, 405, { codigo: "validacao", mensagem: recurso.recusaEscrita }, requestId);
   }
   if (!ACOES_POR_PAPEL[acesso.role].has("edit")) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Você não tem permissão para editar o catálogo." }, requestId);
   }
 
-  let payload: Record<string, unknown>;
-  try { payload = await corpoDoPedido(req); }
-  catch { return json(req, 422, { codigo: "validacao", mensagem: "Corpo JSON inválido." }, requestId); }
-
+  /* Criar e editar mandam o registro; pôr no ar e tirar do ar só a versão. */
+  let payload: Record<string, unknown> = {};
+  if (acao === "criar" || acao === "atualizar") {
+    try { payload = await corpoDoPedido(req); }
+    catch { return json(req, 422, { codigo: "validacao", mensagem: "Corpo JSON inválido." }, requestId); }
+  } else {
+    try { payload = await corpoDoPedido(req); } catch { payload = {}; }
+  }
+  const { atualizadoEmEsperado, ...campos } = payload;
   const esperado = req.headers.get("If-Unmodified-Since-Version")
-    ?? (typeof payload.atualizadoEmEsperado === "string" ? payload.atualizadoEmEsperado : null);
+    ?? (typeof atualizadoEmEsperado === "string" ? atualizadoEmEsperado : null);
 
-  const { data, error } = await comSegredo.rpc("mind_admin_mutate_catalogo", {
-    p_action: "atualizar", p_id: id, p_payload: payload,
+  const { data, error } = await comSegredo.rpc(recurso.editar, {
+    p_action: acao, p_id: id ?? null, p_payload: acao === "criar" || acao === "atualizar" ? campos : {},
     p_expected_updated_at: esperado, p_actor_id: usuario.user.id, p_request_id: requestId,
   });
-  if (error) return erroDeRpc(req, error, requestId);
-  return json(req, 200, data, requestId);
+  if (error) return erroDeRpc(req, error, requestId, recurso);
+  return json(req, acao === "criar" ? 201 : 200, data, requestId);
 });

@@ -1,5 +1,27 @@
 # Instruções canônicas para qualquer IA neste projeto
 
+## PRIMEIRO PASSO OBRIGATÓRIO — estudar a arquitetura no Supabase
+
+**Antes de qualquer pessoa ou IA tocar no sistema, deve ler as decisões aprovadas
+e estudar o schema `arquitetura` no Supabase do projeto `mind-agent`. A arquitetura
+vive no Supabase, não no código.** Leia `arquitetura.decisoes` e investigue as
+estruturas efetivamente existentes nesse schema antes de propor ou implementar mudanças.
+
+As decisões são da Adriana; a IA não toma decisões de arquitetura. Implementa somente
+o que ela aprovou e respeita o schema indicado. Definição arquitetural ausente exige
+pergunta e aprovação antes da execução dependente.
+
+Registre decisões somente no schema `arquitetura` do Supabase. Não gere exportações
+nem mantenha cópias das decisões no código, no frontend ou nos documentos do repositório.
+As instruções na raiz apenas apontam para a fonte e exigem sua leitura.
+O frontend apenas mostra as decisões; o registro de implementação não muda o texto aprovado.
+
+Se o schema ainda não existir ou o acesso estiver indisponível, informe isso e resolva
+a pendência antes de tocar no sistema. Não invente a arquitetura nem trate código,
+documentação histórica ou memória de conversa como substitutos da fonte oficial.
+As leituras necessárias para localizar as instruções e verificar o acesso são o próprio
+primeiro passo, não autorização para alterar o sistema.
+
 Este arquivo define **como trabalhar** no projeto `Mind-Institute/mind-agent`.
 Ele não guarda o estado corrente das tarefas. Para isso existe `CHECKPOINT_ATUAL.md`.
 
@@ -9,21 +31,29 @@ O objetivo é que uma nova janela de ChatGPT, Claude Code ou outro agente consig
 
 ## 1. Entrada obrigatória no projeto
 
+O primeiro passo obrigatório acima prevalece sobre instruções anteriores de autonomia
+arquitetural. Este documento orienta o uso; o texto das decisões pertence a `arquitetura.decisoes`.
+
 Se você entrou sem contexto, **não comece propondo solução**.
 
 Leia nesta ordem:
 
-0. **`READ_ME_FIRST.md`** — a Regra #1 (D5): toda linha sobre uma pessoa nasce ligada à pessoa, pela porta única, antes da escrita.
-1. **`CHECKPOINT_ATUAL.md`** — ponto exato de retomada: lanes, PRs, HEADs, dependências, pendências e próxima ação.
-2. **`PROJECT_STATE.md`** — arquitetura congelada, runtime, gates e decisões que não podem ser reabertas sem fato novo material.
-3. **`GO_LIVE_PARALLEL_20260830.md`** — ownership das lanes e ordem de integração/deploy.
-4. **`BACKLOG.md`** — somente as seções relacionadas ao problema atual; não transforme backlog em roadmap imediato.
-5. **`docs/CORE_UNIVERSAL.md`** — o que já está vivo/implementado. Se divergir do sistema real, o sistema real vence.
-6. Confira **GitHub e infraestrutura real** antes de qualquer ação: `main`, PRs/HEADs, checks, migrations aplicadas, funções/Edge Functions realmente publicadas e flags relevantes.
+0. **`AGENTS.md` e o schema `arquitetura` no Supabase** — cumprir o primeiro passo obrigatório; ler as decisões e estudar a estrutura real.
+1. **`READ_ME_FIRST.md`** — instruções operacionais de identidade, após estudar a arquitetura.
+2. **`CHECKPOINT_ATUAL.md`** — ponto exato de retomada: lanes, PRs, HEADs, dependências, pendências e próxima ação.
+3. **`PROJECT_STATE.md`** — documentação do projeto; as decisões são consultadas somente no Supabase.
+4. **`GO_LIVE_PARALLEL_20260830.md`** — ownership das lanes e ordem de integração/deploy.
+5. **`BACKLOG.md`** — somente as seções relacionadas ao problema atual; não transforme backlog em roadmap imediato.
+6. **`docs/CORE_UNIVERSAL.md`** — o que já está vivo/implementado. Se divergir do sistema real, o sistema real vence para descrever a implementação.
+7. Confira **GitHub e infraestrutura real** antes de qualquer ação: `main`, PRs/HEADs, checks, migrations aplicadas, funções/Edge Functions realmente publicadas e flags relevantes.
 
 ### Precedência da verdade
 
 Quando houver divergência:
+
+Para **arquitetura aprovada**, a fonte é `arquitetura.decisoes` no Supabase. Código e
+runtime divergentes indicam implementação a adequar; não revogam uma decisão aprovada.
+Para **o que está implementado agora**, use a precedência abaixo.
 
 ```text
 SISTEMA REAL / PRODUÇÃO
@@ -46,9 +76,15 @@ Nunca transforme memória de conversa em fato do sistema quando puder verificar.
 
 Dona de produto/negócio e dos gates sensíveis. **Não é gerente de transporte entre agentes.**
 
-Desde **D2** (21/09/2026), é a **única aprovadora e a única executora de mudança de banco**
-(24/09/2026): migration, coluna, índice, constraint, backfill, fonte nova, casa nova, mudança de
-proveniência e o gate do §8 deste documento. Agentes preparam; ela decide e executa.
+Desde **D2** (21/09/2026), é também a **única aprovadora de mudança estrutural de banco**:
+fonte nova, casa nova, mudança de proveniência e o gate do §8 deste documento.
+
+Dentro de casa existente e comentada, a mudança de banco segue sem passar pela aprovação dela.
+O que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai a ela
+antes, pela Inbox (§12.11 do `BACKLOG.md`), não por conversa.
+
+O limite existe para proteger o tempo dela: a régua separa mudança que muda o que o sistema
+afirma ser verdade de mudança que não muda.
 
 ### ChatGPT arquiteto/supervisor
 
@@ -56,7 +92,7 @@ Deve:
 
 - manter o modelo mental do sistema;
 - verificar GitHub/Supabase quando a resposta depende do estado real;
-- decidir a menor mudança correta;
+- propor a menor mudança e implementar a arquitetura aprovada pela Adriana;
 - coordenar lanes diretamente pelas issues/PRs;
 - revisar o que Claude Code reporta contra o sistema real;
 - detectar contradições materiais, não procurar problemas por esporte;
@@ -86,7 +122,7 @@ Para qualquer mudança de banco, função, prompt, integração, estado ou fluxo
 ```text
 INVESTIGAR
 → ENTENDER O QUE JÁ EXISTE
-→ DECIDIR A MENOR MUDANÇA
+→ PROPOR E OBTER APROVAÇÃO DA ARQUITETURA
 → IMPLEMENTAR
 → TESTAR SÓ O AFETADO
 → VERIFICAR O EFEITO REAL

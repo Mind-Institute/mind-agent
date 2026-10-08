@@ -6,6 +6,98 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### Arquitetura no Supabase — 07/10/2026
+
+- Fonte oficial: `arquitetura.decisoes`, projeto mind-agent (`ymnmotgglsrxmjmonwjz`).
+  D1–D11 transferidas e conferidas. Não manter cópias nem gerar exportações de decisões.
+- `arquitetura.implementacao_decisoes` separa a fotografia de aplicação do texto aprovado.
+  A data de aferição limita a validade dos números antigos; aplicação integral não é presumida.
+- `mindagent-home` v9 publicada: `GET /admin/decisoes`, mesma validação de sessão e admin
+  ativo existente. Leitura direta do schema arquitetura, sem view/RPC em outro schema.
+  Sem login: 401, inclusive com Origin do painel. POST recusado. Só service_role lê as
+  duas tabelas; visitantes não têm acesso e a porta não tem permissão de escrita.
+- `arquitetura` acrescentado aos schemas de PostgREST, preservando public/graphql_public/api.
+  Existia override no role authenticator; a migration preserva a lista e acrescenta o schema.
+- Entrada obrigatória de agentes/pessoas está no início de AGENTS.md, com referências
+  nos demais documentos da raiz. Estudar as decisões e o schema antes de tocar no sistema.
+- Frontend PUBLICADO em produção pelo Workers Builds do commit `92fd46b` (check success).
+  Conferido em `https://admin.minddash.pro/admin/arquitetura/decisoes`: HTTP 200, bundle novo
+  `index-CyAMnyaI.js` contém a leitura `/admin/decisoes`, fonte arquitetura.decisoes e atualização
+  a cada 60 segundos. Sem lista fixa ou fallback local. Sessão real da Adriana não foi usada.
+- Validação: 13 testes de frontend/navegação e 8 testes da porta Edge passaram; typecheck,
+  build combinado e dry-run do Worker passaram; contrato SQL passou no banco vivo.
+- Supabase Preview segue falhando com "Remote migration versions not found in local migrations
+  directory". A mesma falha estava no commit anterior `e1b10ea`; não foi causada por esta entrega.
+  Estrutura aplicada diretamente e conferida; não tratar esse check como prova de ausência no banco.
+- A migration versionada contém somente estrutura/permissões; os textos foram transferidos
+  uma vez por SQL e vivem somente no Supabase. Uma instância vazia não recebe decisões falsas
+  de um arquivo de código. Não inserir seed local para substituir a fonte oficial.
+
+### Eduzz API2 — estado desta sessão, 07/10/2026
+
+- Adaptação da `eduzz-api` aprovada pela Adriana nesta conversa e publicada, v4.
+  É a porta central de leitura da API2 (`https://api2.eduzz.com`), não Bearer da API moderna.
+- Credenciais vivem nos secrets Edge do Supabase: `EDUZZ_API_KEY`, `EDUZZ_EMAIL`;
+  `EDUZZ_PUBLIC_KEY` opcional. Não copiar valores para código, documentos ou chat.
+  O email solicitado foi salvo em `EDUZZ_EMAIL`. O ambiente de desenvolvimento usa
+  `SUPABASE_ACCESS_TOKEN` para Management e `SUPABASE_Secret_Key` para REST de serviço;
+  essas variáveis não substituem os secrets de runtime da Eduzz.
+- Autenticação API2: POST /credential/generate_token com email/publickey/apikey;
+  chamadas GET usam header token, renovado por profile.token. `eduzz-api` não devolve
+  credenciais. Chamada exige o token interno existente em intelligence.config.
+- Leitura integral conferida: 373 produtos, 15 páginas. `eduzz.produtos` ainda tem 343;
+  o espelho continua ativo. Conversão da gravação NÃO publicada: o rascunho que misturava
+  entrada e tratamento foi retirado e preservado em /tmp, pois conflita com a decisão D9.
+  A definição da separação exige aprovação arquitetural antes da implementação.
+
+### D8 · sem n8n — 07/10/2026
+
+Da Adriana: *"não quero usar n8n, e o que existia em n8n deve ser migrado para funções usando a
+API dos sistemas"*. Congelada em `PROJECT_STATE.md` v12 e `CLAUDE.md`. Nada foi migrado nem
+desligado ainda; cada substituição é proposta e aprovada por D7 antes. Workflows ativos vistos em
+07/10 que falam com o ecossistema: "Mind Vendas — Eduzz → HubSpot" (`hRHhDrckKD8Lj7VX`, webhook
+`/webhook/eduzz-events`, 62 nós, grava em `mind-hubpost`), "Mind Vendas — Blinket Ingressos
+(Eduzz → HubSpot)" (`9D1PYxk3wYHGYPEr`), "Mind — Summit 2026 Participação → HubSpot"
+(`zrHHtKHJ5BjxZ0A1`), "Mind — Validate Combo" (`73WDAsMt1GDz3M8P`). Inventário completo dos
+workflows ainda não feito.
+
+### D7 · catálogo Eduzz autoral · funções Eduzz pendentes — 07/10/2026
+
+Da Adriana (07/10): *"a tabela eduzz.produto_catalogo em agents vai puxar direto da eduzz os
+produtos todos que estiverem la … ela nao mais sera espelho"* · *"Você não pode criar nenhuma
+função sem eu aprovar"* · *"Antes de você sair criando coisa igual, você tem que melhorar o que já
+está aí"*. Contexto: a Eduzz cria um produto novo a cada variação de oferta (preço, combo), por
+isso o catálogo dela tem centenas de itens; a estratégia combinada é **construir o novo ao lado e
+desligar o velho quando estiver inativo**, não migrar em bloco o `mind-hubpost`.
+
+- **D7 congelada** (`PROJECT_STATE.md` v11, `CLAUDE.md`): nenhuma função criada, alterada ou
+  apagada sem o "ok" dela.
+- **`eduzz.produto_catalogo` deixou de ser espelho do `mind-hubpost` — LOCAL_AUTHORITATIVE
+  (mudança de proveniência pedida por ela, D2).** Feito: fonte `produto_catalogo` removida do
+  `eduzz-espelho-sync` (v11 viva); `id` com default `gen_random_uuid()`, `updated_at` com default e
+  trigger `produto_catalogo_touch`; `sincronizado_em` virou histórico (nulo = nascida aqui); UNIQUE
+  em `eduzz_product_id`; trigger `produtos_garante_catalogo` em `eduzz.produtos` cria a linha
+  (sem mapeamento) para todo produto novo; backfill: **343 linhas = 193 mapeadas + 150 sem
+  mapeamento** (134 delas produto-pai arquivado). `mapped_at` nulo = ainda não mapeado.
+  Sobrou a linha `produto_catalogo` em `public.espelho_estado` (último status "ok"): o `delete`
+  pelo MCP travou à espera de confirmação — apagar à mão.
+- **Atenção:** o n8n "Mind Vendas — Eduzz → HubSpot" (`hRHhDrckKD8Lj7VX`) ainda lê o catálogo do
+  `mind-hubpost` (`get_catalog_with_combo`). Mapear no mind-agent **não** muda o que o n8n faz, e
+  o que se mapear no front antigo não chega mais aqui, até o n8n apontar para o mind-agent.
+- **`eduzz.produtos` continua espelho do `mind-hubpost`** (que puxa da API a cada 2 dias com o
+  `EDUZZ_API_TOKEN` de lá). A `EDUZZ_API_KEY` do mind-agent, trocada por ela em 07/10, **continua
+  recusada pela Eduzz** (`/accounts/v1/me` → 401 *invalid_token*; OAuth → *App not found*): é
+  chave do formato antigo, não token de acesso.
+- **Criadas SEM aprovação (violam D7) — aguardam a decisão dela, nada mais foi mexido:**
+  Edge Functions `eduzz-produtos-sync` (v3, não agendada, nunca sincronizou) e `eduzz-api` (v1,
+  leitura genérica, nunca usada); funções de banco `public.eduzz_produtos_gravar(jsonb)` e
+  `public.eduzz_produtos_arquivar_pais()` (só `service_role`; usadas apenas pela primeira).
+- **Inventário (07/10):** nenhuma função existente puxa "qualquer coisa" da Eduzz. As que falam
+  com a API estão todas no `mind-hubpost`, cada uma fixa: `sync-eduzz-products`,
+  `check-eduzz-sale-status`, `eduzz-ingest-desconto`, `eduzz-cupom-probe`, `eduzz-webhook-admin`
+  (todas com `EDUZZ_API_TOKEN` como Bearer em `api.eduzz.com`). No mind-agent só `eduzz-diag` e
+  `eduzz-espelho-sync`.
+
 ### Catálogo no painel · Summit fora de venda · Join no mesmo banco — 25/09/2026
 
 Da Adriana (25/09): *"O Summit não tá mais à venda. Pode parar de copiar a cada 30 minutos."* ·
@@ -140,6 +232,14 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
   (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
   dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
+- **SUMMIT → Mind Summit 2026 → Programação (26/09, pedido dela).** *"em Summit quero um menu Mind Summit
+  2026 e dentro dele um menu com a tabela de programação conforme está no backend"*. `summit_2026.sessions`
+  (81 sessões), só leitura: porta `mind_admin_read_summit_2026_sessoes` (ledger `20260926154547`, mesmo md5;
+  contrato `SUMMIT_PROGRAMACAO_OK`), Edge Function nova `mindagent-summit` (v1 viva = repo), tela com lista,
+  filtros, ordem e detalhe com todas as colunas pelos nomes do banco; o menu ganhou submenu por produto dentro
+  da vertical. **Descoberta lateral:** a porta antiga `mind_admin_read_resource('sessions')` (usada pela
+  `mindagent-admin` em `/admin/sessions`) está quebrada — lê o schema `summit`, que virou `summit_2026`; nada no
+  painel a chama; registrada, sem ação.
 - **Institute: as datas do produto vêm da turma (26/09, pedido dela).** *"produtos do Institute devem
   carregar a cópia e não deixar editar esses campos quando a fonte da verdade vier de outro lugar"*.
   Conferido: checkout, ofertas, cupons, kits dos agentes, busca do chat e contexto do WhatsApp leem
@@ -148,8 +248,123 @@ agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
   (`datasDaTurma`) e `mind_admin_mutate_catalogo` recusa editá-las (`datas_da_turma`); ledger
   `20260926153820`, mesmo md5; contrato `CATALOGO_OK` com os casos novos, sem rastro; `mindagent-catalogo`
   1.2.0 (v5) com a frase. As colunas do catálogo NÃO foram sobrescritas: **aberto para ela** dizer quais
-  datas estão certas (4 turmas estão "a definir" na turma e com data no catálogo) — depois disso, alinhar
-  os dados e ligar a cópia à turma (gatilho).
+  datas estão certas — depois disso, alinhar os dados e ligar a cópia à turma (gatilho).
+  **Correção no mesmo dia (ledger `20260926163932`, mesmo md5):** a leitura pegava a coluna crua da turma,
+  vazia em 4 das 6 — o painel mostrava as datas em branco. Os dois sites e o kit do agente
+  (`mind_kit_institute_catalogo`) leem `api.programas`, que, com a coluna vazia, usa o primeiro e o último
+  encontro (da turma ou da composição); `api.criar_pedido` não lê datas (a frase acima sobre checkout,
+  ofertas, cupons etc. lerem `inicia_em` estava errada). Agora o painel calcula igual; o contrato
+  `CATALOGO_OK` confere produto a produto contra `api.programas` (falhou no código antigo, passa no novo,
+  sem rastro). Hoje a cópia do catálogo bate com o site em 1 de 12 datas.
+- **Fonte da verdade dos sites e plano de preços no `catalogo` (26/09, pedidos dela).** *"sites do Join e
+  Institute não são um único projeto mas se alimentam do mesmo banco — preciso saber qual a fonte da
+  verdade"* e *"as tabelas de preços de quaisquer coisas a serem vendidas no Mind ... devem vir para o
+  schema catalogo — faça uma auditoria da database e mapeie o que precisa ser migrado fazendo um plano"*.
+  Dois documentos, só leitura, sem PII, números de venda nem achados de segurança (esses foram a ela à
+  parte): `docs/FONTE_DA_VERDADE_SITES.md` (os dois sites leem as mesmas 6 views `api.*` sobre
+  `institute.*`; só o `/admin` do Join e SQL escrevem; link de compra e preço cobrado estão na Eduzz; em
+  01/10 o site passa ao preço de balcão — menos a seção "Avulsas", ver abaixo — e a Eduzz continua cobrando a Condição se ninguém mudar lá) e
+  `docs/PLANO_PRECOS_CATALOGO.md` (estado, destino de cada objeto, modelo alvo nas 4 tabelas `oferta*` que
+  já existem e estão vazias, etapas E0–E9 reversíveis com paridade na mesma transação, e 18 perguntas
+  para ela). **Aguarda a D2 dela**; nada foi executado. **Descoberta lateral para a lane #40:** o bloco
+  `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
+  `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
+  e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Passo 5 — a virada do Institute preparada e ensaiada (26–27/09; nada aplicado; espera o "pode virar").** Fora de
+  `supabase/migrations/` até o dia (`docs/sql/virada-institute/`): `01-virada.sql` carrega as 16 ofertas do
+  Institute no `catalogo` (copiadas dentro do banco, com a linha original em `origem`; os 2 testes como histórico;
+  o teste sem programa sem preço; os 8 bônus — o ingresso 2027 aponta para `mind-summit-2027-mind`, que não abre
+  acesso; as 5 regras de bump como exigência de carrinho), cria `catalogo.institute_ofertas` (a forma antiga,
+  lida do catálogo; rascunho que nunca foi ao ar e upgrade ficam de fora), põe `criar_pedido`, `validar_cupom` e
+  `cadastrar_compra_manual` para ler dela (só o nome muda), destrava "pôr no ar" (`produto_tem_leitor` aceita
+  leitura por qualquer relação do `catalogo`), congela as 3 tabelas antigas (gatilho; as 5 funções de edição do
+  /admin do Join passam a responder "Preços, ofertas e bumps agora se editam no painel do Mind. Nada foi
+  alterado.") e, por último, troca as 3 portas (`api.ofertas` só o que vale agora — decisão 8), com a paridade
+  conferida na mesma transação (portas, bloco do agente, fonte das funções, dono/permissões/tipos). `02-volta.sql`
+  devolve tudo e antes copia para a casa antiga o que o painel mudou. **Ensaios no banco real, desfeitos, sem
+  rastro:** A (portas em cópias temporárias) 14 = 14, 5 = 5, 8 = 8, carga 16/15/8/5, 64 ms; B (virada + 5 edições
+  no painel + volta) portas da casa antiga = do catálogo (16/5/9), rascunho fora. Contratos:
+  `tests/virada_institute_contract.sql` (`VIRADA_OK`, roda depois da virada) e `tests/ofertas_edicao_contract.sql`
+  agora vale antes e depois (`OFERTAS_EDICAO_OK` antes). **Ensaio C** (troca real das portas + os 2 contratos + a
+  volta, uma transação desfeita): `ENSAIO_C_OK`, portas presas 1.053 ms no total (na virada de verdade, só troca e
+  conferência: < 0,1 s), nenhuma leitura do site falhou, sem rastro. O site lê `api.ofertas` ~250 vezes/hora,
+  constante, dia e noite. **Pergunta (b), saída melhor que tirar o bump:** no checkout próprio do Join, o bump
+  aceito entra no carrinho buscando o preço em `api.ofertas` pelo código — tirá-lo de lá quebraria isso. Então
+  `03-bump-fora-da-lista.sql` (só com o OK dela) entrega o bump sem programa: ele sai das listas por programa (a
+  "Avulsas" deixa de mostrar R$ 1.497) e o checkout segue igual. Ensaio D (virada + 03 + volta, reais, desfeitos):
+  `ENSAIO_D_OK`, 250 ms, sem rastro. **Pergunta (a) pronta também:** `04-condicao-sai-sozinha.sql` (só com o OK
+  dela) desliga os 4 textos e as 4 perguntas do FAQ quando a última das 5 condições termina (agendamento de minuto
+  em minuto das 02h00 às 03h59 UTC de 01/10, que se apaga sozinho; se ela prorrogar no painel, eles ficam). Ensaio
+  E: `ENSAIO_E_OK`, sem rastro. **Respostas dela (27/09):** "1 - sim" (bump sem programa: 03 roda logo depois da
+  virada) e "2- sim" (textos e FAQ): **APLICADO** `20260927133341_condicao_summit_sai_sozinha` (ledger = arquivo, md5
+  `102b3325…`): agendamento `condicao-summit-2026-sai` ativo (`* 2-3 1 10 *`, UTC), função fechada, os 4 textos e as
+  4 perguntas seguem no ar até a condição acabar. Sem texto novo para as 3 perguntas: elas só saem. Sobre a data da
+  virada, ela escolheu (27/09) "Você dá o sinal, eu aplico": **nada roda antes de ela escrever "pode virar"**.
+  **Pacote do sinal pronto (27/09):** cabeçalhos aprovados em 01 e 03, com os nomes das migrations
+  (`virada_institute_le_o_catalogo` e `bump_fora_da_lista_de_precos`); o contrato da virada agora também confere o
+  bump sem programa na porta de preços; o aviso novo da tela Ofertas testado (tela Ofertas 25/25, build verde) e
+  guardado para o PR do sinal, porque diz que o site já lê o catálogo — o texto está no runbook. **Ensaio F** (01 +
+  03 + a Condição Summit + os 2 contratos, com as portas reais, numa transação que não podia gravar): `ENSAIO_F_OK`,
+  virada e bump em 162 ms, a condição continua saindo só depois da hora, sem rastro. Runbook do sinal:
+  `docs/sql/virada-institute/README.md`. **Falta:** o sinal dela, antes de 30/09 23h59. **Descoberta lateral (não é desta frente):**
+  `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
+  vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
+- **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
+  md5): `mind_admin_mutate_ofertas` (só `service_role`) — criar (nasce desligada), atualizar (listas de
+  preços, bônus e exigências inteiras), publicar e arquivar (os nomes que `mind_admin_audit` aceita); trava de
+  versão; antes e depois na auditoria com a hora do relógio; recusas com motivo (histórico só leitura, código
+  reservado — inclusive os 16 de `institute.ofertas` — ou travado depois de ir ao ar, linha que não sai de
+  oferta que já esteve no ar, parcela que não fecha, base sem prazo, exigência só em condicional, um preço sem
+  prazo no ar por produto, sem preço, prazo vencido, **sem leitor**). "Pôr no ar" só destrava quando
+  `api.ofertas` depender de `catalogo.ofertas` e o produto tiver programa no Institute — sozinho, na virada.
+  A leitura ganhou `jaFoiAoAr`, `bloqueioPorNoAr`, `sobrepostas` e o histórico de alterações. Contrato
+  `OFERTAS_EDICAO_OK` em produção (57 recusas, ensaio da virada dentro da transação), sem rastro.
+  `mindagent-catalogo` 1.4.0: `POST /admin/offers`, `PATCH /:id`, `POST /:id/publish` e `/:id/archive`; cupom
+  segue só leitura. Painel: Nova oferta, formulário com preços, bônus e exigências, Duplicar, Pôr no ar / Tirar
+  do ar com confirmação, histórico de alterações. Raiz 467/467, painel 189/189, build verde. Caiu a regra
+  "nenhuma condicional no ar" (ela manteve os bumps). **NO AR (26/09, noite):** #149 mergeada (`aa60742`);
+  `mindagent-catalogo` **v7 viva = o código do repo** (md5 `02fe24d2…`), conferida pelo `pg_net`: `health` 1.4.0,
+  criar sem login 401, pôr no ar de origem estranha 403. Divergência vista no ledger, de outra frente: `20260926210031_masterclasses_duplicadas_sao_turma_hnk`
+  aplicada sem arquivo em `main`.
+- **Passo 2 — telas Ofertas e Cupons no painel, só leitura (26/09, noite).** Portas
+  `mind_admin_read_ofertas` / `mind_admin_read_cupons` (ledger `20260926202049`, mesmo md5; situação
+  calculada com as pontas de janela de `api.ofertas`; `noSite` = o código está em `api.ofertas`; preço
+  de lista da cópia da Eduzz quando há código do produto lá); contrato `OFERTAS_PAINEL_OK` em produção,
+  sem rastro. `mindagent-catalogo` 1.3.0 serve `offers` e `coupons` (GET; escrita → 405), recurso só por
+  chave própria do mapa. Painel: menu Catálogo · Ofertas · Cupons, listas com filtros e ordem, detalhe
+  com preços, bônus, exigência (bump/upgrade), origem e colunas do banco. Painel 174/174, raiz 458/458.
+  **NO AR (26/09, noite):** #147 mergeada (`1abcd87`); `mindagent-catalogo` **v6 viva = o código do repo**
+  (md5 `f73cf90b…`), conferida pelo `pg_net`: `health` 1.3.0, sem login 401, origem estranha 403; o bundle
+  publicado em admin.minddash.pro já tem as duas telas. Hoje elas mostram só o histórico do Summit 2026
+  (14 ofertas, 28 preços, 3 cupons); as ofertas do Institute entram no `catalogo` na virada (Passo 5).
+- **Casa das ofertas no `catalogo` — Passo 3 APLICADO (26/09, noite).** Respostas dela ao plano: tudo de
+  preço, oferta, order bump e cupom no `catalogo` (tabelas separadas), espelhado e editável no painel; o
+  checkout próprio (InfinitePay) *"não tem nada relevante ... podemos migrar sem medo de quebrar"*; bumps
+  não saem do ar; nada desligado à mão — virada antes de 30/09; agente nunca com preço escrito (regra no
+  `CLAUDE.md`). Migration `20260926201053_catalogo_ofertas_forma_historico_e_cupons` (ledger = arquivo,
+  md5 igual): colunas novas nas 4 tabelas `oferta*` (código vendável único, origem, bônus com texto e
+  prazo, exigência com modo carrinho/posse, `condicional`, produto com preço não se apaga), `produtos.produto_pai`,
+  `checkout.cupons` → `catalogo.cupons` (`criar_pedido`, `validar_cupom` e `salvar_cupom` regravadas só no
+  nome da tabela; grants e SECURITY DEFINER iguais; a tela de cupons do /admin do Join deixa de abrir),
+  produtos `mind-summit-2026-{mind,vip,prime}` e `mind-summit-2027(-mind)` desligados/sem venda/sem funil, e o
+  histórico do Summit 2026 (14 ofertas, 28 preços, 3 upgrades, 3 cupons) copiado dentro do banco. Contratos
+  `CATALOGO_OFERTAS_OK` (novo, `tests/catalogo_ofertas_contract.sql`) e `CATALOGO_OK` em produção, sem rastro;
+  ensaio completo rodado antes, desfeito. Site e agente intocados. **Aberto com ela:** "vale até" nos textos e
+  no FAQ da condição, e bump fora da lista de preços da página. **Próximo:** Passo 2 (tela "Ofertas").
+- **Plano passo a passo: todas as ofertas no `catalogo`, editáveis no painel (26/09, pedido dela).** *"quero
+  trazer as ofertas para catalogo inclusive as do institute ... e também o histórico, quero ter tudo no schema
+  catalogo e espelhado e editável no admin assim sei o que está no ar e controlo na mão — fazer plano passo a
+  passo"*. `docs/PLANO_OFERTAS_PASSO_A_PASSO.md` (só leitura; investigação em 3 frentes, 2 críticas
+  independentes, fechamento conferido) substitui a §4 do plano anterior: **P1** virada de 30/09 pelos dados
+  (desligar os 3 bumps já; às 00h00 BRT de 01/10 = 03h00 UTC, um agendamento de uma vez desliga as 5 condições,
+  4 textos e 4 perguntas do FAQ), **P2** tela "Ofertas" só leitura com a Eduzz ao lado, **P3** forma do
+  `catalogo` (D2) + histórico do Summit 2026, **P4** edição no painel, **P5** virada do Institute depois de
+  01/10, P6–P7 histórico opcional, **P8** Summit 2027, **P9** aposentar. 10 decisões dela. **Nada executado.**
+  **Conferido por mim no código e no banco (26/09):** a seção "Avulsas" da Certificação nos dois sites pega
+  `find(vigente && encerra_em) ?? ofertas[0]` sobre `api.ofertas` ordenada por valor — depois de 30/09 23h59,
+  sem o P1, mostra o bump de R$1.497 na Liderança Consciente e a condição vencida nas outras duas; a cópia da
+  Eduzz copia a cada 30 min, mas a última leitura da Eduzz é de 24/09 21h02 BRT (`eduzz.produtos.last_synced_at`);
+  `cron.timezone` = GMT.
 - **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
   e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
   (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,
@@ -793,6 +1008,12 @@ tabela).
 
 **PR aberto no repo do site:** Mind-Institute/mindsummit2026#31 — `schedule` de 07:00 e
 19:00 BRT no workflow, parando sozinho depois de 16/09.
+
+**Baixa em 26/09/2026:** a `summit-programacao-sync` foi aposentada (v10 responde 410, sem o segredo no
+código, `verify_jwt = true`); a programação se lê no painel (`/summit/2026/programacao`, só leitura). As
+pendências abaixo sobre `SYNC_SECRET`, o PR mindsummit2026#31 e o segredo no código deixam de valer.
+Falta: apagar a função no painel do Supabase (a Adriana; o MCP não apaga) e desligar o workflow
+`sync-programacao.yml` no repo do site, que passa a falhar.
 
 **Pendências que são gate da Adriana, não minhas:**
 - criar `SYNC_SECRET` em `mindsummit2026`. Sem isso o job continua 401, agendado ou não;

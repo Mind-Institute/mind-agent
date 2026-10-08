@@ -292,6 +292,30 @@ Deno.serve(async (req: Request) => {
   const id = iAdmin >= 0 ? partes[iAdmin + 2] : undefined;
   const acao = iAdmin >= 0 ? partes[iAdmin + 3] : undefined;
 
+  // Decisões oficiais: reutiliza o mesmo gate de sessão/admin desta porta.
+  // Somente leitura; implementação é uma fotografia separada da decisão.
+  if (recurso === "decisoes") {
+    if (id || acao || partes.length !== iAdmin + 2) {
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
+    }
+    if (req.method !== "GET") {
+      return json(req, 405, { codigo: "metodo_nao_permitido", mensagem: "As decisões são somente leitura." }, requestId);
+    }
+    if (!ACOES_POR_PAPEL[acesso.role].has("view")) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Sem permissão para visualizar." }, requestId);
+    }
+    const { data, error } = await comSegredo.schema("arquitetura").from("decisoes")
+      .select("*,implementacao:implementacao_decisoes(*)").order("numero");
+    if (error) return erroDeRpc(req, error, requestId);
+    const itens = (data ?? []).map((d: Record<string, unknown>) => {
+      const { implementacao, ...decisao } = d;
+      const mapa = implementacao as Record<string, unknown> | null;
+      return { ...decisao, situacao: mapa?.situacao ?? null, leitura: mapa?.leitura ?? null,
+        lugares: mapa?.lugares ?? null, medido_em: mapa?.medido_em ?? null };
+    });
+    return json(req, 200, { fonte: "arquitetura.decisoes", itens }, requestId);
+  }
+
   if (!recurso || !RECURSOS.has(recurso)) {
     return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
   }

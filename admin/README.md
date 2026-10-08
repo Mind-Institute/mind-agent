@@ -145,6 +145,7 @@ segunda a partir da primeira, e nunca lê `user_metadata`.
 |---|---|
 | `/` | leva ao Catálogo |
 | `/catalogo` · `/catalogo/:id` | Catálogo de produtos |
+| `/summit/2026/programacao` · `/summit/2026/programacao/:id` | SUMMIT → Mind Summit 2026 → Programação (só leitura) |
 | `/admins` · `/admins/:id` | Admins do sistema (só administrador) |
 
 Os módulos com edição em drawer têm **duas entradas para a mesma página**: a
@@ -340,10 +341,12 @@ Três regras seguram a edição:
   (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
   diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
 
-**No Institute, as datas são as da turma** (pedido da Adriana, 26/09/2026): o site,
-o checkout e os agentes leem as datas de `institute.programas`. Produto com turma
-mostra as datas dela, travadas, com a turma indicada; salvar nunca as manda, e o
-banco recusa (`datas_da_turma`) se alguém tentar por fora da tela.
+**No Institute, as datas são as da turma** (pedido da Adriana, 26/09/2026): os dois
+sites e o agente leem `api.programas`, que usa a data de `institute.programas` e,
+quando ela está vazia, o primeiro e o último encontro da turma. Produto com turma
+mostra essas mesmas datas, travadas, com a turma indicada; salvar nunca as manda, e
+o banco recusa (`datas_da_turma`) se alguém tentar por fora da tela. O contrato
+`CATALOGO_OK` confere, produto a produto, que o painel mostra as datas do site.
 
 **Ordenar pelas colunas** (pedido da Adriana, 26/09/2026): todo cabeçalho do
 Catálogo ordena. Um clique é crescente, o segundo decrescente, o terceiro volta à
@@ -351,6 +354,73 @@ ordem do banco (por vertical e nome). A ordem mora na URL (`?ordenar=-comecaEm`)
 volta à página 1 e é feita pela `mindagent-catalogo` na lista inteira, antes de
 paginar. Vazio fica no fim nos dois sentidos; em Situação e Venda, "não" vem
 antes de "sim"; a Janela de venda ordena pela data em que o produto sai de venda.
+
+## Ofertas e Cupons — o schema `catalogo` no painel
+
+Decisão da Adriana (26/09/2026): preço, oferta, order bump e cupom moram no
+schema `catalogo`, em tabelas separadas, e "o painel é o controle deste
+schema". Plano: `docs/PLANO_OFERTAS_PASSO_A_PASSO.md`. As **ofertas se editam**
+desde o Passo 4; os **cupons** seguem só leitura.
+
+- **Ofertas** (`/ofertas`): cada oferta de `catalogo.ofertas` com os preços
+  (um por produto, com o código vendável), o bônus, o que ela exige (order
+  bump no carrinho, upgrade para quem já comprou) e a **situação** calculada
+  pelo banco com as mesmas pontas de janela do site: no ar, só por link,
+  agendada, encerrada, desligada, histórico. O selo **no site** marca o
+  preço que o site lê agora (`api.ofertas`). O detalhe mostra ainda o preço
+  de lista na cópia da Eduzz, quando a linha tem o código do produto lá, e
+  "de onde veio" cada linha importada.
+- **Cupons** (`/cupons`): `catalogo.cupons` (até 26/09, `checkout.cupons`), com
+  desconto, situação (valendo, agendado, esgotado, encerrado, desligado,
+  histórico), onde se aplica, usos e prazo.
+- Hoje o catálogo tem o histórico do Summit 2026 (14 ofertas, 28 preços, 3
+  upgrades, 3 cupons). As ofertas do Institute entram na virada (Passo 5).
+- **Editar oferta (Passo 4):**
+  - **Nova oferta** nasce desligada, como rascunho (`/ofertas/nova`);
+    **Duplicar** copia preços, bônus e exigências, com prazo e códigos em
+    branco (`/ofertas/nova/:de` — na query, a origem viraria filtro da lista);
+  - o formulário tem a oferta, os **preços por produto** (código vendável,
+    à vista, parcelas com a conta ao vivo, riscado, sistema e link), o
+    **bônus** (o produto que ele entrega, custo, valor e prazo) e as
+    **exigências** do order bump / upgrade;
+  - salvar manda **só o que mudou** (`payloadDaOferta`); oferta ligada pede
+    confirmação com o preço antes e depois e o lembrete da Eduzz;
+  - **Pôr no ar** e **Tirar do ar** com confirmação. "Pôr no ar" aparece
+    travado, com o motivo que o banco dá (`bloqueioPorNoAr`), até um site ler
+    o catálogo — o Institute, na virada;
+  - oferta que já esteve no ar trava os códigos e não perde linha;
+  - cada oferta mostra o **histórico de alterações** (quem, quando, o quê) e,
+    recolhido, "como está no banco";
+  - o histórico importado abre só para consulta, com **Duplicar**.
+- As regras de verdade moram no banco (`mind_admin_mutate_ofertas`, migration
+  `20260926210134`, contrato `tests/ofertas_edicao_contract.sql` →
+  `OFERTAS_EDICAO_OK`); a tela só adianta o que dá para dizer antes de enviar.
+  Em demonstração o banco em memória imita a situação, o bloqueio e o
+  histórico (`src/mocks/ofertas-mock.ts`); `ligarLeitorDoCatalogo()` imita a
+  virada nos testes.
+- Porta: `mindagent-catalogo` 1.4.0 (`/admin/offers` lê, cria, edita,
+  `/publish` e `/archive`; `/admin/coupons` só lê), que chama
+  `mind_admin_read_ofertas`, `mind_admin_mutate_ofertas` e
+  `mind_admin_read_cupons` (só `service_role`). Preço em reais
+  (`formatarReais`), não em centavos.
+- Qualquer papel do painel vê. Criar pede o papel que cria, pôr no ar e tirar
+  do ar os papéis que publicam e arquivam (a matriz de `lib/permissions.ts`);
+  hoje só há um administrador ativo. Cupom: escrever é recusado antes de sair.
+
+## Summit → Mind Summit 2026 → Programação
+
+Pedido da Adriana (26/09/2026): no menu SUMMIT, um submenu por produto — hoje
+"Mind Summit 2026" — com a tabela de programação "conforme está no backend".
+É `summit_2026.sessions`, **só leitura**, pela `mindagent-summit`
+(`mind_admin_read_summit_2026_sessoes`, só `service_role`; contrato
+`tests/summit_programacao_contract.sql` → `SUMMIT_PROGRAMACAO_OK`).
+
+- A lista mostra dia, horário (fuso de São Paulo), sessão, tipo (o código do
+  banco), espaço, palestrantes e reserva; busca, filtros por dia, tipo e
+  reserva, e ordem por coluna.
+- Abrir uma sessão mostra **todas as colunas, com os nomes do banco** — coluna
+  nova aparece sem versão nova do painel.
+- Qualquer papel do painel vê. Escrever é recusado antes de sair.
 
 ## Admins do sistema
 
@@ -551,6 +621,7 @@ mindagent-admin      GET   /admin/me                  (quem é você e o que pod
 mindagent-acesso     POST  /admin/vincular            (primeiro login com Google)
 mindagent-acesso     GET   /admin/admins · /:id · POST /admin/admins · PATCH /:id
 mindagent-catalogo   GET   /admin/products · /:id · PATCH /:id
+mindagent-summit     GET   /admin/summit_2026_sessions · /:id   (só leitura)
 ```
 
 Toda escrita manda `If-Unmodified-Since-Version: <atualizadoEm>`, e `409` abre o

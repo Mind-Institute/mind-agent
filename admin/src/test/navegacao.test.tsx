@@ -8,7 +8,7 @@ describe('navegação', () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Admins do sistema']);
+    expect(ITENS_NAVEGACAO.map((item) => item.rotulo)).toEqual(['Catálogo', 'Ofertas', 'Cupons', 'Global Knowledge', 'Business Intelligence', 'Customer Intelligence', 'Agent Intelligence', 'Programação', 'Decisões', 'Admins do sistema']);
     for (const item of ITENS_NAVEGACAO) {
       expect(
         within(menu).getByRole('link', { name: (nome) => nome.trim() === item.rotulo }),
@@ -21,6 +21,15 @@ describe('navegação', () => {
     }
     expect(NAVEGACAO.filter((g) => ['summit', 'institute', 'dash'].includes(g.id)).map((g) => g.itens))
       .toEqual([[], [], []]);
+    /* Pedido dela: SUMMIT → Mind Summit 2026 → Programação. */
+    const summit2026 = within(menu).getByRole('list', { name: 'Mind Summit 2026' });
+    expect(within(summit2026).getByRole('link', { name: (nome) => nome.trim() === 'Programação' }))
+      .toHaveAttribute('href', '/summit/2026/programacao');
+    expect(NAVEGACAO.find((g) => g.id === 'institute')?.submenus ?? []).toEqual([]);
+    expect(NAVEGACAO.find((g) => g.id === 'dash')?.submenus ?? []).toEqual([]);
+    /* O schema `catalogo` inteiro no topo (Adriana, 26/09/2026): "o painel é o
+       controle deste schema" — produtos, ofertas e cupons, com dado real. */
+    expect(NAVEGACAO[0].itens.map((item) => item.caminho)).toEqual(['/catalogo', '/ofertas', '/cupons', '/knowledge', '/business-intelligence', '/customer-intelligence', '/agent-intelligence']);
     /* Pedido dela no mesmo dia: no lugar do antigo grupo de administração,
        só o quadro de quem entra no painel. */
     expect(within(menu).getByText('Administração')).toBeVisible();
@@ -52,7 +61,10 @@ describe('navegação', () => {
     renderizarPainel();
     const menu = await screen.findByRole('navigation', { name: /navegação principal/i });
 
-    for (const rotulo of ['Visão geral', 'Home V3', 'Visualização', 'Avisos', 'Evento', 'Programação',
+    /* 'Programação' voltou, mas outra: a do Summit 2026 como está no banco, em /summit/2026/programacao
+       (a do app era /programacao, que continua fora). E '/ofertas' voltou também, mas outra: as ofertas
+       do schema `catalogo`, com dado real — a demonstração "Ingressos e ofertas" continua fora. */
+    for (const rotulo of ['Visão geral', 'Home V3', 'Visualização', 'Avisos', 'Evento',
                           'Palestrantes', 'Espaços', 'Rotas', 'Estandes', 'Ingressos e ofertas',
                           'Conteúdo da Mind', 'FAQ e documentos', 'Conversas', 'Perguntas sem resposta',
                           'Usuários e permissões', 'Auditoria', 'Avaliação do dia', 'Avaliação do evento',
@@ -63,7 +75,7 @@ describe('navegação', () => {
       ).toBeNull();
     }
     for (const caminho of ['/evento', '/programacao', '/palestrantes', '/espacos', '/rotas', '/estandes',
-                           '/home/visualizacao', '/home/avisos', '/ofertas', '/conteudo', '/documentos',
+                           '/home/visualizacao', '/home/avisos', '/conteudo', '/documentos',
                            '/conversas', '/perguntas', '/usuarios', '/auditoria', '/avaliacao-do-dia',
                            '/avaliacao-do-evento', '/configuracoes']) {
       expect(ITENS_NAVEGACAO.some((item) => item.caminho === caminho), caminho).toBe(false);
@@ -77,7 +89,7 @@ describe('navegação', () => {
   });
 
   it('endereço de módulo que saiu do painel cai na página de não encontrada', async () => {
-    for (const rota of ['/programacao', '/ofertas', '/usuarios', '/avaliacao-do-dia', '/configuracoes']) {
+    for (const rota of ['/programacao', '/usuarios', '/avaliacao-do-dia', '/configuracoes']) {
       const { unmount } = renderizarPainel({ rota });
       expect(
         await screen.findByRole('heading', { name: /não existe no painel/i }),

@@ -1,17 +1,13 @@
 # READ ME FIRST — a Regra #1 do sistema Mind
 
-> Leia isto antes de qualquer outro documento e antes de escrever qualquer linha que fale
-> de uma pessoa. Decisão da Adriana em 22–23/09/2026 (**D5**, `PROJECT_STATE.md` v10).
+> **Primeiro leia [`AGENTS.md`](AGENTS.md) e estude as decisões e o schema `arquitetura`
+> no Supabase.** Depois leia as instruções operacionais abaixo, antes de escrever qualquer
+> linha que fale de pessoa. A fonte oficial das decisões está no Supabase; este documento
+> descreve a operação de identidade (D5/D6).
 
 ## Regra #1 — toda linha sobre uma pessoa nasce ligada à pessoa
 
-Nas palavras da Adriana:
-
-> *Sempre que uma linha sobre qualquer pessoa for escrita em qualquer tabela, o sistema
-> deve acionar imediatamente uma coluna, se não existir, com o ID universal da pessoa — e,
-> antes de criá-lo, buscar na tabela `pessoas.pessoas` hints que a reconheçam. Todas as
-> tabelas sobre clientes precisam conversar e estar linkadas às pessoas às quais se
-> referem.*
+Consulte as decisões de identidade no schema `arquitetura`; abaixo ficam as instruções operacionais.
 
 Na forma operacional:
 
@@ -116,6 +112,6 @@ Scripts numerados em `scripts/infra/identidade/`. Contrato que prova as promessa
 ## Depois disto, leia
 
 1. `CHECKPOINT_ATUAL.md` — onde estamos agora.
-2. `PROJECT_STATE.md` — arquitetura e decisões congeladas (D1–D5).
+2. `PROJECT_STATE.md` — documentação do projeto (as decisões vivem no Supabase).
 3. `docs/CORE_UNIVERSAL.md` — o que está vivo, inclusive a identidade (§3).
 4. `CLAUDE.md` / `AGENTS.md` — regras de trabalho.
