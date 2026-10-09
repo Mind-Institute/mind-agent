@@ -390,6 +390,30 @@ function extractOutputText(payload: Record<string, unknown>) {
   return "";
 }
 
+// RASTRO DA FERRAMENTA. Até 24/09 a resposta gravava só o nome da ferramenta e se deu
+// certo; o que o agente procurou e o que voltou morria no log de 24 h. Sem isso não dá
+// para auditar um "não encontrei" (ex.: a busca pela mala devolvia sessões, não a
+// Chapelaria). Guarda o pedido e até 6 títulos devolvidos — curto, sem o conteúdo.
+function rastroDaChamada(argumentos: string, saida: string): { pediu?: string; achou?: string[] } {
+  const rastro: { pediu?: string; achou?: string[] } = {};
+  try {
+    const a = JSON.parse(argumentos) as Record<string, unknown>;
+    const pedido = [a.necessidade, a.tipo, a.id].filter((v) => typeof v === "string" && v).join(" · ");
+    if (pedido) rastro.pediu = pedido.slice(0, 200);
+  } catch { /* argumento inválido: a falha já é registrada pela própria ferramenta */ }
+  try {
+    const s = JSON.parse(saida) as Record<string, unknown>;
+    if (Array.isArray(s.candidatos)) {
+      rastro.achou = (s.candidatos as Array<Record<string, unknown>>)
+        .slice(0, 6)
+        .map((c) => `${String(c.tipo ?? "")}: ${String(c.titulo ?? c.id ?? "")}`.slice(0, 120));
+    } else if (typeof s.titulo === "string" || typeof s.nome === "string") {
+      rastro.achou = [String(s.titulo ?? s.nome).slice(0, 120)];
+    }
+  } catch { /* saída não-JSON: nada a resumir */ }
+  return rastro;
+}
+
 // As fontes agora vêm do Kit, não do retorno cru do retrieval. O formato
 // gravado em `blocks.sources` continua `{type, count}` — só a origem muda.
 function sourceSummary(structured: Record<string, unknown>) {
@@ -1354,7 +1378,7 @@ Deno.serve(async (req: Request) => {
     let rodadasTool = 0;
     let recuperacaoForcada = false;
     let forcarBuscaNaProximaVolta = false;
-    const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
+    const chamadasFeitas: Array<{ nome: string; ok: boolean; pediu?: string; achou?: string[] }> = [];
 
     for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
       tentativasModelo++;
@@ -1450,12 +1474,17 @@ Deno.serve(async (req: Request) => {
         ) {
           /* `tool_choice:auto` é proposital para não buscar em toda pergunta,
              mas o modelo não pode desistir sem investigar quando o recorte do
-             Kit veio insuficiente. A primeira abstinência vira contexto e a
-             próxima volta força apenas a lupa de leitura. */
-          entradaDoModelo.push({ role: "assistant", content: outputText });
+             Kit veio insuficiente. A próxima volta força apenas a lupa de leitura.
+             A cobrança é do runtime, não da pessoa. Até 24/09 ela entrava como fala
+             `user` depois do rascunho `assistant`, e o modelo lia uma reclamação que
+             ninguém fez: 40 respostas abriam com "Você tem razão — fui checar melhor".
+             Agora o rascunho não vira fala e a cobrança vai como `developer`. */
           entradaDoModelo.push({
-            role: "user",
-            content: "Antes de concluir que não há fonte, investigue a necessidade atual com buscar_intelligence.",
+            role: "developer",
+            content: "Seu rascunho concluía que não há fonte e NÃO foi enviado à pessoa. " +
+              "Antes de concluir isso, investigue a necessidade atual com buscar_intelligence. " +
+              "A pessoa não pediu nova verificação: responda à pergunta original, sem dizer que " +
+              "ela tem razão, sem agradecer a checagem e sem mencionar esta investigação.",
           });
           forcarBuscaNaProximaVolta = true;
           recuperacaoForcada = true;
@@ -1502,7 +1531,8 @@ Deno.serve(async (req: Request) => {
       for (const r of resultados) {
         toolResultChars += r.output.length;
         entradaDoModelo.push({ type: "function_call_output", call_id: r.call_id, output: r.output });
-        chamadasFeitas.push({ nome: r.nome, ok: r.ok });
+        const args = chamadas.find((c) => c.call_id === r.call_id)?.arguments ?? "";
+        chamadasFeitas.push({ nome: r.nome, ok: r.ok, ...rastroDaChamada(args, r.output) });
       }
       rodadasTool++;
       Object.assign(telemetry, {
