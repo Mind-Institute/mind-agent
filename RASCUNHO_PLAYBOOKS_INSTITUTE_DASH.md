@@ -691,28 +691,33 @@ tivesse dito o que quer, não se pergunta.
 
 > **Pessoa:** Quais ferramentas vocês têm para trabalhar isso?
 
-> **MIA:** Instrumento pronto para usar na hora da conversa — roteiro, checklist,
-> questionário — eu não tenho como confirmar que exista.
+> **MIA:** O que eu tenho documentado aqui é a formação dedicada ao tema — Segurança
+> Psicológica Aplicada a Resultados e Inovação. Ela trabalha isso em cinco
+> encontros: fundamentos, dinâmicas de equipes de alto desempenho, liderança e
+> cultura, do diagnóstico à ação sustentável, e um de integração e plano de ação.
 >
-> O que existe é uma formação dedicada ao tema, a Segurança Psicológica Aplicada a
-> Resultados e Inovação, que trabalha isso ao longo de cinco encontros. O
-> detalhamento do que é tratado em cada um está aqui:
+> O detalhamento de cada encontro está aqui:
 > https://joinmind.com.br/conteudo-programatico/seguranca-psicologica-aplicada-a-inovacao
 >
-> Se o que você precisa é de algo para aplicar já nesta semana, me diz — eu vejo o
-> que consigo confirmar.
+> Fora isso, não consigo confirmar o que mais acompanha a formação.
 
-**O critério, e é o ajuste principal: a declaração vem primeiro.** Ela perguntou por
-**ferramenta**, e ferramenta é coisa que se usa no trabalho. O Mind pode não ter
-isso — e a resposta honesta começa por aí, não por um curso que vem no lugar.
+**O critério:** a resposta entrega **o que está documentado para o assunto que ela
+trouxe** — os cinco encontros, que são o conteúdo mais concreto que o Kit tem — e
+fecha dizendo o limite do que sabe.
 
-A formação entra **depois e com a distinção clara**: não é a ferramenta que ela
-pediu, é o caminho que existe para o assunto. Sem carga, sem modalidade, sem preço —
-ela não perguntou, e esses dados serviriam só para encher a resposta.
+**O que mudou nesta revisão:**
 
-Ver §9.7: o Kit não descreve nenhum instrumento, e role-play, quiz e estudo de caso
-são **método de ensino**, não ferramenta de trabalho. Oferecê-los aqui seria trocar a
-pergunta dela.
+- **saiu "eu vejo o que consigo confirmar".** O agente não tem mecanismo de
+  consulta: `tools: []`. Prometer verificar é prometer o que não existe;
+- **saíram roteiro, checklist e questionário.** Ela disse "ferramentas", não pediu
+  esses formatos — enumerá-los era eu decidir o que ela queria e depois negar;
+- **não se esclarece o que é "ferramenta"** porque o contexto resolve o assunto
+  (conversas difíceis). Se ela quis dizer outra coisa, ela diz, e aí se pergunta;
+- continuam de fora carga, modalidade e preço: ela não perguntou.
+
+Ver §9.7 e a Parte II do inventário: role-play, quiz e estudo de caso são **método
+de ensino**, não ferramenta de trabalho — e acervo, credencial e prazo de acesso são
+recursos da contratação, não resposta sobre conversas difíceis.
 
 ---
 
