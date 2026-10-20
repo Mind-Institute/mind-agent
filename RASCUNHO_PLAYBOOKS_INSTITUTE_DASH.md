@@ -14,6 +14,110 @@ Prioridade que rege tudo abaixo, nas suas palavras:
 
 ---
 
+## 0. Conduta comum de atendimento — texto da Adriana/Vinicius
+
+**Texto recebido em 20/10, transcrito sem alteração.** Vale para Institute e Dash, e
+por isso sai dos dois playbooks e vira camada comum. As anotações vêm depois, em
+§0.1, e não tocam o texto.
+
+> ### Entender e responder
+>
+> Identifique o que o cliente está perguntando usando a mensagem atual e o contexto
+> da conversa. Não presuma intenção de compra apenas porque ele mencionou um tema
+> relacionado aos produtos.
+>
+> Quando houver informação suficiente, responda diretamente. Não faça perguntas de
+> qualificação antes de responder a uma dúvida que já pode ser esclarecida.
+>
+> Quando a ambiguidade mudar a resposta ou a recomendação, faça uma pergunta curta e
+> específica. Não transforme o esclarecimento em um questionário.
+>
+> ### Recomendar quando houver pertinência
+>
+> Uma recomendação deve ter relação clara com a necessidade expressa pelo cliente e
+> com as capacidades verificadas da solução.
+>
+> Se essa relação não estiver clara, esclareça antes de recomendar. Responder sem
+> oferecer produto é um resultado válido.
+>
+> ### Acompanhar a conversa
+>
+> Se o cliente corrigir sua interpretação ou mudar de assunto, ajuste o atendimento.
+> Não insista na recomendação anterior.
+>
+> Se houver mais de uma pergunta, procure responder a todas, sem substituir a dúvida
+> principal por uma oferta.
+>
+> ### Usar informações confiáveis
+>
+> Use as fontes aprovadas para explicar produtos e condições comerciais. Não invente
+> informações nem resolva contradições escolhendo uma versão por conta própria.
+>
+> Quando faltar informação, explique exatamente o que precisa confirmar e siga o
+> encaminhamento definido para esse caso.
+
+### 0.1 Onde este texto encosta no sistema real
+
+Conferido contra o Kit vivo em 20/10. Nada aqui propõe mudar o texto — são os
+lugares em que ele aponta para algo que precisa existir, ou em que o sistema o
+torna mais necessário do que parece.
+
+**"Use as fontes aprovadas" — são diferentes por rota, e precisam ser nomeadas.**
+
+| rota | fontes que chegam no contexto |
+|---|---|
+| Institute | `institute_catalogo` · `product_intelligence` · `customer_intelligence` |
+| Dash | `product_intelligence` · `customer_intelligence` — **nenhuma fonte comercial** |
+
+O bloco do Dash declara `nao_contem: [preço, lote, parcelamento, checkout, turma,
+disponibilidade]`. Para o Dash, "usar as fontes aprovadas" já implica não falar de
+dinheiro: a proibição é um fato do contexto, não só uma instrução.
+
+**"Quando faltar informação, explique exatamente o que precisa confirmar" — o agente
+não tem como verificar.** `tools: []` nas duas rotas: não há busca nem consulta. Só
+existem duas saídas — perguntar à pessoa, ou encaminhar. Convém dizer isso com
+todas as letras, senão o modelo promete "confirmo e te retorno", que é justamente o
+que o `playbook_dash` proíbe.
+
+**"Siga o encaminhamento definido para esse caso" — o encaminhamento ainda não
+existe.** O runtime tem três saídas, e só três:
+
+1. `needs_human` — o turno vai para o time;
+2. `next_route` — apenas entre `institute` e `dash`;
+3. o WhatsApp do time do Institute, que vem no catálogo.
+
+**O Dash não tem contato nenhum.** Enquanto não houver, "encaminhar" no Dash só pode
+significar `needs_human`. Ver §4.
+
+**"Não presuma intenção de compra apenas porque ele mencionou um tema" — o sistema
+empurra contra essa regra, e com confiança alta.** O `customer_intelligence` chega em
+TODO turno com os interesses lembrados da pessoa. Na conversa real usada como
+fixture:
+
+```
+Mind Summit                   conf 0.9   16/09
+ingresso do evento            conf 0.9   09/09
+ingressos                     conf 0.9   07/09
+interesse em ingresso Prime   conf 0.9   07/09
+descadastramento              conf 0.9   07/09
+```
+
+É um empurrão permanente na direção de um produto que não está mais à venda. A regra
+precisa alcançar o interesse **lembrado**, não só o tema mencionado — o
+`playbook_institute` já tem a semente: *"Memória antiga é contexto, não prioridade
+automática."*
+
+**Ponto em aberto, de produto e provavelmente de privacidade:** a mesma pessoa tem
+`descadastramento` com confiança 0.9. Memória de descadastro deve virar restrição de
+conduta? Não é decisão de engenharia.
+
+**Onde o texto já resolve um problema conhecido:** *"não resolva contradições
+escolhendo uma versão por conta própria"* generaliza o caso das duas políticas de
+cancelamento incompatíveis publicadas no site, que hoje está tratado como exceção
+no `vendas_institute`. Como regra geral, é melhor.
+
+---
+
 ## 1. O playbook é menor do que parece — três camadas, não uma
 
 O que descobri olhando o Kit vivo: **boa parte do que hoje está escrito nos
