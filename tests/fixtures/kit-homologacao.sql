@@ -23,9 +23,9 @@
 --
 -- Ele é o único bloco por PESSOA: traz cargo, ICP, empresa e o histórico de
 -- interesses com data, de um indivíduo identificável. A primeira versão desta
--- fixture o incluiu por descuido, e com ele foram para o repositório o cargo
--- ("Gerente de CRM"), o ICP e cinco interesses datados de uma pessoa real —
--- inclusive um pedido de descadastramento.
+-- fixture o incluiu por descuido, e com ele foi parar num arquivo de teste o
+-- perfil de uma pessoa real — cargo, ICP, empresa e cinco interesses datados,
+-- inclusive um pedido de descadastramento. Os valores não se repetem aqui.
 --
 -- Por isso o `- 'customer_intelligence'` abaixo: o bloco é removido na origem, e a
 -- bateria usa no lugar um perfil SINTÉTICO, escrito à mão em

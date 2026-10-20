@@ -312,8 +312,23 @@ O que o playbook do Dash passa a dizer, e o que ele passa a proibir:
   entrega a conversa ao time é a integração, e isso não volta confirmado para o
   runtime. Dizer "já te transferi" é afirmar um fato que o agente não tem.
 
-A redação precisa separar o que o agente faz do que ele promete. Ele pode dizer que
-vai acionar o time; não pode dizer que o time recebeu.
+### Como falar disso, enquanto a integração não estiver validada
+
+Decisão de 20/10: **o agente informa que o caso precisa do time. Não anuncia uma
+ação própria.**
+
+Nem "já te transferi", nem "vou acionar o time", nem "alguém te chama". As três
+afirmam que algo acontece, e **nenhuma das três está comprovada**. O que o agente
+sabe é o estado do caso, não o destino dele.
+
+| não dizer | dizer |
+|---|---|
+| "já te transferi" | "esse caso precisa do time do Mind" |
+| "vou acionar o time" | "não consigo resolver isso por aqui" |
+| "alguém te retorna" | — (não prometer retorno nem prazo) |
+
+A diferença não é de polidez: é de verdade. O runtime marca `needs_human`; quem
+entrega a conversa a uma pessoa é a integração, e isso **não volta confirmado**.
 
 ### Pendência de validação na Treble
 
@@ -324,8 +339,9 @@ foi exercitado nesta configuração.
 
 Entra no roteiro do teste controlado: acionar `needs_human` por um número do time e
 confirmar, do outro lado, que a conversa chegou a uma pessoa. **Enquanto isso não
-for verificado, "o Dash encaminha ao time" é projeto, não fato** — e o playbook não
-pode afirmar o contrário ao cliente.
+for verificado, "o Dash encaminha ao time" é projeto, não fato.** Se o teste provar
+que a entrega acontece, aí sim a redação pode passar a anunciar a ação — e isso é
+revisão de texto, não de código.
 
 ---
 
@@ -396,7 +412,43 @@ rodada contra o texto novo.
 
 ---
 
-## 8. Pendência separada — o registro de descadastramento
+## 8. PENDÊNCIA DE PRÉ-LANÇAMENTO — o registro de descadastramento
+
+> **Bloqueia o lançamento.** Não é item de backlog para depois: enquanto não for
+> decidida, o agente recebe um pedido de parar contato como se fosse interesse de
+> compra. **Nada abaixo foi implementado.**
+
+### As três perguntas que precisam de resposta antes de abrir tráfego
+
+**1. Como impedir que a classificação como "interesse" vire sinal positivo de
+venda.** Hoje `descadastramento` chega ao modelo dentro da lista `interests`, com
+confiança 0.90, ao lado dos interesses comerciais, e `constraints` chega vazio. Para
+o modelo, a forma do dado diz "esta pessoa tem interesse em X". A correção pode ser
+de taxonomia (mover para `constraints`), de leitura (o Kit filtrar antes de
+entregar) ou de conduta (o playbook mandar ignorar). **São soluções em camadas
+diferentes e com donos diferentes** — a primeira é Lane D (#42), a segunda é do Kit,
+a terceira é nossa.
+
+**2. Como uma restrição anterior válida será respeitada.** Precisa definir: o que
+conta como restrição válida, qual o escopo dela (um produto? um canal? todo contato
+comercial?), e por quanto tempo vale. Hoje o registro não tem escopo nem validade —
+`valido_ate` é nulo, então pelo sistema vale para sempre.
+
+**3. Como distinguir resposta solicitada de nova abordagem comercial.** É a
+distinção mais fina e a mais importante: alguém que pediu para não receber ofertas
+e depois **escreve perguntando um preço** está pedindo uma resposta, não recebendo
+uma abordagem. Responder é respeitar; não responder é falhar com a pessoa. Uma
+regra que só olhe "tem restrição → não fale de produto" erra esse caso.
+
+### O que entra no playbook agora, e só isto
+
+> **Um pedido explícito do cliente, na conversa atual, para parar de receber ofertas
+> deve ser respeitado imediatamente — sem negociar, sem recomendar nada e sem pedir
+> motivo.**
+
+Isso não depende de nenhuma das três decisões acima e vale desde já.
+
+### Anexo — o que a leitura apurou
 
 **Nenhuma preferência foi alterada e nenhuma regra foi implementada.** Abaixo, o que
 a leitura respondeu das quatro perguntas, e o que sobra para decisão.
@@ -420,28 +472,6 @@ comerciais — e, para o modelo, aparece como *mais um interesse do cliente*.
 E `constraints` chega **vazio**. Ou seja: um pedido para parar de receber contato
 está sendo entregue ao agente como sinal de interesse, e não como restrição.
 
-### O que precisa ser decidido, e por quem
-
-1. **Um pedido de descadastro deve virar restrição?** Hoje não é. Se deve, a casa
-   provavelmente é `constraints`, não `interests` — e isso é taxonomia de memória,
-   Lane D (#42), não conduta de playbook.
-2. **Qual é o escopo do pedido?** Foi "pare de me mandar mensagem sobre o Summit" ou
-   "me tire da base"? O texto registrado não distingue, e a diferença muda tudo.
-3. **Um registro de 07/09 ainda vale hoje?** `valido_ate` é nulo, então pelo sistema
-   vale para sempre. Se deve expirar, é regra de memória, não de playbook.
-4. **Há obrigação legal associada?** Não sei, e não é minha avaliação.
-
-### O que entra no playbook agora, e é pequeno
-
-Só isto, que não depende de nenhuma das decisões acima:
-
-> **Um pedido explícito do cliente, na conversa atual, para parar de receber ofertas
-> deve ser respeitado imediatamente — sem negociar, sem recomendar nada e sem pedir
-> motivo.**
-
-O que **não** entra: qualquer conduta derivada de descadastro *lembrado*. Enquanto o
-registro estiver gravado como interesse e sem escopo claro, agir sobre ele seria
-implementar regra por suposição.
 
 ---
 
@@ -556,3 +586,58 @@ recomendação. Se não muda, responda.
 3. **Falta algum caso de "não recomendar"** que você já viu acontecer?
 4. **O corte da Especialização** está forte o bastante? Hoje é a regra que o
    `vendas_institute` diz que mais evita reembolso.
+
+---
+
+## 10. Privacidade — alcance do perfil que entrou na fixture, e opções
+
+**Defeito meu, apurado em 20/10.** O bloco `customer_intelligence` — o único por
+pessoa — entrou numa fixture versionada. Nenhum valor é reproduzido aqui.
+
+### O que exatamente
+
+Perfil de **uma** pessoa identificável: cargo, ICP, empresa e cinco interesses com
+data e confiança, inclusive um pedido de descadastramento. **Sem nome, sem e-mail,
+sem telefone, sem UUID.** É dado pessoal indireto, não identificação direta.
+
+### Até onde foi
+
+| onde | estado |
+|---|---|
+| `tests/fixtures/kit-homologacao.json` | entrou em `68cc9d4`, saiu em `4b35f5f` — **dois commits locais** |
+| **remoto** | **nunca enviado.** A branch `claude/vendedor-institute-dash-whatsapp` não existe em `origin`; nenhum push nesta sessão |
+| `audit/homologacao/*.json` | **6 de 8** arquivos dos ensaios. **Untracked e no `.gitignore`** — nunca versionados. Só em disco local |
+| `audit/homologacao/*.md` | nenhum — o relatório de leitura não inclui o payload |
+| `tests/fixtures/kit-homologacao.sql` | eu citei o cargo no comentário de aviso. **Já removido** |
+| resultados de ferramenta e scratchpad desta sessão | 9 arquivos, fora do repositório, em diretórios temporários desta máquina |
+
+### O que torna isto sério, e o que o limita
+
+**Sério:** o repositório `Mind-Institute/mind-agent` é **PÚBLICO**. Se a branch
+tivesse sido enviada, o perfil estaria exposto na internet.
+
+**Limita:** a branch **não foi enviada**. O dado nunca saiu desta máquina por git.
+Os relatórios estão fora do controle de versão. O que existe é risco local e um
+histórico local que ainda contém o blob.
+
+### Opções, para decidir com quem responde pelo repositório
+
+| # | opção | efeito | custo |
+|---|---|---|---|
+| **1** | **Reescrever o histórico local antes de qualquer push** (`rebase -i` ou `filter-repo` sobre `68cc9d4`) | o blob deixa de existir; a branch sobe limpa | baixo — **a branch é só local, ninguém mais a tem**. É a janela em que isso é barato |
+| **2** | Deixar o histórico como está e subir | o blob fica no repositório **público** para sempre, mesmo o arquivo atual estando limpo | alto, e irreversível depois do push |
+| **3** | Não subir esta branch; abrir outra a partir da `main` e recommitar o conteúdo limpo | mesmo resultado da 1, sem mexer em histórico | médio — perde a granularidade dos commits |
+| **4** | Apagar os `audit/homologacao/*.json` antigos | tira o perfil do disco local; os dois ensaios recentes já estão limpos | nenhum — são saídas regeneráveis de ensaio |
+
+**O que eu faria, e não fiz porque você pediu para não reescrever histórico:**
+opção 1 combinada com a 4, antes de qualquer push. A opção 1 só é barata **enquanto
+a branch for local** — depois do push, deixa de ser.
+
+### Pendências que isto deixa
+
+1. **Avaliar se há obrigação de notificação.** Dado pessoal indireto, de uma pessoa,
+   sem exposição externa comprovada. Não é minha avaliação.
+2. **Verificar se esta pessoa é do time ou cliente.** Muda o enquadramento, e eu não
+   vou consultar a ficha dela para descobrir.
+3. **Regra geral:** nenhum bloco por pessoa entra em arquivo versionado. Já está
+   escrito no gerador da fixture; vale escrever onde o time veja.
