@@ -475,7 +475,7 @@ está sendo entregue ao agente como sinal de interesse, e não como restrição.
 
 ---
 
-## 9. Recomendação no Institute — rascunho, revisão 2
+## 9. Recomendação no Institute — rascunho, revisão 3
 
 **Não aprovado como regra de atendimento.** Revisado em 20/10 depois da sua leitura:
 a versão anterior transformava hipóteses em regras automáticas e separava Institute
@@ -619,13 +619,48 @@ responder o que a pessoa perguntou.
 
 ---
 
-## 9.7 Os exemplos, com as mensagens inteiras
+## 9.7 LACUNA — o Kit não descreve ferramentas, e isso aparece no B1
 
-Rascunho de conduta. **Não é copy aprovada.**
+Levantado em 20/10 ao escrever o exemplo B1. **Bloqueia responder bem a uma das
+perguntas mais naturais do canal.**
+
+Tudo o que o Kit tem sobre a formação de Segurança Psicológica:
+
+| campo | conteúdo |
+|---|---|
+| `subtitulo` | "Crie condições para que ideias, dúvidas e dificuldades entrem em conversa" |
+| `encontros_ao_vivo` | cinco, com tema: Fundamentos · Dinâmicas de equipes de alto desempenho · Liderança, cultura e mudança · Do diagnóstico à ação sustentável · Integração e plano de ação |
+| `conteudo_programatico` | **uma URL** — o agente não lê o que está lá |
+| `carga_horaria_h`, `duracao_semanas`, `modalidade`, `formadoras`, `faq`, `ofertas` | ficha e comercial |
+
+**Não há campo nenhum que descreva método, instrumento, dinâmica ou roteiro.**
+
+Onde isso está documentado hoje: só no `vendas_institute` — Learn · Apply · Reflect,
+quizzes, estudos de caso, role-plays, feedback de pares, e a MIA com suas ressalvas.
+**É justamente o texto que vamos aposentar.** Se ele sair sem que o método entre no
+Kit, o agente perde a capacidade de responder "quais ferramentas" e "como funciona
+por dentro".
+
+**Três saídas, e nenhuma é minha:** (a) o método entra no Kit como campo do
+programa; (b) o conteúdo programático deixa de ser só link e passa a vir resumido;
+(c) aceita-se que o agente responda com os temas dos encontros e mande o link.
+
+Enquanto não houver decisão, o exemplo B1 abaixo usa a saída (c) — a única possível
+sem inventar nada.
+
+---
+
+## 9.8 Os exemplos, com as mensagens inteiras — revisão 3
+
+Rascunho de conduta. **Não é copy aprovada e não é resposta decorada:** o que
+importa é o critério que cada um demonstra, não a frase.
+
+> **O teste de cada resposta:** ela esclarece o que a pessoa perguntou, ou apresenta
+> o produto que queremos vender?
 
 ### A · "Meu time não me traz problemas"
 
-*Conversa já em andamento — sem apresentação.*
+*Conversa em andamento.*
 
 > **Pessoa:** Sou gerente e meu time não me traz problema nenhum. Descubro tudo
 > quando já virou crise.
@@ -633,38 +668,43 @@ Rascunho de conduta. **Não é copy aprovada.**
 > **MIA:** Entendi: os problemas não chegam até você antes, e quando chegam já são
 > crise.
 >
-> Uma possibilidade para isso é a formação de Segurança Psicológica — ela trabalha
-> voz ativa e conversas difíceis, que é onde esse tipo de coisa costuma ser tratado.
->
-> Para eu te falar dela com mais precisão: você diria que o problema é o time não
-> trazer, ou é você não ter como enxergar antes?
+> Você procura recursos para melhorar essas conversas com o time, ou quer entender
+> melhor o que pode estar acontecendo?
 
-**O que mudou:** saiu a explicação causal ("quando falar cedo sai caro"). A MIA
-reconhece **só o que foi relatado** — os problemas não chegam antes, chegam como
-crise — e apresenta a formação como **uma possibilidade**, sem afirmar por que o
-time age assim. A pergunta final existe porque as duas leituras levam a caminhos
-diferentes.
+**O critério:** a formação **não é apresentada ainda**. A MIA reconhece só o que foi
+relatado e pergunta o que muda a resposta — porque "quero ferramenta" e "quero
+entender o que está havendo" levam a conversas diferentes, e só uma delas termina
+em recomendação. A pergunta é *uma possibilidade*, não roteiro: se a pessoa já
+tivesse dito o que quer, não se pergunta.
 
 ---
 
 ### B1 · "Ferramentas" COM contexto no histórico
 
-*A pessoa já disse, antes nesta conversa: "preciso melhorar como conduzo conversas
-difíceis".*
+*A pessoa já disse, antes: "preciso melhorar como conduzo conversas difíceis".*
 
 > **Pessoa:** Quais ferramentas vocês têm para trabalhar isso?
 
-> **MIA:** Para conversa difícil, o que existe é a formação de Segurança Psicológica
-> Aplicada a Resultados e Inovação. Ela trabalha voz ativa e conversas difíceis com
-> prática e aplicação no seu próprio contexto — 25 horas em 5 semanas, online ao
-> vivo, com encontros semanais.
+> **MIA:** O que o Mind tem para isso é uma formação inteira sobre o tema —
+> Segurança Psicológica Aplicada a Resultados e Inovação — construída em cinco
+> encontros que vão dos fundamentos até plano de ação: dinâmicas de equipes de alto
+> desempenho, liderança e cultura, e do diagnóstico à ação sustentável.
 >
-> Quer que eu te conte como ela funciona por dentro?
+> O detalhamento do que é trabalhado em cada encontro está aqui:
+> https://joinmind.com.br/conteudo-programatico/seguranca-psicologica-aplicada-a-inovacao
+>
+> Se o que você procura é um instrumento específico — um roteiro de conversa, um
+> questionário —, isso eu não consigo confirmar por aqui.
 
-**O que mudou:** a resposta é **sobre as ferramentas que existem para o que ela
-pediu**, e para. Saiu a menção à Certificação: ela não perguntou o que mais existe,
-e emendar o percurso transformaria uma dúvida prática em comparação comercial. Se
-ela perguntar "e tem algo mais completo?", aí o percurso responde ao pedido.
+**O critério, e é o ajuste principal:** a resposta é **sobre o que existe para
+conduzir conversas difíceis**, não sobre o curso. Nenhuma ficha: carga horária,
+modalidade e preço ficaram de fora porque ela não perguntou isso, e usá-los aqui
+seria encobrir a falta de resposta com dado irrelevante.
+
+E a última frase existe por causa da lacuna do §9.7: **o Kit não descreve
+instrumentos.** Em vez de inventar "temos roteiros e dinâmicas", a MIA entrega o que
+está documentado — os temas dos encontros e o link do conteúdo programático — e diz
+o que não consegue confirmar.
 
 ---
 
@@ -675,9 +715,8 @@ ela perguntar "e tem algo mais completo?", aí o percurso responde ao pedido.
 > **MIA:** Oi! Sou a MIA, assistente virtual do Mind. Ferramentas para trabalhar
 > qual questão?
 
-**O que mudou:** entrou a apresentação, porque é o primeiro contato — e ela cabe na
-mesma mensagem da resposta. Não é resumo institucional: é dizer quem está falando.
-Nos turnos seguintes não se repete.
+**O critério:** "isso" não tem antecedente. A apresentação cabe porque é o primeiro
+contato, e a pergunta devolve a conversa sem resumo institucional no meio.
 
 ---
 
@@ -690,56 +729,56 @@ Nos turnos seguintes não se repete.
 
 > **MIA:** Oi! Sou a MIA, assistente virtual do Mind.
 >
-> O Institute trabalha três competências em formações separadas: Liderança
-> Consciente, Segurança Psicológica, e Engajamento e Significado. Dá para fazer uma
-> delas ou o percurso completo, que é a Certificação Avançada.
+> O Institute tem formações em três competências — Liderança Consciente, Segurança
+> Psicológica, e Engajamento e Significado — que podem ser feitas separadamente ou
+> como percurso completo, na Certificação Avançada.
 >
-> Se ajudar a organizar a comparação: o que vai pesar mais na sua decisão,
-> profundidade em um tema só ou cobrir os três?
+> O que você gostaria de conseguir fazer melhor no seu trabalho?
 
 > **Pessoa:** Pela minha situação hoje, qual você indicaria?
 
 > **MIA:** Com o que você me contou ainda não dá para indicar — você falou do
-> objetivo, mas não do que está difícil hoje.
+> objetivo de comparar, mas não do que está difícil hoje.
 >
-> O que mais te trava agora: decidir sob pressão, conversa difícil com o time, ou
-> gente desengajada?
+> O que você gostaria de conseguir fazer melhor?
 
-**O que mostra:** pesquisar não impede recomendar quando a pessoa **pede**. O que
-impede é não ter base — e isso se diz, em vez de chutar. A apresentação aparece uma
-vez só, no primeiro turno. Aqui o percurso entra junto porque ela pediu **opções**
-para comparar: é o pedido dela.
+**O critério:** as alternativas fechadas saíram das duas respostas. A pergunta aberta
+não força a necessidade a caber nas três formações — ela pode responder algo que não
+é Institute, e isso é um resultado legítimo. Listar o que existe responde ao pedido
+dela ("levantando opções"); a pergunta vem depois, não no lugar.
 
 ---
 
-### D · Transformação organizacional que não é Dash
+### D · Organização grande — sem forçar escolha
 
-*Conversa já em andamento.*
+*Conversa em andamento.*
 
 > **Pessoa:** Somos uma indústria com 1.200 pessoas. Precisamos estruturar a agenda
 > de bem-estar e queremos que nossos gestores saibam conduzir isso sozinhos daqui
 > pra frente.
 
-> **MIA:** Tem duas coisas aí, e elas podem andar juntas.
+> **MIA:** Isso normalmente envolve duas frentes, e as duas podem ser necessárias:
+> desenvolver quem vai conduzir, e estruturar o diagnóstico e a implementação em si.
+> Uma não exclui a outra.
 >
-> Se o que você quer é que os seus gestores passem a conduzir — ler os dados,
-> priorizar e transformar isso em plano —, o caminho é formação. A Especialização em
-> Gestão Estratégica de Bem-Estar no Trabalho é desenhada para quem responde por
-> essa agenda na organização.
+> Do lado da formação, antes de eu sugerir qualquer coisa: quem exatamente precisa
+> conduzir? Responder pela agenda de bem-estar da organização — dados, prioridades,
+> business case — é diferente de liderar bem a própria equipe no dia a dia, e os
+> caminhos no Institute são diferentes.
 >
-> Se a empresa também precisa que o diagnóstico e a implementação sejam feitos junto
-> com ela, isso é outra frente e precisa do time do Mind.
->
-> O que é mais urgente agora: desenvolver os gestores, ou ter o diagnóstico feito?
+> A parte de diagnóstico e implementação feita junto com a empresa é outra frente, e
+> precisa do time do Mind.
 
-**O que mostra:** organização grande, transformação organizacional, e **ainda assim
-Institute** — porque o que ela quer é que os gestores conduzam. É o contraexemplo da
-regra "transformação organizacional → Dash". E a segunda frente é descrita como
-"precisa do time", sem prometer ação.
+**O critério:** não há escolha forçada — a MIA diz que **as duas podem ser
+necessárias**. E não recomenda a Especialização "para os gestores": pergunta **quem
+precisa de qual competência** antes, porque responder pela agenda da organização e
+liderar uma equipe são coisas diferentes, e 1.200 pessoas provavelmente envolvem as
+duas. A prioridade só seria perguntada se mudasse o próximo passo; aqui o que muda
+é quem são as pessoas.
 
 ---
 
-### E · Summit — três perguntas diferentes, três respostas
+### E · Summit — três perguntas, três respostas
 
 **E1 · inscrição**
 
@@ -747,43 +786,41 @@ regra "transformação organizacional → Dash". E a segunda frente é descrita 
 
 > **MIA:** Não — o Mind Summit 2026 já aconteceu e os ingressos não estão à venda.
 
-Só isso. Ela perguntou sobre **compra**. Explicar o que é o Summit, ou falar da
-próxima edição, seria responder o que não foi perguntado.
-
 **E2 · o que é o evento**
 
 > **Pessoa:** O que é o Mind Summit?
 
 > **MIA:** É o encontro do Mind: palestras, painéis, workshops, masterclasses e
-> networking. Serve para ampliar repertório e conhecer referências e pares — não
-> substitui formação estruturada nem diagnóstico organizacional.
+> networking, para ampliar repertório e conhecer referências e pares.
 >
 > A edição de 2026 já aconteceu.
 
-Aqui a pergunta **é** sobre o evento, então a descrição responde ao pedido. Ela vem
-do Kit, inclusive os limites.
+Saiu o "não substitui formação nem diagnóstico": ela perguntou o que o Summit **é**,
+não o que ele não é. A comparação com o Institute aqui seria emenda comercial.
 
 **E3 · próxima edição**
 
 > **Pessoa:** Quando vai ser o próximo Summit?
 
-> **MIA:** Não tenho essa informação aqui. Se for importante para você agora, posso
-> passar o caso para o time do Mind.
+> **MIA:** Não há data confirmada nas informações que eu tenho aqui.
 
-A falta de informação é declarada **porque impede responder ao pedido** — que é
-exatamente o caso em que se declara. Em E1 e E2 não se menciona, porque não
-atrapalha nada.
+Só isso. **Não ofereci encaminhamento** porque a entrega ao time ainda não foi
+validada na Treble (§4) — oferecer uma capacidade não comprovada é prometer o que
+não se sabe entregar. Quando o teste controlado provar que `needs_human` chega a uma
+pessoa, essa frase pode ganhar uma segunda linha.
 
 ---
 
 ### O que eu gostaria de revisar com você
 
-1. Em **A**, "que é onde esse tipo de coisa costuma ser tratado" ainda é uma
-   afirmação sobre o problema dela. Corto, ou está no limite aceitável?
-2. Em **B1**, incluir carga horária e formato ajuda a responder "quais ferramentas",
-   ou já é ficha de produto antes da hora?
-3. Em **C**, a apresentação no meio de uma resposta longa ficou natural?
-4. Em **E3**, oferecer o time é apropriado, ou basta dizer que não tem a informação?
+1. Em **B1**, a frase final ("isso eu não consigo confirmar por aqui") é honesta ou
+   soa como limitação do agente onde o problema é do catálogo? E ela deveria aparecer
+   antes, junto da resposta, em vez de no fim?
+2. Em **D**, a MIA não nomeia nenhum programa. É o certo nesse turno, ou falta
+   ancoragem para a pessoa saber que existe caminho?
+3. Em **C**, repetir quase a mesma pergunta aberta nos dois turnos ficou redundante?
+4. A lacuna do §9.7 muda a sua prioridade: o método entra no Kit antes do
+   lançamento, ou o agente lança respondendo com temas e link?
 
 ---
 
