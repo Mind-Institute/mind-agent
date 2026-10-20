@@ -149,6 +149,7 @@ const AGENDA_SUMMIT = {
 function montarAmbiente({
   rotaDoRouter = "institute",
   gate = { ok: true, pode_executar: true, needs_human: false, reason: null },
+  gatePorRota = null,
   kitStructured = KIT_INSTITUTE,
   playbook = "VOCÊ É O AGENTE DO MIND INSTITUTE. Você vende o Mind Institute.",
   kitDisponivel = true,
@@ -156,6 +157,8 @@ function montarAmbiente({
   historico = [],
   jaRespondida = null,
   modeloQuebra = false,
+  rotaAtiva = null,
+  rotasDoCanal = ["cliente_suporte", "dash", "institute"],
 } = {}) {
   const chamadas = { rpc: [], openaiInputs: [], routerChamado: 0 };
 
@@ -179,9 +182,11 @@ function montarAmbiente({
       historico,
       audience: null,
       nome_contato: "Renata",
+      rota_ativa: rotaAtiva,
     },
     treble_agent_resposta_repetida: jaRespondida,
     mindagent_chat_search: AGENDA_SUMMIT,
+    mind_canal_rotas: { ok: true, canal: "whatsapp", rotas: rotasDoCanal },
     mind_rota_capacidade: gate,
     mind_agent_kit: {
       meta: { kit_disponivel: kitDisponivel },
@@ -200,6 +205,11 @@ function montarAmbiente({
   const createClientFake = () => ({
     rpc: async (nome, args) => {
       chamadas.rpc.push({ nome, args });
+      // O Gate é consultado duas vezes num turno com troca: pela rota do turno e
+      // pela rota de destino. `gatePorRota` permite responder diferente para cada.
+      if (nome === "mind_rota_capacidade" && gatePorRota && args?.p_rota in gatePorRota) {
+        return { data: gatePorRota[args.p_rota], error: null };
+      }
       if (!(nome in rpcRespostas)) return { data: null, error: { message: `rpc_desconhecida_${nome}` } };
       return { data: rpcRespostas[nome], error: null };
     },
@@ -274,6 +284,7 @@ function respostaPadrao(extra = {}) {
     whatsapp_informado: null,
     empresa_informada: null,
     cargo_informado: null,
+    next_route: null,
     ...extra,
   };
 }
@@ -525,7 +536,136 @@ console.log("\n11. ERRO — falha do modelo não vira silêncio\n");
   check("a falha aciona transferência", chave(body, "needs_human") === "true");
 }
 
-console.log("\n12. TOKEN — integração mal configurada continua alta\n");
+console.log("\n12. TROCA DE ASSUNTO — next_route, do pedido à efetivação\n");
+{
+  // O enum de next_route sai da política do canal, não de lista no código.
+  const amb = montarAmbiente({
+    rotaDoRouter: "institute",
+    respostaDoModelo: respostaPadrao({ answer: "Posso ajudar." }),
+  });
+  await turno(amb, "Oi");
+  const schema = amb.chamadas.openaiInputs.at(-1).text.format.schema;
+  check("o schema expõe next_route", "next_route" in schema.properties);
+  check("o enum de next_route vem da política do canal",
+    JSON.stringify(schema.properties.next_route.enum) ===
+      JSON.stringify(["cliente_suporte", "dash", "institute", null]),
+    JSON.stringify(schema.properties.next_route.enum));
+  check("next_route é obrigatório na saída", schema.required.includes("next_route"));
+
+  // Institute -> Dash: o modelo pede, o Gate aprova, o estado persiste.
+  const amb2 = montarAmbiente({
+    rotaDoRouter: "institute",
+    gatePorRota: {
+      institute: { ok: true, pode_executar: true, needs_human: false, reason: null },
+      dash: { ok: true, pode_executar: true, needs_human: false, reason: null },
+    },
+    respostaDoModelo: respostaPadrao({
+      answer: "Pelo que você descreve, o caminho é diagnóstico organizacional. Qual é o resultado que você precisa atingir?",
+      next_route: "dash",
+    }),
+  });
+  await turno(amb2, "Na verdade minha empresa precisa diagnosticar e medir, não me formar");
+  const registro = amb2.chamadas.rpc.find((c) => c.nome === "mind_turno_registrar");
+  check("a troca aprovada persiste rota_ativa no estado",
+    registro?.args?.p_estado?.rota_ativa === "dash",
+    JSON.stringify(registro?.args?.p_estado));
+  check("o Gate foi consultado para a rota de DESTINO",
+    amb2.chamadas.rpc.filter((c) => c.nome === "mind_rota_capacidade")
+      .some((c) => c.args.p_rota === "dash"));
+  check("a troca é registrada no meta do turno",
+    registro?.args?.p_meta?.next_route === "dash");
+
+  // Gate recusa o destino: a conversa continua onde está, sem silêncio.
+  const amb3 = montarAmbiente({
+    rotaDoRouter: "institute",
+    gatePorRota: {
+      institute: { ok: true, pode_executar: true, needs_human: false, reason: null },
+      dash: { ok: true, pode_executar: false, needs_human: true, reason: "missing_kit" },
+    },
+    respostaDoModelo: respostaPadrao({ answer: "Entendi, vou te passar.", next_route: "dash" }),
+  });
+  const r3 = await turno(amb3, "Quero falar de diagnóstico");
+  const reg3 = amb3.chamadas.rpc.find((c) => c.nome === "mind_turno_registrar");
+  check("troca recusada pelo Gate NÃO persiste rota_ativa",
+    reg3?.args?.p_estado?.rota_ativa === undefined,
+    JSON.stringify(reg3?.args?.p_estado));
+  check("troca recusada não vira silêncio: a resposta sai normalmente",
+    String(chave(r3.body, "resposta_ia")).includes("Entendi"));
+
+  // Pedir a própria rota não é troca.
+  const amb4 = montarAmbiente({
+    rotaDoRouter: "institute",
+    respostaDoModelo: respostaPadrao({ answer: "Sigo aqui.", next_route: "institute" }),
+  });
+  await turno(amb4, "Me fala mais");
+  const reg4 = amb4.chamadas.rpc.find((c) => c.nome === "mind_turno_registrar");
+  check("pedir a rota atual não grava rota_ativa",
+    reg4?.args?.p_estado?.rota_ativa === undefined);
+  check("e não gasta uma segunda ida ao Gate",
+    amb4.chamadas.rpc.filter((c) => c.nome === "mind_rota_capacidade").length === 1);
+}
+
+console.log("\n13. CONTINUIDADE DA TROCA — o turno seguinte já nasce na nova rota\n");
+{
+  const amb = montarAmbiente({
+    rotaAtiva: "dash",
+    rotaDoRouter: "institute", // o Router NÃO deve ser chamado
+    kitStructured: KIT_DASH,
+    playbook: "playbook do dash",
+    respostaDoModelo: respostaPadrao({ answer: "Seguindo no diagnóstico.", audience: "dash" }),
+  });
+  await turno(amb, "Então, sobre o diagnóstico");
+
+  check("a rota ativa vence o Router", amb.chamadas.routerChamado === 0);
+  check("a rota ativa vence o atalho comercial",
+    amb.chamadas.rpc.some((c) => c.nome === "mind_agent_kit" && c.args.p_rota === "dash"));
+  check("o Kit carregado é o da rota ativa",
+    amb.chamadas.rpc.find((c) => c.nome === "mind_agent_kit")?.args?.p_rota === "dash");
+
+  // Rota ativa que saiu da política do canal é ignorada, não obedecida.
+  const amb2 = montarAmbiente({
+    rotaAtiva: "summit_b2c",
+    rotaDoRouter: "institute",
+    respostaDoModelo: respostaPadrao({ answer: "Oi." }),
+  });
+  await turno(amb2, "Oi");
+  check("rota ativa fora da política do canal é ignorada",
+    amb2.chamadas.routerChamado === 1);
+  check("e o turno cai na rota que o Router decidiu",
+    amb2.chamadas.rpc.find((c) => c.nome === "mind_agent_kit")?.args?.p_rota === "institute");
+}
+
+console.log("\n14. TRANSFERÊNCIA PEDIDA PELO PLAYBOOK — rota que este runtime não executa\n");
+{
+  // `cliente_suporte` está na política do canal, então o modelo PODE pedi-la. O Gate
+  // aprova (é executável no canal), a rota ativa persiste — e o turno seguinte
+  // encerra com transferência, porque este runtime não é dono dela.
+  const amb = montarAmbiente({
+    rotaDoRouter: "institute",
+    gatePorRota: {
+      institute: { ok: true, pode_executar: true, needs_human: false, reason: null },
+      cliente_suporte: { ok: true, pode_executar: true, needs_human: false, reason: null },
+    },
+    respostaDoModelo: respostaPadrao({
+      answer: "Isso é com o time de atendimento. Já te encaminho.",
+      next_route: "cliente_suporte",
+    }),
+  });
+  await turno(amb, "Meu pagamento do ano passado deu erro");
+  const reg = amb.chamadas.rpc.find((c) => c.nome === "mind_turno_registrar");
+  check("a passagem para atendimento persiste", reg?.args?.p_estado?.rota_ativa === "cliente_suporte");
+
+  const amb2 = montarAmbiente({
+    rotaAtiva: "cliente_suporte",
+    respostaDoModelo: respostaPadrao(),
+  });
+  const r2 = await turno(amb2, "Então, sobre o pagamento");
+  check("o turno seguinte transfere ao time", chave(r2.body, "needs_human") === "true");
+  check("e não carrega Kit de uma lane que não é sua",
+    !amb2.chamadas.rpc.some((c) => c.nome === "mind_agent_kit"));
+}
+
+console.log("\n15. TOKEN — integração mal configurada continua alta\n");
 {
   const amb = montarAmbiente({ respostaDoModelo: respostaPadrao() });
   const req = new Request("https://teste.supabase.co/functions/v1/treble-inbound-agent?token=errado", {

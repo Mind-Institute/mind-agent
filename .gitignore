@@ -28,3 +28,7 @@ Thumbs.db
 # Relatórios com dado pessoal dos participantes: gerados sob demanda,
 # entregues como arquivo, nunca versionados.
 avaliacao-do-dia-*.pdf
+pesquisa-satisfacao-*.xlsx
+
+# Conversas de homologação: geradas sob demanda, com resposta de modelo.
+audit/homologacao/

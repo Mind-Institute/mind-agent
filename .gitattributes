@@ -1,0 +1,52 @@
+# FINAIS DE LINHA — por que este arquivo existe
+#
+# O repositório sempre versionou LF. O que faltava era dizer isso ao checkout: sem
+# `.gitattributes`, o Git obedece ao `core.autocrlf` de cada máquina, e no Windows
+# (`core.autocrlf=true`) a cópia de trabalho vira CRLF.
+#
+# Isso não é cosmético aqui. Vários contratos deste repo LEEM O PRÓPRIO FONTE e
+# afirmam sobre ele com regex que usa `\n` — por exemplo `tests/arquitetura_decisoes`,
+# que tira os imports com `/^import .*;\n/gm` antes de rodar o fonte num `vm`. Com
+# CRLF sobra um `\r` antes do `\n`, a regex não casa, o import fica no código e o
+# arquivo inteiro falha com `SyntaxError`.
+#
+# Medido em 20/10/2026 na `main` (`fc2b0f5`): 11 de 475 testes vermelhos no Windows e
+# 475 de 475 verdes com LF. Onze falhas que não são defeito de produto, que não
+# aparecem no Linux e que escondem falha de verdade — porque ninguém distingue
+# "quebrou agora" de "já estava vermelho".
+#
+# `eol=lf` nos fontes resolve na origem: a cópia de trabalho nasce LF em qualquer
+# sistema operacional, e o teste lê o que o teste espera. Como os blobs já eram LF,
+# aplicar isto NÃO muda conteúdo versionado — muda só o que o checkout escreve no
+# disco.
+
+* text=auto
+
+# Fontes e dados de texto: sempre LF na cópia de trabalho.
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.sql   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.toml  text eol=lf
+*.sh    text eol=lf
+
+# Binários não passam por conversão nenhuma.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary

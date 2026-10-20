@@ -924,6 +924,47 @@ linhas em `do $g$`.
 
 ## 17. Ofertas do Concierge no Summit — Institute + pré-venda do Summit seguinte
 
+### ATUALIZAÇÃO 20/10/2026 — o que o sistema já superou, com evidência
+
+> Matriz completa em `MATRIZ_PLAYBOOKS_INSTITUTE_DASH_20261020.md`. Auditoria do
+> canal em `AUDITORIA_VENDEDOR_WHATSAPP_20261020.md`. Branch
+> `claude/vendedor-institute-dash-whatsapp` — **nada publicado, nada aplicado**.
+>
+> Os três estados abaixo são diferentes e não se substituem:
+> **[impl]** implementação concluída · **[téc]** teste técnico aprovado ·
+> **[hom]** homologação comercial pendente.
+
+| item do §17 | estado | evidência |
+|---|---|---|
+| 1. código, nome, preço, parcelamento, vigência | **[impl][téc]** | 6 programas e 9 ofertas vigentes em `api.ofertas`; `mind_kit_institute_catalogo` entrega à vista, parcelado, prazo, página, formadoras e FAQ. Lido em 20/10 |
+| 2. regras comerciais e elegibilidade | **[impl]** | bloco `condicoes` do catálogo (garantia de 7 dias, contratação anual, o que cada formação inclui) |
+| 3. `checkout_url` Eduzz e cupom | **requisito superado** | o Institute não vende por Eduzz: 0 `checkout_url` em `api.ofertas`, 0 cupom ativo em `catalogo.cupons`. Vende pela página própria, com âncora de inscrição |
+| 4. campanha / `utm_id` | **decidido sem atribuição** | 20/10: o link vai como página oficial, sem rastreio e sem evento de checkout. Não há número de conversão do agente para o Institute |
+| 5. bloco do Kit e playbook/rota | **[impl][téc]** | rota `institute` com `institute_catalogo`; Gate aberto no WhatsApp; 67 verificações no harness `vendedor_institute_dash_e2e.mjs` |
+| 6. E2E com compra controlada | **pendente** | depende de a Treble voltar a encaminhar ao agente e de teste controlado |
+
+**O que a revisão de 20/10 acrescentou a este item, e é bloqueio de lançamento:**
+
+- o decisioning `vendas_institute` v2 tem **39 preços e 15 datas escritos**, contra a
+  regra de 26/09 ("agente nunca tem preço escrito no playbook"), e **11 dos 17
+  valores distintos não existem no catálogo vivo**. As parcelas do prompt (417, 209,
+  167) divergem das do catálogo (416, 208, 166) e **são barradas pelo guardrail de
+  preço**, virando transferência na frase mais comum de uma venda. É conteúdo
+  comercial: decisão da Adriana, não foi tocado;
+- **a oferta do Institute não mora em `catalogo`**, e sim em `institute.*` via
+  `api.ofertas`. A regra de 26/09 diz que oferta e preço moram em `catalogo`, com o
+  painel `admin/` como controle. Hoje o painel não controla o que o agente vende.
+  Unificar é mudança estrutural e de proveniência — **D2**, aprovação da Adriana;
+- **`analise_vendas_institute` e `analise_vendas_dash` continuam com prompt vazio**
+  (item 18.3 abaixo). Com as rotas ligadas, essas conversas não geram análise
+  nenhuma. Vira dívida ativa no momento em que o tráfego abrir.
+
+**Correções de código já feitas nesta lane, com teste:** o guardrail passou a ler o
+formato do catálogo do Institute (`a_vista`/`parcelado`), que antes produzia zero
+fato monetário e barrava o preço certo; a página oficial virou link validado por
+igualdade exata; `next_route` passou a existir no WhatsApp. 479/479 na suíte Edge e
+186+ nos contratos. **Nenhuma delas vale sem o gate D7.**
+
 ### Decisão de produto fechada em 03/09
 
 Durante o Summit, o Concierge do App pode vender — especialmente upgrade — sem deixar de ser

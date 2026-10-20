@@ -276,7 +276,13 @@ Não ofereça nem recomende produto algum por este caminho: responda apenas o qu
 Se faltar informação, diga que vai confirmar com o time e acione needs_human=true.
 Responda em português do Brasil, curto e caloroso, uma pergunta por mensagem.`;
 
-const RESPONSE_SCHEMA = {
+// É FUNÇÃO, e não constante, por causa do `next_route`: o universo de competências
+// vem de `mind_canal_rotas(canal)`, no banco. Uma lista literal aqui seria a segunda
+// autoridade sobre a política do canal — exatamente o que a política existe para
+// evitar. Mesmo desenho do `mindagent-chat`, que já faz isso; não nasce mecanismo
+// novo no WhatsApp.
+function montarResponseSchema(rotasDoCanal: string[]) {
+  return {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -326,14 +332,37 @@ const RESPONSE_SCHEMA = {
       type: ["string", "null"], maxLength: 120,
       description: "O cargo do lead, se ele disse NESTE turno (\"sou head de RH\", \"trabalho como gerente\"). null se não disse.",
     },
+    // A COMPETÊNCIA QUE DEVE ATENDER O PRÓXIMO TURNO. `null` é o caso normal: quem
+    // respondeu continua. O enum vem do banco, não daqui — e o runtime ainda
+    // revalida pelo Gate antes de persistir, porque estar na política do canal não é
+    // o mesmo que poder executar agora.
+    //
+    // Os playbooks de `institute`, `dash` e `cliente_suporte` já pediam isso por
+    // escrito ("use `next_route=dash` quando a troca de competência for necessária").
+    // Até a v1.11.0 o campo não existia neste runtime e a instrução não tinha
+    // receptor: o schema é `additionalProperties: false`, então o modelo não
+    // conseguia nem emitir a chave. Os playbooks não foram reescritos — o runtime é
+    // que passou a atender o que eles mandam.
+    next_route: {
+      type: ["string", "null"],
+      enum: [...rotasDoCanal, null],
+      description:
+        "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
+        "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
+        "passou a ser de outra competência; nunca por simples falta de informação. " +
+        "Antes de pedir a troca, responda o que a pessoa perguntou e faça uma pergunta " +
+        "curta que permita ao próximo turno continuar sem ela repetir tudo. " +
+        "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
+    },
   },
   required: [
     "answer", "audience", "intent", "ticket_interest", "objection",
     "needs_human", "checkout_sent", "checkout_url", "stage", "desfecho",
     "nome_informado", "email_informado", "whatsapp_informado",
-    "empresa_informada", "cargo_informado",
+    "empresa_informada", "cargo_informado", "next_route",
   ],
-};
+  };
+}
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -751,8 +780,32 @@ Deno.serve(async (req: Request) => {
     // suposição — por isso `router_ms` sai no log de todo turno.
     let routerMs: number | null = null;
     let rotaOrigem = "router";
-    const rotaRapida = rotaComercialRapida(message, conv.historico);
-    if (rotaRapida.rota) {
+
+    // O UNIVERSO DE COMPETÊNCIAS DESTE CANAL, vindo do banco. Serve para duas coisas:
+    // montar o enum de `next_route` e conferir uma `rota_ativa` persistida. Uma lista
+    // literal aqui seria a segunda autoridade sobre a política que já existe em
+    // `agentes.canal_competencia`.
+    const { data: canalRotas } = await supabase.rpc("mind_canal_rotas", { p_canal: CANAL });
+    const rotasDoCanal: string[] = Array.isArray(canalRotas?.rotas)
+      ? (canalRotas.rotas as unknown[]).filter((r): r is string => typeof r === "string")
+      : [];
+
+    // COMPETÊNCIA ATIVA DA CONVERSA, deixada por um handoff anterior. Tem precedência
+    // sobre o atalho comercial e sobre o Router: a pessoa já foi passada para outra
+    // competência, e refazer a classificação a cada turno desfaria a troca na primeira
+    // frase ambígua. Se a rota deixou de ser permitida no canal, é ignorada — nunca se
+    // cai numa rota proibida por causa de estado antigo.
+    const rotaAtivaBruta = typeof conv.rota_ativa === "string" ? conv.rota_ativa.trim() : "";
+    const rotaAtiva = rotaAtivaBruta && rotasDoCanal.includes(rotaAtivaBruta)
+      ? rotaAtivaBruta
+      : null;
+
+    const rotaRapida = rotaAtiva ? { rota: null, motivo: "" } : rotaComercialRapida(message, conv.historico);
+    if (rotaAtiva) {
+      rotaDecidida = rotaAtiva;
+      routerMs = 0;
+      rotaOrigem = "rota_ativa";
+    } else if (rotaRapida.rota) {
       rotaDecidida = rotaRapida.rota;
       routerMs = 0;
       rotaOrigem = rotaRapida.motivo;
@@ -1019,7 +1072,7 @@ Deno.serve(async (req: Request) => {
             instructions,
             input: entradaDoModelo,
             reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
-            text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: RESPONSE_SCHEMA } },
+            text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: montarResponseSchema(rotasDoCanal) } },
             ...(toolsParaModelo.length > 0
               ? { tools: toolsParaModelo, tool_choice: volta >= MAX_RODADAS_TOOL ? "none" : "auto" }
               : {}),
@@ -1086,6 +1139,7 @@ Deno.serve(async (req: Request) => {
       nome_informado: string | null; email_informado: string | null;
       whatsapp_informado: string | null;
       empresa_informada: string | null; cargo_informado: string | null;
+      next_route: string | null;
     };
     // NUNCA cortar por caractere. Ate a v1.5.0 esta linha terminava em
     // `.slice(0, 700)`, e um turno real chegou ao WhatsApp com exatamente 700
@@ -1307,6 +1361,39 @@ Deno.serve(async (req: Request) => {
     // writer no lugar. Quando o Passo 15B construir o write-back de verdade, ele nasce
     // da casa canônica — não daqui.
 
+    // ------------------------------------------------------ TROCA DE COMPETÊNCIA
+    // O modelo PEDE; quem decide é o Gate; quem efetiva é o writer do turno. Mesmo
+    // desenho do `mindagent-chat`. Pedir a rota que já está respondendo não é troca:
+    // vira null antes de qualquer validação, para não gastar uma ida ao Gate à toa.
+    //
+    // Um pedido RECUSADO pelo Gate não vira silêncio nem erro: a resposta já escrita
+    // vai embora normalmente e a conversa simplesmente continua na competência
+    // atual. Quem não executa a rota de destino é este runtime, e isso já está
+    // coberto — se a rota ativa gravada for de outra lane, o turno seguinte encerra
+    // com transferência, que é a conduta certa.
+    const nextRouteBruto = typeof turn.next_route === "string" ? turn.next_route.trim() : "";
+    const nextRoute = nextRouteBruto && nextRouteBruto !== rotaAplicada &&
+        rotasDoCanal.includes(nextRouteBruto)
+      ? nextRouteBruto
+      : null;
+
+    let rotaAtivaPersistir: string | null = null;
+    if (nextRoute) {
+      const { data: gateDestino } = await supabase.rpc("mind_rota_capacidade", {
+        p_rota: nextRoute,
+        p_canal: CANAL,
+      });
+      if (gateDestino?.ok === true && gateDestino?.pode_executar === true) {
+        rotaAtivaPersistir = nextRoute;
+      } else {
+        console.warn(JSON.stringify({
+          request_id: requestId, event: "handoff_recusado_pelo_gate",
+          de: rotaAplicada, para: nextRoute,
+          motivo: gateDestino?.reason ?? gateDestino?.motivo ?? null,
+        }));
+      }
+    }
+
     const state = {
       audience: audienceFinal,
       intent: turn.intent,
@@ -1316,6 +1403,9 @@ Deno.serve(async (req: Request) => {
       checkout_sent: checkoutSentFinal,
       stage: turn.stage,
       desfecho: checkoutSentFinal ? "checkout_enviado" : turn.desfecho,
+      // Só entra no estado quando houve troca confirmada. Gravar `null` a cada turno
+      // apagaria uma rota ativa legítima na primeira resposta que não pedisse nada.
+      ...(rotaAtivaPersistir ? { rota_ativa: rotaAtivaPersistir } : {}),
     };
     // Só a resposta do agente: a fala do lead já foi persistida na ingestão.
     const { error: saveError } = await supabase.rpc("mind_turno_registrar", {
@@ -1328,6 +1418,7 @@ Deno.serve(async (req: Request) => {
       p_meta: {
         model, request_id: requestId, version: VERSION,
         rota: rotaDecidida, rota_aplicada: rotaAplicada,
+        next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
         precisa_esclarecer: precisaEsclarecer, candidatas,
         gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
         rota_origem: rotaOrigem,
@@ -1363,7 +1454,9 @@ Deno.serve(async (req: Request) => {
 
     console.info(JSON.stringify({
       request_id: requestId, status: 200, session: sessionId.slice(0, 8),
-      rota: rotaAplicada, audience: audienceFinal, intent: turn.intent,
+      rota: rotaAplicada, rota_origem: rotaOrigem,
+      next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
+      audience: audienceFinal, intent: turn.intent,
       needs_human: needsHumanFinal, gate_reason: gateReason,
       desfecho: turn.desfecho, identificada: idConhecida,
       email_proprio: emailDito != null,
