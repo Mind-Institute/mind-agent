@@ -203,8 +203,36 @@ export function precosOficiais(dadosOficiais: unknown): Oficiais {
       }
     }
 
+    // OFERTA DO INSTITUTE — o mesmo contrato, escrito noutra forma.
+    //
+    // `mind_kit_institute_catalogo` não publica preço como número: ele já vem
+    // formatado em `programas[].ofertas[]`, porque o catálogo é lido do banco e
+    // entregue pronto para a fala ("R$ 4.997", "12x de R$ 416"). Nenhum desses dois
+    // campos é `valor` nem `condicoes_pagamento`, então, até aqui, o Institute
+    // produzia ZERO fato monetário — e o guardrail barrava o preço CERTO exatamente
+    // como barrava o inventado. Medido em 20/10/2026 contra o kit vivo: 0 fatos,
+    // 3 de 3 respostas barradas, incluindo as duas corretas.
+    //
+    // É a mesma classe de defeito da v1.10.4 (cupom): o payload mudou de forma e o
+    // leitor continuou procurando a forma antiga. O papel é o que importa, e ele
+    // está explícito no nome do campo: `a_vista` é preço de oferta, `parcelado` é
+    // parcela. Não se infere papel por posição no JSON.
+    if (typeof obj["a_vista"] === "string") {
+      for (const v of valoresEmReais(obj["a_vista"] as string)) {
+        fatos.push({ papel: "oferta", valor: v, experiencia: exp, aPartirDe: null });
+      }
+    }
+    if (typeof obj["parcelado"] === "string") {
+      for (const v of valoresEmReais(obj["parcelado"] as string)) {
+        fatos.push({ papel: "parcela", valor: v, experiencia: exp, aPartirDe: null });
+      }
+    }
+
     for (const [chave, valor] of Object.entries(obj)) {
-      if (chave === "valor" || chave === "condicoes_pagamento") continue;
+      if (
+        chave === "valor" || chave === "condicoes_pagamento" ||
+        chave === "a_vista" || chave === "parcelado"
+      ) continue;
       anda(valor, exp);
     }
   };

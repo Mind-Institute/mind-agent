@@ -105,6 +105,70 @@ export function listarCheckoutsOficiais(raiz: unknown): CheckoutOficial[] {
   return [...encontrados.values()];
 }
 
+// ─────────────────────────────────────────── link oficial que NÃO é checkout Eduzz
+//
+// O Institute não vende por carrinho Eduzz: cada programa tem uma PÁGINA OFICIAL
+// (`programas[].pagina_oficial`, de `mind_kit_institute_catalogo`) cujo botão de
+// inscrição leva ao pagamento. A máquina de checkout acima não serve aqui, e forçá-la
+// a servir seria inventar atribuição onde não foi pedida: `checkoutRastreado` reescreve
+// UTM e `mind_checkout_envio_registrar` grava no ledger de checkout. Página oficial do
+// Institute vai como está — decisão de 20/10/2026.
+//
+// O QUE ISTO GARANTE, que é o ponto: o modelo não pode inventar, corrigir nem completar
+// uma URL. A validação é igualdade EXATA contra o conjunto de links que o próprio Kit
+// entregou neste turno. Não há allowlist de domínio — allowlist de host deixaria passar
+// qualquer caminho em joinmind.com.br, inclusive um que não existe. O que o Kit não
+// mandou, não sai daqui.
+export function listarLinksOficiais(raiz: unknown): string[] {
+  const achados = new Set<string>();
+
+  const visitar = (valor: unknown) => {
+    if (Array.isArray(valor)) {
+      valor.forEach(visitar);
+      return;
+    }
+    if (!valor || typeof valor !== "object") return;
+    const objeto = valor as Record<string, unknown>;
+
+    const pagina = objeto["pagina_oficial"];
+    if (typeof pagina === "string") {
+      try {
+        if (new URL(pagina).protocol === "https:") achados.add(pagina);
+      } catch { /* string que não é URL não vira link */ }
+    }
+    for (const filho of Object.values(objeto)) visitar(filho);
+  };
+
+  visitar(raiz);
+  return [...achados];
+}
+
+/**
+ * O link oficial que o turno pode enviar: o que o modelo apontou, se ele for
+ * literalmente um dos links do Kit, ou o único que a própria resposta já escreveu.
+ * `null` quando nada bate — e aí nenhum link sai.
+ */
+export function escolherLinkOficial(
+  raiz: unknown,
+  candidato: unknown,
+  resposta = "",
+): string | null {
+  const oficiais = listarLinksOficiais(raiz);
+  if (typeof candidato === "string" && oficiais.includes(candidato)) return candidato;
+  // Sem candidato válido, vale o link que a resposta já contém — mas só se for um
+  // oficial. O mais longo primeiro: entre duas páginas em que uma é prefixo da outra,
+  // a específica ganha da genérica.
+  for (const link of [...oficiais].sort((a, b) => b.length - a.length)) {
+    if (resposta.includes(link)) return link;
+  }
+  return null;
+}
+
+/** Acrescenta o link oficial à resposta quando ela ainda não o trouxe. */
+export function inserirLinkOficialNaResposta(resposta: string, link: string): string {
+  return resposta.includes(link) ? resposta : `${resposta.trim()}\n\n${link}`.trim();
+}
+
 export function escolherCheckoutOficial(
   raiz: unknown,
   candidato: unknown,

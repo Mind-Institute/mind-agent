@@ -1,5 +1,30 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.11.0 — O RUNTIME ALCANÇA A VIRADA DE 24/09. Até aqui este agente executava só
+// `summit_b2c` e `summit_b2b`, e o Summit encerrou em 17/09/2026. Em 24/09 a
+// `agentes.canal_competencia` desligou as duas rotas do Summit no WhatsApp e ligou
+// `institute` e `dash`, anotando que "o runtime do Treble ainda não executa". O
+// resultado era aritmético: o Router no WhatsApp só podia emitir `cliente_suporte`,
+// `dash` e `institute`; este runtime só executava as duas do Summit; a interseção era
+// vazia e TODO turno virava transferência. Agora:
+//
+//   institute  EXECUTA e VENDE, com o catálogo oficial do Kit. O guardrail de preço
+//              passou a ler o formato do catálogo (`a_vista`, `parcelado`), que antes
+//              não produzia fato monetário nenhum — e barrava o preço certo junto com
+//              o inventado. A página oficial do programa é enviada como link oficial,
+//              com o #ancora do Kit, sem rastreio e sem evento de checkout.
+//   dash       EXECUTA e NÃO vende: consultivo, conforme `playbook_dash`.
+//   cliente_suporte  continua transferindo ao time — decisão de 20/10/2026. O Gate a
+//              libera no WhatsApp, mas quem atende esse tráfego hoje é o fluxo da
+//              Treble, e assumi-lo é mudança operacional, não de runtime.
+//   summit_*   seguem no conjunto executável porque a autoridade é o GATE, que hoje
+//              as fecha. Nada de Summit foi reativado aqui.
+//
+// E A AGENDA DO SUMMIT SAIU DOS TURNOS QUE NÃO SÃO DE SUMMIT. Ela era consultada com
+// slug fixo antes de o Router decidir e ia ao modelo em qualquer rota. Com o Summit
+// como único conteúdo concreto no payload, "quais ferramentas vocês têm?" voltava
+// como oferta de Summit. Agora ela só entra quando a rota aplicada é de Summit.
+//
 // v1.10.4 — CUPOM INDIVIDUAL NO GUARDRAIL DE PREÇO. As condições do lote 7 passam a ser
 // cupons de valor fixo digitados no checkout (200OFF no Mind, 300OFF no VIP). O guardrail
 // lê o objeto `desconto` de uma regra com `cupom` como economia sem faixa e reconhece
@@ -165,8 +190,10 @@ import {
   checkoutCurto,
   checkoutRastreado,
   escolherCheckoutOficial,
+  escolherLinkOficial,
   idEventoCheckout,
   inserirCheckoutNaResposta,
+  inserirLinkOficialNaResposta,
 } from "../_shared/checkout-attribution.ts";
 import { rotaComercialRapida } from "../_shared/treble-commercial-route.ts";
 import {
@@ -179,7 +206,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.4";
+const VERSION = "1.11.0";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -188,7 +215,33 @@ const CANAL = "whatsapp";
 
 // As rotas canônicas que ESTE runtime executa. Fora delas o turno encerra com
 // transferência — a rota decidida ainda é registrada, para quem vier depois.
-const ROTAS_DO_VENDEDOR = new Set(["summit_b2c", "summit_b2b"]);
+//
+// v1.11.0 — `institute` e `dash` entram; `cliente_suporte` continua transferindo.
+//
+// A política de canal virou em 24/09/2026 (`agentes.canal_competencia`): o Summit
+// encerrou e saiu de venda, e `institute`/`dash` foram ligados no WhatsApp pela
+// Adriana, com a observação de que "o runtime do Treble ainda não executa, então
+// transfere ao time". Este commit é o runtime alcançando aquela decisão. Enquanto não
+// alcançava, a conta era: o Router no WhatsApp só podia emitir `cliente_suporte`,
+// `dash` e `institute`; este conjunto só tinha as duas do Summit; a interseção era
+// vazia e 100% dos turnos viravam transferência.
+//
+// EXECUTAR NÃO É VENDER, e as três rotas executáveis não fazem a mesma coisa:
+//   institute  VENDE. `playbook_institute` v2: "Você vende o Mind Institute", com o
+//              catálogo oficial lido do banco a cada mensagem.
+//   dash       NÃO vende. `playbook_dash` proíbe preço, proposta, condição comercial,
+//              contrato e checkout. É leitura do problema e orientação. O kit de
+//              `dash` não tem bloco de oferta, então o guardrail de preço já barra
+//              qualquer valor sozinho — a proibição não depende só do prompt.
+//   summit_*   continuam aqui porque QUEM AUTORIZA É O GATE, não esta lista. Hoje o
+//              Gate as fecha (`missing_kit` e `canal_incompativel`) e elas não
+//              executam. Tirá-las daqui seria mover a autoridade para o código e
+//              esconder, atrás de uma constante, uma decisão que é de política.
+const ROTAS_EXECUTAVEIS = new Set(["summit_b2c", "summit_b2b", "institute", "dash"]);
+
+// Rotas cujo Kit é comercial de Summit. É o que decide se a busca na agenda do Summit
+// faz sentido no turno — ver `bloco_agenda_busca`, mais abaixo.
+const ROTAS_DO_SUMMIT = new Set(["summit_b2c", "summit_b2b"]);
 
 // `audience` é chave pública do payload do Treble e estado persistido em
 // engagement.conversas. No caminho canônico ela não é uma segunda decisão: é o nome
@@ -196,6 +249,8 @@ const ROTAS_DO_VENDEDOR = new Set(["summit_b2c", "summit_b2b"]);
 const AUDIENCE_DA_ROTA: Record<string, string> = {
   summit_b2c: "b2c",
   summit_b2b: "b2b",
+  institute: "institute",
+  dash: "dash",
 };
 
 // Orçamento do Router. Estourar não tem mais para onde cair: o turno encerra com
@@ -209,8 +264,15 @@ const ROUTER_TIMEOUT_MS = 6000;
 const RESPOSTA_HANDOFF =
   "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!";
 
-const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind Summit 2026.
-Use somente os dados oficiais recebidos no JSON; nunca invente preço, palestrante ou política.
+// Prompt de último recurso: vale apenas quando o Kit veio sem playbook, o que o
+// `kitServe` já trata como turno que não executa. Ele era datado — "Você atende o
+// WhatsApp oficial do Mind Summit 2026" — e o Summit encerrou em 17/09/2026. Um
+// fallback que nomeia produto empurra o turno para aquele produto, que é exatamente
+// a falha que esta versão existe para fechar: pergunta sobre outra coisa não pode
+// voltar como oferta de Summit. Agora ele não nomeia produto nenhum e não vende.
+const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind.
+Use somente os dados oficiais recebidos no JSON; nunca invente preço, produto, data, pessoa ou política.
+Não ofereça nem recomende produto algum por este caminho: responda apenas o que os dados oficiais sustentam.
 Se faltar informação, diga que vai confirmar com o time e acione needs_human=true.
 Responda em português do Brasil, curto e caloroso, uma pergunta por mensagem.`;
 
@@ -226,7 +288,7 @@ const RESPONSE_SCHEMA = {
       // proposta de valor: nao cabia, e a mensagem chegava partida.
       description: "A mensagem para o lead, em portugues do Brasil. WhatsApp: curta, direta, sem enrolacao — diga o necessario e pare. Escreva sempre frases inteiras e termine a mensagem; nunca interrompa no meio de uma palavra ou de um item de lista. Se o assunto nao couber de forma breve, corte o escopo do que voce diz, nao a frase.",
     },
-    audience: { type: "string", enum: ["b2c", "b2b", "cliente_suporte", "ja_comprou", "desconhecido"] },
+    audience: { type: "string", enum: ["b2c", "b2b", "institute", "dash", "cliente_suporte", "ja_comprou", "desconhecido"] },
     intent: { type: "string", minLength: 2, maxLength: 40 },
     ticket_interest: { type: ["string", "null"], enum: ["mind", "vip", "prime", null] },
     objection: { type: ["string", "null"] },
@@ -235,7 +297,7 @@ const RESPONSE_SCHEMA = {
     checkout_url: {
       type: ["string", "null"],
       maxLength: 1200,
-      description: "Quando enviar checkout, copie EXATAMENTE um checkout_url recebido nos dados oficiais. null quando não enviar. Nunca construa, corrija ou complete uma URL.",
+      description: "O link de compra que você está enviando. Copie EXATAMENTE um `checkout_url` OU uma `pagina_oficial` recebida nos dados oficiais. null quando não enviar nenhum. Nunca construa, corrija, encurte ou complete uma URL, e nunca acrescente ou troque o trecho depois do #.",
     },
     stage: { type: "string", minLength: 2, maxLength: 40 },
     desfecho: {
@@ -715,11 +777,11 @@ Deno.serve(async (req: Request) => {
       // O que é exclusivo da lane é EXECUTAR: Kit e playbook comercial só são
       // carregados para `summit_b2c`/`summit_b2b`. Capacidade se pergunta sempre;
       // execução só onde este runtime é dono.
-      const ehDoVendedor = ROTAS_DO_VENDEDOR.has(rotaDecidida);
+      const ehExecutavel = ROTAS_EXECUTAVEIS.has(rotaDecidida);
       const vazio = Promise.resolve({ data: null, error: null });
       const [{ data: gate }, kitR] = await Promise.all([
         supabase.rpc("mind_rota_capacidade", { p_rota: rotaDecidida, p_canal: CANAL }),
-        ehDoVendedor
+        ehExecutavel
           ? supabase.rpc("mind_agent_kit", {
             p_rota: rotaDecidida,
             p_conversa_id: conv.conversation_id,
@@ -732,7 +794,7 @@ Deno.serve(async (req: Request) => {
       gateReason = typeof gate?.reason === "string" ? gate.reason : null;
       needsHumanDoGate = gate?.needs_human === true;
 
-      const kitServe = ehDoVendedor &&
+      const kitServe = ehExecutavel &&
         gate?.pode_executar === true &&
         kit && kit.ok !== false &&
         kit.meta?.kit_disponivel === true &&
@@ -761,7 +823,7 @@ Deno.serve(async (req: Request) => {
         //                       acender handoff; agora transfere, porque responder com
         //                       dado velho deixou de ser uma opção deste runtime.
         falhaDaRota = falhaDaRota ??
-          (!ehDoVendedor ? "rota_de_outra_lane" : gateReason ?? "kit_indisponivel");
+          (!ehExecutavel ? "rota_de_outra_lane" : gateReason ?? "kit_indisponivel");
       }
     }
 
@@ -818,8 +880,24 @@ Deno.serve(async (req: Request) => {
     }));
 
     const historico = Array.isArray(conv.historico) ? conv.historico : [];
-    const agendaSegura = agenda && typeof agenda === "object"
-      ? Object.fromEntries(Object.entries(agenda as Record<string, unknown>)
+
+    // A AGENDA DO SUMMIT SÓ ENTRA EM TURNO DE SUMMIT.
+    //
+    // `mindagent_chat_search` é consultada com `p_event_slug` fixo em
+    // `mind-summit-2026`, antes de o Router decidir — ela é uma das chamadas baratas
+    // do início do turno. Entregá-la em QUALQUER rota significa pôr sessões,
+    // palestrantes e expositores de um evento encerrado na frente do modelo enquanto
+    // ele responde sobre Institute ou Dash. Isso é a matéria-prima da falha que esta
+    // versão fecha: a pessoa pergunta de ferramenta de trabalho e recebe Summit, não
+    // porque o playbook mandou, mas porque o Summit era o único conteúdo concreto no
+    // payload.
+    //
+    // O filtro é pela rota APLICADA, não pela decidida: em CLARIFY não há rota, e
+    // turno de pergunta também não precisa da agenda. Sem rota de Summit, a chave vai
+    // vazia — não some, para o contrato do payload não mudar de forma entre turnos.
+    const agendaDoTurno = ROTAS_DO_SUMMIT.has(rotaAplicada ?? "") ? agenda : null;
+    const agendaSegura = agendaDoTurno && typeof agendaDoTurno === "object"
+      ? Object.fromEntries(Object.entries(agendaDoTurno as Record<string, unknown>)
           .filter(([k]) => ["sessions", "speakers", "locations", "exhibitors", "mind"].includes(k)))
       : {};
 
@@ -1065,8 +1143,30 @@ Deno.serve(async (req: Request) => {
       ? turn.checkout_url.trim()
       : null;
     let checkoutOficial = escolherCheckoutOficial(dadosOficiais, checkoutCandidato, answer);
-    const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
-    if (checkoutSolicitado && !checkoutOficial) {
+
+    // O INSTITUTE NÃO VENDE POR CARRINHO. Cada programa tem uma página oficial cujo
+    // botão de inscrição leva ao pagamento, e é ela que o Kit entrega em
+    // `programas[].pagina_oficial`. `escolherCheckoutOficial` não a reconhece — e não
+    // deve: ela só valida carrinho Eduzz, e alargar aquele domínio para aceitar
+    // joinmind.com.br transformaria página institucional em checkout rastreado,
+    // gravando linha no ledger de uma venda que não acontece ali.
+    //
+    // Então há dois tipos de link oficial, com garantias diferentes:
+    //   checkout Eduzz   assinado, rastreado com UTM e token opaco, e REGISTRADO em
+    //                    `mind_checkout_envio_registrar`;
+    //   página oficial   enviada como veio do Kit, sem rastreio e sem registro.
+    //
+    // A garantia que os dois compartilham, que é a que importa aqui: o modelo não
+    // escolhe URL, ele APONTA uma que o Kit mandou. Página oficial é conferida por
+    // igualdade exata — inclusive o #ancora, que é o que faz a pessoa cair no botão
+    // de inscrição em vez do topo da página.
+    const linkOficial = checkoutOficial
+      ? null
+      : escolherLinkOficial(dadosOficiais, checkoutCandidato, answer);
+
+    const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null ||
+      checkoutOficial !== null || linkOficial !== null;
+    if (checkoutSolicitado && !checkoutOficial && !linkOficial) {
       console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial" }));
       return json(200, {
         ok: true, guarded: true,
@@ -1085,7 +1185,7 @@ Deno.serve(async (req: Request) => {
     const decisaoPreco = decidirGuardrailPreco(
       answer,
       precosOficiais(dadosOficiais),
-      checkoutOficial !== null,
+      checkoutOficial !== null || linkOficial !== null,
     );
     if (decisaoPreco.valorRejeitado) {
       console.error(JSON.stringify({
@@ -1117,8 +1217,18 @@ Deno.serve(async (req: Request) => {
         `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/mindagent-checkout`;
       const urlEntregue = checkoutCurto(checkoutEventoId, redirectBase) ?? urlRastreada;
       respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlEntregue, checkoutCandidato);
+    } else if (linkOficial) {
+      // Sem evento, sem UTM, sem ledger: a página oficial vai inteira, como o Kit a
+      // entregou. Quando o guardrail derrubou a copy por preço inválido,
+      // `decisaoPreco.resposta` já é a frase sem preço — e é sobre ELA que o link
+      // entra, não sobre a `answer` descartada.
+      respostaFinal = inserirLinkOficialNaResposta(decisaoPreco.resposta, linkOficial);
     }
-    const checkoutSentFinal = checkoutEventoId !== null;
+    // `checkout_sent` é "o link de compra saiu neste turno", e vale para os dois
+    // caminhos: é o que o fluxo da Treble lê. Só o caminho Eduzz gera evento de
+    // checkout, então nenhuma métrica de conversão passa a contar o Institute por
+    // acidente — `engagement.agente_eventos` continua recebendo apenas carrinho.
+    const checkoutSentFinal = checkoutEventoId !== null || linkOficial !== null;
 
     // PORTA ÚNICA DE IDENTIDADE. O e-mail que o lead disse ser dele passa pelo
     // resolvedor universal, ancorado na conversa: se for compatível, anexa à
