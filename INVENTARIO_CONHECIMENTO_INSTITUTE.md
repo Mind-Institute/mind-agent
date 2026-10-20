@@ -3,17 +3,51 @@
 **Rascunho de 20/10/2026. Nada escrito no banco.** Para validarmos, item a item, o
 que o agente poderá afirmar — antes de atualizar a fixture.
 
-## Como ler
+## Como ler — dois eixos, não um
 
-| nível | significa |
+Estar no Kit **não** quer dizer estar validado. O Kit é lido do banco a cada
+mensagem, então ele é sempre *corrente*; mas ninguém conferiu, item a item, se o que
+está lá é o que vale. O preço é o exemplo: é o que o banco diz hoje, e ainda assim
+está em aberto se é o balcão ou um resto da condição vencida.
+
+**Eixo 1 — onde está documentado**
+
+| | |
 |---|---|
-| ✅ **confirmado** | está em fonte validada: `institute_catalogo` ou `product_intelligence`, lidos do banco |
-| ⏳ **aguardando** | descrito em material antigo (`vendas_institute`, retrato de 17/09). Pode estar certo; não foi conferido |
-| ❓ **não documentado** | não aparece em nenhuma fonte consultada |
+| 🟦 **Kit** | `institute_catalogo` ou `product_intelligence`, lidos do banco |
+| 🟨 **material antigo** | `vendas_institute` (retrato de 17/09) ou `playbook_institute` |
+| 🟩 **site** | página pública oficial, consultada em 20/10 — **ainda não declarada fonte aprovada** |
+| ⬜ **não documentado** | não aparece em nenhuma fonte consultada |
 
-> **❓ não significa inexistente.** Significa que não encontrei. Pode existir e não
-> estar escrito em lugar nenhum que o agente leia — que é, aliás, o caso mais
-> provável para boa parte da seção de instrumentos.
+**Eixo 2 — estado de validação**
+
+| | |
+|---|---|
+| ✅ **validado e vigente** | alguém confirmou que é verdade e vale agora |
+| ⏳ **pendente** | precisa de confirmação antes de o agente afirmar |
+| 🚫 **dispensada** | decidimos que o agente não usa isto — não precisa validar |
+
+> **⬜ não significa inexistente.** Significa que não encontrei nas fontes
+> consultadas. A validação 01 é a prova: os instrumentos da formação de Segurança
+> Psicológica pareciam não existir, e estavam documentados na página oficial — fora
+> do alcance do agente, não fora do mundo.
+
+> **Recurso disponível não é ferramenta para um assunto.** Acervo, credencial e
+> prazo de acesso são recursos da contratação. Nenhum responde "o que eu uso para
+> conduzir uma conversa difícil".
+
+## Decisões já tomadas (20/10)
+
+1. **Temas dos encontros** podem descrever o **conteúdo previsto**, depois de
+   confirmada a vigência. **Não** são ferramentas práticas e não se apresentam como
+   tal.
+2. **MIA Journey** só pelas capacidades documentadas e **vinculada ao Journey**. Não
+   se presume que acompanhe outras formações.
+3. **Não montar a agenda da Certificação** somando as avulsas sem confirmação.
+4. **Carga horária da Especialização** fica pendente. **Não estimar.**
+5. **Bônus antigos** ficam como referência histórica, **fora das instruções
+   comerciais ativas**. Condição nova exige validação própria.
+6. **Depoimentos: o agente não usa.** Validação 🚫 **dispensada**.
 
 > **Recurso disponível não é ferramenta para um assunto.** Acervo, credencial e
 > prazo de acesso são recursos da contratação. Nenhum deles responde "o que eu uso
@@ -52,7 +86,7 @@ Hoje só a primeira coluna tem base parcial, e é por isso que a jornada de recu
 | Credencial digital emitida via Accredible, após requisitos de conclusão | KIT FAQ | ✅ | quais são os requisitos? O FAQ remete à "apresentação do programa", que o agente não tem |
 | Empresa pode inscrever profissionais | KIT FAQ | ✅ | o FAQ manda falar com a equipe — não há condição corporativa documentada |
 | Quem já estudou no Mind deve falar com a equipe antes de contratar | KIT FAQ | ✅ | — |
-| **Calendário de encontros** | — | ❓ | **o Kit traz zero encontros para a Certificação**, enquanto as três avulsas têm os seus. Ela herda os encontros das três? Se sim, dá para montar a agenda somando |
+| **Calendário de encontros** | ⬜ | ⏳ | **o Kit traz zero encontros para a Certificação.** Decisão de 20/10: **não montar a agenda somando as avulsas** sem confirmação. Fica pendente |
 | Página: `/certificacao-avancada` | KIT | ✅ | sem âncora hoje; a migration de âncora não foi aplicada |
 | Conteúdo programático | — | ❓ | as avulsas têm URL própria; a Certificação não tem |
 | Na condição Summit, entregava ingresso 2027 + 12 meses de Journey | VI | ⏳ | **a condição expirou em 01/10.** Volta? |
@@ -106,7 +140,7 @@ Hoje só a primeira coluna tem base parcial, e é por isso que a jornada de recu
 | 12 semanas, online ao vivo | KIT | ✅ | — |
 | Início **previsto** para 03/03/2027, não confirmado; fim 26/05/2027 | KIT | ✅ | o Kit já marca como prevista |
 | Formadora: Adriana Drulla | KIT | ✅ | — |
-| **Carga horária** | — | ❓ | **vazia no banco.** É a única. Qual é? |
+| **Carga horária** | ⬜ | ⏳ | **vazia no banco.** Decisão de 20/10: **não estimar.** Fica pendente |
 | R$ 4.997 à vista ou 12x de R$ 416 | KIT | ✅ | ver Parte III |
 | Não precisa ser psicólogo nem trabalhar em RH | KIT FAQ | ✅ | — |
 | Há orientação no FAQ sobre adequação para líderes de equipe | KIT FAQ | ✅ | **o VI diz que o FAQ manda redirecionar para a Certificação.** Confirmar a redação |
@@ -127,7 +161,7 @@ Hoje só a primeira coluna tem base parcial, e é por isso que a jornada de recu
 | R$ 1.997 à vista ou 12x de R$ 166 | KIT | ✅ | ver Parte III |
 | **Contratação anual**; o parcelamento não é plano interrompível | KIT `condicoes` | ✅ | — |
 | **Não inclui** matrícula nas formações, na Certificação nem na Especialização | KIT `condicoes` | ✅ | — |
-| **MIA Journey**: IA que consulta o acervo do Mind a partir de uma pergunta ou desafio real, identifica conteúdos relacionados, conecta perspectivas e mostra em quais fontes se apoia | KIT FAQ | ✅ | **o recurso mais próximo de ferramenta que existe documentado.** Está disponível durante os 12 meses? |
+| **MIA Journey**: IA que consulta o acervo do Mind a partir de uma pergunta ou desafio real, identifica conteúdos relacionados, conecta perspectivas e mostra em quais fontes se apoia | 🟦 Kit FAQ | ⏳ | descrever **apenas pelas capacidades acima** e **só vinculada ao Journey** (decisão de 20/10). Não presumir que acompanha outras formações. Pendente: está disponível ao longo dos 12 meses? |
 | **Seleção do mês**: indicação curta e opcional da curadoria — palestra, vídeo, paper ou artigo | KIT FAQ | ✅ | — |
 | Do Summit 2026, só as plenárias Sextante, Mind e LinkedIn entram no acervo | KIT `condicoes` | ✅ | — |
 
@@ -158,9 +192,12 @@ Hoje só a primeira coluna tem base parcial, e é por isso que a jornada de recu
 | Adequado quando "a pessoa **ou a organização** precisa desenvolver competência" | PI | ✅ | — |
 | Eixos canônicos: Bem-Estar · Segurança Psicológica e Voz Ativa · Engajamento e Significado · integração dos três | PB | ⏳ | conferem com os nomes do Kit |
 
-## Regras comerciais a preservar
+## Regras comerciais — candidatas a preservação, TODAS pendentes de revisão
 
-Conduta e limite. **Nada aqui depende de preço, e por isso nada aqui vence.**
+**Não são regras preservadas: são candidatas.** Nada aqui depende de preço, e por
+isso nada aqui vence por conta do catálogo — mas "não vencer" não é "estar
+validada". Elas foram escritas em 17/09, para um canal que vendia Summit, e
+precisam de revisão antes de entrar no playbook novo.
 
 | regra | fonte | nível | dúvida |
 |---|---|---|---|
@@ -178,7 +215,7 @@ Conduta e limite. **Nada aqui depende de preço, e por isso nada aqui vence.**
 | Não prometer cupom | VI | ⏳ | quem controla desconto hoje? |
 | Não prometer acesso imediato; entrega manual | VI | ⏳ | ainda vale? |
 | Marcador cru no FAQ → não responder | VI | ⏳ | ainda há marcador no FAQ do banco? |
-| Não gerar depoimento; existem dois, nominais | VI | ❓ | **quais são?** Não estão em fonte nenhuma |
+| ~~Não gerar depoimento~~ → **não citar depoimento** | 🟨 VI | 🚫 **dispensada** | **decisão de 20/10: o agente não usa depoimento.** Sai do conteúdo proposto; a regra vira simplesmente "não citar depoimento" |
 | Não prometer resultado | VI | ⏳ | — |
 | "+7 mil líderes", "86%", "+60 multinacionais" são do **Summit** | VI | ⏳ | — |
 | Duas políticas de cancelamento no site, incompatíveis → responder só "garantia de 7 dias" e escalar | VI + KIT `condicoes` | ✅ | o Kit traz a garantia; **a contradição do site segue aberta** |
@@ -198,7 +235,7 @@ Conduta e limite. **Nada aqui depende de preço, e por isso nada aqui vence.**
 | Parcelas 417 · 209 · 167 · 500 | o catálogo tem 416 · 208 · 166; **o guardrail barra as do prompt** | — |
 | "12 × R$ 417 = R$ 5.004, contra R$ 4.997" | a conta mudou: 416,42 × 12 ≈ 4.997 | **"Nunca multiplique a parcela para provar o total; cite os dois números como o banco os traz"** — continua válido |
 | "condição Summit: três avulsas R$ 5.991 · Certificação R$ 4.997 · economiza R$ 994 / balcão 7.491 · 5.997 · economiza 1.494" | todos os números | **"Comparar com a soma das avulsas é o argumento mais forte"** — continua válido, **com a conta feita na hora** |
-| "A condição entrega ingresso Mind para o Summit 2027 + 12 meses de Journey. Ref.: ingresso R$ 1.697 · Journey R$ 1.997" | o Kit não traz bônus nenhum | **"Certificação e Especialização recebem bônus; avulsa só o ingresso; balcão nenhum"** — a *estrutura* pode voltar se a condição voltar. **Decidir** |
+| "A condição entrega ingresso Mind para o Summit 2027 + 12 meses de Journey. Ref.: ingresso R$ 1.697 · Journey R$ 1.997" | o Kit não traz bônus nenhum | **decisão de 20/10: referência histórica, FORA das instruções comerciais ativas.** O agente não menciona bônus. Condição nova exige validação própria |
 | "O checkout vai para a Eduzz. Mudou de destino duas vezes em 17/09" | `api.ofertas` tem 0 `checkout_url` | **"Se houver link em cache, ele pode estar errado"** vira: **nunca reutilizar link de conversa anterior; sempre o do Kit** |
 | "o checkout aceita CNPJ" | depende do anterior | **"não prometa nota fiscal nem condição corporativa"** — continua válido |
 | "URLs curtas: /certificacao, /especializacao, /minddash, /Mindjourney" | não conferidas | **"mande a página do Kit, não uma URL de memória"** — continua válido |
@@ -209,15 +246,19 @@ Conduta e limite. **Nada aqui depende de preço, e por isso nada aqui vence.**
 
 ---
 
-# O que eu gostaria de validar com você primeiro
+# Fila de validação — uma questão por vez
 
-1. **Os encontros com tema podem ser citados** como "o que é trabalhado"? São o
-   conteúdo mais concreto que o Kit tem, e é o que sustenta o B1.
-2. **A MIA Journey pode ser apresentada como recurso de trabalho?** É a única coisa
-   documentada que se parece com ferramenta — mas é do Journey, não das formações.
-3. **As duas certificações não têm encontros no Kit.** A Certificação herda os das
-   três formações? Se sim, o agente pode montar a agenda somando.
-4. **A carga horária da Especialização** está vazia no banco.
-5. **Os dois depoimentos nominais** não existem em fonte nenhuma.
-6. Na Parte III, **a estrutura de bônus da condição deve ser preservada** para quando
-   uma condição voltar, ou sai de vez?
+| # | questão | estado |
+|---|---|---|
+| **01** | **recursos práticos da formação de Segurança Psicológica** | **em validação** — `VALIDACAO_01_RECURSOS_SEGURANCA_PSICOLOGICA.md` |
+| 02 | os temas dos encontros podem descrever o conteúdo previsto? (vigência) | aguarda a 01 |
+| 03 | a Certificação herda os encontros das três formações? | aberta |
+| 04 | carga horária da Especialização | aberta — não estimar |
+| 05 | preço: 4.997 é balcão ou resto da condição vencida? | aberta |
+| 06 | método (Learn · Apply · Reflect, aprendizagem ativa) vale para quais programas? | aberta |
+| 07 | revisão das regras comerciais antigas, uma a uma | aberta |
+| — | depoimentos | 🚫 dispensada: o agente não usa |
+
+A ordem segue a prioridade por jornada: **recursos** primeiro, porque é o que trava
+a jornada de responder; depois **preço e condições**, que travam a de vender; por
+último o **método**, que trava a de explicar como funciona.
