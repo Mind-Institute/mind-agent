@@ -965,6 +965,34 @@ fato monetário e barrava o preço certo; a página oficial virou link validado 
 igualdade exata; `next_route` passou a existir no WhatsApp. 479/479 na suíte Edge e
 186+ nos contratos. **Nenhuma delas vale sem o gate D7.**
 
+### Pendências de 20/10, por estágio
+
+Os quatro estágios são distintos e nenhum substitui o anterior:
+**[impl]** implementado · **[téc]** validado em teste técnico ·
+**[com]** aprovado comercialmente · **[hom]** homologado no WhatsApp real.
+
+| pendência | estágio | evidência / onde está |
+|---|---|---|
+| Runtime executa `institute` e `dash`; Summit desligado | **[impl][téc]** | `1.11.1`; 79 verificações no harness de fluxo completo |
+| Guardrail lê o formato de preço do Institute | **[impl][téc]** | 12 fatos extraídos do Kit real; 88/88 no contrato do guardrail |
+| Página oficial como link validado, com âncora | **[impl][téc]** | validação por igualdade exata; âncoras lidas das páginas em 20/10 |
+| Âncora `#inscricao`/`#avulsas` no catálogo | **[impl]**, migration **não aplicada** | `20261020151000` |
+| Gate: kit vazio deixa de contar como disponível | **[impl][téc]**, migration **não aplicada** | `20261020150000`; efeito medido por leitura: muda só `summit_b2b` |
+| `next_route` no WhatsApp | **[impl][téc]**, migration **não aplicada** | `20261020160000`; 20 verificações, incluindo troca recusada pelo Gate |
+| Suporte continua com o time sem trancar a conversa | **[impl][téc]** | aprovar `next_route=cliente_suporte` como rota ativa prendia a conversa em transferência para sempre; virou `needs_human` do turno |
+| Deduplicação: reentrega ≠ texto repetido | **[impl][téc]** | a janela de 90 s engolia dois "sim" da mesma pessoa; agora a idempotência é por `client_msg_id`, que a ingestão já tinha e o runtime ignorava |
+| Finais de linha reproduzíveis | **[impl][téc]** | `.gitattributes`; 479/479 no checkout Windows, sem truque |
+| CI roda a suíte Edge e os contratos | **[impl]** | `.github/workflows/edge-ci.yml`; antes só havia build do `admin/` |
+| Correção do `vendas_institute` | **[impl]** como proposta · **[com] pendente** | `PROPOSTA_PLAYBOOK_VENDAS_INSTITUTE_20261020.md`, com 8 divergências a resolver. Migration **não escrita** de propósito |
+| Aprovação D7 das 3 funções | **[com] pendente** | `APROVACAO_ADRIANA_VENDEDOR_WHATSAPP_20261020.md` |
+| Fonte oficial da oferta do Institute | **[com] pendente** | `institute.*` via `api.ofertas` funciona e alimenta o Kit; a regra de 26/09 aponta `catalogo`. Decisão de uma linha, necessária para lançar |
+| Unificar oferta em `catalogo` + painel | **não proposto** | mudança estrutural e de proveniência — **D2**, projeto próprio. Não é pré-requisito do lançamento |
+| Conversas com modelo real | **[téc] pendente** | `tests/homologacao_conversas.mjs`, 16 cenários e 18 turnos, cobrindo os 6 programas. Depende da proposta de conteúdo validada e da chave |
+| Treble encaminhar ao agente | **[hom] pendente** | parou em 09/09; configuração fica no painel da Treble |
+| E2E com entrega no aparelho | **[hom] pendente** | HTTP 200 não é o critério |
+| `analise_vendas_institute` / `analise_vendas_dash` vazios | **pendente, Lane D (#42)** | item 18.3 abaixo. Ligado o tráfego, essas conversas não geram análise |
+| Atribuição do Institute | **decidido sem atribuição** | link sem rastreio e sem evento de checkout, por decisão de 20/10 |
+
 ### Decisão de produto fechada em 03/09
 
 Durante o Summit, o Concierge do App pode vender — especialmente upgrade — sem deixar de ser

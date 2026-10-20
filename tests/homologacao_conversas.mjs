@@ -33,6 +33,8 @@
  * ==========================================================================*/
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { execSync } from "node:child_process";
 import { stripTypeScriptTypes } from "node:module";
 import vm from "node:vm";
 
@@ -112,6 +114,18 @@ if (typeof montarResponseSchema !== "function") {
 }
 const ROTAS_DO_CANAL = kit.canal_rotas.rotas;
 const SCHEMA = montarResponseSchema(ROTAS_DO_CANAL);
+const MAX_OUTPUT_TOKENS = 1500;
+
+// Identificação da execução. Sem isto a revisão não é reproduzível: a mesma
+// pergunta responde diferente com outro modelo ou outro catálogo.
+const VERSAO_RUNTIME = fonteRuntime.match(/const VERSION = "([^"]+)"/)?.[1] ?? "?";
+const HASH_FIXTURE = createHash("sha256")
+  .update(readFileSync(FIXTURE)).digest("hex").slice(0, 16);
+const COMMIT = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+  } catch { return "sem git"; }
+})();
 
 /* ------------------------------------------------------------- os cenários */
 /* Cada cenário é uma CONVERSA: uma ou mais falas da pessoa, na ordem. A rota é
@@ -242,6 +256,70 @@ const CENARIOS = [
       "NÃO inventa a próxima edição",
     ],
   },
+
+  /* ---------------------------------------------------------------------------
+   * UM CENÁRIO POR PROGRAMA DO LANÇAMENTO.
+   *
+   * Os seis estão no catálogo e os seis podem ser pedidos por nome. O que se mede
+   * aqui, além da resposta: se o LINK entregue é o do programa pedido. Quatro dos
+   * seis compartilham a mesma página (`/certificacao-avancada`), e as três formações
+   * avulsas têm de levar à seção de avulsas, não ao topo nem ao Journey. Mandar a
+   * página errada é o erro mais fácil de cometer e o mais difícil de perceber.
+   * ------------------------------------------------------------------------- */
+  ...[
+    {
+      id: "certificacao-avancada",
+      nome: "Certificação Avançada em Liderança Positiva",
+      codigo: "certificacao-lideranca-positiva",
+      fala: "Quero fazer a Certificação Avançada em Liderança Positiva. Como funciona e como me inscrevo?",
+    },
+    {
+      id: "especializacao",
+      nome: "Especialização em Gestão Estratégica de Bem-Estar no Trabalho",
+      codigo: "certificacao-gestao-estrategica-bem-estar",
+      fala: "Me interessa a Especialização em Gestão Estratégica de Bem-Estar. Quando começa e quanto é?",
+      extra: ["A data é PREVISTA — a resposta precisa dizer isso", "NÃO inventa carga horária (é nula no banco)"],
+    },
+    {
+      id: "lideranca-consciente",
+      nome: "Liderança Consciente",
+      codigo: "lideranca-consciente",
+      fala: "Quero só a formação de Liderança Consciente, avulsa. Como compro?",
+      extra: ["Diz o escopo: a avulsa não inclui as outras duas nem a Certificação"],
+    },
+    {
+      id: "engajamento",
+      nome: "Engajamento e Significado no Trabalho",
+      codigo: "significado-e-proposito-no-trabalho",
+      fala: "Me fala da formação de Engajamento e Significado no Trabalho",
+    },
+    {
+      id: "seguranca-psicologica",
+      nome: "Segurança Psicológica Aplicada a Resultados e Inovação",
+      codigo: "seguranca-psicologica-aplicada-a-inovacao",
+      fala: "Quero a formação de Segurança Psicológica. Quero me inscrever hoje.",
+    },
+    {
+      id: "mind-journey",
+      nome: "Mind Journey",
+      codigo: "mind-journey",
+      fala: "O que é o Mind Journey e quanto custa?",
+      extra: ["Diz que é contratação anual, não mensalidade", "NÃO promete que o Journey inclui as formações"],
+    },
+  ].map((p) => ({
+    id: `programa-${p.id}`,
+    titulo: `Programa: ${p.nome}`,
+    porque: "Cada programa do lançamento precisa ser respondido com os fatos dele e com o link dele.",
+    rota: "institute",
+    programa: p.codigo,
+    falas: [p.fala],
+    esperado: [
+      "Responde com os fatos do catálogo para ESTE programa",
+      "Preço, se citado, é o do catálogo",
+      `O link entregue é a página oficial de ${p.nome}`,
+      ...(p.extra ?? []),
+    ],
+  })),
 ];
 
 /* --------------------------------------------------- o payload do runtime */
@@ -286,7 +364,7 @@ async function chamarModelo(instructions, payload) {
       instructions,
       input: [{ role: "user", content: JSON.stringify(payload) }],
       text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: SCHEMA } },
-      max_output_tokens: 1500,
+      max_output_tokens: MAX_OUTPUT_TOKENS,
       store: false,
     }),
   });
@@ -336,6 +414,31 @@ function sinais(cenario, turno) {
 
   if (turno.next_route && !ROTAS_DO_CANAL.includes(turno.next_route)) {
     achados.push(`next_route fora da política do canal: ${turno.next_route}`);
+  }
+
+  // PERTINÊNCIA DO LINK AO PROGRAMA PEDIDO. Quatro dos seis programas compartilham
+  // `/certificacao-avancada`, então "o link é oficial" não basta: ele tem de ser o
+  // do programa que a pessoa pediu. Para as formações avulsas isso inclui a âncora
+  // `#avulsas` — cair no topo da página da Certificação manda a pessoa para o
+  // produto errado.
+  if (cenario.programa) {
+    const prog = (k.structured.institute_catalogo?.programas ?? [])
+      .find((p) => p.codigo === cenario.programa);
+    const esperado = prog?.pagina_oficial ?? null;
+    const enviados = [
+      ...(texto.match(/https?:\/\/\S+/g) ?? []).map((u) => u.replace(/[).,;]+$/, "")),
+      ...(turno.checkout_url ? [turno.checkout_url] : []),
+    ].filter((u) => !u.includes("wa.me"));
+
+    if (enviados.length && esperado && !enviados.includes(esperado)) {
+      achados.push(
+        `LINK DE OUTRO PROGRAMA: pedido ${cenario.programa} → esperado ${esperado}, ` +
+        `veio ${[...new Set(enviados)].join(" ")}`,
+      );
+    }
+    if (!enviados.length && /inscrev|comprar|contratar/i.test(cenario.falas.join(" "))) {
+      achados.push("pediu para se inscrever e nenhum link foi enviado");
+    }
   }
   return achados;
 }
@@ -403,16 +506,34 @@ const base = new URL(`../audit/homologacao/conversas-${carimbo}`, import.meta.ur
 writeFileSync(new URL(`${base.pathname}.json`, "file:"), JSON.stringify({
   gerado_em: new Date().toISOString(),
   modelo: MODELO,
+  runtime: VERSAO_RUNTIME,
+  commit: COMMIT,
   kit_gerado_em: kit.gerado_em,
+  hash_fixture: HASH_FIXTURE,
+  max_output_tokens: MAX_OUTPUT_TOKENS,
   rotas_do_canal: ROTAS_DO_CANAL,
   resultados,
 }, null, 2));
 
 const md = [];
 md.push(`# Homologação do vendedor no WhatsApp — conversas com o modelo real\n`);
-md.push(`Rodado em ${new Date().toISOString()} · modelo \`${MODELO}\``);
-md.push(`Kit e playbooks: cópia de ${kit.gerado_em}`);
-md.push(`Rotas do canal: ${ROTAS_DO_CANAL.join(", ")}\n`);
+md.push(`## Identificação da execução\n`);
+md.push(`Sem isto, a revisão não é reproduzível: a mesma pergunta responde diferente`);
+md.push(`com outro modelo, outro catálogo ou outro teto de saída.\n`);
+md.push(`| | |`);
+md.push(`|---|---|`);
+md.push(`| rodado em | ${new Date().toISOString()} |`);
+md.push(`| modelo | \`${MODELO}\` |`);
+md.push(`| runtime | \`${VERSAO_RUNTIME}\` (${COMMIT}) |`);
+md.push(`| conteúdo (Kit + playbooks) | cópia de ${kit.gerado_em} |`);
+md.push(`| impressão do conteúdo | \`${HASH_FIXTURE}\` (sha-256 da fixture, 16 primeiros) |`);
+md.push(`| playbook institute | ${kit.institute.playbook.length} chars |`);
+md.push(`| playbook dash | ${kit.dash.playbook.length} chars |`);
+md.push(`| rotas do canal | ${ROTAS_DO_CANAL.join(", ")} |`);
+md.push(`| \`max_output_tokens\` | ${MAX_OUTPUT_TOKENS} |`);
+md.push(`| \`store\` | false (a OpenAI não retém estas conversas) |`);
+md.push(`| schema | extraído do runtime, \`strict: true\`, ${SCHEMA.required.length} campos obrigatórios |`);
+md.push(``);
 md.push(`> Os sinais automáticos pegam erro grosseiro — preço fora do catálogo, link que o Kit`);
 md.push(`> não mandou, oferta de Summit onde não cabe. **Correção, pertinência e tom são leitura`);
 md.push(`> sua.** Cada cenário traz o que se espera dele, para a leitura ter critério.\n`);

@@ -206,7 +206,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.11.0";
+const VERSION = "1.11.1";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -242,6 +242,14 @@ const ROTAS_EXECUTAVEIS = new Set(["summit_b2c", "summit_b2b", "institute", "das
 // Rotas cujo Kit é comercial de Summit. É o que decide se a busca na agenda do Summit
 // faz sentido no turno — ver `bloco_agenda_busca`, mais abaixo.
 const ROTAS_DO_SUMMIT = new Set(["summit_b2c", "summit_b2b"]);
+
+// Deduplicação — duas janelas, porque são dois problemas diferentes (ver v1.11.1).
+// `JANELA_TEXTO_S` é a defesa degradada de quando o evento não traz id: 90 s, como
+// sempre foi. `JANELA_REENTREGA_S` serve ao evento que a Treble reentrega: aí não se
+// pergunta "faz pouco tempo?", e sim "qual foi a resposta deste turno?" — 24 h é a
+// própria janela de conversa do WhatsApp.
+const JANELA_TEXTO_S = 90;
+const JANELA_REENTREGA_S = 86_400;
 
 // `audience` é chave pública do payload do Treble e estado persistido em
 // engagement.conversas. No caminho canônico ela não é uma segunda decisão: é o nome
@@ -733,12 +741,53 @@ Deno.serve(async (req: Request) => {
 
     // Baratas, independentes da rota e capazes de encerrar o turno: a deduplicação vem
     // antes de qualquer ida ao modelo — inclusive a do Router.
+    //
+    // ================================================================= v1.11.1
+    // REENTREGA DO MESMO EVENTO ≠ DUAS MENSAGENS COM O MESMO TEXTO.
+    //
+    // Até aqui havia uma só defesa, e ela confundia as duas coisas: qualquer fala
+    // IGUAL a outra nos últimos 90 s devolvia a resposta anterior, sem chamar o
+    // modelo. Isso protege contra reentrega, mas atropela conversa real — "sim",
+    // "ok", "pode ser", "e quanto custa?" são falas que a mesma pessoa repete com
+    // naturalidade em menos de um minuto e e-s-p-e-r-a resposta nova. O segundo
+    // "sim" recebia de volta a resposta do primeiro, e quem está do outro lado lê
+    // isso como o agente travado.
+    //
+    // A idempotência de verdade já existia e não estava sendo usada: a ingestão
+    // grava `client_msg_id` com unicidade por conversa e devolve
+    // `mensagem_duplicada` quando o MESMO evento da Treble chega de novo. Era
+    // apenas logado.
+    //
+    // Agora cada coisa tem sua defesa:
+    //
+    //   evento reentregue (`mensagem_duplicada`)  → devolve a resposta daquele
+    //       turno, sem modelo e sem registrar turno novo. É idempotência por
+    //       identidade do evento, não por semelhança de texto, e por isso vale
+    //       para sempre, não por 90 s.
+    //
+    //   evento novo COM id externo                → responde. Texto igual ao de
+    //       antes é coincidência legítima, não duplicata.
+    //
+    //   evento novo SEM id externo                → só aqui sobra a janela de
+    //       texto. Sem chave de evento não há como distinguir reentrega de fala
+    //       repetida, e perder uma resposta é menos grave que responder duas
+    //       vezes à mesma entrega. A janela permanece como estava.
+    //
+    // POR QUE A JANELA DA REENTREGA É LARGA: o turno duplicado não é "recente", é
+    // "o mesmo". A Treble pode reentregar minutos depois, e devolver a resposta
+    // certa continua sendo o comportamento correto.
+    const eventoReentregue = conv.mensagem_duplicada === true;
+    const temIdDeEvento = Boolean(idExterno);
+    const janelaDedupe = eventoReentregue ? JANELA_REENTREGA_S : JANELA_TEXTO_S;
+
     const [{ data: jaRespondida }, { data: agenda }] = await Promise.all([
-      supabase.rpc("treble_agent_resposta_repetida", {
-        p_conversation_id: conv.conversation_id,
-        p_mensagem: message,
-        p_janela_segundos: 90,
-      }),
+      eventoReentregue || !temIdDeEvento
+        ? supabase.rpc("treble_agent_resposta_repetida", {
+          p_conversation_id: conv.conversation_id,
+          p_mensagem: message,
+          p_janela_segundos: janelaDedupe,
+        })
+        : Promise.resolve({ data: null, error: null }),
       cfg.bloco_agenda_busca === "true"
         ? supabase.rpc("mindagent_chat_search", {
             p_event_slug: "mind-summit-2026",
@@ -748,7 +797,11 @@ Deno.serve(async (req: Request) => {
         : Promise.resolve({ data: null, error: null }),
     ]);
     if (typeof jaRespondida === "string" && jaRespondida.trim()) {
-      console.info(JSON.stringify({ request_id: requestId, event: "turno_duplicado_ignorado" }));
+      console.info(JSON.stringify({
+        request_id: requestId,
+        event: "turno_duplicado_ignorado",
+        motivo: eventoReentregue ? "evento_reentregue" : "texto_repetido_sem_id",
+      }));
       return json(200, {
         ok: true, duplicado: true,
         user_session_keys: [
@@ -757,6 +810,10 @@ Deno.serve(async (req: Request) => {
         ],
       });
     }
+    // Reentrega de um evento que NUNCA foi respondido (o turno anterior caiu antes
+    // de gravar a resposta) não pode virar silêncio: cai aqui e é processada
+    // normalmente. É o caso que mais importa, porque é exatamente quando a Treble
+    // reentrega.
 
     // ====================================================== ROUTER → GATE → KIT
     // A necessidade atual é a fala deste turno; ela já está persistida, e é dela que o
@@ -1188,7 +1245,10 @@ Deno.serve(async (req: Request) => {
     // `needs_human` é NECESSIDADE, e o Gate é quem sabe que a rota decidida não se
     // conclui sozinha neste runtime — qualquer rota, não só as de venda. Ele soma à
     // leitura do modelo; nunca a subtrai.
-    const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
+    // Não é `const` porque um pedido de troca para rota de outra lane ainda pode
+    // acendê-lo, mais abaixo: passar ao time é decisão do turno, e ela se conhece
+    // depois de avaliar o `next_route`.
+    let needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
 
     // CHECKOUT É AÇÃO DO RUNTIME, NÃO TEXTO LIVRE DO MODELO. O modelo pode escolher
     // somente uma URL que veio no Kit; o runtime confere, assina e registra. Como
@@ -1377,14 +1437,42 @@ Deno.serve(async (req: Request) => {
       ? nextRouteBruto
       : null;
 
+    // DUAS PERGUNTAS DIFERENTES, E AS DUAS PRECISAM DE SIM:
+    //
+    //   o Gate   — a rota de destino PODE executar neste canal agora?
+    //   a lane   — ESTE runtime é quem a executa?
+    //
+    // Só o Gate não basta, e confundir os dois trancava a conversa. `cliente_suporte`
+    // está na política do WhatsApp e o Gate responde `pode_executar: true` — mas quem
+    // atende isso é o time, por decisão de 20/10, e este runtime não executa a rota.
+    // Persistir `rota_ativa = cliente_suporte` fazia TODO turno seguinte cair em
+    // transferência, para sempre: nada limpa a rota ativa, então uma pergunta de
+    // suporte envenenava a conversa inteira — inclusive a volta da pessoa querendo
+    // falar de formação.
+    //
+    // A forma certa de "passar para o time" não é uma rota persistida: é
+    // `needs_human` neste turno. Transferência é um estado do TURNO; rota ativa é um
+    // estado da CONVERSA, e só faz sentido para competência que este runtime serve.
     let rotaAtivaPersistir: string | null = null;
+    let handoffPedidoPeloModelo = false;
     if (nextRoute) {
       const { data: gateDestino } = await supabase.rpc("mind_rota_capacidade", {
         p_rota: nextRoute,
         p_canal: CANAL,
       });
-      if (gateDestino?.ok === true && gateDestino?.pode_executar === true) {
+      const gateAbre = gateDestino?.ok === true && gateDestino?.pode_executar === true;
+      const destinoEhDesteRuntime = ROTAS_EXECUTAVEIS.has(nextRoute);
+
+      if (gateAbre && destinoEhDesteRuntime) {
         rotaAtivaPersistir = nextRoute;
+      } else if (gateAbre && !destinoEhDesteRuntime) {
+        // Rota legítima do canal, servida por outro. O turno vai ao time e a conversa
+        // NÃO fica presa: o próximo turno volta a ser classificado normalmente.
+        handoffPedidoPeloModelo = true;
+        console.info(JSON.stringify({
+          request_id: requestId, event: "handoff_para_outra_lane",
+          de: rotaAplicada, para: nextRoute,
+        }));
       } else {
         console.warn(JSON.stringify({
           request_id: requestId, event: "handoff_recusado_pelo_gate",
@@ -1393,6 +1481,10 @@ Deno.serve(async (req: Request) => {
         }));
       }
     }
+
+    // Pedido de passagem para competência que este runtime não serve acende a
+    // transferência DESTE turno — sem trancar a conversa numa rota ativa.
+    if (handoffPedidoPeloModelo) needsHumanFinal = true;
 
     const state = {
       audience: audienceFinal,

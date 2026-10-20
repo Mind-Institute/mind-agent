@@ -156,6 +156,7 @@ function montarAmbiente({
   respostaDoModelo,
   historico = [],
   jaRespondida = null,
+  mensagemDuplicada = false,
   modeloQuebra = false,
   rotaAtiva = null,
   rotasDoCanal = ["cliente_suporte", "dash", "institute"],
@@ -175,7 +176,7 @@ function montarAmbiente({
     treble_agent_start: {
       conversation_id: "11111111-1111-4111-8111-111111111111",
       mensagem_id: "22222222-2222-4222-8222-222222222222",
-      mensagem_duplicada: false,
+      mensagem_duplicada: mensagemDuplicada,
       pessoa_encontrada: true,
       participante_id: "33333333-3333-4333-8333-333333333333",
       perfil: { nome: "Renata" },
@@ -504,23 +505,74 @@ console.log("\n9. CONTINUIDADE — o histórico chega ao modelo\n");
     JSON.stringify(payload).includes("Trabalho com RH numa indústria"));
 }
 
-console.log("\n10. REENVIO — a mesma mensagem não gera resposta duplicada\n");
+console.log("\n10. DUPLICIDADE — reentrega do evento vs. duas falas com o mesmo texto\n");
 {
+  // (a) A MESMA ENTREGA, de novo. A ingestão reconhece pelo client_msg_id e marca
+  // `mensagem_duplicada`. Tem de devolver a resposta daquele turno, sem modelo.
   const amb = montarAmbiente({
     rotaDoRouter: "institute",
+    mensagemDuplicada: true,
     jaRespondida: "A Certificação Avançada sai R$ 4.997 à vista.",
     respostaDoModelo: respostaPadrao({ answer: "resposta NOVA que não deveria existir" }),
   });
-  const { status, body } = await turno(amb, "Quanto custa a Certificação Avançada?");
+  const { status, body } = await turno(amb, "Quanto custa a Certificação Avançada?", { message_id: "evt-1" });
 
-  check("reenvio responde 200", status === 200);
-  check("devolve a MESMA resposta de antes",
+  check("reentrega responde 200", status === 200);
+  check("reentrega devolve a MESMA resposta de antes",
     chave(body, "resposta_ia") === "A Certificação Avançada sai R$ 4.997 à vista.");
-  check("não responde duas coisas diferentes",
-    !String(chave(body, "resposta_ia")).includes("NOVA"));
-  check("não chama o modelo de novo", amb.chamadas.openaiInputs.length === 0);
-  check("não registra um segundo turno",
+  check("reentrega não chama o modelo", amb.chamadas.openaiInputs.length === 0);
+  check("reentrega não registra um segundo turno",
     !amb.chamadas.rpc.some((c) => c.nome === "mind_turno_registrar"));
+  check("a reentrega não é limitada a 90 s",
+    amb.chamadas.rpc.find((c) => c.nome === "treble_agent_resposta_repetida")
+      ?.args?.p_janela_segundos > 90,
+    String(amb.chamadas.rpc.find((c) => c.nome === "treble_agent_resposta_repetida")?.args?.p_janela_segundos));
+
+  // (b) DUAS MENSAGENS DISTINTAS COM O MESMO TEXTO. Evento novo, id novo. A pessoa
+  // disse "sim" de novo e espera resposta nova — não pode ser engolido.
+  const amb2 = montarAmbiente({
+    rotaDoRouter: "institute",
+    mensagemDuplicada: false,
+    jaRespondida: "Resposta do primeiro 'sim' — não pode voltar.",
+    respostaDoModelo: respostaPadrao({ answer: "Claro, te explico de novo." }),
+  });
+  const r2 = await turno(amb2, "sim", { message_id: "evt-2" });
+
+  check("fala repetida COM id de evento é respondida de novo",
+    chave(r2.body, "resposta_ia") === "Claro, te explico de novo.",
+    String(chave(r2.body, "resposta_ia")));
+  check("e o modelo é chamado", amb2.chamadas.openaiInputs.length === 1);
+  check("e a janela de texto nem é consultada",
+    !amb2.chamadas.rpc.some((c) => c.nome === "treble_agent_resposta_repetida"));
+  check("e o turno é registrado",
+    amb2.chamadas.rpc.some((c) => c.nome === "mind_turno_registrar"));
+
+  // (c) SEM id de evento não há como distinguir: a janela de texto continua sendo a
+  // única defesa, e continua valendo 90 s.
+  const amb3 = montarAmbiente({
+    rotaDoRouter: "institute",
+    mensagemDuplicada: false,
+    jaRespondida: "Resposta anterior.",
+    respostaDoModelo: respostaPadrao({ answer: "resposta nova" }),
+  });
+  const r3 = await turno(amb3, "sim");
+  check("sem id de evento, a janela de texto ainda protege",
+    chave(r3.body, "resposta_ia") === "Resposta anterior.");
+  check("e ela continua sendo de 90 s",
+    amb3.chamadas.rpc.find((c) => c.nome === "treble_agent_resposta_repetida")
+      ?.args?.p_janela_segundos === 90);
+
+  // (d) Reentrega de um evento que NUNCA foi respondido não pode virar silêncio.
+  const amb4 = montarAmbiente({
+    rotaDoRouter: "institute",
+    mensagemDuplicada: true,
+    jaRespondida: null,
+    respostaDoModelo: respostaPadrao({ answer: "Agora sim, respondendo." }),
+  });
+  const r4 = await turno(amb4, "Quanto custa?", { message_id: "evt-3" });
+  check("reentrega sem resposta anterior é processada, não engolida",
+    chave(r4.body, "resposta_ia") === "Agora sim, respondendo.",
+    String(chave(r4.body, "resposta_ia")));
 }
 
 console.log("\n11. ERRO — falha do modelo não vira silêncio\n");
@@ -635,11 +687,13 @@ console.log("\n13. CONTINUIDADE DA TROCA — o turno seguinte já nasce na nova 
     amb2.chamadas.rpc.find((c) => c.nome === "mind_agent_kit")?.args?.p_rota === "institute");
 }
 
-console.log("\n14. TRANSFERÊNCIA PEDIDA PELO PLAYBOOK — rota que este runtime não executa\n");
+console.log("\n14. SUPORTE CONTINUA COM O TIME — e não tranca a conversa\n");
 {
-  // `cliente_suporte` está na política do canal, então o modelo PODE pedi-la. O Gate
-  // aprova (é executável no canal), a rota ativa persiste — e o turno seguinte
-  // encerra com transferência, porque este runtime não é dono dela.
+  // `cliente_suporte` está na política do canal e o Gate responde pode_executar=true,
+  // mas quem atende é o TIME (decisão de 20/10) e este runtime não executa a rota.
+  // Persistir isso como rota ativa prendia a conversa em transferência para sempre:
+  // nada limpa `rota_ativa`, então a pessoa nunca mais voltava a ser atendida — nem
+  // quando mudasse de assunto. Passar ao time é estado do TURNO, não da conversa.
   const amb = montarAmbiente({
     rotaDoRouter: "institute",
     gatePorRota: {
@@ -651,18 +705,60 @@ console.log("\n14. TRANSFERÊNCIA PEDIDA PELO PLAYBOOK — rota que este runtime
       next_route: "cliente_suporte",
     }),
   });
-  await turno(amb, "Meu pagamento do ano passado deu erro");
+  const r1 = await turno(amb, "Meu pagamento do ano passado deu erro");
   const reg = amb.chamadas.rpc.find((c) => c.nome === "mind_turno_registrar");
-  check("a passagem para atendimento persiste", reg?.args?.p_estado?.rota_ativa === "cliente_suporte");
 
+  check("o turno vai para o time", chave(r1.body, "needs_human") === "true");
+  check("a resposta do agente chega junto, sem silêncio",
+    String(chave(r1.body, "resposta_ia")).includes("time de atendimento"));
+  check("NÃO persiste rota_ativa de lane que este runtime não serve",
+    reg?.args?.p_estado?.rota_ativa === undefined,
+    JSON.stringify(reg?.args?.p_estado));
+
+  // E a conversa segue viva: o turno seguinte é classificado normalmente.
   const amb2 = montarAmbiente({
-    rotaAtiva: "cliente_suporte",
+    rotaDoRouter: "institute",
+    respostaDoModelo: respostaPadrao({ answer: "Claro! A Certificação começa em 16/02/2027." }),
+  });
+  const r2 = await turno(amb2, "Deixa pra lá. Me fala da Certificação");
+  check("depois do suporte, a pessoa volta a ser atendida",
+    chave(r2.body, "needs_human") === "false", String(chave(r2.body, "resposta_ia")));
+  check("e o turno é roteado de novo, não preso",
+    amb2.chamadas.routerChamado === 1);
+}
+
+console.log("\n14B. A ROTA ATIVA RESPEITA A INTENÇÃO ATUAL\n");
+{
+  // Em dash, a pessoa volta a querer formação. O modelo pede a volta e o Gate aprova.
+  const amb = montarAmbiente({
+    rotaAtiva: "dash",
+    kitStructured: KIT_DASH,
+    playbook: "playbook do dash",
+    gatePorRota: {
+      dash: { ok: true, pode_executar: true, needs_human: false, reason: null },
+      institute: { ok: true, pode_executar: true, needs_human: false, reason: null },
+    },
+    respostaDoModelo: respostaPadrao({
+      answer: "Pelo que você diz agora, o caminho é desenvolver a competência.",
+      next_route: "institute",
+      audience: "dash",
+    }),
+  });
+  await turno(amb, "Na verdade quero me formar nisso, não contratar diagnóstico");
+  const reg = amb.chamadas.rpc.find((c) => c.nome === "mind_turno_registrar");
+  check("a volta para institute é persistida", reg?.args?.p_estado?.rota_ativa === "institute");
+  check("o turno atual ainda responde pelo dash (a troca vale do próximo em diante)",
+    amb.chamadas.rpc.find((c) => c.nome === "mind_agent_kit")?.args?.p_rota === "dash");
+
+  // Rota ativa cuja execução o Gate fechou não prende a conversa.
+  const amb2 = montarAmbiente({
+    rotaAtiva: "institute",
+    gate: { ok: true, pode_executar: false, needs_human: true, reason: "missing_kit" },
     respostaDoModelo: respostaPadrao(),
   });
-  const r2 = await turno(amb2, "Então, sobre o pagamento");
-  check("o turno seguinte transfere ao time", chave(r2.body, "needs_human") === "true");
-  check("e não carrega Kit de uma lane que não é sua",
-    !amb2.chamadas.rpc.some((c) => c.nome === "mind_agent_kit"));
+  const r2 = await turno(amb2, "E aí?");
+  check("rota ativa com Gate fechado transfere, em vez de responder sem Kit",
+    chave(r2.body, "needs_human") === "true");
 }
 
 console.log("\n15. TOKEN — integração mal configurada continua alta\n");
