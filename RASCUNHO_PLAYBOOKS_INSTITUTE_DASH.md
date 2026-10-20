@@ -645,9 +645,13 @@ por dentro".
 programa; (b) o conteúdo programático deixa de ser só link e passa a vir resumido;
 (c) aceita-se que o agente diga o que não consegue confirmar e ofereça o link.
 
-**Decisão de 20/10: a lacuna é de conteúdo e se resolve antes de homologar esta
-jornada.** Enquanto isso, o exemplo B1 usa a saída (c), que é a única possível sem
-inventar nada.
+**ATUALIZAÇÃO 20/10, depois da validação 01:** a lacuna não era de existência. Os
+recursos estão documentados na **página oficial de conteúdo programático** — que o
+Kit guarda apenas como URL. A saída provável é (b): trazer para o Kit o que já
+existe. Ver `VALIDACAO_01_RECURSOS_SEGURANCA_PSICOLOGICA.md`.
+
+A página é **referência para construir o rascunho**, e não conteúdo
+automaticamente validado.
 
 **O inventário completo está em `INVENTARIO_CONHECIMENTO_INSTITUTE.md`**, separando
 o que no `vendas_institute` é conhecimento útil do que está vencido. O texto **não
@@ -691,33 +695,44 @@ tivesse dito o que quer, não se pergunta.
 
 > **Pessoa:** Quais ferramentas vocês têm para trabalhar isso?
 
-> **MIA:** O que eu tenho documentado aqui é a formação dedicada ao tema — Segurança
-> Psicológica Aplicada a Resultados e Inovação. Ela trabalha isso em cinco
-> encontros: fundamentos, dinâmicas de equipes de alto desempenho, liderança e
-> cultura, do diagnóstico à ação sustentável, e um de integração e plano de ação.
+> **MIA:** O conteúdo programático dessa turma prevê prática em cima disso: estudos
+> de caso e role play sobre situações de equipe, e uma simulação de feedback de
+> liderança.
 >
-> O detalhamento de cada encontro está aqui:
+> Há também protocolos para medir o nível de segurança psicológica do time — os de
+> Edmondson e os 4 estágios de Clark. Eles servem para ler o ambiente antes de
+> agir, não para conduzir a conversa em si.
+>
+> O programa completo está aqui, se quiser ver:
 > https://joinmind.com.br/conteudo-programatico/seguranca-psicologica-aplicada-a-inovacao
->
-> Fora isso, não consigo confirmar o que mais acompanha a formação.
+> (turma de 2027, sujeito a ajustes)
 
-**O critério:** a resposta entrega **o que está documentado para o assunto que ela
-trouxe** — os cinco encontros, que são o conteúdo mais concreto que o Kit tem — e
-fecha dizendo o limite do que sabe.
+**Depende da validação 01.** Enquanto a vigência não for confirmada, este texto é
+rascunho.
 
-**O que mudou nesta revisão:**
+**O critério:** dois recursos pertinentes ao que ela trouxe, não a lista inteira.
+Jazz Dialogues, Team Survey, Matrix of Change e o plano 30-60-90 estão no conteúdo
+e **ficaram de fora**: ou não servem para conduzir uma conversa, ou a fonte não diz
+para que servem.
 
-- **saiu "eu vejo o que consigo confirmar".** O agente não tem mecanismo de
-  consulta: `tools: []`. Prometer verificar é prometer o que não existe;
-- **saíram roteiro, checklist e questionário.** Ela disse "ferramentas", não pediu
-  esses formatos — enumerá-los era eu decidir o que ela queria e depois negar;
-- **não se esclarece o que é "ferramenta"** porque o contexto resolve o assunto
-  (conversas difíceis). Se ela quis dizer outra coisa, ela diz, e aí se pergunta;
-- continuam de fora carga, modalidade e preço: ela não perguntou.
+**As escolhas de redação, uma a uma:**
 
-Ver §9.7 e a Parte II do inventário: role-play, quiz e estudo de caso são **método
-de ensino**, não ferramenta de trabalho — e acervo, credencial e prazo de acesso são
-recursos da contratação, não resposta sobre conversas difíceis.
+- **"prevê prática em cima disso"**, não "você vai sair sabendo". A fonte lista
+  objetivos de aprendizagem, não promessa de resultado;
+- **o terceiro parágrafo limita o alcance do que cita.** Edmondson e Clark são
+  nomeados porque são pertinentes — ela quer agir sobre conversas no time — e vêm
+  com a finalidade explicada **e com o limite**: servem para ler, não para
+  conduzir. Presumir que todo instrumento citado serve para a conversa seria vender
+  a mais;
+- **COPSOQ e NR-1 não aparecem.** Estão no conteúdo, mas são diagnóstico
+  organizacional. Citá-los numa pergunta sobre conversa difícil arrisca soar como
+  conformidade, que a formação não entrega;
+- **a ressalva é uma linha entre parênteses**, não um aviso. E vinculada à edição;
+- continuam fora carga, modalidade, preço, horário e credencial: ela não perguntou,
+  e os três últimos ainda nem foram validados.
+
+Ver a Parte II do inventário: acervo, credencial e prazo de acesso são recursos da
+contratação, não resposta sobre conversas difíceis.
 
 ---
 

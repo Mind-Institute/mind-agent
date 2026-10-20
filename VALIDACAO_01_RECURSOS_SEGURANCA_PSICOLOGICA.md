@@ -79,12 +79,16 @@ pares" — sem vincular a programa nenhum. **Nenhum instrumento nomeado.**
 > "**Conteúdo programático sujeito a ajustes.** 5 semanas · 25 horas · 04/05 a 01/06
 > · Encontros ao vivo gravados e disponíveis na plataforma."
 
-**Confirmações de passagem**, que resolvem pendências de outros itens:
-- "Encontros ao vivo **terças, 19h às 20h30**" — confirma o que o material antigo
-  dizia e o Kit não trazia;
-- "Todos **gravados e disponíveis na plataforma**";
-- Elaine Lizeo: "Mestre e pós-doutora pelo **MIT Sloan**, doutora em Administração
-  pela **FGV**. Mentorada por **Amy Edmondson** e **Peter Senge**."
+**Outros fatos que a página traz — NÃO entram nesta validação.** Horário dos
+encontros, gravação na plataforma e as credenciais da formadora são fatos
+diferentes, com riscos diferentes, e entram em validações próprias. Ficam
+registrados aqui só para não se perderem:
+
+- "Encontros ao vivo terças, 19h às 20h30" — coincide com o material antigo, que o
+  Kit não trazia;
+- "Todos gravados e disponíveis na plataforma";
+- credenciais de Elaine Lizeo (MIT Sloan, FGV, mentoria de Amy Edmondson e Peter
+  Senge).
 
 ---
 
@@ -92,33 +96,54 @@ pares" — sem vincular a programa nenhum. **Nenhum instrumento nomeado.**
 
 Três níveis, do mais seguro ao mais arriscado. **Nenhum está autorizado.**
 
-### Proposta A — o que a pessoa produz *(a mais útil, e a que responde "ferramentas")*
+### Proposta A — revisão 2, a direção escolhida
 
-> Ao longo da formação, a pessoa aplica instrumentos de medição e sai com
-> entregáveis do próprio contexto: um assessment inicial de liderança, um
-> mini-diagnóstico organizacional baseado em COPSOQ e NR-1, um mapeamento de forças
-> e barreiras culturais, e um plano de ação de 30-60-90 dias.
+**A formulação:**
 
-Responde "quais ferramentas" sem virar apresentação de curso: fala do que a pessoa
-**faz e leva**, não do que o curso é.
+> O conteúdo programático dessa edição prevê atividades como um assessment inicial
+> de liderança, a aplicação de protocolos de medição em equipe, um mini-diagnóstico
+> organizacional com base em COPSOQ e NR-1, um mapeamento de forças e barreiras
+> culturais, e a construção de um plano de ação de 30-60-90 dias.
+
+**O que mudou da revisão 1, e por quê:**
+
+| antes | agora | por quê |
+|---|---|---|
+| "a pessoa **sai com** entregáveis" | "o conteúdo programático **prevê atividades como**" | a fonte lista **objetivos de aprendizagem** ("realizar", "construir", "desenvolver"). Objetivo de aprendizagem não é garantia de entrega |
+| "aplica instrumentos e sai com um assessment" | "prevê atividades como um assessment inicial" | **realizar um assessment não é receber um instrumento para usar depois.** A fonte diz que ele é feito *durante*, "para estabelecer o ponto de partida e orientar o desenvolvimento ao longo da formação" |
+| "mini-diagnóstico baseado em COPSOQ e NR-1" (solto) | idem, **com a ressalva abaixo** | citar NR-1 não pode soar como conformidade |
+| "ao longo da formação" | "dessa edição" | o conteúdo é da turma de **2027** |
+
+**Três limites que acompanham a Proposta A:**
+
+1. **COPSOQ e NR-1 não são promessa de conformidade nem de habilitação.** São
+   protocolos usados como referência num exercício de diagnóstico dentro da
+   formação. O agente nunca pode dar a entender que a formação deixa a empresa em
+   conformidade com a NR-1, nem que habilita alguém profissionalmente.
+2. **Nome técnico só quando for pertinente à pergunta**, e com a finalidade
+   explicada — sem inventar aplicação. Se a fonte não diz para que serve
+   (é o caso de *Jazz Dialogues*), o nome **não é citado**.
+3. **Vinculado à edição.** Nada do que está na página vale como descrição de
+   "qualquer contratação do Institute".
+
+**A ressalva de ajustes** entra uma vez, curta — "(turma de 2027, sujeito a
+ajustes)" — e não se repete a cada resposta.
 
 ### Proposta B — os protocolos, pelo nome
 
 > Os instrumentos trabalhados incluem os protocolos de Edmondson, os 4 estágios de
 > Clark, COPSOQ, NR-1, Team Survey e Matrix of Change.
 
-Mais específico, e mais exposto: nome de protocolo errado ou desatualizado é o tipo
-de erro que destrói credibilidade com quem é da área.
+**Descartada como está.** Lista sem finalidade é exatamente o que a correção pede
+para evitar: nome técnico entra quando é pertinente à pergunta e com a finalidade
+explicada, um ou dois de cada vez — não como inventário.
 
 ### Proposta C — não citar instrumentos, só apontar a página
 
 > O detalhamento do que é trabalhado está na página de conteúdo programático.
 
-É o que o agente consegue fazer hoje sem nenhuma validação. É também o que
-transforma "quais ferramentas?" em "clique no link".
-
-**Minha sugestão:** A agora, B depois que alguém do programa conferir a lista, C
-nunca como resposta única.
+Transforma "quais ferramentas?" em "clique no link". Serve como complemento, nunca
+como resposta única.
 
 ---
 
@@ -139,15 +164,16 @@ nunca como resposta única.
 
 ---
 
-## 4. A pergunta objetiva, se preferir levar ao responsável pelo programa
+## 4. A pergunta para o responsável pelo programa
 
-> Na formação de Segurança Psicológica Aplicada a Resultados e Inovação, o agente
-> poderá dizer que o participante **aplica instrumentos e sai com entregáveis do
-> próprio contexto** — assessment inicial de liderança, mini-diagnóstico com base em
-> COPSOQ e NR-1, mapa de forças e barreiras culturais, e plano de ação 30-60-90?
->
-> E podemos citar pelo nome os protocolos de Edmondson, os 4 estágios de Clark,
-> COPSOQ, NR-1, Team Survey e Matrix of Change — ou algum deles mudou?
+Uma só, e é esta:
+
+> **Essas atividades estão previstas na edição que vamos oferecer, e quais materiais
+> ou instrumentos o participante recebe e pode utilizar depois da formação?**
+
+Ela resolve as duas coisas que faltam de uma vez: a **vigência** do que a página
+descreve, e a distinção entre **atividade feita durante** e **material que fica** —
+que é justamente onde eu tinha extrapolado na primeira versão.
 
 ---
 
