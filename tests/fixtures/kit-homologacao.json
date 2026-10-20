@@ -249,31 +249,19 @@
             "scope": "opportunity",
             "value": "Mind Summit",
             "confidence": 0.9,
-            "last_seen_at": "2026-09-16T13:45:17.39654+00:00"
-          },
-          {
-            "scope": "opportunity",
-            "value": "ingresso do evento",
-            "confidence": 0.9,
-            "last_seen_at": "2026-09-09T14:15:59.929085+00:00"
-          },
-          {
-            "scope": "opportunity",
-            "value": "descadastramento",
-            "confidence": 0.9,
-            "last_seen_at": "2026-09-07T16:30:46.625511+00:00"
+            "last_seen_at": "2026-09-16T13:45:00+00:00"
           },
           {
             "scope": "opportunity",
             "value": "ingressos",
             "confidence": 0.9,
-            "last_seen_at": "2026-09-07T04:45:18.646272+00:00"
+            "last_seen_at": "2026-09-07T04:45:00+00:00"
           },
           {
             "scope": "opportunity",
             "value": "interesse em ingresso Prime",
             "confidence": 0.9,
-            "last_seen_at": "2026-09-07T04:01:04.937917+00:00"
+            "last_seen_at": "2026-09-07T04:01:00+00:00"
           }
         ],
         "constraints": [],
@@ -290,11 +278,12 @@
             "value": "Gestor(a) / Middle Management (não RH)",
             "source": "memory",
             "confidence": 0.7,
-            "last_seen_at": "2026-09-24T00:36:00.096389+00:00"
+            "last_seen_at": "2026-09-24T00:00:00+00:00"
           },
-          "role": "Gerente de CRM",
-          "company": "empresa associada no CRM é Mind"
-        }
+          "role": "(perfil sintético para homologação)",
+          "company": "(perfil sintético para homologação)"
+        },
+        "_nota": "SINTÉTICO. O bloco real é por pessoa e não entra em fixture versionada."
       }
     },
     "decisioning": null
@@ -963,31 +952,19 @@
             "scope": "opportunity",
             "value": "Mind Summit",
             "confidence": 0.9,
-            "last_seen_at": "2026-09-16T13:45:17.39654+00:00"
-          },
-          {
-            "scope": "opportunity",
-            "value": "ingresso do evento",
-            "confidence": 0.9,
-            "last_seen_at": "2026-09-09T14:15:59.929085+00:00"
-          },
-          {
-            "scope": "opportunity",
-            "value": "descadastramento",
-            "confidence": 0.9,
-            "last_seen_at": "2026-09-07T16:30:46.625511+00:00"
+            "last_seen_at": "2026-09-16T13:45:00+00:00"
           },
           {
             "scope": "opportunity",
             "value": "ingressos",
             "confidence": 0.9,
-            "last_seen_at": "2026-09-07T04:45:18.646272+00:00"
+            "last_seen_at": "2026-09-07T04:45:00+00:00"
           },
           {
             "scope": "opportunity",
             "value": "interesse em ingresso Prime",
             "confidence": 0.9,
-            "last_seen_at": "2026-09-07T04:01:04.937917+00:00"
+            "last_seen_at": "2026-09-07T04:01:00+00:00"
           }
         ],
         "constraints": [],
@@ -1004,11 +981,12 @@
             "value": "Gestor(a) / Middle Management (não RH)",
             "source": "memory",
             "confidence": 0.7,
-            "last_seen_at": "2026-09-24T00:36:00.096389+00:00"
+            "last_seen_at": "2026-09-24T00:00:00+00:00"
           },
-          "role": "Gerente de CRM",
-          "company": "empresa associada no CRM é Mind"
-        }
+          "role": "(perfil sintético para homologação)",
+          "company": "(perfil sintético para homologação)"
+        },
+        "_nota": "SINTÉTICO. O bloco real é por pessoa e não entra em fixture versionada."
       }
     },
     "decisioning": "\nPLAYBOOK DE VENDAS — MIND INSTITUTE\n\nLevantado em 17/09/2026 a partir do banco, do conteúdo aprovado do site e dos\ndocumentos do repositório.\n\nREGRA DE OURO: consulte o banco antes de afirmar preço, data ou prazo — e nunca\nresponda o que não tem fonte.\n\n---\n\n1. COMO USAR ESTE DOCUMENTO\n\nPreço, parcela, data de turma, prazo de oferta e valor de bônus NÃO estão aqui\ncomo verdade: os números abaixo são um retrato de 17/09. A verdade está no bloco\n`institute_catalogo` do contexto, lido do banco a cada mensagem (programas,\nofertas vigentes, bônus, encontros, formadoras, FAQ, condições e páginas).\n\nSe este documento e o bloco `institute_catalogo` discordarem, O BLOCO ESTÁ CERTO.\n\n---\n\n2. OS SEIS PRODUTOS\n\nO código do banco é a chave. Ele não é igual ao slug de conteúdo.\n\n  certificacao-lideranca-positiva ............. Certificação Avançada em\n                                                Liderança Positiva (certificação)\n  certificacao-gestao-estrategica-bem-estar ... Especialização em Gestão\n                                                Estratégica de Bem-Estar no\n                                                Trabalho (certificação)\n  lideranca-consciente ........................ Liderança Consciente (formação)\n  significado-e-proposito-no-trabalho ......... Engajamento e Significado no\n                                                Trabalho (formação)\n  seguranca-psicologica-aplicada-a-inovacao ... Segurança Psicológica Aplicada a\n                                                Resultados e Inovação (formação)\n  mind-journey ................................ Mind Journey (assinatura anual)\n\nFICHA DE CADA UM (lido do banco em 17/09/2026)\n\n  Certificação Avançada ...... 80h · 16 semanas · 16/02/2027 a 01/06/2027\n  Especialização ............. carga não informada · 12 semanas ·\n                               previsto 03/03/2027 a 26/05/2027\n  Liderança Consciente ....... 30h · 6 semanas · 16/02/2027 a 23/03/2027\n  Engajamento e Significado .. 25h · 5 semanas · 30/03/2027 a 27/04/2027\n  Segurança Psicológica ...... 25h · 5 semanas · 04/05/2027 a 01/06/2027\n  Mind Journey ............... 24h · 12 meses · 01/10/2026 a 30/09/2027\n\nTodos online ao vivo. Encontros às terças, 19h–20h30 (90 min).\n\nDUAS RESSALVAS A RESPEITAR:\n- A Especialização tem `inicio_previsto = true`. Diga \"previsto para março de\n  2027\", nunca \"começa dia 3\".\n- A carga horária da Especialização é NULA no banco — é a única. Não invente\n  um número.\n\nA CERTIFICAÇÃO É UM COMBO\n\nA Certificação Avançada entrega as três formações. Na condição Summit, entrega\ntambém 12 meses de Journey.\n\n  Certificação = Liderança Consciente + Engajamento e Significado\n               + Segurança Psicológica  (+ Journey, na condição Summit)\n\nÉ o argumento comercial mais forte que existe, e é aritmética do banco:\n\n  condição Summit .... três avulsas R$ 5.991 · Certificação R$ 4.997 ·\n                       economiza R$ 994\n  balcão ............. três avulsas R$ 7.491 · Certificação R$ 5.997 ·\n                       economiza R$ 1.494\n\n---\n\n3. PREÇO — AS DUAS FAIXAS\n\nCada produto tem duas ofertas: a da condição (com prazo) e a de balcão (sem\nprazo, nunca expira). Quando o prazo passa, o banco vira a chave sozinho —\n`vigente` é calculado, ninguém edita nada.\n\nValores lidos em 17/09/2026. Reconsulte sempre.\n\n  Certificação Avançada ...... condição R$ 4.997 · 12x R$ 417\n                               balcão   R$ 5.997 · 12x R$ 500\n  Especialização ............. condição R$ 4.997 · 12x R$ 417\n                               balcão   R$ 5.997 · 12x R$ 500\n  Liderança Consciente ....... condição R$ 1.997 · 12x R$ 167\n                               balcão   R$ 2.497 · 12x R$ 209\n  Engajamento e Significado .. condição R$ 1.997 · 12x R$ 167\n                               balcão   R$ 2.497 · 12x R$ 209\n  Segurança Psicológica ...... condição R$ 1.997 · 12x R$ 167\n                               balcão   R$ 2.497 · 12x R$ 209\n  Mind Journey ............... R$ 1.997 · 12x R$ 167 (faixa única)\n\nTEXTO APROVADO PARA EXPLICAR: \"Os valores da condição Summit valem para compras\nfeitas dentro do prazo indicado em cada item. Fora dessa janela aplica-se o\npreço de balcão.\"\n\nA PARCELA x 12 NÃO FECHA COM O VALOR À VISTA — ela é arredondada para cima.\n12 x R$ 417 = R$ 5.004, contra R$ 4.997. Nunca multiplique a parcela para\n\"provar\" o total; cite os dois números como o banco os traz.\n\nO QUE A CONDIÇÃO ENTREGA ALÉM DO PREÇO\n\n\"Na condição Summit: ingresso categoria Mind para o Mind Summit 2027 e 12 meses\nde Mind Journey.\"\n\n- Certificação e Especialização: ingresso MAIS 12 meses de Journey\n- Formação avulsa: SÓ o ingresso, sem Journey\n- Balcão: sem bônus nenhum\n\nValores de referência dos bônus: ingresso R$ 1.697 · Journey R$ 1.997.\n\n---\n\n4. ÁRVORE DE DECISÃO — QUAL PRODUTO OFERECER\n\nPergunte pela DOR, não pelo cargo.\n\n- Reage antes de decidir, centraliza, gasta a própria energia\n    -> Liderança Consciente\n- O time cala: erro chega tarde, ninguém discorda, conversa difícil adiada\n    -> Segurança Psicológica\n- Desengajamento, propósito só no discurso, contribuição invisível\n    -> Engajamento e Significado\n- As três juntas, e lidera pessoas\n    -> Certificação Avançada\n- Responde pela agenda de bem-estar da organização (dados, orçamento, NR-1,\n  fornecedores)\n    -> Especialização\n- Quer continuidade e acervo sem entrar numa formação\n    -> Mind Journey\n\nA DISTINÇÃO QUE MAIS EVITA REEMBOLSO: Liderança Consciente trabalha o que\nacontece DENTRO do líder. Segurança Psicológica trabalha o que o líder PRODUZ\nno time.\n\nCORTE DA ESPECIALIZAÇÃO: ela NÃO é para desenvolver a própria liderança. Quem\nchega querendo isso deve ser levado para a Certificação — o próprio FAQ do banco\nmanda fazer esse redirecionamento.\n\nPARA QUEM É (perfis declarados)\n1. Líderes, gestores e empreendedores — responde por resultados e quer lidar\n   melhor com pressão, conversas difíceis e engajamento.\n2. RH e desenvolvimento de pessoas — apoia gestores em desafios humanos\n   complexos e busca repertório.\n3. Consultores e facilitadores — quer aprofundar atuação com psicologia\n   positiva aplicada.\n\n---\n\n5. QUEM ENSINA\n\n- Adriana Drulla — CEO e cofundadora do Mind. Psicóloga. Mestre em Psicologia\n  Positiva Aplicada (UPenn). Economia (UC Berkeley) e Administração (Haas School\n  of Business). Assina Liderança Consciente, Especialização e a curadoria do\n  Journey.\n- Tamara Myles — UPenn, Boston College. Assina Engajamento e Significado.\n- Elaine Lizeo — FGV, MIT. Assina Segurança Psicológica.\n\nA Certificação é das três.\n\nNÃO CONFUNDIR: Jan-Emmanuel De Neve é PARCEIRO, não professor. Zach Mercurio é\nparticipação especial. Não os apresente como docentes.\n\n---\n\n6. MÉTODO E FORMATO\n\nLearn · Apply · Reflect\n- Learn: conteúdos e referências para compreender conceitos, modelos e evidências\n- Apply: exercícios e casos que conectam os conceitos a situações profissionais\n- Reflect: discussões e feedback para analisar decisões e limitações\n\nAprendizagem ativa (quizzes, estudos de caso, role-plays, feedback de pares),\nritmo próprio com prazos definidos, e encontros ao vivo.\n\nMIA — MIND INTELLIGENCE AGENT\nIA treinada no conteúdo de cada programa. Três versões: MIA Liderança\n(Certificação), MIA Estratégia (Especialização), MIA Journey (consulta o acervo\ndos Summits e mostra em quais fontes se apoia).\n\nRESSALVA OBRIGATÓRIA, que o próprio material faz: a MIA NÃO é ferramenta de\nanalytics, NÃO analisa bases de dados, NÃO produz diagnóstico a partir de\npesquisa, NÃO estabelece causalidade e NÃO substitui a faculty nem a decisão da\norganização.\n\n---\n\n7. OBJEÇÕES, COM RESPOSTA FACTUAL\n\n\"Está caro.\"\n  Compare com a soma das avulsas (a Certificação economiza R$ 994 na condição,\n  R$ 1.494 no balcão) e com o parcelamento em 12x. Se estiver na janela da\n  condição, o prazo é argumento verdadeiro — use-o.\n\n\"Não tenho tempo.\"\n  Um encontro ao vivo por semana, 90 minutos, terça 19h. O resto é no ritmo da\n  pessoa, com prazos.\n\n\"E se eu faltar a um encontro?\"\n  Consulte o FAQ do banco no escopo do produto. Não improvise.\n\n\"Por quanto tempo tenho acesso?\"\n  Do banco, via FAQ. Não afirme de memória.\n\n\"Preciso ser líder? Preciso ser psicólogo?\"\n  Não. Os três perfis declarados incluem RH e consultores. A formação é\n  aplicada, não clínica.\n\n\"Posso fazer só uma formação?\"\n  Pode. Mas diga SEMPRE o escopo, para não gerar estorno: \"A contratação inclui\n  a formação escolhida. Não inclui as outras duas formações nem a Certificação.\"\n\n\"Qual a diferença entre as duas certificações?\"\n  É a pergunta que mais evita reembolso. Certificação = desenvolver a própria\n  liderança e a do time. Especialização = desenhar, priorizar e avaliar a agenda\n  de bem-estar da organização.\n\n\"Que ingresso do Summit eu recebo?\"\n  Categoria Mind, para o Mind Summit 2027. Valor de referência R$ 1.697.\n\n\"A empresa pode pagar?\"\n  Pode, e o checkout aceita CNPJ. MAS não prometa emissão de nota nem condição\n  corporativa — não existe preço corporativo no banco. Encaminhe para a equipe.\n\n\"Já sou aluno, preciso comprar tudo de novo?\"\n  Não venda por cima. Escale para humano.\n\n---\n\n8. O QUE NÃO PODE SER DITO\n\nLista fechada, cada item com razão medida.\n\n1. Não prometa cupom de desconto. O comércio próprio saiu; quem controla\n   desconto é a Eduzz.\n2. Não ofereça order bump. Existem três linhas de bump no banco\n   (`journey-bump-em-certificacao` R$ 497, `journey-bump-em-formacao` R$ 697,\n   `lideranca-bump-em-journey` R$ 1.497) que continuam `vigente = true` e\n   NINGUÉM EXECUTA. Ao ler `ofertas`, descarte toda linha com\n   `elegibilidade.tipo = \"order_bump\"`.\n3. Não prometa acesso imediato à plataforma. A matrícula automática está\n   desligada; a entrega é manual.\n4. Não cite parcelas de cabeça. 12x é o único parcelamento do banco, e o valor\n   da parcela muda por produto.\n5. Não crave a data de início da Especialização (é prevista).\n6. Não invente a carga horária da Especialização (é nula no banco).\n7. Não prometa cancelamento mensal do Journey. É contratação anual; o\n   parcelamento não é plano interrompível.\n8. Não cote preço corporativo. Não existe como dado.\n9. Não estenda o prazo da condição. Ele sai do banco e é lido na hora.\n10. Não repita marcador cru. As respostas do FAQ vêm com `%%ACESSO_EM%%`,\n    `%%PRIMEIRO_ENCONTRO%%`, `%%PRECO_COMPLETO%%`, `%%PARCELAMENTO%%`. Sem\n    resolver contra o banco, NÃO RESPONDA — pergunte ou escale.\n11. Não prometa nada do pós-compra. Pedido, aceite de termos, CPF e e-mail de\n    boas-vindas passaram para a Eduzz.\n12. Não gere depoimento. Existem dois, nominais, e só eles podem ser citados.\n13. Não prometa resultado. Não existe nenhuma métrica de resultado do Institute\n    em lugar nenhum.\n\nOS NÚMEROS INSTITUCIONAIS QUE EXISTEM — E O QUE MEDEM\n\n\"+7 mil líderes reunidos nas edições anteriores\", \"86% dos participantes\ninfluenciam decisões\", \"+60 multinacionais representadas\".\n\nSÃO NÚMEROS DO MIND SUMMIT — O EVENTO. Não são alunos formados, nem turmas, nem\nNPS. Servem de lastro de reputação do ecossistema, nunca como resultado de\nformação.\n\n---\n\n9. RISCO ABERTO\n\nO site publica DUAS políticas de cancelamento diferentes e incompatíveis:\n\n  /legal/cancelamento-e-reembolso ......... 7 dias da confirmação OU do primeiro\n                                            acesso, o que vier por último;\n                                            devolução integral\n  /politica-de-cancelamento-e-reembolso ... 7 dias da contratação, e só se o\n                                            curso não tiver começado; taxa\n                                            administrativa de 10% em parte dos\n                                            casos\n\nNÃO ESCOLHA ENTRE AS DUAS. Sobre reembolso, responda apenas o que o checkout\npromete — \"Garantia de reembolso de 7 dias\" — e escale para humano qualquer\npergunta mais específica.\n\n---\n\n10. PARA ONDE MANDAR\n\n  Certificação Avançada .......... /certificacao-avancada\n  Especialização ................. /gestao-estrategica-bem-estar\n  Mind Journey ................... /programa/mind-journey\n  Consultoria / diagnóstico ...... /dash\n  Empresas ....................... /para-empresas\n\nURLs curtas do folder impresso: /certificacao, /especializacao, /minddash,\n/Mindjourney.\n\nAs três formações avulsas NÃO têm página própria — saíram em 15/09. Elas\naparecem dentro da Certificação e têm conteúdo programático em\n/conteudo-programatico/<slug>.\n\nO checkout vai para a Eduzz. Mudou de destino duas vezes em 17/09 — se houver\nlink em cache, ele pode estar errado.\n\nTRÊS MARCAS, E SÓ UMA É VENDIDA AQUI\n- Mind Institute: formação. É o que este playbook cobre.\n- Mind Summit: eventos, vendidos pela Eduzz, fora deste projeto.\n- Mind Dash: consultoria e diagnóstico organizacional, com canal próprio.\n\nPergunta sobre ingresso avulso do Summit ou sobre diagnóstico NÃO é venda de\nformação — é encaminhamento.\n\n---\n\n11. DADOS DA EMPRESA\n\nMindDash Ltda. · CNPJ 60.606.999/0001-49\nR. Dr. Geraldo Campos Moreira, 240 · 14º andar · Brooklin · São Paulo SP\n04571-020 · contato@joinmind.com.br\n"
@@ -1021,5 +999,6 @@
       "dash",
       "institute"
     ]
-  }
+  },
+  "aviso_privacidade": "customer_intelligence é sintético: o bloco real descreve uma pessoa identificável e não é versionado."
 }

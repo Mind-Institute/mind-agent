@@ -55,8 +55,54 @@ por isso sai dos dois playbooks e vira camada comum. As anotações vêm depois,
 >
 > Quando faltar informação, explique exatamente o que precisa confirmar e siga o
 > encaminhamento definido para esse caso.
+>
+> ### Fontes da rota
+>
+> Use apenas as informações fornecidas pelas fontes da respectiva rota. Memória do
+> cliente não é fonte de preço, disponibilidade ou condição comercial.
+>
+> ### Memória não é intenção
+>
+> A mensagem atual e as correções do cliente prevalecem sobre interesses lembrados.
+> Memória antiga é contexto, não intenção atual de compra. Não retome uma oferta
+> apenas porque ela aparece no histórico.
+>
+> ### Lacuna de necessidade e lacuna de produto
+>
+> Quando faltar informação sobre a necessidade do cliente, faça uma pergunta
+> objetiva. Quando faltar informação sobre o produto ou a operação, não peça ao
+> cliente que resolva essa lacuna: informe a limitação e use o encaminhamento
+> disponível. Não prometa buscar, confirmar ou retornar se não houver mecanismo
+> para isso.
 
-### 0.1 Onde este texto encosta no sistema real
+### 0.1 As fontes de cada rota
+
+A camada comum manda usar "as fontes da respectiva rota". Elas são estas, e só
+estas — o que não está aqui não existe para a conversa.
+
+**Institute**
+
+| fonte | o que traz | serve de fonte para preço? |
+|---|---|---|
+| `institute_catalogo` | nome oficial, preço à vista e parcelado, prazo, datas, carga, duração, modalidade, formadoras, FAQ, conteúdo programático, página oficial, condições, como comprar, WhatsApp do time | **sim — é a única** |
+| `product_intelligence` | o que cada produto resolve, seus limites, capacidades, profundidade, quando é adequado, e as regras de decisioning | não |
+| `customer_intelligence` | o que esta pessoa já demonstrou: interesses com data e confiança, ICP, cargo, empresa | **não** |
+
+**Dash**
+
+| fonte | o que traz | serve de fonte para preço? |
+|---|---|---|
+| `product_intelligence` | idem acima | não |
+| `customer_intelligence` | idem acima | **não** |
+
+**O Dash não tem fonte comercial, por construção.** O bloco dele declara
+`nao_contem: [preço, lote, parcelamento, checkout, turma, disponibilidade]`.
+
+**Não há ferramenta de busca em nenhuma das duas rotas** (`tools: []`). O agente não
+consegue consultar nada além do que chega no contexto — é por isso que a regra de
+não prometer "confirmo e retorno" é executável e não apenas desejável.
+
+### 0.2 Onde este texto encosta no sistema real
 
 Conferido contra o Kit vivo em 20/10. Nada aqui propõe mudar o texto — são os
 lugares em que ele aponta para algo que precisa existir, ou em que o sistema o
@@ -107,9 +153,8 @@ precisa alcançar o interesse **lembrado**, não só o tema mencionado — o
 `playbook_institute` já tem a semente: *"Memória antiga é contexto, não prioridade
 automática."*
 
-**Ponto em aberto, de produto e provavelmente de privacidade:** a mesma pessoa tem
-`descadastramento` com confiança 0.9. Memória de descadastro deve virar restrição de
-conduta? Não é decisão de engenharia.
+**Ponto em aberto:** a mesma pessoa tem `descadastramento` com confiança 0.9. Virou
+pendência própria — §8.
 
 **Onde o texto já resolve um problema conhecido:** *"não resolva contradições
 escolhendo uma versão por conta própria"* generaliza o caso das duas políticas de
@@ -253,21 +298,34 @@ conversa.
 
 ---
 
-## 4. O que precisa ser decidido sobre o Dash, e eu não decido
+## 4. O encaminhamento do Dash — decidido em 20/10
 
-O `playbook_dash` manda "não prometa reunião, contato, proposta, encaminhamento ou
-retorno que o runtime não executa". Combinado com a decisão de 20/10 de que o Dash
-**responde consultivamente mas não vende**, sobra uma pergunta em aberto:
+**`needs_human` é o encaminhamento do Dash.** Quando o atendimento precisar do time,
+o turno vai com `needs_human`, e mais nada.
 
-**Quando alguém com fit real de Dash quiser falar com o time, o que o agente faz?**
+O que o playbook do Dash passa a dizer, e o que ele passa a proibir:
 
-Hoje não há resposta. Para o Institute existe o WhatsApp do time no catálogo; para o
-Dash, o Kit não traz contato nenhum. As saídas possíveis são de produto, não de
-engenharia, e nenhuma delas é minha:
+- **não inventar contato.** O Kit do Dash não traz telefone, e-mail nem link. O
+  WhatsApp que existe no catálogo é do time do **Institute** e não serve aqui;
+- **não prometer retorno.** Nem "alguém te chama", nem "te retorno", nem prazo;
+- **não afirmar que a transferência aconteceu.** O agente aciona `needs_human`; quem
+  entrega a conversa ao time é a integração, e isso não volta confirmado para o
+  runtime. Dizer "já te transferi" é afirmar um fato que o agente não tem.
 
-- a conversa termina em `needs_human` e alguém assume;
-- existe um contato do Dash a ser publicado no Kit, como o do Institute;
-- o Dash só qualifica e a pessoa é convidada a procurar por outro canal.
+A redação precisa separar o que o agente faz do que ele promete. Ele pode dizer que
+vai acionar o time; não pode dizer que o time recebeu.
+
+### Pendência de validação na Treble
+
+**A entrega ao time não está provada.** O runtime devolve `needs_human=true` no
+contrato público, mas o que a Treble faz com isso é configuração do fluxo dela,
+fora deste repositório — e o canal não encaminha ao agente desde 09/09, então nunca
+foi exercitado nesta configuração.
+
+Entra no roteiro do teste controlado: acionar `needs_human` por um número do time e
+confirmar, do outro lado, que a conversa chegou a uma pessoa. **Enquanto isso não
+for verificado, "o Dash encaminha ao time" é projeto, não fato** — e o playbook não
+pode afirmar o contrário ao cliente.
 
 ---
 
@@ -335,3 +393,166 @@ Seção por seção, escrita e revista por você antes de ir para a seguinte. De
 proposta de migration para `agentes.prompts`, **não aplicada**, junto com a baixa do
 `vendas_institute`. Nada vai ao banco sem o seu ok e sem a bateria com modelo real
 rodada contra o texto novo.
+
+---
+
+## 8. Pendência separada — o registro de descadastramento
+
+**Nenhuma preferência foi alterada e nenhuma regra foi implementada.** Abaixo, o que
+a leitura respondeu das quatro perguntas, e o que sobra para decisão.
+
+### O que já sei, lido de `intelligence.participante_memoria`
+
+| | |
+|---|---|
+| **origem** | `analise_concierge` — o analisador pós-turno, não o cliente escrevendo num formulário. Há um registro irmão de `analise_vendas_summit`: *"solicitou descadastramento logo após receber mensagem inicial sobre o Mind Summit 2026"* |
+| **data** | criado em **07/09/2026**; `last_seen_at` 07/09 16:30 |
+| **escopo** | `scope: "opportunity"` — oportunidade, não estável. `evidence_kind: explicit_statement`, **com** `evidencia_message_id`: existe a mensagem que originou |
+| **estado atual** | `status: ativa`, `valido_ate: null` (**não expira**), confiança 0.90 |
+
+### O que a leitura revelou e não era a pergunta
+
+**O descadastramento está gravado como `tipo: interesse`.** A mesma casa de
+"interesse em ingresso Prime" e "ingressos". Por isso ele chega ao agente dentro da
+lista `interests` do `customer_intelligence`, lado a lado com os interesses
+comerciais — e, para o modelo, aparece como *mais um interesse do cliente*.
+
+E `constraints` chega **vazio**. Ou seja: um pedido para parar de receber contato
+está sendo entregue ao agente como sinal de interesse, e não como restrição.
+
+### O que precisa ser decidido, e por quem
+
+1. **Um pedido de descadastro deve virar restrição?** Hoje não é. Se deve, a casa
+   provavelmente é `constraints`, não `interests` — e isso é taxonomia de memória,
+   Lane D (#42), não conduta de playbook.
+2. **Qual é o escopo do pedido?** Foi "pare de me mandar mensagem sobre o Summit" ou
+   "me tire da base"? O texto registrado não distingue, e a diferença muda tudo.
+3. **Um registro de 07/09 ainda vale hoje?** `valido_ate` é nulo, então pelo sistema
+   vale para sempre. Se deve expirar, é regra de memória, não de playbook.
+4. **Há obrigação legal associada?** Não sei, e não é minha avaliação.
+
+### O que entra no playbook agora, e é pequeno
+
+Só isto, que não depende de nenhuma das decisões acima:
+
+> **Um pedido explícito do cliente, na conversa atual, para parar de receber ofertas
+> deve ser respeitado imediatamente — sem negociar, sem recomendar nada e sem pedir
+> motivo.**
+
+O que **não** entra: qualquer conduta derivada de descadastro *lembrado*. Enquanto o
+registro estiver gravado como interesse e sem escopo claro, agir sobre ele seria
+implementar regra por suposição.
+
+---
+
+## 9. Árvore de recomendação do Institute — para revisarmos juntos
+
+**Rascunho. Não incorporado ao playbook.** É a tradução, para linguagem comercial,
+da árvore que hoje está dentro do `vendas_institute`. Não mudei nenhum critério:
+mudei a forma, e acrescentei os casos de **esclarecer** e de **não recomendar**, que
+lá não existiam.
+
+Os números continuam fora: quando a recomendação vier, preço e data saem do
+catálogo, na hora.
+
+### A pergunta que abre tudo
+
+Não é "qual é o seu cargo" nem "qual tema te interessa". É:
+
+> **O que precisa mudar no seu trabalho?**
+
+Cargo, ICP, tema e área não escolhem produto. Quem escolhe é a transformação
+desejada, a profundidade dela, o escopo e a urgência.
+
+### Quando recomendar — o que a pessoa descreve, e para onde leva
+
+| o que ela descreve | o caminho | por quê |
+|---|---|---|
+| "reajo antes de pensar", "centralizo tudo", "chego no fim do dia esgotado" | **Liderança Consciente** | o que precisa mudar acontece **dentro** dela |
+| "meu time não fala", "o erro só chega quando já é tarde", "ninguém discorda de mim", "adio conversa difícil" | **Segurança Psicológica** | o que precisa mudar é o que ela **produz no time** |
+| "as pessoas estão desengajadas", "propósito aqui é discurso", "ninguém vê sentido no que faz" | **Engajamento e Significado** | a mudança é de vínculo e contribuição |
+| descreve as três coisas, e lidera pessoas | **Certificação Avançada** | é o percurso que entrega as três formações |
+| "respondo pela agenda de bem-estar da empresa", fala de dados, orçamento, NR-1, fornecedores | **Especialização** | o objeto é a organização, não a própria liderança |
+| "quero continuar aprendendo", "quero acesso ao acervo", sem querer entrar numa formação | **Mind Journey** | continuidade, não formação estruturada |
+
+**A distinção que mais evita reembolso**, e que vale repetir em voz alta para a
+pessoa quando ela hesitar entre as duas:
+
+> Liderança Consciente trabalha **o que acontece dentro do líder**.
+> Segurança Psicológica trabalha **o que o líder produz no time**.
+
+**O corte da Especialização.** Quem chega querendo desenvolver a própria liderança
+**não** vai para a Especialização, mesmo tendo cargo sênior. Vai para a
+Certificação. A Especialização é para quem desenha e responde pela agenda da
+organização.
+
+#### Exemplo — recomendar
+
+> **Pessoa:** "Sou gerente e meu time não me traz problema nenhum. Descubro tudo
+> quando já virou crise."
+>
+> **Recomendar.** A necessidade está clara e tem fit direto: é o que o líder produz
+> no time. Responder nomeando o que ela descreveu, indicar Segurança Psicológica,
+> dizer o preço e as datas do catálogo e mandar a página.
+
+### Quando esclarecer — uma pergunta, e só uma
+
+Esclarecer **não** é qualificar. A pergunta só se justifica quando a resposta muda a
+recomendação. Se não muda, responda.
+
+| situação | a pergunta que resolve |
+|---|---|
+| descreve um tema sem dizer o que precisa mudar ("quero algo de liderança") | "o que você gostaria que estivesse diferente daqui a alguns meses?" |
+| a dor cabe em duas formações | a pergunta que separa **dentro do líder** × **o que o time produz** |
+| fala no plural sem dizer de quem é o problema ("precisamos melhorar o clima") | "isso é algo que você quer desenvolver, ou a organização precisa diagnosticar e medir?" — separa Institute de Dash |
+| quer "tudo", sem escopo | "você quer o percurso completo ou começar pela competência mais urgente?" — separa Certificação de avulsa |
+
+#### Exemplo — esclarecer
+
+> **Pessoa:** "Preciso de alguma coisa sobre cultura e liderança."
+>
+> **Esclarecer.** "Cultura e liderança" cabe em três caminhos diferentes. Uma
+> pergunta: isso é para você atuar melhor, ou para a organização diagnosticar e
+> mudar? Uma pergunta só — não três.
+
+### Quando NÃO recomendar
+
+**Responder sem oferecer produto é um resultado válido.** Estes são os casos:
+
+| situação | o que fazer |
+|---|---|
+| a pergunta é informacional ("vocês são de onde?", "quem é a Adriana Drulla?") | responder, e parar |
+| está pesquisando, comparando, ainda longe de decidir | responder bem e deixar a porta aberta, sem empurrar |
+| não há fit com nenhum eixo do Institute | dizer isso. Não existe "o mais próximo" |
+| o que ela precisa é transformação organizacional | é Dash — `next_route=dash` |
+| o que ela precisa é suporte, pagamento, acesso, titularidade | é o time — `needs_human` |
+| perguntou sobre o Summit | o Summit não está à venda. Encaminhamento, não substituição por outro produto |
+| pediu explicitamente para parar de receber ofertas | respeitar na hora, sem recomendar nada |
+| só o histórico sugere interesse; a mensagem atual não | **não recomendar.** Memória é contexto, não intenção |
+
+#### Exemplo — não recomendar
+
+> **Pessoa:** "Quais ferramentas vocês têm para trabalhar isso?"
+>
+> **Não recomendar ainda.** "Isso" não foi dito, e "ferramentas" não diz se é
+> formação, diagnóstico ou nenhum dos dois. Responder o que o Mind faz, em uma
+> frase, e perguntar o que precisa mudar. Oferecer um programa aqui é adivinhar.
+
+#### Exemplo — não recomendar, mesmo com o histórico puxando
+
+> **Histórico:** "ingressos" (0.9), "interesse em ingresso Prime" (0.9)
+> **Pessoa:** "Vocês têm algo sobre segurança psicológica?"
+>
+> **Responder a pergunta feita.** O histórico é de um produto que não está à venda e
+> não é o que ela perguntou agora. Não retomar oferta porque ela aparece no
+> histórico.
+
+### O que eu gostaria de revisar com você
+
+1. **A linguagem das dores** está como alguém descreveria de verdade, ou soou como
+   jargão?
+2. **As quatro perguntas de esclarecimento** são as certas? Em especial a que separa
+   Institute de Dash — ela é a que mais vai rodar.
+3. **Falta algum caso de "não recomendar"** que você já viu acontecer?
+4. **O corte da Especialização** está forte o bastante? Hoje é a regra que o
+   `vendas_institute` diz que mais evita reembolso.

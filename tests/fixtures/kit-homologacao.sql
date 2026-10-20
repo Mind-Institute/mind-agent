@@ -16,9 +16,27 @@
 --         require("fs").writeFileSync("tests/fixtures/kit-homologacao.json",
 --           JSON.stringify(JSON.parse(s),null,2)))'
 --
--- A conversa usada é apenas um ancoradouro para o Kit resolver contexto; nada é
--- escrito, e nenhum dado pessoal entra na fixture (os blocos de Kit são catálogo e
--- inteligência de produto, não ficha de pessoa). Confira isso ao regenerar.
+-- A conversa usada é apenas um ancoradouro para o Kit resolver contexto, e nada é
+-- escrito.
+--
+-- ATENÇÃO — `customer_intelligence` NÃO PODE IR PARA A FIXTURE.
+--
+-- Ele é o único bloco por PESSOA: traz cargo, ICP, empresa e o histórico de
+-- interesses com data, de um indivíduo identificável. A primeira versão desta
+-- fixture o incluiu por descuido, e com ele foram para o repositório o cargo
+-- ("Gerente de CRM"), o ICP e cinco interesses datados de uma pessoa real —
+-- inclusive um pedido de descadastramento.
+--
+-- Por isso o `- 'customer_intelligence'` abaixo: o bloco é removido na origem, e a
+-- bateria usa no lugar um perfil SINTÉTICO, escrito à mão em
+-- `kit-homologacao.json`, com a mesma forma e nenhuma pessoa dentro. O perfil
+-- sintético preserva de propósito um interesse lembrado em Summit, porque é
+-- exatamente isso que a homologação precisa exercitar.
+--
+-- Ao regenerar: confira que o bloco continua fora e reponha o sintético.
+
+-- Os demais blocos (catálogo, inteligência de produto) são informação de produto,
+-- não ficha de pessoa, e podem ser versionados.
 
 with c as (
   select id from engagement.conversas
@@ -29,8 +47,11 @@ with c as (
 select jsonb_pretty(jsonb_build_object(
   'gerado_em',   now()::text,
   'fonte',       'mind_agent_kit(rota, conversa, {}) no projeto ymnmotgglsrxmjmonwjz',
-  'institute',   public.mind_agent_kit('institute', (select id from c), '{}'::jsonb),
-  'dash',        public.mind_agent_kit('dash',      (select id from c), '{}'::jsonb),
+  -- `#-` remove o bloco por pessoa ANTES de ele sair do banco.
+  'institute',   public.mind_agent_kit('institute', (select id from c), '{}'::jsonb)
+                   #- '{structured,customer_intelligence}',
+  'dash',        public.mind_agent_kit('dash',      (select id from c), '{}'::jsonb)
+                   #- '{structured,customer_intelligence}',
   'canal_rotas', public.mind_canal_rotas('whatsapp'),
   'gate', jsonb_build_object(
      'institute',       public.mind_rota_capacidade('institute','whatsapp'),
