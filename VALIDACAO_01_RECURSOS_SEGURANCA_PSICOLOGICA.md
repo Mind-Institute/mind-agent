@@ -197,8 +197,13 @@ Ou seja: a ligação tem lastro no Kit, **não na página**. E o `product_intell
 não atribui a capacidade a esta formação em particular.
 
 → **O B1 não pode dizer que essas atividades são sobre conduzir conversas
-difíceis.** Pode dizer que esta é a formação do tema — isso o subtítulo do Kit
-sustenta — e listar o que o conteúdo prevê, sem amarrar uma coisa à outra.
+difíceis.**
+
+**E também não pode usar o subtítulo para dizer que esta é "a formação que trata
+disso".** Eu havia concluído isso aqui, e estava errado: o subtítulo descreve a
+formação, não afirma que ela é adequada a essa necessidade. **A adequação é a
+pergunta 1 do §4** e depende de resposta de quem responde pelo programa — não se
+deduz de campo nenhum, nem se resolve procurando as palavras certas na página.
 
 ---
 
@@ -219,16 +224,42 @@ sustenta — e listar o que o conteúdo prevê, sem amarrar uma coisa à outra.
 
 ---
 
-## 4. A pergunta para o responsável pelo programa
+## 4. As duas perguntas para o responsável pelo programa
 
-Uma só, e é esta:
+São **duas questões distintas**, e precisam ser respondidas separadamente: uma é de
+**adequação**, a outra é de **conteúdo da edição**. Responder a segunda não responde
+a primeira.
 
-> **Essas atividades estão previstas na edição que vamos oferecer, e quais materiais
-> ou instrumentos o participante recebe e pode utilizar depois da formação?**
+> **1. Essa formação é adequada para quem quer desenvolver a condução de conversas
+> difíceis? Como ela trabalha essa necessidade?**
 
-Ela resolve as duas coisas que faltam de uma vez: a **vigência** do que a página
-descreve, e a distinção entre **atividade feita durante** e **material que fica** —
-que é justamente onde eu tinha extrapolado na primeira versão.
+> **2. Quais atividades e materiais estão previstos na edição oferecida, e o que o
+> participante pode utilizar depois?**
+
+### Por que a 1 existe, e por que eu não podia resolvê-la sozinho
+
+Na revisão anterior eu escrevi que a resposta candidata podia "nomear a formação
+pelo subtítulo do Kit — isso o subtítulo sustenta". **Estava errado.**
+
+O subtítulo — *"Crie condições para que ideias, dúvidas e dificuldades entrem em
+conversa"* — **descreve a formação**. Ele não afirma que ela é adequada para quem
+quer desenvolver a condução de conversas difíceis. Tratar os dois como a mesma coisa
+é deduzir encaixe a partir de uma frase de posicionamento, que é exatamente o que
+não se deve fazer.
+
+**E o problema não se resolve procurando as palavras certas na página.** Não
+precisamos que a página diga "conversas difíceis". Precisamos de uma **descrição
+validada da aplicação** — alguém que responda pelo programa dizendo se a formação
+serve a essa necessidade e de que maneira. Isso não se infere de campo nenhum.
+
+### O que a 2 preserva
+
+Os trechos já confirmados no §2B — *"Experimentar situações práticas por meio de
+estudos de caso e role play"* e *"Participar de uma simulação de feedback de
+liderança"* — **continuam valendo como evidência de atividades previstas**. A
+pergunta 2 confirma a vigência delas na edição oferecida e separa o que é atividade
+durante do que é material que fica. **Nada disso vira promessa de instrumento
+entregue.**
 
 ---
 

@@ -707,7 +707,16 @@ tivesse dito o que quer, não se pergunta.
 > https://joinmind.com.br/conteudo-programatico/seguranca-psicologica-aplicada-a-inovacao
 > (turma de 2027, sujeito a ajustes)
 
-**Resposta candidata. Pendente da validação 01 — não aprovada.**
+**NÃO APROVADA. Bloqueada na pergunta 1 da validação 01.**
+
+A primeira frase — "a formação que trata disso é…" — **afirma uma adequação que
+ainda não foi confirmada**. Eu a tinha justificado pelo subtítulo do Kit, e isso não
+basta: o subtítulo descreve a formação, não diz que ela serve a quem quer
+desenvolver a condução de conversas difíceis. Enquanto a pergunta 1 não for
+respondida, **esta abertura não pode ser usada**.
+
+O resto da resposta — as atividades previstas — tem lastro literal e fica preservado
+como evidência, **sem virar promessa de instrumento entregue**.
 
 **Só ficou o que tem trecho literal por trás.** O lastro de cada frase está em
 `VALIDACAO_01_RECURSOS_SEGURANCA_PSICOLOGICA.md` §2B.

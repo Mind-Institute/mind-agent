@@ -250,7 +250,8 @@ precisam de revisão antes de entrar no playbook novo.
 
 | # | questão | estado |
 |---|---|---|
-| **01** | **recursos práticos da formação de Segurança Psicológica** | **em validação** — `VALIDACAO_01_RECURSOS_SEGURANCA_PSICOLOGICA.md` |
+| **01a** | **a formação é adequada a quem quer desenvolver a condução de conversas difíceis? Como trabalha essa necessidade?** | **aguardando o responsável pelo programa** |
+| **01b** | **quais atividades e materiais estão previstos na edição oferecida, e o que o participante pode utilizar depois?** | **aguardando o responsável pelo programa** |
 | 02 | os temas dos encontros podem descrever o conteúdo previsto? (vigência) | aguarda a 01 |
 | 03 | a Certificação herda os encontros das três formações? | aberta |
 | 04 | carga horária da Especialização | aberta — não estimar |
