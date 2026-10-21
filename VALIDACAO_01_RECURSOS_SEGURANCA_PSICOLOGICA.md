@@ -147,6 +147,61 @@ como resposta única.
 
 ---
 
+## 2B. Lastro de cada afirmação do B1 — conferido palavra por palavra
+
+Antes de fechar o B1, fui verificar na página **o trecho exato** que sustenta cada
+coisa que a resposta candidata dizia. Três afirmações caíram.
+
+### ✅ Sustentado — trecho literal
+
+| afirmação | trecho exato da página | onde |
+|---|---|---|
+| estudos de caso e role play | *"Experimentar situações práticas por meio de estudos de caso e role play."* · e no resumo: *"Estudos de caso e role play"* | Módulo II |
+| simulação de feedback de liderança | *"Participar de uma simulação de feedback de liderança."* | Módulo III |
+
+### ⏳ Pendente — interpretação minha, **retirado da resposta candidata**
+
+**1. A finalidade atribuída aos protocolos de Edmondson e aos 4 estágios de Clark.**
+
+A página cita os dois **só como nomes numa lista de destaques do módulo**:
+
+> "Ciclo de aprendizagem em grupo · Estudos de caso e role play · **Protocolos de
+> Edmondson** · **Clark · 4 estágios** · COPSOQ e NR-1 · Team Survey · Jazz
+> Dialogues"
+
+As frases de finalidade que existem no mesmo módulo — *"Aplicar protocolos de
+medição em nível de grupo"* e *"Aplicar ferramentas para compreender o nível de
+segurança psicológica da equipe"* — **não estão atribuídas a eles**. Dizer que
+"servem para ler o ambiente antes de agir, não para conduzir a conversa" foi
+**inferência minha**, somada ao que eu sei desses frameworks por fora. Não vale.
+
+→ **O parágrafo inteiro sai do B1.**
+
+*(Nota: "Edmondson" também aparece na bio da formadora — "Mentorada por Amy
+Edmondson e Peter Senge" —, que é outro fato, de outra validação.)*
+
+**2. A ligação entre essas atividades e "conversas difíceis".**
+
+**A palavra "conversa" não aparece uma única vez na página.** "difícil" e
+"dificuldade", nenhuma vez. A página fala de segurança psicológica, voz ativa,
+confiança, aprendizagem e feedback — **nunca de conversa difícil**.
+
+De onde vinha a ligação que eu fiz:
+
+| fonte | o que diz |
+|---|---|
+| 🟦 Kit, `subtitulo` | "Crie condições para que ideias, dúvidas e **dificuldades entrem em conversa**" |
+| 🟦 Kit, `product_intelligence` | capacidade do Institute: "desenvolver segurança psicológica, voz ativa e **conversas difíceis**" — mas é do Institute **como um todo**, não desta formação |
+
+Ou seja: a ligação tem lastro no Kit, **não na página**. E o `product_intelligence`
+não atribui a capacidade a esta formação em particular.
+
+→ **O B1 não pode dizer que essas atividades são sobre conduzir conversas
+difíceis.** Pode dizer que esta é a formação do tema — isso o subtítulo do Kit
+sustenta — e listar o que o conteúdo prevê, sem amarrar uma coisa à outra.
+
+---
+
 ## 3. O que precisa da sua decisão
 
 1. **A página de conteúdo programático é fonte aprovada para o agente?** Ela é
@@ -177,7 +232,16 @@ que é justamente onde eu tinha extrapolado na primeira versão.
 
 ---
 
-## 5. O que isto muda nas outras pendências
+## 5. Etapa pausada aqui
+
+**Esta etapa para neste ponto**, aguardando a resposta do responsável pelo programa
+à pergunta do §4. Sem novas rodadas de reescrita e sem avançar para os outros
+programas.
+
+A Proposta A (§2) e a resposta candidata do B1 ficam como **rascunho para
+validação** — não aprovados, não incorporados, não levados à fixture.
+
+## 6. O que isto muda nas outras pendências
 
 - **A lacuna do §9.7 do rascunho muda de natureza.** Não é "não existe ferramenta":
   é "o Kit não alcança o conteúdo programático". A solução provável deixa de ser

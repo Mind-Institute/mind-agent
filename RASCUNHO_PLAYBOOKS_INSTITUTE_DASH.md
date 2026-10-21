@@ -695,44 +695,39 @@ tivesse dito o que quer, não se pergunta.
 
 > **Pessoa:** Quais ferramentas vocês têm para trabalhar isso?
 
-> **MIA:** O conteúdo programático dessa turma prevê prática em cima disso: estudos
-> de caso e role play sobre situações de equipe, e uma simulação de feedback de
+> **MIA:** A formação que trata disso é a Segurança Psicológica Aplicada a
+> Resultados e Inovação — ela é sobre criar condições para que ideias, dúvidas e
+> dificuldades entrem em conversa.
+>
+> O conteúdo programático dessa turma prevê experimentar situações práticas por
+> meio de estudos de caso e role play, e participar de uma simulação de feedback de
 > liderança.
 >
-> Há também protocolos para medir o nível de segurança psicológica do time — os de
-> Edmondson e os 4 estágios de Clark. Eles servem para ler o ambiente antes de
-> agir, não para conduzir a conversa em si.
->
-> O programa completo está aqui, se quiser ver:
+> O programa completo está aqui:
 > https://joinmind.com.br/conteudo-programatico/seguranca-psicologica-aplicada-a-inovacao
 > (turma de 2027, sujeito a ajustes)
 
-**Depende da validação 01.** Enquanto a vigência não for confirmada, este texto é
-rascunho.
+**Resposta candidata. Pendente da validação 01 — não aprovada.**
 
-**O critério:** dois recursos pertinentes ao que ela trouxe, não a lista inteira.
-Jazz Dialogues, Team Survey, Matrix of Change e o plano 30-60-90 estão no conteúdo
-e **ficaram de fora**: ou não servem para conduzir uma conversa, ou a fonte não diz
-para que servem.
+**Só ficou o que tem trecho literal por trás.** O lastro de cada frase está em
+`VALIDACAO_01_RECURSOS_SEGURANCA_PSICOLOGICA.md` §2B.
 
-**As escolhas de redação, uma a uma:**
+**Duas coisas saíram depois da conferência palavra por palavra:**
 
-- **"prevê prática em cima disso"**, não "você vai sair sabendo". A fonte lista
-  objetivos de aprendizagem, não promessa de resultado;
-- **o terceiro parágrafo limita o alcance do que cita.** Edmondson e Clark são
-  nomeados porque são pertinentes — ela quer agir sobre conversas no time — e vêm
-  com a finalidade explicada **e com o limite**: servem para ler, não para
-  conduzir. Presumir que todo instrumento citado serve para a conversa seria vender
-  a mais;
-- **COPSOQ e NR-1 não aparecem.** Estão no conteúdo, mas são diagnóstico
-  organizacional. Citá-los numa pergunta sobre conversa difícil arrisca soar como
-  conformidade, que a formação não entrega;
-- **a ressalva é uma linha entre parênteses**, não um aviso. E vinculada à edição;
-- continuam fora carga, modalidade, preço, horário e credencial: ela não perguntou,
-  e os três últimos ainda nem foram validados.
+1. **O parágrafo sobre Edmondson e Clark.** A página cita os dois **só como nomes**
+   numa lista de destaques. As frases de finalidade do módulo não estão atribuídas
+   a eles — dizer "servem para ler o ambiente, não para conduzir a conversa" era
+   inferência minha.
+2. **A amarração entre as atividades e "conversas difíceis".** A palavra "conversa"
+   **não aparece uma vez sequer** na página; "difícil" e "dificuldade", nenhuma. A
+   ligação vinha do Kit — do subtítulo da formação e de uma capacidade do Institute
+   **como um todo** —, não da página. Por isso a resposta agora **nomeia a formação
+   pelo subtítulo do Kit** e lista o que o conteúdo prevê, **sem dizer que aquelas
+   atividades são sobre conduzir conversas difíceis**.
 
-Ver a Parte II do inventário: acervo, credencial e prazo de acesso são recursos da
-contratação, não resposta sobre conversas difíceis.
+O que já estava certo e continua: nada de carga, modalidade, preço, horário ou
+credencial; COPSOQ e NR-1 fora, porque são diagnóstico organizacional e arriscam
+soar como conformidade; e a ressalva como uma linha, vinculada à edição.
 
 ---
 
