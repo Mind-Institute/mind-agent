@@ -13,6 +13,7 @@ import type {
 import { useAtualizar, useCriar, useItem, useLista } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
+import { Playground } from '@/components/admin/playground';
 import { DialogoConfirmacao } from '@/components/admin/dialogos';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -247,6 +248,7 @@ function PainelDoAgente({
           <TabsTrigger value="skills">Skills</TabsTrigger>
           <TabsTrigger value="dados">Dados oficiais</TabsTrigger>
           <TabsTrigger value="canais">Canais</TabsTrigger>
+          <TabsTrigger value="playground">Playground</TabsTrigger>
         </TabsList>
         <TabsContent value="instrucoes" className="pt-4">
           <SecaoInstrucoes agente={agente} prompts={prompts} />
@@ -262,6 +264,9 @@ function PainelDoAgente({
         </TabsContent>
         <TabsContent value="canais" className="pt-4">
           <SecaoCanais agente={agente} canais={canais} />
+        </TabsContent>
+        <TabsContent value="playground" className="pt-4">
+          <Playground agente={agente} rotulo={rotuloAgente(agente)} />
         </TabsContent>
       </Tabs>
     </div>

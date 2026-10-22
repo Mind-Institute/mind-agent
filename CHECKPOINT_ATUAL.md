@@ -65,10 +65,25 @@
     (v11) era idêntico ao do repositório antes desta mudança. Até publicar os dois, os interruptores
     "roteador pode escolher" e "entradas diretas" ficam gravados mas o runtime ainda usa as listas
     antigas do código (que coincidem com o semeado).
-- Pedidos da Adriana aprovados em 22/10 e ainda por fazer: Playground por agente (mesmo motor do chat
-  em modo teste, fora de análise/memória/HubSpot, mesmo com agente desligado), conversas reais por
-  agente (só administrador, sem telefone/e-mail) e menu da Análise pós-conversa (prompts, liga/desliga
-  por agente via `agentes.rotas.analisa_conversas`, últimas execuções e o que gravou; versionar a
+- **Fase 3 — Playground por agente** (aprovado pela Adriana, 22/10; migration `20261022140000`):
+  - `mindagent_playground_start(auth_user, token_hash, rota)`: só administrador ativo; abre uma conversa
+    nova (dispositivo próprio `playground:<uuid>`) com `agente = 'mindagent-playground'` e
+    `variables = {teste, rota_ativa}`. Esse `agente` é o que a deixa fora de `analise_pendentes` e,
+    por consequência, da memória, da continuidade e do HubSpot. `mindagent_chat_get_context` devolve
+    também `agente` (chave a mais, o chat v48 no ar ignora).
+  - `mindagent-chat` 1.16.0 (**versionado, NÃO publicado**): `playground.rota` na abertura chama a porta
+    de teste; nos turnos, `modoTeste = contexto.agente === 'mindagent-playground'` (nunca o corpo).
+    Em teste: a `rota_ativa` vale mesmo fora do canal, o Gate tolera só `canal_incompativel` (playbook
+    e dados oficiais continuam obrigatórios), nada sobre a pessoa é gravado (identidade, perfil,
+    interesses, checkout); as mensagens da conversa de teste são gravadas. Resposta ganha `teste`,
+    `rota_origem` e `ferramentas`. Testes: `tests/playground_modo_teste.test.mjs`.
+  - Painel: aba **Playground** na ficha do agente (`components/admin/playground.tsx`), chamando a
+    `mindagent-chat` com o token do admin. Só funciona depois de publicar o chat 1.16.0. Conferir na
+    publicação que `MINDAGENT_ALLOWED_ORIGINS` (se configurado) inclui a origem do painel.
+  - Para testar a MIA hoje: ligar o playbook dela na aba Instruções (os canais podem ficar desligados).
+- Pedidos da Adriana aprovados em 22/10 e ainda por fazer: conversas reais por agente (só
+  administrador, sem telefone/e-mail) e menu da Análise pós-conversa (prompts, liga/desliga por agente
+  via `agentes.rotas.analisa_conversas`, últimas execuções e o que gravou; versionar a
   `analisar-conversa` e corrigir a reclassificação a cada 15 min).
 - Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
   (P6), identidade (P7) e teste com perguntas reais (P8).

@@ -100,6 +100,11 @@ function respostasPadrao() {
       expires_at: '2026-09-01T12:00:00+00:00',
     },
     mindagent_chat_bind_identity: { found: true, conflict: false },
+    // Conversa de teste do Playground: o banco só abre para administrador.
+    mindagent_playground_start: (args) => ({
+      session_id: randomUUID(), conversation_id: randomUUID(), participant_id: PESSOA_ID,
+      rota: args.p_rota, expires_at: '2026-09-01T12:00:00+00:00',
+    }),
     mindagent_chat_get_context: {
       participant_profile: {
         participant_id: PESSOA_ID,

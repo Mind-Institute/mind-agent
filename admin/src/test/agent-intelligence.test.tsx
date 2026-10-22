@@ -362,3 +362,90 @@ describe('gerar embeddings do Summit', () => {
     expect(await screen.findByRole('button', { name: 'Gerar embeddings do Summit' })).toBeDisabled();
   });
 });
+
+describe('playground', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('abre uma conversa de teste com o agente e mostra o que ele respondeu e usou', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://test.supabase.co');
+    const pedidos: { url: string; corpo: Record<string, unknown>; token: string | null }[] = [];
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith('/admin/me')) {
+        return new Response(JSON.stringify({ papel: 'administrador', nome: 'Teste' }), { status: 200 });
+      }
+      const corpo = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      pedidos.push({ url: String(url), corpo, token: new Headers(init?.headers).get('Authorization') });
+      return new Response(JSON.stringify({
+        ok: true, answer: 'A palestra disse que liderança começa pelo descanso.',
+        session: { id: 's1', conversation_id: 'c1', token: 't1' }, device_id: 'd1',
+        rota: 'mia_summit_2026', rota_origem: 'rota_ativa', teste: true,
+        ferramentas: [{ nome: 'buscar_intelligence', ok: true }],
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchImpl);
+    renderizarPainel({
+      rota: '/agent-intelligence',
+      porta: criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE }),
+      baseUrlApi: 'https://test.supabase.co/functions/v1/admin',
+      fetchImpl,
+      provedor: provedorComAgentes(),
+    });
+
+    const grupo = await screen.findByRole('group', { name: 'Agentes' });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'MIA Summit 2026' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Playground' }));
+    await userEvent.type(await screen.findByLabelText('Sua mensagem'), 'O que disseram sobre burnout?');
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+
+    expect(await screen.findByText('A palestra disse que liderança começa pelo descanso.')).toBeInTheDocument();
+    expect(screen.getByText('respondeu: mia_summit_2026')).toBeInTheDocument();
+    expect(screen.getByText('skill: buscar_intelligence')).toBeInTheDocument();
+    expect(pedidos).toHaveLength(1);
+    expect(pedidos[0].url).toBe('https://test.supabase.co/functions/v1/mindagent-chat');
+    expect(pedidos[0].token).toBe(`Bearer ${SESSAO_DE_TESTE.accessToken}`);
+    expect(pedidos[0].corpo.playground).toEqual({ rota: 'mia_summit_2026' });
+    expect(pedidos[0].corpo.session).toBeUndefined();
+
+    /* A segunda mensagem segue na mesma conversa de teste. */
+    await userEvent.type(screen.getByLabelText('Sua mensagem'), 'E sobre liderança?');
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+    await waitFor(() => expect(pedidos).toHaveLength(2));
+    expect(pedidos[1].corpo.session).toEqual({ id: 's1', conversation_id: 'c1', token: 't1' });
+    expect(pedidos[1].corpo.playground).toBeUndefined();
+  });
+
+  it('explica quando o agente não tem o que precisa para responder', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://test.supabase.co');
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).endsWith('/admin/me')) {
+        return new Response(JSON.stringify({ papel: 'administrador', nome: 'Teste' }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ ok: false, error: { code: 'rota_indisponivel', message: 'x' } }), { status: 503 });
+    });
+    vi.stubGlobal('fetch', fetchImpl);
+    renderizarPainel({
+      rota: '/agent-intelligence',
+      porta: criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE }),
+      baseUrlApi: 'https://test.supabase.co/functions/v1/admin',
+      fetchImpl,
+      provedor: provedorComAgentes(),
+    });
+    const grupo = await screen.findByRole('group', { name: 'Agentes' });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'MIA Summit 2026' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Playground' }));
+    await userEvent.type(await screen.findByLabelText('Sua mensagem'), 'oi');
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+    expect(await screen.findByText(/confira na aba Instruções se o playbook está ligado/)).toBeInTheDocument();
+  });
+
+  it('quem não é administrador não testa', async () => {
+    renderizarPainel({ rota: '/agent-intelligence', papel: 'editor', provedor: provedorComAgentes() });
+    const grupo = await screen.findByRole('group', { name: 'Agentes' });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'MIA Summit 2026' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Playground' }));
+    expect(await screen.findByLabelText('Sua mensagem')).toBeDisabled();
+  });
+});
