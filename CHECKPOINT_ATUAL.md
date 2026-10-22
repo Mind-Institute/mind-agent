@@ -47,10 +47,29 @@
     desligado deixa a conversa na fila e o classificador roda de novo a cada 15 min (BACKLOG §18.1).
     O cron `silence_reavaliar` está desligado;
   - `intelligence.config` guarda segredos em texto legível por qualquer leitor SQL.
-- Pedidos da Adriana ainda em desenho, para aprovação: menu Canais e Roteador (o que acontece em cada
-  entrada, quem atende, para quem o roteador pode passar, com liga/desliga por canal), Playground por
-  agente, histórico de conversas reais por agente e menu da Análise pós-conversa (prompts, liga/desliga
-  por agente, últimas execuções e o que gravou).
+- **Fase 2 — Canais e Roteador** (aprovada pela Adriana, 22/10; migration `20261022133526`,
+  `mindagent-knowledge` v11 / 1.4.0):
+  - `agentes.rotas` (D2): cadastro dos agentes — nome, "o que faz" (editável na ficha do agente) e
+    `analisa_conversas` (ainda sem efeito; é para o menu da Análise). `canal_competencia.rota` referencia.
+  - `agentes.canal_competencia` ganha `roteavel` (o roteador pode escolher este agente neste canal) e
+    `entradas_diretas` (entradas que abrem direto nele). Semeado igual ao código de antes: as 6 rotas da
+    lista fixa do `router` roteáveis onde já estavam; `mind_summit_app → concierge_summit` no app.
+  - `mind_canal_rotas` devolve `roteaveis`; `mind_origem_rota(origem, canal)` é a porta direta.
+    `mind_admin_update_agent_channel` ganhou assinatura de 7 parâmetros; a de 5 ficou e só repassa.
+  - Tela `/canais` (Canais e Roteador): por canal, por onde a pessoa chega (entradas do WhatsApp em
+    `engagement.origens`, só leitura; portas diretas do app), quem atende primeiro, "roteador pode
+    escolher", entradas diretas por agente e o prompt `router_universal` editável.
+  - **Código versionado, ainda NÃO publicado (deploy controlado, CLAUDE.md):** `router` 1.3.0 lê
+    `roteaveis` e não tem mais lista própria (`tests/router_politica.test.mjs`); `mindagent-chat`
+    1.15.0 lê a porta direta por `mind_origem_rota` em vez de `ROTA_POR_ORIGEM`. O `router` no ar
+    (v11) era idêntico ao do repositório antes desta mudança. Até publicar os dois, os interruptores
+    "roteador pode escolher" e "entradas diretas" ficam gravados mas o runtime ainda usa as listas
+    antigas do código (que coincidem com o semeado).
+- Pedidos da Adriana aprovados em 22/10 e ainda por fazer: Playground por agente (mesmo motor do chat
+  em modo teste, fora de análise/memória/HubSpot, mesmo com agente desligado), conversas reais por
+  agente (só administrador, sem telefone/e-mail) e menu da Análise pós-conversa (prompts, liga/desliga
+  por agente via `agentes.rotas.analisa_conversas`, últimas execuções e o que gravou; versionar a
+  `analisar-conversa` e corrigir a reclassificação a cada 15 min).
 - Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
   (P6), identidade (P7) e teste com perguntas reais (P8).
 

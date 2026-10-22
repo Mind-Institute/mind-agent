@@ -55,6 +55,7 @@ describe('encaminhamento', () => {
       'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
       'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
       'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
+      'agents', 'channel_entries',
     ]);
     /* O schema `catalogo` inteiro na mesma função: produtos, ofertas e cupons. */
     expect([...RECURSOS_DO_CATALOGO]).toEqual(['products', 'offers', 'coupons']);
@@ -65,6 +66,7 @@ describe('encaminhamento', () => {
       'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
       'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
       'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
+      'agents', 'channel_entries',
     ]);
   });
 

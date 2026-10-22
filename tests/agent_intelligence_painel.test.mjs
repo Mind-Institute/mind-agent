@@ -60,6 +60,8 @@ test('lista canais, kit e prompts pelas portas de leitura', async () => {
     ['/admin/agent_prompts', 'mind_admin_read_agent_prompts'],
     ['/admin/agent_instructions', 'mind_admin_read_agent_instructions'],
     ['/admin/agent_tools', 'mind_admin_read_agent_tools'],
+    ['/admin/agents', 'mind_admin_read_agents'],
+    ['/admin/channel_entries', 'mind_admin_read_channel_entries'],
   ]) {
     const r = await call({ path, role: 'analista' });
     assert.equal(r.status, 200);
@@ -82,6 +84,7 @@ for (const role of ['editor', 'aprovador', 'analista']) {
       ['PATCH', '/admin/agent_channels/mindagent-web%3A%3Amia_summit_2026'],
       ['POST', '/admin/agent_instructions'],
       ['PATCH', '/admin/agent_tools/buscar_intelligence'],
+      ['PATCH', '/admin/agents/mia_summit_2026'],
     ]) {
       const r = await call({ method, path, role, body: { ativo: true } });
       assert.equal(r.status, 403);
@@ -136,13 +139,55 @@ test('bloco sem agente ou sem nome não chega ao banco', async () => {
   assert.equal(r.rpcs.length, 0);
 });
 
-test('ligar canal repassa o canal::rota da URL', async () => {
+test('ligar canal repassa o canal::rota da URL e não toca no que não veio', async () => {
   const r = await call({ method: 'PATCH', path: '/admin/agent_channels/mindagent-web%3A%3Amia_summit_2026', body: { ativo: true } });
   assert.equal(r.status, 200);
-  assert.equal(r.rpcs[0].nome, 'mind_admin_update_agent_channel');
-  assert.equal(r.rpcs[0].args.p_id, 'mindagent-web::mia_summit_2026');
-  assert.equal(r.rpcs[0].args.p_ativo, true);
-  assert.equal(r.rpcs[0].args.p_observacao, null);
+  assert.deepEqual(r.rpcs, [{
+    nome: 'mind_admin_update_agent_channel',
+    args: {
+      p_id: 'mindagent-web::mia_summit_2026', p_ativo: true, p_roteavel: null, p_entradas_diretas: null,
+      p_observacao: null, p_ator: USUARIO, p_atualizado_em_esperado: null,
+    },
+  }]);
+});
+
+/* Canais e Roteador (Adriana, 22/10/2026): o roteador pode escolher este agente
+   neste canal, e quais entradas abrem direto nele. */
+test('roteador e entradas diretas vão ao banco como vieram', async () => {
+  const r = await call({
+    method: 'PATCH', path: '/admin/agent_channels/mindagent-web%3A%3Amia_summit_2026',
+    body: { roteavel: true, entradasDiretas: ['institute_learnworlds', 7, 'mind_summit_app'] },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.rpcs[0].args.p_roteavel, true);
+  assert.deepEqual(r.rpcs[0].args.p_entradas_diretas, ['institute_learnworlds', 'mind_summit_app']);
+  assert.equal(r.rpcs[0].args.p_ativo, null);
+});
+
+test('entrada que já abre em outro agente volta com a frase certa', async () => {
+  const r = await call({
+    method: 'PATCH', path: '/admin/agent_channels/mindagent-web%3A%3Amia_summit_2026',
+    body: { entradasDiretas: ['mind_summit_app'] },
+    rpcError: { code: '22023', message: 'admin_validation:entrada_em_uso' },
+  });
+  assert.equal(r.status, 422);
+  assert.match(r.body.mensagem, /já abre em outro agente/);
+});
+
+test('o cadastro do agente (nome e o que faz) repassa o usuário e a versão esperada', async () => {
+  const r = await call({
+    method: 'PATCH', path: '/admin/agents/mia_summit_2026',
+    body: { nome: 'MIA Summit 2026', descricao: 'Orienta a partir das palestras.' },
+    headers: { 'If-Unmodified-Since-Version': '2026-10-22T13:35:26+00:00' },
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.rpcs, [{
+    nome: 'mind_admin_update_agent',
+    args: {
+      p_rota: 'mia_summit_2026', p_nome: 'MIA Summit 2026', p_descricao: 'Orienta a partir das palestras.',
+      p_ator: USUARIO, p_atualizado_em_esperado: '2026-10-22T13:35:26+00:00',
+    },
+  }]);
 });
 
 for (const [nome, error, status] of [

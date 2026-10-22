@@ -19,8 +19,11 @@
      GET   /admin/customer_intelligence
      GET   /admin/agent_intelligence_access
      PATCH /admin/agent_intelligence_access/:id
+     GET   /admin/agents                    cadastro dos agentes (agentes.rotas): nome e o que faz
+     PATCH /admin/agents/:rota
      GET   /admin/agent_channels            canais de cada agente (agentes.canal_competencia)
-     PATCH /admin/agent_channels/:canal::rota
+     PATCH /admin/agent_channels/:canal::rota  atende, roteador pode escolher, entradas diretas
+     GET   /admin/channel_entries           as entradas do WhatsApp (engagement.origens), só leitura
      GET   /admin/agent_kit_blocks          kit de cada agente (agentes.kit_blocos)
      POST  /admin/agent_kit_blocks          acrescenta a um agente um bloco que já existe
      PATCH /admin/agent_kit_blocks/:rota::bloco
@@ -58,7 +61,9 @@ const RECURSOS = {
   business_intelligence: { ler: "mind_admin_read_business_intelligence", idParam: "p_id" },
   customer_intelligence: { ler: "mind_admin_read_customer_intelligence", idParam: "p_id" },
   agent_intelligence_access: { ler: "mind_admin_read_agent_intelligence_access", idParam: "p_id" },
+  agents: { ler: "mind_admin_read_agents", idParam: "p_id" },
   agent_channels: { ler: "mind_admin_read_agent_channels", idParam: "p_id" },
+  channel_entries: { ler: "mind_admin_read_channel_entries", idParam: "p_id" },
   agent_kit_blocks: { ler: "mind_admin_read_agent_kit", idParam: "p_id" },
   agent_prompts: { ler: "mind_admin_read_agent_prompts", idParam: "p_id" },
   agent_instructions: { ler: "mind_admin_read_agent_instructions", idParam: "p_id" },
@@ -79,6 +84,12 @@ function recusaDaEscrita(error: { code?: string; message?: string }, oQue: strin
   }
   if (m.includes("admin_validation:chave_existe")) {
     return { status: 422, corpo: { codigo: "validacao", mensagem: "Já existe um texto com essa chave. Escolha outra." } };
+  }
+  if (m.includes("admin_validation:entrada_em_uso")) {
+    return { status: 422, corpo: { codigo: "validacao", mensagem: "Essa entrada já abre em outro agente neste canal. Uma entrada abre em um agente só." } };
+  }
+  if (m.includes("admin_validation:entrada")) {
+    return { status: 422, corpo: { codigo: "validacao", mensagem: "Código de entrada inválido: letras minúsculas, números e _ (ex.: mind_summit_app)." } };
   }
   if (m.includes("admin_validation") || error.code === "22023") {
     return { status: 422, corpo: { codigo: "validacao", mensagem: "Revise os campos antes de salvar." } };
@@ -209,7 +220,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.3.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.4.0" }, requestId);
   }
   if (!origemPermitida(req.headers.get("Origin"))) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
@@ -445,7 +456,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const escritaDoAgente =
-    (req.method === "PATCH" && id && ["agent_channels", "agent_kit_blocks", "agent_prompts", "agent_tools"].includes(nome ?? "")) ||
+    (req.method === "PATCH" && id && ["agents", "agent_channels", "agent_kit_blocks", "agent_prompts", "agent_tools"].includes(nome ?? "")) ||
     (req.method === "POST" && !id && ["agent_kit_blocks", "agent_instructions"].includes(nome ?? ""));
   if (escritaDoAgente) {
     if (acesso.role !== "administrador") {
@@ -461,11 +472,29 @@ Deno.serve(async (req: Request) => {
 
     let resultado;
     let oQue: string;
-    if (nome === "agent_channels") {
+    if (nome === "agents") {
+      oQue = "o cadastro do agente";
+      const descricao = texto(payload.descricao);
+      if (descricao !== null && descricao.length > 4_000) {
+        return json(req, 422, { codigo: "validacao", mensagem: "A descrição passou de 4 mil caracteres." }, requestId);
+      }
+      resultado = await segredo.rpc("mind_admin_update_agent", {
+        p_rota: id,
+        p_nome: texto(payload.nome),
+        p_descricao: descricao,
+        p_ator: usuario.user.id,
+        p_atualizado_em_esperado: esperado,
+      });
+    } else if (nome === "agent_channels") {
       oQue = "os canais";
+      const entradas = Array.isArray(payload.entradasDiretas)
+        ? payload.entradasDiretas.filter((e): e is string => typeof e === "string").slice(0, 50)
+        : null;
       resultado = await segredo.rpc("mind_admin_update_agent_channel", {
         p_id: id,
         p_ativo: booleano(payload.ativo),
+        p_roteavel: booleano(payload.roteavel),
+        p_entradas_diretas: entradas,
         p_observacao: texto(payload.observacao),
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: esperado,

@@ -17,9 +17,9 @@ import { SESSAO_DE_TESTE, criarPortaFalsa, renderizarPainel } from './utils';
 const QUANDO = '2026-10-22T12:05:12.019284+00:00';
 
 const CANAIS: AgentChannel[] = [
-  { id: 'mindagent-web::mia_summit_2026', canal: 'mindagent-web', rota: 'mia_summit_2026', ativo: false, observacao: 'Nasce desligado.', atualizadoEm: QUANDO },
-  { id: 'whatsapp::mia_summit_2026', canal: 'whatsapp', rota: 'mia_summit_2026', ativo: false, observacao: null, atualizadoEm: QUANDO },
-  { id: 'mindagent-web::concierge_summit', canal: 'mindagent-web', rota: 'concierge_summit', ativo: true, observacao: null, atualizadoEm: QUANDO },
+  { id: 'mindagent-web::mia_summit_2026', canal: 'mindagent-web', rota: 'mia_summit_2026', ativo: false, roteavel: false, entradasDiretas: [], observacao: 'Nasce desligado.', atualizadoEm: QUANDO },
+  { id: 'whatsapp::mia_summit_2026', canal: 'whatsapp', rota: 'mia_summit_2026', ativo: false, roteavel: false, entradasDiretas: [], observacao: null, atualizadoEm: QUANDO },
+  { id: 'mindagent-web::concierge_summit', canal: 'mindagent-web', rota: 'concierge_summit', ativo: true, roteavel: true, entradasDiretas: ['mind_summit_app'], observacao: null, atualizadoEm: QUANDO },
 ];
 
 const KIT: AgentKitBlock[] = [

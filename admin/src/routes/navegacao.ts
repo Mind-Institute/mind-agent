@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, Radio, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -95,6 +95,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/agent-intelligence',
         icone: Bot,
         descricao: 'Matriz Agent × Knowledge para Global, Business e Customer Intelligence.',
+      },
+      {
+        id: 'canais',
+        rotulo: 'Canais e Roteador',
+        caminho: '/canais',
+        icone: Radio,
+        descricao: 'Por onde a pessoa chega em cada canal, quem atende primeiro e para quem o roteador pode passar.',
       },
     ],
   },

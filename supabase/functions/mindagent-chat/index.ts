@@ -57,7 +57,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.14.0";
+const VERSION = "1.15.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -106,12 +106,11 @@ function journeySignals(value: unknown) {
 // não há o que decidir aqui.
 //
 // Isto é orquestração, não política de canal: `agentes.canal_competencia` continua
-// dizendo o que o canal PODE servir, e o Gate continua confirmando se executa. Esta
-// tabela responde outra pergunta — "esta entrada já vem com a competência definida?".
-// Uma entrada só; se um dia houver outra, ela nasce aqui.
-const ROTA_POR_ORIGEM: Record<string, string> = {
-  mind_summit_app: "concierge_summit",
-};
+// dizendo o que o canal PODE servir, e o Gate continua confirmando se executa. A
+// pergunta "esta entrada já vem com a competência definida?" tinha resposta fixa
+// aqui (`mind_summit_app → concierge_summit`); desde 22/10/2026 ela mora em
+// `agentes.canal_competencia.entradas_diretas`, lida por `mind_origem_rota`, e o
+// painel (Canais e Roteador) é quem liga e desliga (Adriana).
 
 // Código de origem é identificador, não texto livre — mesmo formato que o banco valida.
 const ORIGEM_CODIGO_RE = /^[a-z][a-z0-9_]{1,59}$/;
@@ -1078,7 +1077,12 @@ Deno.serve(async (req: Request) => {
     const origemDaConversa = typeof sessionContext.origem_codigo === "string"
       ? sessionContext.origem_codigo.trim()
       : "";
-    const rotaAutoritativa = ROTA_POR_ORIGEM[origemDaConversa] ?? null;
+    // A porta direta desta entrada neste canal, ou nada. Falha na leitura é "nada":
+    // o Router decide, como em qualquer entrada sem porta.
+    const { data: portaDireta } = origemDaConversa
+      ? await admin.rpc("mind_origem_rota", { p_origem: origemDaConversa, p_canal: CANAL })
+      : { data: null };
+    const rotaAutoritativa = typeof portaDireta === "string" && portaDireta ? portaDireta : null;
 
     // O UNIVERSO DE COMPETÊNCIAS DESTE CANAL, vindo do banco. Serve para duas coisas:
     // montar o enum de `next_route` e conferir uma `rota_ativa` persistida. Uma lista

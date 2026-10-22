@@ -48,5 +48,7 @@ export function criarBanco(): BancoMock {
     agent_prompts: [],
     agent_instructions: [],
     agent_tools: [],
+    agents: [],
+    channel_entries: [],
   };
 }

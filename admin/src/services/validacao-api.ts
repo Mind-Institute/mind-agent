@@ -17,6 +17,8 @@ import {
   agentPromptSchema,
   agentInstructionsSchema,
   agentToolSchema,
+  agentSchema,
+  channelEntrySchema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -63,6 +65,8 @@ const SCHEMAS = {
   agent_prompts: agentPromptSchema,
   agent_instructions: agentInstructionsSchema,
   agent_tools: agentToolSchema,
+  agents: agentSchema,
+  channel_entries: channelEntrySchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

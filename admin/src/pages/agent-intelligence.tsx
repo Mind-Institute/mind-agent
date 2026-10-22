@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Bot, Database, FileText, History, Plus, Radio, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
 import type {
+  Agent,
   AgentChannel,
   AgentInstructionPart,
   AgentInstructions,
@@ -67,7 +68,17 @@ const ROTULO_SECAO: Record<string, string> = {
   decisioning: 'Decisioning',
 };
 
+/* Os nomes vêm do cadastro (`agentes.rotas`) quando a tela os carrega; a lista
+   fixa é só o reserva para o que ainda não está cadastrado. */
+const NOMES_CADASTRADOS = new Map<string, string>();
+
+export function registrarNomesDeAgentes(agentes: Agent[]) {
+  for (const a of agentes) NOMES_CADASTRADOS.set(a.rota, a.nome);
+}
+
 export function rotuloAgente(chave: string) {
+  const cadastrado = NOMES_CADASTRADOS.get(chave);
+  if (cadastrado) return cadastrado;
   return ROTULO_AGENTE[chave] ?? chave;
 }
 
@@ -90,6 +101,8 @@ export function PaginaAgentIntelligence() {
   const kit = useLista('agent_kit_blocks', { porPagina: 500 });
   const prompts = useLista('agent_prompts', { porPagina: 500 });
   const instrucoes = useLista('agent_instructions', { porPagina: 500 });
+  const cadastro = useLista('agents', { porPagina: 500 });
+  registrarNomesDeAgentes(cadastro.data?.itens ?? []);
 
   /* Agente é o que tem canal, kit ou linha na matriz. `knowledge_admin` é a
      persona técnica do playground de busca, não um agente que conversa. */
@@ -104,8 +117,8 @@ export function PaginaAgentIntelligence() {
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const agente = escolhido && agentes.includes(escolhido) ? escolhido : agentes[0] ?? null;
 
-  const carregando = matriz.isLoading || canais.isLoading || kit.isLoading || prompts.isLoading || instrucoes.isLoading;
-  const erroLeitura = [matriz.error, canais.error, kit.error, prompts.error, instrucoes.error].find(Boolean);
+  const carregando = matriz.isLoading || canais.isLoading || kit.isLoading || prompts.isLoading || instrucoes.isLoading || cadastro.isLoading;
+  const erroLeitura = [matriz.error, canais.error, kit.error, prompts.error, instrucoes.error, cadastro.error].find(Boolean);
 
   return (
     <div className="space-y-6">
@@ -153,6 +166,7 @@ export function PaginaAgentIntelligence() {
                     kit={kit.data?.itens ?? []}
                     prompts={prompts.data?.itens ?? []}
                     instrucoes={(instrucoes.data?.itens ?? []).find((x) => x.rota === agente) ?? null}
+                    cadastro={(cadastro.data?.itens ?? []).find((x) => x.rota === agente) ?? null}
                   />
                 ) : null}
               </>
@@ -179,6 +193,7 @@ function PainelDoAgente({
   kit,
   prompts,
   instrucoes,
+  cadastro,
 }: {
   agente: string;
   matriz: AgentIntelligenceAccess[];
@@ -187,6 +202,7 @@ function PainelDoAgente({
   kit: AgentKitBlock[];
   prompts: AgentPrompt[];
   instrucoes: AgentInstructions | null;
+  cadastro: Agent | null;
 }) {
   const blocos = kit.filter((b) => b.rota === agente);
   const playbook = prompts.find((p) => p.chave === `playbook_${agente}`);
@@ -207,17 +223,20 @@ function PainelDoAgente({
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 py-4 text-sm">
-          <Bot className="size-4 shrink-0" />
-          <span className="font-semibold">{rotuloAgente(agente)}</span>
-          {pendencias.length === 0 ? (
-            <Badge variant="sucesso">Atendendo em {canaisLigados.map((c) => rotuloCanal(c.canal)).join(' e ')}</Badge>
-          ) : (
-            <>
-              <Badge variant="neutro">Não atende</Badge>
-              <span className="text-muted-foreground">Porque {pendencias.join(', ')}.</span>
-            </>
-          )}
+        <CardContent className="space-y-3 py-4 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <Bot className="size-4 shrink-0" />
+            <span className="font-semibold">{rotuloAgente(agente)}</span>
+            {pendencias.length === 0 ? (
+              <Badge variant="sucesso">Atendendo em {canaisLigados.map((c) => rotuloCanal(c.canal)).join(' e ')}</Badge>
+            ) : (
+              <>
+                <Badge variant="neutro">Não atende</Badge>
+                <span className="text-muted-foreground">Porque {pendencias.join(', ')}.</span>
+              </>
+            )}
+          </div>
+          {cadastro ? <OQueFaz cadastro={cadastro} /> : null}
         </CardContent>
       </Card>
 
@@ -245,6 +264,50 @@ function PainelDoAgente({
           <SecaoCanais agente={agente} canais={canais} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/* "O que este agente faz", nas palavras da Adriana (agentes.rotas.descricao). */
+function OQueFaz({ cadastro }: { cadastro: Agent }) {
+  const sessao = useSessao();
+  const podeEditar = sessao.pode('configurar');
+  const atualizar = useAtualizar('agents');
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState(cadastro.descricao ?? '');
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function salvar() {
+    setErro(null);
+    try {
+      await atualizar.mutateAsync({ id: cadastro.id, payload: { descricao: texto }, opcoes: { atualizadoEmEsperado: cadastro.atualizadoEm } });
+      setEditando(false);
+    } catch (e) {
+      setErro(mensagemDe(e));
+    }
+  }
+
+  if (editando) {
+    return (
+      <div className="space-y-2">
+        <MensagemErro texto={erro} />
+        <Label htmlFor={`o-que-faz-${cadastro.rota}`}>O que este agente faz</Label>
+        <Textarea id={`o-que-faz-${cadastro.rota}`} value={texto} onChange={(e) => setTexto(e.target.value)} className="min-h-20" />
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => void salvar()} disabled={atualizar.isPending}>Salvar</Button>
+          <Button size="sm" variant="outline" onClick={() => { setTexto(cadastro.descricao ?? ''); setEditando(false); }}>Cancelar</Button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-start gap-2 text-muted-foreground">
+      <span>{cadastro.descricao ?? 'Ainda sem descrição do que este agente faz.'}</span>
+      {podeEditar ? (
+        <Button size="sm" variant="ghost" className="h-auto px-1 py-0" onClick={() => setEditando(true)}>
+          {cadastro.descricao ? 'Editar' : 'Descrever'}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -1020,7 +1083,7 @@ function EditorFerramenta({ nome }: { nome: string }) {
   );
 }
 
-function EditorPrompt({
+export function EditorPrompt({
   chave,
   aviso = null,
   rotuloAtivo = (ativo) => (ativo ? 'Ligado: o agente usa este prompt' : 'Desligado: o agente não usa este prompt'),

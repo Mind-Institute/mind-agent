@@ -16,10 +16,42 @@ export const agentChannelSchema = z.object({
   canal: z.string().min(1),
   rota: z.string().min(1),
   ativo: z.boolean(),
+  /** O roteador pode escolher este agente neste canal. */
+  roteavel: z.boolean().default(false),
+  /** Entradas (origem_codigo) deste canal que abrem a conversa direto neste agente. */
+  entradasDiretas: z.array(z.string()).default([]),
   observacao: z.string().nullable().default(null),
   atualizadoEm: z.string().min(1),
 });
 export type AgentChannel = z.infer<typeof agentChannelSchema>;
+
+/** `agentes.rotas`: o cadastro de cada agente — nome e o que ele faz. */
+export const agentSchema = z.object({
+  /** A rota. */
+  id: z.string().min(1),
+  rota: z.string().min(1),
+  nome: z.string().min(1),
+  descricao: z.string().nullable().default(null),
+  /** As conversas deste agente passam pela análise pós-conversa. */
+  analisaConversas: z.boolean().default(true),
+  atualizadoEm: z.string().min(1),
+});
+export type Agent = z.infer<typeof agentSchema>;
+
+/** `engagement.origens`: por onde a pessoa chega ao WhatsApp (botões e popups do site). Só leitura. */
+export const channelEntrySchema = z.object({
+  /** O código da origem. */
+  id: z.string().min(1),
+  codigo: z.string().min(1),
+  canal: z.string().min(1),
+  site: z.string().nullable().default(null),
+  rotulo: z.string().nullable().default(null),
+  descricao: z.string().nullable().default(null),
+  audienciaSugerida: z.string().nullable().default(null),
+  ativo: z.boolean(),
+  atualizadoEm: z.string().min(1),
+});
+export type ChannelEntry = z.infer<typeof channelEntrySchema>;
 
 /** `agentes.kit_blocos`: as informações e ferramentas que o agente recebe. */
 export const agentKitBlockSchema = z.object({

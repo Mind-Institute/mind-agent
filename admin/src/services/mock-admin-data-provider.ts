@@ -47,6 +47,8 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   agent_prompts: ['chave', 'titulo', 'conteudo', 'rota'],
   agent_instructions: ['rota'],
   agent_tools: ['nome', 'descricao'],
+  agents: ['rota', 'nome', 'descricao'],
+  channel_entries: ['codigo', 'rotulo', 'descricao'],
 };
 
 /* O que o banco preenche ao criar, para a linha nova aparecer inteira na
