@@ -42,6 +42,7 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   business_intelligence: ['collectionKey', 'collectionName', 'knowledgeType', 'vertical', 'sourceSchema', 'sourceTable', 'description'],
   customer_intelligence: ['collectionKey', 'collectionName', 'intelligenceType', 'sourceSchema', 'sourceTable', 'description', 'purposes'],
   agent_intelligence_access: ['agentKey', 'namespace', 'knowledgeKey', 'knowledgeName', 'ownerScope'],
+  agent_runtime: ['agentKey'],
 };
 
 /* O que o banco preenche ao criar, para a linha nova aparecer inteira na

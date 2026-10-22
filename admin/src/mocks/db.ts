@@ -43,5 +43,6 @@ export function criarBanco(): BancoMock {
     business_intelligence: [],
     customer_intelligence: [],
     agent_intelligence_access: [],
+    agent_runtime: [],
   };
 }
