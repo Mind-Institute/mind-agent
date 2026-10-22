@@ -185,7 +185,7 @@ test('o cadastro do agente (nome e o que faz) repassa o usuário e a versão esp
     nome: 'mind_admin_update_agent',
     args: {
       p_rota: 'mia_summit_2026', p_nome: 'MIA Summit 2026', p_descricao: 'Orienta a partir das palestras.',
-      p_ator: USUARIO, p_atualizado_em_esperado: '2026-10-22T13:35:26+00:00',
+      p_analisa_conversas: null, p_ator: USUARIO, p_atualizado_em_esperado: '2026-10-22T13:35:26+00:00',
     },
   }]);
 });
@@ -256,6 +256,21 @@ test('descrição gigante de ferramenta é recusada antes do banco', async () =>
 
 /* Conversas reais (Adriana, 22/10/2026): só administrador; a porta do banco já
    mascara telefone e e-mail. */
+test('desligar a análise de um agente vai ao banco como booleano', async () => {
+  const r = await call({ method: 'PATCH', path: '/admin/agents/mia_summit_2026', body: { analisaConversas: false } });
+  assert.equal(r.status, 200);
+  assert.equal(r.rpcs[0].args.p_analisa_conversas, false);
+  assert.equal(r.rpcs[0].args.p_nome, null);
+});
+
+test('execuções da análise: só administrador lê', async () => {
+  const r = await call({ path: '/admin/analysis_runs' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.rpcs, [{ nome: 'mind_admin_read_analysis_runs', args: { p_id: null } }]);
+  const outro = await call({ path: '/admin/analysis_runs', role: 'editor' });
+  assert.equal(outro.status, 403);
+});
+
 test('conversas reais: administrador lista e abre; os outros papéis não veem', async () => {
   const lista = await call({ path: '/admin/agent_conversations' });
   assert.equal(lista.status, 200);

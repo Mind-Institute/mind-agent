@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, Radio, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -102,6 +102,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/canais',
         icone: Radio,
         descricao: 'Por onde a pessoa chega em cada canal, quem atende primeiro e para quem o roteador pode passar.',
+      },
+      {
+        id: 'analise',
+        rotulo: 'Análise pós-conversa',
+        caminho: '/analise',
+        icone: ScanSearch,
+        descricao: 'O que roda depois de cada conversa: prompts, liga/desliga por agente, últimas execuções e o que gravou.',
       },
     ],
   },

@@ -81,10 +81,28 @@
     `mindagent-chat` com o token do admin. Só funciona depois de publicar o chat 1.16.0. Conferir na
     publicação que `MINDAGENT_ALLOWED_ORIGINS` (se configurado) inclui a origem do painel.
   - Para testar a MIA hoje: ligar o playbook dela na aba Instruções (os canais podem ficar desligados).
-- Pedidos da Adriana aprovados em 22/10 e ainda por fazer: conversas reais por agente (só
-  administrador, sem telefone/e-mail) e menu da Análise pós-conversa (prompts, liga/desliga por agente
-  via `agentes.rotas.analisa_conversas`, últimas execuções e o que gravou; versionar a
-  `analisar-conversa` e corrigir a reclassificação a cada 15 min).
+- **Fase 4 — Conversas reais por agente** (aprovada pela Adriana, 22/10: só administrador, sem
+  telefone/e-mail; migrations `20261022140302` e `20261022140901`; `mindagent-knowledge` 1.5.0):
+  `mind_admin_read_agent_conversations(p_id)` lista as conversas dos últimos 90 dias atendidas por
+  agente nosso (`mindagent-chat`, `treble-inbound-agent`, `mindagent-playground`), com quem respondeu
+  cada fala (`blocos.rota_aplicada`/`rota`), skills, modelo, tempo e as análises. Nunca seleciona
+  telefone/e-mail e mascara o que aparecer nos textos e nos JSONs das análises
+  (`mind_admin_mascarar_contato`: e-mail e 10+ dígitos; `mind_admin_mascarar_jsonb` só em strings —
+  número JSON cru não é mascarado). Aba Conversas na ficha do agente. Conversas dos fluxos da Treble
+  (sem agente nosso) ficam de fora.
+- **Fase 5 — Análise pós-conversa** (aprovada pela Adriana, 22/10; migration `20261022141316`;
+  `mindagent-knowledge` 1.6.0; `analisar-conversa` v17 versionada em `supabase/functions/analisar-conversa/`):
+  - `analise_pendentes` honra `agentes.rotas.analisa_conversas` pelo último agente que respondeu
+    (fluxos da Treble, sem agente, continuam entrando). A fila tinha 2 conversas sem agente no
+    momento, então o interruptor foi conferido pela lógica, não por conversa real.
+  - `analisar-conversa` v17: conversa sem nenhum analisador ativo recebe a marca `sem_analisador`
+    (`analise_gravar` com dados vazios) e sai da fila até mensagem nova — conserto do BACKLOG §18.1.
+  - `mind_admin_read_analysis_runs` (só administrador, mascarado): últimas execuções, conclusão e as
+    memórias que cada uma gravou. `mind_admin_update_agent` ganhou `p_analisa_conversas`.
+  - Tela `/analise`: prompts da análise (editáveis, com histórico), liga/desliga por agente, últimas
+    execuções e o que gravaram.
+  - Não mexido: o cron `analise_conversas` sem `timeout_milliseconds` (pg_net responde timeout em 5 s
+    e registra como erro, embora a função termine); `silence_reavaliar` continua desligado.
 - Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
   (P6), identidade (P7) e teste com perguntas reais (P8).
 

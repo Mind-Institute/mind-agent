@@ -206,3 +206,31 @@ export const agentConversationSchema = z.object({
   analises: z.array(agentConversationAnalysisSchema).default([]),
 });
 export type AgentConversation = z.infer<typeof agentConversationSchema>;
+
+/** Uma execução da análise pós-conversa (`intelligence.analise_conversa`) e o que ela gravou. Só administrador. */
+export const analysisRunSchema = z.object({
+  id: z.string().min(1),
+  conversaId: z.string().min(1),
+  analisador: z.string().min(1),
+  funcao: z.string().nullable().default(null),
+  vertical: z.string().nullable().default(null),
+  modelo: z.string().nullable().default(null),
+  promptVersao: z.number().int().nullable().default(null),
+  analisadoEm: z.string().min(1),
+  canal: z.string().nullable().default(null),
+  agente: z.string().nullable().default(null),
+  rota: z.string().nullable().default(null),
+  primeiroNome: z.string().nullable().default(null),
+  memoriasGravadas: z.number().int().default(0),
+  continuidade: z.string().nullable().default(null),
+  /** Só ao abrir uma execução; mascarado. */
+  dados: z.unknown().nullable().optional(),
+  memorias: z.array(z.object({
+    tipo: z.string().nullable().default(null),
+    chave: z.string().nullable().default(null),
+    status: z.string().nullable().default(null),
+    confianca: z.number().nullable().default(null),
+    valor: z.unknown().optional(),
+  })).default([]),
+});
+export type AnalysisRun = z.infer<typeof analysisRunSchema>;
