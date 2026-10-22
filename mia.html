@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#13131a" />
+<meta name="color-scheme" content="dark" />
+<meta name="robots" content="noindex" />
+<title>MIA · Mind Summit 2026</title>
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+<link rel="apple-touch-icon" href="./assets/simbolo-mind-verde.png" />
+<link rel="stylesheet" href="./styles.css" />
+<link rel="stylesheet" href="./mia/mia.css" />
+</head>
+<body class="mia">
+
+  <!-- ============================================================
+       A MIA, SOZINHA
+       ============================================================
+       A página da MIA Summit 2026, a orientadora de conteúdo do Summit.
+       Existe para viver dentro da escola do Mind Institute no
+       LearnWorlds, por embed (`/mia`). Só a escola pode enquadrá-la —
+       quem diz isso é o Worker (`politicaDeEnquadramento`).
+
+       POR QUE UMA PÁGINA, E NÃO O APP DO SUMMIT: o app é o concierge do
+       evento, com home, agenda e tour que aqui não fazem sentido. Mesma
+       razão da `avaliacao.html`.
+
+       O QUE ELA NÃO DUPLICA: o motor da conversa. Importa o MESMO
+       `chat-service.js` do app — sessão anônima, renovação, segunda
+       chance. O que ela tem de seu é a porta de entrada
+       (`institute_learnworlds`), que faz o banco abrir a conversa direto
+       na MIA, e a sessão de conversa separada da do concierge.
+
+       Sem identidade por enquanto: e-mail na URL não prova quem é a
+       pessoa (P7 em SUMMIT_2026_AGENTE_CONTEUDO_PROPOSTA.md). -->
+  <section class="vista ativa" id="vista-mia">
+    <div class="c-topo">
+      <span class="avatar"><img src="./assets/simbolo-mind-verde.png" alt="" /></span>
+      <div>
+        <strong>MIA</strong>
+        <small>Conteúdo do Mind Summit 2026</small>
+      </div>
+    </div>
+
+    <div class="mensagens" id="mia-mensagens" aria-live="polite"></div>
+
+    <div class="mia-sugestoes" id="mia-sugestoes"></div>
+
+    <div class="doca">
+      <form id="mia-form">
+        <textarea id="mia-campo" rows="1" maxlength="1200"
+          placeholder="Pergunte sobre as sessões…"
+          enterkeyhint="send" aria-label="Sua mensagem para a MIA"></textarea>
+        <button type="submit" class="enviar" aria-label="Enviar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+        </button>
+      </form>
+      <p class="mia-aviso">A MIA responde a partir das sessões do Mind Summit 2026 e pode errar.
+        Não substitui acompanhamento profissional. Precisa de ajuda agora? CVV&nbsp;188.</p>
+    </div>
+  </section>
+
+<script type="module" src="./mia/mia.js"></script>
+
+</body>
+</html>

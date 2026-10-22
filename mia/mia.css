@@ -1,0 +1,74 @@
+/* ============================================================
+   MIA — o que a página `/mia` tem de diferente do chat do app
+   ============================================================
+   A casca (`.vista`, `.c-topo`, `.mensagens`, `.bolha`, `.doca`) vem de
+   `styles.css`, igual à do app. Aqui fica só o que muda, e só sob
+   `body.mia` / `#vista-mia`: esta folha não alcança outra tela.
+*/
+
+/* No LearnWorlds a página costuma abrir larga, no computador. A coluna de
+   480px do app deixaria metade do quadro vazio; 760px ainda é linha
+   confortável de ler, e no celular nada muda. */
+body.mia { max-width: 760px; }
+
+#vista-mia .bolha a { color: var(--verde); text-decoration: underline; }
+#vista-mia .bolha strong { color: var(--texto); font-weight: 700; }
+
+#vista-mia .mia-buscando {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--texto-mudo);
+}
+
+/* ---------- Começos de pergunta ---------- */
+#vista-mia .mia-sugestoes {
+  flex: none;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 0 var(--pad) 8px;
+}
+#vista-mia .mia-sugestoes[hidden] { display: none; }
+#vista-mia .mia-sugestoes button {
+  appearance: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 500;
+  color: var(--texto-suave);
+  background: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--raio-pill);
+  padding: 8px 14px;
+}
+#vista-mia .mia-sugestoes button:hover { border-color: var(--verde); color: var(--texto); }
+#vista-mia .mia-sugestoes button:focus-visible { outline: 2px solid var(--acao); outline-offset: 2px; }
+
+/* ---------- O campo ----------
+   Mesmo convite do app (creme da marca, botão escuro dentro), mas em
+   várias linhas: aqui a pessoa descreve uma situação, não pergunta onde
+   fica o banheiro. O botão desce junto com o texto, em vez de ficar no
+   meio de um campo alto. */
+#vista-mia .doca textarea {
+  flex: 1; min-width: 0;
+  display: block;
+  resize: none;
+  background: var(--amarelo);
+  border: 1px solid color-mix(in srgb, var(--amarelo) 82%, #000);
+  border-radius: 27px;
+  color: var(--bg);
+  /* 16px: abaixo disso o iOS amplia a página ao focar. */
+  font: inherit; font-size: 16px; line-height: 1.5;
+  padding: 14px 62px 14px 20px;
+  min-height: 54px; max-height: 160px;
+  outline: none;
+}
+#vista-mia .doca textarea::placeholder { color: color-mix(in srgb, var(--bg) 62%, transparent); }
+#vista-mia .doca textarea:focus { border-color: var(--bg); }
+#vista-mia .doca .enviar { top: auto; bottom: 7px; transform: none; }
+
+#vista-mia .mia-aviso {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px; line-height: 1.4;
+  color: var(--texto-mudo);
+}
+/* Com o teclado aberto, cada linha conta: a conversa vem antes do aviso. */
+html[data-teclado="aberto"] #vista-mia .mia-aviso,
+html[data-teclado="aberto"] #vista-mia .mia-sugestoes { display: none; }

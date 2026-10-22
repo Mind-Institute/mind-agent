@@ -7,17 +7,60 @@ const CHAVES = {
   device: PREFIXO + 'device-id',
 };
 
+/* A porta de entrada fixa de uma página com agente próprio. Nula no app,
+   onde quem diz a porta é a URL (`obterOrigemCodigo`). */
+let ORIGEM_DA_PAGINA = null;
+
+/* SEM ARMAZENAMENTO, A CONVERSA CONTINUA. Dentro do iframe de outro site
+   (a MIA no LearnWorlds), o navegador pode negar o `localStorage` — aba
+   anônima, bloqueio de terceiros — e aí o acesso LANÇA erro em vez de
+   devolver vazio. A primeira mensagem morria antes de sair. A memória da
+   página é o piso: a conversa vale até recarregar, que é o que o
+   navegador permitiu. */
+const ARMAZEM = (() => {
+  try {
+    const teste = PREFIXO + 'teste';
+    localStorage.setItem(teste, '1');
+    localStorage.removeItem(teste);
+    return localStorage;
+  } catch {
+    const memoria = new Map();
+    return {
+      getItem: (chave) => (memoria.has(chave) ? memoria.get(chave) : null),
+      setItem: (chave, valor) => { memoria.set(chave, String(valor)); },
+      removeItem: (chave) => { memoria.delete(chave); },
+    };
+  }
+})();
+
 function ler(chave) {
-  try { return JSON.parse(localStorage.getItem(chave)); }
+  try { return JSON.parse(ARMAZEM.getItem(chave)); }
   catch { return null; }
 }
 
 function salvar(chave, valor) {
-  localStorage.setItem(chave, JSON.stringify(valor));
+  ARMAZEM.setItem(chave, JSON.stringify(valor));
 }
 
 function remover(chave) {
-  localStorage.removeItem(chave);
+  ARMAZEM.removeItem(chave);
+}
+
+/**
+ * UMA CONVERSA SÓ DA PÁGINA, aberta pela porta dela.
+ *
+ * A porta de entrada só vale na ABERTURA da conversa — depois o banco não
+ * a reescreve. E a sessão guardada aponta para uma conversa já aberta. Uma
+ * página com agente próprio que reaproveitasse a sessão do app continuaria
+ * a conversa do concierge, e a porta dela nunca seria lida. Por isso a
+ * sessão da conversa ganha chave própria; a identidade anônima e o
+ * aparelho continuam os mesmos, porque são da pessoa, não da conversa.
+ *
+ * Chamar uma vez, antes da primeira mensagem.
+ */
+export function conversaPropria(espaco, origemCodigo) {
+  CHAVES.session = PREFIXO + espaco + ':chat-session';
+  ORIGEM_DA_PAGINA = origemCodigo;
 }
 
 function id() {
@@ -29,10 +72,10 @@ function id() {
 }
 
 function dispositivo() {
-  let atual = localStorage.getItem(CHAVES.device);
+  let atual = ARMAZEM.getItem(CHAVES.device);
   if (!atual) {
     atual = id();
-    localStorage.setItem(CHAVES.device, atual);
+    ARMAZEM.setItem(CHAVES.device, atual);
   }
   return atual;
 }
@@ -145,7 +188,7 @@ async function chamar(message, clientMessageId, extra) {
           identity: identidade(),
           /* Porta de entrada, não identidade. Só tem efeito na abertura da
              conversa — depois disso o banco já gravou e não reescreve. */
-          origem_codigo: obterOrigemCodigo() || undefined,
+          origem_codigo: ORIGEM_DA_PAGINA || obterOrigemCodigo() || undefined,
           ...(extra || {}),
         }),
         cache: 'no-store',
