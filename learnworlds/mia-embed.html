@@ -11,10 +11,18 @@
     Com o canal da MIA desligado, a porta não vale e o roteador decide.
   - A chave abaixo é a publishable key do Supabase, pública por construção.
     Nenhum segredo aqui.
-  - Sem identidade: e-mail vindo do navegador não prova quem é a pessoa (P7).
+  - Quem está logado: o LearnWorlds troca {{USER.EMAIL}}, {{USER.NAME}} e {{USER.ID}}
+    pelos dados da pessoa ao abrir a página. O chat liga a conversa a ela pela porta
+    única de identidade. Não é assinado; confiar no LearnWorlds foi decisão da Adriana
+    (22/10/2026). Fora do LearnWorlds as variáveis não são trocadas e a conversa fica anônima.
   - Tudo tem prefixo `mia-`, para não mexer no visual da página do LearnWorlds.
 -->
 <div id="mia-lw" class="mia-lw">
+  <!-- Quem está logado: o LearnWorlds troca as variáveis ao abrir a página. Ficam em
+       elementos escondidos, e não no script, para um nome com apóstrofo não quebrar o código. -->
+  <span hidden data-mia="email">{{USER.EMAIL}}</span>
+  <span hidden data-mia="nome">{{USER.NAME}}</span>
+  <span hidden data-mia="id">{{USER.ID}}</span>
   <div class="mia-topo">
     <span class="mia-avatar" aria-hidden="true">M</span>
     <div>
@@ -125,6 +133,24 @@
   var EVENTO = 'mind-summit-2026';
   var PREFIXO = 'mia-lw:';
 
+  /* Quem está logado no LearnWorlds. Sem troca (fora da escola), as variáveis
+     chegam como estão e não passam na conferência: a conversa fica anônima. */
+  function variavel(nome) {
+    var el = document.querySelector('#mia-lw [data-mia="' + nome + '"]');
+    return el ? String(el.textContent || '') : '';
+  }
+  var LW = { email: variavel('email'), nome: variavel('nome'), id: variavel('id') };
+  var emailOk = /^[^\s@{}]+@[^\s@{}]+\.[^\s@{}]{2,}$/.test(LW.email.trim());
+  var nomeOk = LW.nome.trim() !== '' && LW.nome.indexOf('{{') < 0;
+  var idOk = /^[A-Za-z0-9_-]{6,64}$/.test(LW.id.trim());
+  var IDENTIDADE = emailOk ? {
+    email: LW.email.trim().toLowerCase(),
+    name: nomeOk ? LW.nome.trim().slice(0, 80) : undefined,
+    source: 'learnworlds',
+    learnworlds_user_id: idOk ? LW.id.trim() : undefined,
+  } : undefined;
+  var PRIMEIRO_NOME = nomeOk ? LW.nome.trim().split(/\s+/)[0] : '';
+
   var raiz = document.getElementById('mia-lw');
   if (!raiz || raiz.dataset.ligada) return;
   raiz.dataset.ligada = '1';
@@ -153,6 +179,11 @@
   function ler(k) { try { return JSON.parse(armazem.getItem(PREFIXO + k)); } catch (e) { return null; } }
   function salvar(k, v) { armazem.setItem(PREFIXO + k, JSON.stringify(v)); }
   function remover(k) { armazem.removeItem(PREFIXO + k); }
+
+  /* Computador compartilhado: outra pessoa logada não continua a conversa da
+     anterior. */
+  var quem = IDENTIDADE ? IDENTIDADE.email : '';
+  if (ler('quem') !== quem) { remover('conversa'); remover('acesso'); salvar('quem', quem); }
 
   function uuid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -217,6 +248,7 @@
           client_message_id: idMensagem,
           session: ler('conversa') || undefined,
           origem_codigo: PORTA,
+          identity: IDENTIDADE,
         }),
         cache: 'no-store',
         signal: controle.signal,
@@ -354,7 +386,7 @@
     sugestoes.appendChild(b);
   });
 
-  bolha('Oi! Eu sou a MIA 💚 Conheço por dentro as palestras, painéis, workshops e ' +
+  bolha((PRIMEIRO_NOME ? 'Oi, ' + PRIMEIRO_NOME + '!' : 'Oi!') + ' Eu sou a MIA 💚 Conheço por dentro as palestras, painéis, workshops e ' +
     'masterclasses do Mind Summit 2026.\n\n' +
     'Me pergunte o que um palestrante disse sobre um tema, peça o resumo de uma sessão ' +
     'ou me conte uma situação do seu trabalho — eu trago as ideias que ajudam e onde ' +

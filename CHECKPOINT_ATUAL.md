@@ -12,8 +12,15 @@
   app do Summit (o agente em si é outra janela).
 - `learnworlds/mia-embed.html`: bloco único (HTML + CSS + JS) para colar no LearnWorlds. Não é publicado
   por nenhum site nosso (fora do build). Fala direto com o Supabase: sessão anônima do Auth e
-  `mindagent-chat` com `origem_codigo = institute_learnworlds`. Sem identidade (P7 aberto). Sem
-  `localStorage` disponível, a conversa segue na memória da página.
+  `mindagent-chat` com `origem_codigo = institute_learnworlds`. Sem `localStorage` disponível, a
+  conversa segue na memória da página.
+- **Identidade (P7, decisão da Adriana em 22/10: confiar no LearnWorlds):** o bloco manda
+  `{{USER.EMAIL}}`, `{{USER.NAME}}` e `{{USER.ID}}` com `source = learnworlds`. `mindagent-chat` 1.17.0
+  aceita essa fonte e passa o ID para `mindagent_chat_bind_identity` (assinatura nova de 7 parâmetros,
+  migration `20261022175330`, **aplicada**; a de 6 só repassa). A porta única grava
+  `learnworlds_user_id` em `engagement.identidades`. **A função 1.17.0 não está publicada** (no ar: v49 =
+  1.16.0, conferida igual à main): publicar depois do merge, e a outra janela (modelo por agente) precisa
+  levar esta mudança junto se publicar a dela.
 - Banco (casa existente): `canal_competencia` `mindagent-web × mia_summit_2026` com
   `entradas_diretas = {institute_learnworlds}`. Inerte enquanto o canal da MIA estiver desligado
   (`mind_origem_rota` devolve nulo; conferido). **Com o canal desligado, o bloco cai no roteador**: só
