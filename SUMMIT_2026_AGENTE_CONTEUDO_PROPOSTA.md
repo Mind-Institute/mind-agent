@@ -117,14 +117,42 @@ Duas opções:
 - **Gate:** D7.
 
 ### P7 — Identidade e custo no LearnWorlds
-- **MVP:** sessão anônima por aparelho, como o app já faz.
-  - limite de perguntas por aparelho por dia;
-  - teto mensal de gasto na conta do provedor;
-  - sem personalização por pessoa.
-- **Depois, se a Adriana quiser:** e-mail com código. A casa `engagement.verificacoes_email`
-  já existe, sem uso. O `mind_id` sai pela porta única `mind_identidade_resolver` (D5).
-- **Gate:** identidade e auth são gates da Adriana. A forma do limite por aparelho depende de
-  onde ele mora (casa existente ou não) e será apresentada antes.
+O que a Adriana disse em 22/10:
+- quer o agente **personalizado** por pessoa;
+- **não** quer limite baixo de perguntas; no máximo um teto bem alto, só contra abuso;
+- a pessoa está logada no LearnWorlds e não consegue trocar o próprio e-mail lá.
+
+Fatos que mudam o desenho:
+- O app já sabe receber e-mail pelo link: `identidade()` em `chat-service.js` manda
+  `source: 'yazo_url'`, e o `mindagent-chat` liga a sessão à pessoa (`bindIdentity`).
+  Foi assim no app do Summit.
+- E-mail no link não prova quem está usando. Quem copiar o endereço e trocar o e-mail
+  "vira" outra pessoa e vê a personalização dela. O próprio `LMS` proíbe esse uso
+  (EMBED-03). Num agente que pode receber desabafo, o risco é maior.
+- A atividade de embed do LearnWorlds aceita variáveis do usuário (nome, curso). A
+  disponibilidade do e-mail entre elas e de identidade assinada (SSO ou LTI) não foi
+  confirmada.
+
+Opções, da mais segura e simples para a pessoa à menos segura:
+- **(a) Identidade assinada pelo LearnWorlds** (LTI ou token assinado), se existir no plano.
+  Zero atrito e seguro. Depende de confirmar com o suporte do LearnWorlds.
+- **(b) E-mail do LearnWorlds + código na primeira vez em cada aparelho.**
+  - O e-mail chega pelo link, já preenchido.
+  - O agente manda um código para esse e-mail; a pessoa digita uma vez e o aparelho fica lembrado.
+  - Seguro, porque prova que a pessoa controla a caixa de e-mail.
+  - O `mind_id` sai pela porta única `mind_identidade_resolver` (D5). A casa
+    `engagement.verificacoes_email` já existe, sem uso.
+- **(c) Confiar no e-mail do link sem código.** Personalização imediata, mas qualquer um
+  personaliza como outra pessoa. **Não recomendado** além de cumprimentar pelo nome.
+
+Recomendação: confirmar (a) com o LearnWorlds; se não houver, (b).
+
+Custo e abuso:
+- teto alto por pessoa por dia, só contra abuso (ordem de 100 perguntas);
+- teto mensal de gasto na conta do provedor.
+
+**Gate:** identidade e auth são gates da Adriana. A forma do teto depende de onde ele
+mora (casa existente ou não) e será apresentada antes.
 
 ### P8 — Teste antes de abrir
 - Umas 30 perguntas reais:
@@ -239,6 +267,7 @@ SOFRIMENTO SEM RISCO IMEDIATO (burnout, ansiedade, tristeza, esgotamento)
    a conversa e não rodar análise nem memória nesta rota até existir o contrato de
    sensibilidade.
 3. **Modelo:** decidir pelo teste P8?
-4. **Teto mensal de gasto e limite de perguntas por aparelho por dia.**
-5. **Identidade:** anônimo no MVP, ou e-mail com código desde o início?
+4. **Teto mensal de gasto.** O teto diário por pessoa fica alto, só contra abuso.
+5. **Identidade:** (a) assinada pelo LearnWorlds, se existir, ou (b) e-mail do LearnWorlds
+   com código na primeira vez em cada aparelho? Ver P7.
 6. **Apresentação dentro do Institute:** manter "MIA" e a marca do Summit, ou ajustar?
