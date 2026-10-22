@@ -19,8 +19,19 @@
      GET   /admin/customer_intelligence
      GET   /admin/agent_intelligence_access
      PATCH /admin/agent_intelligence_access/:id
+     GET   /admin/agent_channels            canais de cada agente (agentes.canal_competencia)
+     PATCH /admin/agent_channels/:canal::rota
+     GET   /admin/agent_kit_blocks          kit de cada agente (agentes.kit_blocos)
+     POST  /admin/agent_kit_blocks          acrescenta a um agente um bloco que já existe
+     PATCH /admin/agent_kit_blocks/:rota::bloco
+     GET   /admin/agent_prompts             prompts (agentes.prompts); com :id, traz o histórico
+     PATCH /admin/agent_prompts/:chave      guarda a versão atual no histórico e salva
      POST  /admin/knowledge_search
      GET   /health
+
+   Canais, kit e prompts mudam o comportamento do agente na hora: só o
+   papel administrador escreve neles (Adriana, 22/10/2026). O banco confere
+   de novo o papel pelo usuário que a função repassa.
 */
 
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
@@ -40,7 +51,28 @@ const RECURSOS = {
   business_intelligence: { ler: "mind_admin_read_business_intelligence", idParam: "p_id" },
   customer_intelligence: { ler: "mind_admin_read_customer_intelligence", idParam: "p_id" },
   agent_intelligence_access: { ler: "mind_admin_read_agent_intelligence_access", idParam: "p_id" },
+  agent_channels: { ler: "mind_admin_read_agent_channels", idParam: "p_id" },
+  agent_kit_blocks: { ler: "mind_admin_read_agent_kit", idParam: "p_id" },
+  agent_prompts: { ler: "mind_admin_read_agent_prompts", idParam: "p_id" },
 } as const;
+
+/* Recusa do banco nas escritas de canais, kit e prompts, na frase que a tela mostra. */
+function recusaDaEscrita(error: { code?: string; message?: string }, oQue: string) {
+  const m = error.message ?? "";
+  if (m.includes("admin_forbidden") || error.code === "42501") {
+    return { status: 403, corpo: { codigo: "sem_permissao", mensagem: `Só administrador altera ${oQue}.` } };
+  }
+  if (m.includes("admin_conflict") || error.code === "40001") {
+    return { status: 409, corpo: { codigo: "conflito", mensagem: "Alguém mudou isto antes. Recarregue antes de salvar." } };
+  }
+  if (m.includes("admin_not_found") || error.code === "P0002") {
+    return { status: 404, corpo: { codigo: "nao_encontrado", mensagem: "Registro não encontrado." } };
+  }
+  if (m.includes("admin_validation") || error.code === "22023") {
+    return { status: 422, corpo: { codigo: "validacao", mensagem: "Revise os campos antes de salvar." } };
+  }
+  return null;
+}
 
 function lerChave(nome: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS", alternativa: string) {
   const cru = Deno.env.get(nome);
@@ -165,7 +197,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.0.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.1.0" }, requestId);
   }
   if (!origemPermitida(req.headers.get("Origin"))) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
@@ -355,6 +387,71 @@ Deno.serve(async (req: Request) => {
       return json(req, 503, { codigo: "indisponivel", mensagem: "Não foi possível salvar Knowledge." }, requestId);
     }
     return json(req, 200, data, requestId);
+  }
+
+  const escritaDoAgente =
+    (req.method === "PATCH" && id && ["agent_channels", "agent_kit_blocks", "agent_prompts"].includes(nome ?? "")) ||
+    (req.method === "POST" && !id && nome === "agent_kit_blocks");
+  if (escritaDoAgente) {
+    if (acesso.role !== "administrador") {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Só administrador altera canais, kit e prompts dos agentes." }, requestId);
+    }
+    let payload: Record<string, unknown>;
+    try { payload = await corpo(req); }
+    catch { return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId); }
+
+    const esperado = req.headers.get("If-Unmodified-Since-Version") || null;
+    const booleano = (v: unknown) => (typeof v === "boolean" ? v : null);
+    const texto = (v: unknown) => (typeof v === "string" ? v : null);
+
+    let resultado;
+    let oQue: string;
+    if (nome === "agent_channels") {
+      oQue = "os canais";
+      resultado = await segredo.rpc("mind_admin_update_agent_channel", {
+        p_id: id,
+        p_ativo: booleano(payload.ativo),
+        p_observacao: texto(payload.observacao),
+        p_ator: usuario.user.id,
+        p_atualizado_em_esperado: esperado,
+      });
+    } else if (nome === "agent_kit_blocks") {
+      oQue = "o kit";
+      const [rota, bloco] = id ? id.split("::") : [texto(payload.rota), texto(payload.bloco)];
+      if (!rota || !bloco) {
+        return json(req, 422, { codigo: "validacao", mensagem: "Informe o agente e o bloco." }, requestId);
+      }
+      resultado = await segredo.rpc("mind_admin_upsert_agent_kit_block", {
+        p_rota: rota,
+        p_bloco: bloco,
+        p_ativo: booleano(payload.ativo),
+        p_obrigatorio: booleano(payload.obrigatorio),
+        p_ator: usuario.user.id,
+        p_atualizado_em_esperado: id ? esperado : null,
+      });
+    } else {
+      oQue = "os prompts";
+      const conteudo = texto(payload.conteudo);
+      if (conteudo !== null && conteudo.length > 100_000) {
+        return json(req, 422, { codigo: "validacao", mensagem: "O prompt passou de 100 mil caracteres." }, requestId);
+      }
+      resultado = await segredo.rpc("mind_admin_update_agent_prompt", {
+        p_chave: id,
+        p_titulo: texto(payload.titulo),
+        p_conteudo: conteudo,
+        p_ativo: booleano(payload.ativo),
+        p_ator: usuario.user.id,
+        p_atualizado_em_esperado: esperado,
+      });
+    }
+
+    if (resultado.error) {
+      const recusa = recusaDaEscrita(resultado.error, oQue);
+      if (recusa) return json(req, recusa.status, recusa.corpo, requestId);
+      console.error(JSON.stringify({ request_id: requestId, error: "agent_config_write_failed", resource: nome, code: resultado.error.code ?? null }));
+      return json(req, 503, { codigo: "indisponivel", mensagem: `Não foi possível salvar ${oQue}.` }, requestId);
+    }
+    return json(req, req.method === "POST" ? 201 : 200, resultado.data, requestId);
   }
 
   return json(req, 405, { codigo: "validacao", mensagem: "Operação não disponível para este recurso." }, requestId);
