@@ -20,9 +20,13 @@ test("os dois runtimes validam e registram o checkout pelo mesmo contrato", () =
 });
 
 test("app mantém concierge como entrada, mas pode trocar para summit_b2c", () => {
-  assert.match(APP, /mind_summit_app:\s*"concierge_summit"/);
+  // A porta direta (entrada → agente) mora no banco desde 22/10/2026
+  // (`agentes.canal_competencia.entradas_diretas`, lida por `mind_origem_rota`);
+  // o fonte não pode voltar a ter uma lista própria.
+  assert.match(APP, /admin\.rpc\("mind_origem_rota"/);
+  assert.doesNotMatch(APP, /ROTA_POR_ORIGEM\s*[:=]/);
+  assert.doesNotMatch(APP, /mind_summit_app:\s*"/);
   assert.match(APP, /Peça summit_b2c quando houver intenção explícita de compra ou upgrade/);
-  assert.doesNotMatch(APP, /mind_summit_app:\s*"summit_b2c"/);
 });
 
 test("app registra e devolve checkout rastreado quando a rota ativa é de venda", async () => {

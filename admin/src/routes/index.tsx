@@ -9,6 +9,8 @@ import { PaginaKnowledge } from '@/pages/knowledge';
 import { PaginaBusinessIntelligence } from '@/pages/business-intelligence';
 import { PaginaCustomerIntelligence } from '@/pages/customer-intelligence';
 import { PaginaAgentIntelligence } from '@/pages/agent-intelligence';
+import { PaginaCanais } from '@/pages/canais';
+import { PaginaAnalise } from '@/pages/analise';
 import { PaginaArquitetura } from '@/pages/arquitetura';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
@@ -51,6 +53,8 @@ export const rotasAdmin: RouteObject[] = [
       { path: 'business-intelligence', element: <PaginaBusinessIntelligence /> },
       { path: 'customer-intelligence', element: <PaginaCustomerIntelligence /> },
       { path: 'agent-intelligence', element: <PaginaAgentIntelligence /> },
+      { path: 'canais', element: <PaginaCanais /> },
+      { path: 'analise', element: <PaginaAnalise /> },
 
       { path: 'arquitetura/decisoes', element: <PaginaArquitetura /> },
 
