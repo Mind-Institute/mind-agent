@@ -58,6 +58,8 @@ test('lista canais, kit e prompts pelas portas de leitura', async () => {
     ['/admin/agent_channels', 'mind_admin_read_agent_channels'],
     ['/admin/agent_kit_blocks', 'mind_admin_read_agent_kit'],
     ['/admin/agent_prompts', 'mind_admin_read_agent_prompts'],
+    ['/admin/agent_instructions', 'mind_admin_read_agent_instructions'],
+    ['/admin/agent_tools', 'mind_admin_read_agent_tools'],
   ]) {
     const r = await call({ path, role: 'analista' });
     assert.equal(r.status, 200);
@@ -72,12 +74,14 @@ test('abrir um prompt pede o histórico pela chave', async () => {
 });
 
 for (const role of ['editor', 'aprovador', 'analista']) {
-  test(`${role} não altera prompt, kit nem canal`, async () => {
+  test(`${role} não altera prompt, kit, canal, instrução nem ferramenta`, async () => {
     for (const [method, path] of [
       ['PATCH', '/admin/agent_prompts/playbook_mia_summit_2026'],
       ['PATCH', '/admin/agent_kit_blocks/mia_summit_2026%3A%3Aevento'],
       ['POST', '/admin/agent_kit_blocks'],
       ['PATCH', '/admin/agent_channels/mindagent-web%3A%3Amia_summit_2026'],
+      ['POST', '/admin/agent_instructions'],
+      ['PATCH', '/admin/agent_tools/buscar_intelligence'],
     ]) {
       const r = await call({ method, path, role, body: { ativo: true } });
       assert.equal(r.status, 403);
@@ -153,6 +157,57 @@ for (const [nome, error, status] of [
     assert.equal(r.status, status);
   });
 }
+
+/* Fase 1 da ficha do agente (Adriana, 22/10/2026): o que o agente recebe, com
+   liga/desliga, instrução própria e descrição das ferramentas. */
+test('abrir as instruções de um agente pede o texto montado pela rota', async () => {
+  const r = await call({ path: '/admin/agent_instructions/mia_summit_2026', role: 'analista' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.rpcs, [{ nome: 'mind_admin_read_agent_instructions', args: { p_id: 'mia_summit_2026' } }]);
+});
+
+test('criar voz própria repassa agente, chave, texto, o bloco substituído e o usuário', async () => {
+  const r = await call({
+    method: 'POST',
+    path: '/admin/agent_instructions',
+    body: { rota: 'mia_summit_2026', chave: 'tom_de_voz_mia_summit_2026', titulo: 'Voz da MIA', conteudo: 'texto', substitui: 'tom_de_voz' },
+  });
+  assert.equal(r.status, 201);
+  assert.deepEqual(r.rpcs, [{
+    nome: 'mind_admin_create_agent_instruction',
+    args: {
+      p_rota: 'mia_summit_2026', p_chave: 'tom_de_voz_mia_summit_2026', p_titulo: 'Voz da MIA',
+      p_conteudo: 'texto', p_substitui: 'tom_de_voz', p_ator: USUARIO,
+    },
+  }]);
+});
+
+test('chave repetida volta com a frase certa', async () => {
+  const r = await call({
+    method: 'POST', path: '/admin/agent_instructions', body: { rota: 'mia_summit_2026', chave: 'base', titulo: 't', conteudo: 'x' },
+    rpcError: { code: '22023', message: 'admin_validation:chave_existe' },
+  });
+  assert.equal(r.status, 422);
+  assert.match(r.body.mensagem, /Já existe/);
+});
+
+test('descrição de ferramenta repassa o nome da URL e a versão esperada', async () => {
+  const r = await call({
+    method: 'PATCH', path: '/admin/agent_tools/buscar_intelligence', body: { descricao: 'nova' },
+    headers: { 'If-Unmodified-Since-Version': '2026-10-22T13:12:51+00:00' },
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.rpcs, [{
+    nome: 'mind_admin_update_agent_tool',
+    args: { p_nome: 'buscar_intelligence', p_descricao: 'nova', p_ator: USUARIO, p_atualizado_em_esperado: '2026-10-22T13:12:51+00:00' },
+  }]);
+});
+
+test('descrição gigante de ferramenta é recusada antes do banco', async () => {
+  const r = await call({ method: 'PATCH', path: '/admin/agent_tools/buscar_intelligence', body: { descricao: 'x'.repeat(4_001) } });
+  assert.equal(r.status, 422);
+  assert.equal(r.rpcs.length, 0);
+});
 
 /* Botão "Gerar embeddings" (Adriana, 22/10/2026): o painel não tem a chave
    secreta; a mindagent-knowledge confere o admin e chama o indexador. */

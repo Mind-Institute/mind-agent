@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Bot, Database, History, Plus, Radio, ShieldCheck, Sparkles } from 'lucide-react';
-import type { AgentChannel, AgentIntelligenceAccess, AgentKitBlock, AgentPrompt } from '@/contracts';
+import { useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, Bot, Database, FileText, History, Plus, Radio, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
+import type {
+  AgentChannel,
+  AgentInstructionPart,
+  AgentInstructions,
+  AgentIntelligenceAccess,
+  AgentKitBlock,
+  AgentPrompt,
+} from '@/contracts';
 import { useAtualizar, useCriar, useItem, useLista } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
@@ -16,16 +24,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { enderecoDoKnowledge } from '@/services/provider-context';
+import { chaves } from '@/services/query-keys';
 
 /* ============================================================
    AGENT INTELLIGENCE
    ============================================================
-   Cada agente num lugar só: o conhecimento que ele pode usar, o kit que
-   recebe, os canais em que atende e os prompts que o guiam. A matriz
-   completa (todos os agentes × todo o conhecimento) continua na outra aba.
+   Cada agente num lugar só, como se monta um GPT: as instruções que ele
+   recebe (na ordem real), o conhecimento que pode consultar, as skills, os
+   dados oficiais e os canais em que atende. A matriz completa (todos os
+   agentes × todo o conhecimento) continua na outra aba.
 
-   Canais, kit e prompts mudam o comportamento do agente na hora: só
-   administrador edita (Adriana, 22/10/2026). O banco confere de novo. */
+   Tudo isso muda o comportamento do agente na hora: só administrador edita
+   (Adriana, 22/10/2026). O banco confere de novo. */
 
 const ORDEM_NAMESPACE: AgentIntelligenceAccess['namespace'][] = ['global', 'business', 'customer'];
 
@@ -79,6 +89,7 @@ export function PaginaAgentIntelligence() {
   const canais = useLista('agent_channels', { porPagina: 500 });
   const kit = useLista('agent_kit_blocks', { porPagina: 500 });
   const prompts = useLista('agent_prompts', { porPagina: 500 });
+  const instrucoes = useLista('agent_instructions', { porPagina: 500 });
 
   /* Agente é o que tem canal, kit ou linha na matriz. `knowledge_admin` é a
      persona técnica do playground de busca, não um agente que conversa. */
@@ -93,14 +104,14 @@ export function PaginaAgentIntelligence() {
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const agente = escolhido && agentes.includes(escolhido) ? escolhido : agentes[0] ?? null;
 
-  const carregando = matriz.isLoading || canais.isLoading || kit.isLoading || prompts.isLoading;
-  const erroLeitura = [matriz.error, canais.error, kit.error, prompts.error].find(Boolean);
+  const carregando = matriz.isLoading || canais.isLoading || kit.isLoading || prompts.isLoading || instrucoes.isLoading;
+  const erroLeitura = [matriz.error, canais.error, kit.error, prompts.error, instrucoes.error].find(Boolean);
 
   return (
     <div className="space-y-6">
       <CabecalhoPagina
         titulo="Agent Intelligence"
-        descricao="Cada agente em um lugar só: o conhecimento que ele pode usar, o kit que recebe, os canais em que atende e os prompts que o guiam."
+        descricao="Cada agente em um lugar só: as instruções que ele recebe, o conhecimento que consulta, as skills, os dados oficiais e os canais em que atende."
       />
 
       {carregando ? <div className="text-sm text-muted-foreground">Carregando Agent Intelligence…</div> : null}
@@ -141,6 +152,7 @@ export function PaginaAgentIntelligence() {
                     canais={(canais.data?.itens ?? []).filter((x) => x.rota === agente)}
                     kit={kit.data?.itens ?? []}
                     prompts={prompts.data?.itens ?? []}
+                    instrucoes={(instrucoes.data?.itens ?? []).find((x) => x.rota === agente) ?? null}
                   />
                 ) : null}
               </>
@@ -166,6 +178,7 @@ function PainelDoAgente({
   canais,
   kit,
   prompts,
+  instrucoes,
 }: {
   agente: string;
   matriz: AgentIntelligenceAccess[];
@@ -173,17 +186,21 @@ function PainelDoAgente({
   /** O kit de todos os agentes: os blocos dos outros são o catálogo do "acrescentar". */
   kit: AgentKitBlock[];
   prompts: AgentPrompt[];
+  instrucoes: AgentInstructions | null;
 }) {
   const blocos = kit.filter((b) => b.rota === agente);
   const playbook = prompts.find((p) => p.chave === `playbook_${agente}`);
   const canaisLigados = canais.filter((c) => c.ativo);
   const temInformacao = blocos.some((b) => b.ativo && b.secao === 'structured');
 
-  /* Os mesmos três requisitos que o runtime confere antes de deixar o agente
-     atender (mind_rota_capacidade): playbook ligado, kit e canal. */
+  /* Os mesmos requisitos que o runtime confere antes de deixar o agente
+     atender: playbook ligado, texto obrigatório presente (mind_agent_instrucoes),
+     dados oficiais e canal (mind_rota_capacidade). */
+  const textosFaltando = (instrucoes?.faltando ?? []).filter((c) => c !== `playbook_${agente}`);
   const pendencias = [
     !playbook ? 'não tem playbook' : !playbook.ativo ? 'o playbook está desligado' : null,
-    !temInformacao ? 'o kit não tem informação do banco ligada' : null,
+    textosFaltando.length > 0 ? `falta o texto obrigatório ${textosFaltando.join(', ')}` : null,
+    !temInformacao ? 'não tem dados oficiais ligados' : null,
     canaisLigados.length === 0 ? 'nenhum canal está ligado' : null,
   ].filter((x): x is string => Boolean(x));
 
@@ -204,24 +221,28 @@ function PainelDoAgente({
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="conhecimento">
+      <Tabs defaultValue="instrucoes">
         <TabsList>
+          <TabsTrigger value="instrucoes">Instruções</TabsTrigger>
           <TabsTrigger value="conhecimento">Conhecimento</TabsTrigger>
-          <TabsTrigger value="kit">Kit</TabsTrigger>
+          <TabsTrigger value="skills">Skills</TabsTrigger>
+          <TabsTrigger value="dados">Dados oficiais</TabsTrigger>
           <TabsTrigger value="canais">Canais</TabsTrigger>
-          <TabsTrigger value="prompts">Prompts</TabsTrigger>
         </TabsList>
+        <TabsContent value="instrucoes" className="pt-4">
+          <SecaoInstrucoes agente={agente} prompts={prompts} />
+        </TabsContent>
         <TabsContent value="conhecimento" className="pt-4">
           <SecaoConhecimento itens={matriz} />
         </TabsContent>
-        <TabsContent value="kit" className="pt-4">
+        <TabsContent value="skills" className="pt-4">
+          <SecaoSkills agente={agente} blocos={blocos} />
+        </TabsContent>
+        <TabsContent value="dados" className="pt-4">
           <SecaoKit agente={agente} blocos={blocos} todos={kit} />
         </TabsContent>
         <TabsContent value="canais" className="pt-4">
           <SecaoCanais agente={agente} canais={canais} />
-        </TabsContent>
-        <TabsContent value="prompts" className="pt-4">
-          <SecaoPrompts agente={agente} blocos={blocos} prompts={prompts} />
         </TabsContent>
       </Tabs>
     </div>
@@ -383,10 +404,15 @@ function GerarEmbeddingsSummit() {
 }
 
 /* ------------------------------------------------------------ */
-/* Kit                                                           */
+/* Dados oficiais: os blocos do kit que trazem informação do banco */
 /* ------------------------------------------------------------ */
 
-function SecaoKit({ agente, blocos, todos }: { agente: string; blocos: AgentKitBlock[]; todos: AgentKitBlock[] }) {
+const SECOES_DE_DADOS = new Set(['structured', 'knowledge']);
+
+function SecaoKit({ agente, blocos: doAgente, todos: kitInteiro }: { agente: string; blocos: AgentKitBlock[]; todos: AgentKitBlock[] }) {
+  /* Instruções e skills também são blocos do kit, mas têm aba própria. */
+  const blocos = doAgente.filter((b) => SECOES_DE_DADOS.has(b.secao));
+  const todos = kitInteiro.filter((b) => SECOES_DE_DADOS.has(b.secao));
   const sessao = useSessao();
   const podeEditar = sessao.pode('configurar');
   const atualizar = useAtualizar('agent_kit_blocks');
@@ -429,15 +455,15 @@ function SecaoKit({ agente, blocos, todos }: { agente: string; blocos: AgentKitB
       <MensagemErro texto={erro} />
       <Card>
         <CardHeader>
-          <CardTitle>Kit de {rotuloAgente(agente)}</CardTitle>
+          <CardTitle>Dados oficiais de {rotuloAgente(agente)}</CardTitle>
           <CardDescription>
-            O que o agente recebe a cada mensagem. Bloco obrigatório que falha impede o agente de responder; opcional
-            que falha é só omitido.
+            Informações do banco que o agente recebe a cada mensagem, como evento e programação. Bloco obrigatório que
+            falha impede o agente de responder; opcional que falha é só omitido.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {ordenados.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Este agente ainda não tem kit.</div>
+            <div className="text-sm text-muted-foreground">Este agente ainda não recebe dados oficiais.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -596,56 +622,416 @@ function SecaoCanais({ agente, canais }: { agente: string; canais: AgentChannel[
 }
 
 /* ------------------------------------------------------------ */
-/* Prompts                                                       */
+/* Instruções: o que o agente recebe antes de responder          */
 /* ------------------------------------------------------------ */
 
-function SecaoPrompts({ agente, blocos, prompts }: { agente: string; blocos: AgentKitBlock[]; prompts: AgentPrompt[] }) {
-  /* Os prompts que guiam este agente: o playbook dele, os decisionings do
-     kit e a base, que entra em toda conversa de todos os agentes. */
-  const doAgente = useMemo(() => {
-    const decisioning = new Set(blocos.filter((b) => b.secao === 'decisioning').map((b) => b.bloco));
-    const lista = prompts.filter(
-      (p) => p.chave === `playbook_${agente}` || decisioning.has(p.chave) || p.chave === 'base',
-    );
-    const peso = (p: AgentPrompt) => (p.chave === `playbook_${agente}` ? 0 : p.chave === 'base' ? 2 : 1);
-    return lista.sort((a, b) => peso(a) - peso(b) || a.chave.localeCompare(b.chave));
-  }, [agente, blocos, prompts]);
+const ROTULO_CAMADA: Record<string, string> = {
+  base: 'Regras comuns',
+  playbook: 'Playbook',
+  instrucoes: 'Instrução',
+  decisioning: 'Decisão',
+};
 
+function nomeDaParte(p: AgentInstructionPart, agente: string) {
+  if (p.camada === 'base') return 'Regras comuns a todos os agentes';
+  if (p.camada === 'playbook') return `Playbook de ${rotuloAgente(agente)}`;
+  return p.titulo ?? p.chave;
+}
+
+/* A mesma montagem que o runtime usa (`mind_agent_instrucoes`), parte a parte.
+   Base e playbook se ligam no próprio texto; instruções e decisões se ligam
+   por agente, no kit. */
+function SecaoInstrucoes({ agente, prompts }: { agente: string; prompts: AgentPrompt[] }) {
+  const sessao = useSessao();
+  const podeEditar = sessao.pode('configurar');
+  const cliente = useQueryClient();
+  const item = useItem('agent_instructions', agente);
+  const atualizarBloco = useAtualizar('agent_kit_blocks');
+  const criar = useCriar('agent_instructions');
+  const [erro, setErro] = useState<string | null>(null);
   const [chave, setChave] = useState<string | null>(null);
-  const atual = chave && doAgente.some((p) => p.chave === chave) ? chave : doAgente[0]?.chave ?? null;
+  const [verTexto, setVerTexto] = useState(false);
+  const [desligar, setDesligar] = useState<AgentInstructionPart | null>(null);
+  const [copiar, setCopiar] = useState<AgentInstructionPart | null>(null);
 
-  if (doAgente.length === 0) {
-    return <div className="text-sm text-muted-foreground">Este agente ainda não tem prompt.</div>;
+  const dados = item.data;
+  const partes = dados?.partes ?? [];
+  const existe = (c: string) => prompts.some((p) => p.chave === c);
+  const atual =
+    chave && partes.some((p) => p.chave === chave)
+      ? chave
+      : (partes.find((p) => p.camada === 'playbook' && existe(p.chave)) ?? partes.find((p) => existe(p.chave)))?.chave ??
+        null;
+  const parteAtual = partes.find((p) => p.chave === atual) ?? null;
+
+  function recarregar() {
+    void cliente.invalidateQueries({ queryKey: chaves.recurso('agent_instructions') });
   }
 
+  async function salvarBloco(p: AgentInstructionPart, ativo: boolean) {
+    setErro(null);
+    try {
+      await atualizarBloco.mutateAsync({
+        id: `${agente}::${p.chave}`,
+        payload: { ativo },
+        opcoes: { atualizadoEmEsperado: p.atualizadoEm },
+      });
+      recarregar();
+    } catch (e) {
+      setErro(mensagemDe(e));
+    }
+  }
+
+  function alternar(p: AgentInstructionPart, ativo: boolean) {
+    /* Texto de proteção (obrigatório) só desliga com confirmação. */
+    if (!ativo && p.obrigatorio) setDesligar(p);
+    else void salvarBloco(p, ativo);
+  }
+
+  async function criarVersaoPropria() {
+    if (!copiar) return;
+    const original = prompts.find((p) => p.chave === copiar.chave);
+    const nova = `${copiar.chave}_${agente}`;
+    setErro(null);
+    try {
+      /* Corpo da POST /admin/agent_instructions: não é o formato da leitura. */
+      await criar.mutateAsync({
+        rota: agente,
+        chave: nova,
+        titulo: `${original?.titulo ?? copiar.chave} — ${rotuloAgente(agente)}`,
+        conteudo: original?.conteudo ?? '',
+        substitui: copiar.chave,
+      } as unknown as Partial<AgentInstructions>);
+      void cliente.invalidateQueries({ queryKey: chaves.recurso('agent_prompts') });
+      void cliente.invalidateQueries({ queryKey: chaves.recurso('agent_kit_blocks') });
+      setChave(nova);
+    } catch (e) {
+      setErro(mensagemDe(e));
+    } finally {
+      setCopiar(null);
+    }
+  }
+
+  if (item.isLoading) return <div className="text-sm text-muted-foreground">Carregando instruções…</div>;
+  if (item.error || !dados) {
+    return <MensagemErro texto={item.error instanceof Error ? item.error.message : 'Instruções não encontradas.'} />;
+  }
+
+  const rotulo = rotuloAgente(agente);
+  const aviso = (p: AgentInstructionPart) =>
+    p.camada === 'base'
+      ? 'Este texto vale para todos os agentes: mudar aqui muda todos.'
+      : p.compartilhadoCom.length > 0
+        ? `Este texto também está ligado em: ${p.compartilhadoCom.map(rotuloAgente).join(', ')}. Mudar aqui muda todos eles.`
+        : p.camada === 'playbook'
+          ? null
+          : 'O texto pode ser usado por outros agentes; o liga/desliga da lista vale só para este.';
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
-      <div className="flex flex-col gap-2" role="group" aria-label="Prompts do agente">
-        {doAgente.map((p) => (
-          <Button
-            key={p.chave}
-            variant={p.chave === atual ? 'default' : 'outline'}
-            className="h-auto justify-start whitespace-normal py-2 text-left"
-            aria-pressed={p.chave === atual}
-            onClick={() => setChave(p.chave)}
-          >
-            <span className="flex flex-col items-start gap-1">
-              <span className="text-sm font-semibold">
-                {p.chave === `playbook_${agente}` ? 'Playbook' : p.chave === 'base' ? 'Base (todos os agentes)' : p.chave}
-              </span>
-              <span className="text-xs opacity-80">
-                {p.ativo ? 'ligado' : 'desligado'} · versão {p.versao ?? '—'}
-              </span>
-            </span>
-          </Button>
-        ))}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="size-4" /> O que {rotulo} recebe antes de responder
+          </CardTitle>
+          <CardDescription>
+            Os textos abaixo entram juntos, nesta ordem, a cada mensagem. Depois deles vêm os dados oficiais, as skills,
+            o conhecimento consultado e a conversa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!dados.ok ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Hoje {rotulo} não recebe instrução e por isso não responde: falta {dados.faltando.join(', ')}.
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={() => setVerTexto(!verTexto)} disabled={!dados.ok}>
+              {verTexto ? 'Fechar o texto completo' : 'Ver o texto completo que ele recebe'}
+            </Button>
+            <span className="text-xs text-muted-foreground">{dados.chars.toLocaleString('pt-BR')} caracteres</span>
+          </div>
+          {verTexto && dados.texto ? (
+            <pre
+              aria-label="Texto completo das instruções"
+              className="max-h-[32rem] overflow-auto whitespace-pre-wrap rounded bg-muted p-3 font-mono text-xs"
+            >
+              {dados.texto}
+            </pre>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <MensagemErro texto={erro} />
+
+      <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
+        <ol className="space-y-2" aria-label="Partes das instruções">
+          {partes.map((p, i) => (
+            <li key={p.chave} className={`rounded-md border p-3 ${p.chave === atual ? 'border-foreground' : ''}`}>
+              <div className="flex items-start justify-between gap-2">
+                <button
+                  type="button"
+                  className="flex-1 text-left"
+                  aria-pressed={p.chave === atual}
+                  disabled={!existe(p.chave)}
+                  onClick={() => setChave(p.chave)}
+                >
+                  <div className="text-xs text-muted-foreground">
+                    {i + 1}. {ROTULO_CAMADA[p.camada] ?? p.camada}
+                    {p.obrigatorio && p.camada === 'instrucoes' ? ' · proteção' : ''}
+                  </div>
+                  <div className="text-sm font-semibold">{nomeDaParte(p, agente)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {!existe(p.chave)
+                      ? 'não existe'
+                      : `${p.entra ? 'entra' : 'não entra'} · ${p.chars.toLocaleString('pt-BR')} caracteres`}
+                  </div>
+                </button>
+                {p.blocoAtivo !== null ? (
+                  <Switch
+                    checked={p.blocoAtivo}
+                    disabled={!podeEditar || atualizarBloco.isPending}
+                    onCheckedChange={(v) => alternar(p, v)}
+                    aria-label={`${nomeDaParte(p, agente)}: ligado em ${rotulo}`}
+                  />
+                ) : null}
+              </div>
+              {podeEditar && p.camada === 'instrucoes' && !p.chave.endsWith(`_${agente}`) && existe(p.chave) ? (
+                <Button size="sm" variant="ghost" className="mt-1 h-auto px-0 py-1" onClick={() => setCopiar(p)}>
+                  Criar versão própria de {rotulo}
+                </Button>
+              ) : null}
+            </li>
+          ))}
+          <li className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+            <div className="font-semibold">Formato da resposta e travas de segurança</div>
+            Definidos no código do runtime: o formato da resposta, quais ferramentas podem rodar, o limite de rodadas e
+            o tempo máximo por mensagem. Estão aqui para você saber que existem; não têm interruptor.
+          </li>
+        </ol>
+        {parteAtual && existe(parteAtual.chave) ? (
+          <EditorPrompt
+            key={parteAtual.chave}
+            chave={parteAtual.chave}
+            aviso={aviso(parteAtual)}
+            rotuloAtivo={(ativo) =>
+              parteAtual.camada === 'playbook'
+                ? ativo
+                  ? `Ligado: ${rotulo} usa este playbook`
+                  : `Desligado: sem playbook, ${rotulo} não responde`
+                : ativo
+                  ? 'Texto ligado em todo agente que o usa'
+                  : 'Texto desligado em todo agente que o usa'
+            }
+            aoSalvar={recarregar}
+          />
+        ) : null}
       </div>
-      {atual ? <EditorPrompt key={atual} chave={atual} /> : null}
+
+      <DialogoConfirmacao
+        aberto={Boolean(desligar)}
+        titulo={`Desligar ${desligar ? nomeDaParte(desligar, agente) : ''}?`}
+        descricao={`Este texto é de proteção. Desligado, ${rotulo} deixa de recebê-lo já na próxima mensagem.`}
+        rotuloConfirmar="Desligar"
+        destrutivo
+        carregando={atualizarBloco.isPending}
+        aoConfirmar={() => {
+          const p = desligar;
+          setDesligar(null);
+          if (p) void salvarBloco(p, false);
+        }}
+        aoCancelar={() => setDesligar(null)}
+      />
+
+      <DialogoConfirmacao
+        aberto={Boolean(copiar)}
+        titulo={`Criar versão própria de ${rotulo}?`}
+        descricao={
+          copiar
+            ? `Cria "${copiar.chave}_${agente}" com uma cópia do texto atual, usada só por ${rotulo} e no mesmo estado (ligada ou desligada). O original continua valendo para os outros agentes. Depois é só editar o texto aqui.`
+            : ''
+        }
+        rotuloConfirmar="Criar"
+        carregando={criar.isPending}
+        aoConfirmar={() => void criarVersaoPropria()}
+        aoCancelar={() => setCopiar(null)}
+      />
     </div>
   );
 }
 
-function EditorPrompt({ chave }: { chave: string }) {
+/* ------------------------------------------------------------ */
+/* Skills: as ferramentas que o agente chama sozinho             */
+/* ------------------------------------------------------------ */
+
+function SecaoSkills({ agente, blocos }: { agente: string; blocos: AgentKitBlock[] }) {
+  const sessao = useSessao();
+  const podeEditar = sessao.pode('configurar');
+  const atualizar = useAtualizar('agent_kit_blocks');
+  const [erro, setErro] = useState<string | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
+  const skills = blocos.filter((b) => b.secao === 'tools').sort((a, b) => a.bloco.localeCompare(b.bloco));
+
+  async function salvar(bloco: AgentKitBlock, ativo: boolean) {
+    setErro(null);
+    try {
+      await atualizar.mutateAsync({ id: bloco.id, payload: { ativo }, opcoes: { atualizadoEmEsperado: bloco.atualizadoEm } });
+    } catch (e) {
+      setErro(mensagemDe(e));
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <MensagemErro texto={erro} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wrench className="size-4" /> Skills de {rotuloAgente(agente)}
+          </CardTitle>
+          <CardDescription>
+            O que o agente sabe fazer além de responder: ferramentas que ele chama sozinho quando precisa. A descrição de
+            cada uma também é instrução, porque o modelo a lê para decidir quando usar. Uma skill nova precisa de código
+            que a execute; aqui se liga, desliga e reescreve a descrição.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {skills.length === 0 ? (
+            <div className="text-sm text-muted-foreground">Este agente não usa nenhuma skill.</div>
+          ) : (
+            skills.map((b) => (
+              <div key={b.id} className="rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-mono text-sm font-semibold">{b.bloco}</div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setAberta(aberta === b.bloco ? null : b.bloco)}>
+                      {aberta === b.bloco ? 'Fechar' : 'Ver e editar a descrição'}
+                    </Button>
+                    <Switch
+                      checked={b.ativo}
+                      disabled={!podeEditar || atualizar.isPending}
+                      onCheckedChange={(v) => void salvar(b, v)}
+                      aria-label={`${b.bloco}: ligada em ${rotuloAgente(agente)}`}
+                    />
+                  </div>
+                </div>
+                {aberta === b.bloco ? <EditorFerramenta nome={b.bloco} /> : null}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function EditorFerramenta({ nome }: { nome: string }) {
+  const sessao = useSessao();
+  const podeEditar = sessao.pode('configurar');
+  const item = useItem('agent_tools', nome);
+  const atualizar = useAtualizar('agent_tools');
+  const [descricao, setDescricao] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvo, setSalvo] = useState(false);
+  const ferramenta = item.data;
+
+  useEffect(() => {
+    if (ferramenta) setDescricao(ferramenta.descricao ?? '');
+  }, [ferramenta?.id, ferramenta?.atualizadoEm]);
+
+  if (item.isLoading) return <div className="mt-2 text-sm text-muted-foreground">Carregando…</div>;
+  if (item.error || !ferramenta) {
+    return <MensagemErro texto={item.error instanceof Error ? item.error.message : 'Ferramenta não encontrada.'} />;
+  }
+  const mudou = descricao !== (ferramenta.descricao ?? '');
+
+  async function salvar() {
+    if (!ferramenta) return;
+    setErro(null);
+    setSalvo(false);
+    try {
+      await atualizar.mutateAsync({
+        id: ferramenta.id,
+        payload: { descricao },
+        opcoes: { atualizadoEmEsperado: ferramenta.atualizadoEm },
+      });
+      setSalvo(true);
+    } catch (e) {
+      setErro(mensagemDe(e));
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-3">
+      <MensagemErro texto={erro} />
+      {salvo && !mudou ? <div className="text-sm text-verde-800">Salvo.</div> : null}
+      <div className="text-xs text-muted-foreground">
+        Versão {ferramenta.versao ?? '—'}.
+        {ferramenta.usadoPor.length > 0
+          ? ` Ligada em: ${ferramenta.usadoPor.map(rotuloAgente).join(', ')}. Mudar a descrição muda todos.`
+          : ''}
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor={`descricao-${nome}`}>Descrição</Label>
+        <Textarea
+          id={`descricao-${nome}`}
+          value={descricao}
+          disabled={!podeEditar}
+          onChange={(e) => setDescricao(e.target.value)}
+          className="min-h-32 text-sm"
+        />
+      </div>
+      {podeEditar ? (
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => void salvar()} disabled={!mudou || atualizar.isPending || descricao.trim() === ''}>
+            Salvar nova descrição
+          </Button>
+          <Button size="sm" variant="outline" disabled={!mudou} onClick={() => setDescricao(ferramenta.descricao ?? '')}>
+            Descartar mudanças
+          </Button>
+        </div>
+      ) : null}
+      {ferramenta.historico.length > 0 ? (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold">Descrições anteriores</div>
+          {ferramenta.historico.map((v, i) => (
+            <div key={`${v.substituidaEm}-${i}`} className="rounded border p-2 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                Versão {v.versao ?? '—'} · substituída em {new Date(v.substituidaEm).toLocaleString('pt-BR')}
+                {v.substituidaPor ? ` por ${v.substituidaPor}` : ''}
+                {podeEditar ? (
+                  <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => setDescricao(v.conteudo ?? '')}>
+                    Usar esta versão
+                  </Button>
+                ) : null}
+              </div>
+              <div className="mt-1 whitespace-pre-wrap">{v.conteudo}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <details className="text-xs">
+        <summary className="cursor-pointer text-muted-foreground">Parâmetros (definidos no código)</summary>
+        <pre className="mt-1 max-h-64 overflow-auto rounded bg-muted p-2 font-mono">
+          {JSON.stringify(ferramenta.parametros ?? {}, null, 2)}
+        </pre>
+      </details>
+    </div>
+  );
+}
+
+function EditorPrompt({
+  chave,
+  aviso = null,
+  rotuloAtivo = (ativo) => (ativo ? 'Ligado: o agente usa este prompt' : 'Desligado: o agente não usa este prompt'),
+  aoSalvar,
+}: {
+  chave: string;
+  /** Quem mais é afetado por mudar este texto. */
+  aviso?: string | null;
+  rotuloAtivo?: (ativo: boolean) => string;
+  aoSalvar?: () => void;
+}) {
   const sessao = useSessao();
   const podeEditar = sessao.pode('configurar');
   const item = useItem('agent_prompts', chave);
@@ -682,6 +1068,7 @@ function EditorPrompt({ chave }: { chave: string }) {
         opcoes: { atualizadoEmEsperado: prompt.atualizadoEm },
       });
       setSalvo(true);
+      aoSalvar?.();
     } catch (e) {
       setErro(mensagemDe(e));
     }
@@ -694,10 +1081,12 @@ function EditorPrompt({ chave }: { chave: string }) {
           <CardTitle className="font-mono text-base">{prompt.chave}</CardTitle>
           <CardDescription>
             Versão {prompt.versao ?? '—'}. Salvar guarda a versão atual no histórico antes de trocar.
-            {prompt.usadoPor.length > 0 ? ` Usado por: ${prompt.usadoPor.map(rotuloAgente).join(', ')}.` : ''}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {aviso ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{aviso}</div>
+          ) : null}
           <MensagemErro texto={erro} />
           {salvo && !mudou ? <div className="text-sm text-verde-800">Salvo.</div> : null}
           <div className="space-y-1">
@@ -717,7 +1106,7 @@ function EditorPrompt({ chave }: { chave: string }) {
               onCheckedChange={setAtivo}
             />
             <Label htmlFor={`ativo-${chave}`}>
-              {ativo ? 'Ligado: o agente usa este prompt' : 'Desligado: o agente não usa este prompt'}
+              {rotuloAtivo(ativo)}
             </Label>
           </div>
           <div className="space-y-1">

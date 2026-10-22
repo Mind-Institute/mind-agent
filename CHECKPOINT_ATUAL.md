@@ -17,12 +17,40 @@
   Institute e Dash estavam sem `buscar_intelligence`/`ler_intelligence`. Agora com colunas explícitas.
 - **Painel:** as 9 funções de Knowledge/Agent Intelligence davam 503 (SECURITY INVOKER sem USAGE do
   service_role); agora SECURITY DEFINER. Agent Intelligence ganhou visão por agente (conhecimento, kit,
-  canais, prompts com `agentes.prompts_historico`); só administrador edita. `mindagent-knowledge` v8.
+  canais, prompts com `agentes.prompts_historico`); só administrador edita. `mindagent-knowledge` v8
+  (hoje v10).
   O frontend dessa visão sai com o merge da PR (Workers Builds).
 - **Agente:** rota `mia_summit_2026` (MIA Summit 2026), **desligada**: playbook rascunho `ativo=false`,
   canais `ativo=false`. 55 transcrições e 37 slides ligados atrás do interruptor `business/summit_content`
-  (só a MIA tem). 1.140 trechos por minuto, **sem embedding ainda**: falta rodar
-  `mindagent-index-knowledge` com a chave secreta (`{"schema":"summit_2026"}`).
+  (só a MIA tem). 1.140 trechos por minuto, **sem embedding ainda** (ver o botão abaixo).
+- **Embeddings:** botão "Gerar embeddings do Summit" na aba Conhecimento (`POST /admin/knowledge_embeddings`
+  na `mindagent-knowledge`, que chama o indexador com a chave secreta). Sai com o merge.
+- **Fase 1 da ficha do agente** (aprovada pela Adriana, 22/10; migration `20261022131251`,
+  `mindagent-knowledge` v10 / 1.3.0):
+  - `public.mind_agent_instrucoes(rota)` é a montagem única das instruções: `base` → playbook →
+    `kit_blocos` seção `instrucoes` (por `ordem`, liga/desliga por agente) → `decisioning`. O
+    `mind_agent_kit` passou a usá-la; a migration conferiu que o texto de todas as rotas saiu idêntico.
+    Bloco `instrucoes` obrigatório e ligado sem texto: a montagem devolve nada e o agente não responde.
+  - O protocolo de crise da MIA saiu do playbook (v2, a v1 está no histórico) e virou o bloco
+    obrigatório `protocolo_crise_mia_summit_2026`. Desligar pede confirmação na tela.
+  - **`tom_de_voz` não chegava a nenhum agente** (removido do caminho em `20260903110000`). Agora aparece
+    desligado em todos os agentes, com "criar versão própria" (copia o texto para `<bloco>_<rota>`).
+  - Skills: descrição de `concierge.ferramentas` editável, versão anterior em `prompts_historico` com
+    chave `ferramenta:<nome>`.
+  - Tela: abas Instruções (ordem real, texto completo, editor), Conhecimento, Skills, Dados oficiais,
+    Canais. Sai com o merge.
+- **Achados para as próximas fases (não mexidos):**
+  - o `router` só escolhe entre 6 rotas fixas no código (`ROTAS`): a MIA não pode ser escolhida por ele;
+  - a porta direta `ROTA_POR_ORIGEM` (`mind_summit_app → concierge_summit`) está no código da `mindagent-chat`;
+  - a análise pós-conversa (`analisar-conversa` v16, não versionada no repo) não olha a rota:
+    `analise_pendentes` filtra por `agente` (runtime). Não há interruptor por agente. Analisador
+    desligado deixa a conversa na fila e o classificador roda de novo a cada 15 min (BACKLOG §18.1).
+    O cron `silence_reavaliar` está desligado;
+  - `intelligence.config` guarda segredos em texto legível por qualquer leitor SQL.
+- Pedidos da Adriana ainda em desenho, para aprovação: menu Canais e Roteador (o que acontece em cada
+  entrada, quem atende, para quem o roteador pode passar, com liga/desliga por canal), Playground por
+  agente, histórico de conversas reais por agente e menu da Análise pós-conversa (prompts, liga/desliga
+  por agente, últimas execuções e o que gravou).
 - Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
   (P6), identidade (P7) e teste com perguntas reais (P8).
 

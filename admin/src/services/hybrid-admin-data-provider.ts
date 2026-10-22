@@ -57,6 +57,8 @@ export const RECURSOS_DO_KNOWLEDGE = [
   'agent_channels',
   'agent_kit_blocks',
   'agent_prompts',
+  'agent_instructions',
+  'agent_tools',
 ] as const satisfies readonly NomeRecurso[];
 
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
@@ -89,6 +91,8 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   agent_channels: new Set(['list', 'get', 'update']),
   agent_kit_blocks: new Set(['list', 'get', 'create', 'update']),
   agent_prompts: new Set(['list', 'get', 'update']),
+  agent_instructions: new Set(['list', 'get', 'create']),
+  agent_tools: new Set(['list', 'get', 'update']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -109,6 +113,8 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   agent_channels: (op) => `Os canais de cada agente se ligam e desligam; ${op} canal não existe no painel.`,
   agent_kit_blocks: (op) => `O kit aceita ligar, desligar e acrescentar blocos que já existem; ${op} bloco não existe no painel.`,
   agent_prompts: (op) => `Prompts se leem e editam, com histórico; ${op} prompt não existe no painel.`,
+  agent_instructions: (op) => `As instruções se montam a partir dos prompts e do kit; ${op} instrução não existe no painel.`,
+  agent_tools: (op) => `Das ferramentas, o painel edita a descrição; ${op} ferramenta não existe no painel.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {

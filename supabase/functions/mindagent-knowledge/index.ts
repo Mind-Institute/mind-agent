@@ -26,13 +26,19 @@
      PATCH /admin/agent_kit_blocks/:rota::bloco
      GET   /admin/agent_prompts             prompts (agentes.prompts); com :id, traz o histórico
      PATCH /admin/agent_prompts/:chave      guarda a versão atual no histórico e salva
+     GET   /admin/agent_instructions        o que cada agente recebe antes de responder, na ordem
+     GET   /admin/agent_instructions/:rota  idem, com o texto completo montado
+     POST  /admin/agent_instructions        cria uma instrução própria do agente (pode substituir uma)
+     GET   /admin/agent_tools               ferramentas (skills) que os agentes usam
+     PATCH /admin/agent_tools/:nome         nova descrição, guardando a anterior
      POST  /admin/knowledge_search
      POST  /admin/knowledge_embeddings      uma rodada de embeddings pendentes (summit_2026, institute, dash)
      GET   /health
 
-   Canais, kit e prompts mudam o comportamento do agente na hora: só o
-   papel administrador escreve neles (Adriana, 22/10/2026). O banco confere
-   de novo o papel pelo usuário que a função repassa.
+   Canais, kit, prompts, instruções e ferramentas mudam o comportamento do
+   agente na hora: só o papel administrador escreve neles (Adriana,
+   22/10/2026). O banco confere de novo o papel pelo usuário que a função
+   repassa.
 */
 
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
@@ -55,6 +61,8 @@ const RECURSOS = {
   agent_channels: { ler: "mind_admin_read_agent_channels", idParam: "p_id" },
   agent_kit_blocks: { ler: "mind_admin_read_agent_kit", idParam: "p_id" },
   agent_prompts: { ler: "mind_admin_read_agent_prompts", idParam: "p_id" },
+  agent_instructions: { ler: "mind_admin_read_agent_instructions", idParam: "p_id" },
+  agent_tools: { ler: "mind_admin_read_agent_tools", idParam: "p_id" },
 } as const;
 
 /* Recusa do banco nas escritas de canais, kit e prompts, na frase que a tela mostra. */
@@ -68,6 +76,9 @@ function recusaDaEscrita(error: { code?: string; message?: string }, oQue: strin
   }
   if (m.includes("admin_not_found") || error.code === "P0002") {
     return { status: 404, corpo: { codigo: "nao_encontrado", mensagem: "Registro não encontrado." } };
+  }
+  if (m.includes("admin_validation:chave_existe")) {
+    return { status: 422, corpo: { codigo: "validacao", mensagem: "Já existe um texto com essa chave. Escolha outra." } };
   }
   if (m.includes("admin_validation") || error.code === "22023") {
     return { status: 422, corpo: { codigo: "validacao", mensagem: "Revise os campos antes de salvar." } };
@@ -198,7 +209,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.2.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.3.0" }, requestId);
   }
   if (!origemPermitida(req.headers.get("Origin"))) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
@@ -434,11 +445,11 @@ Deno.serve(async (req: Request) => {
   }
 
   const escritaDoAgente =
-    (req.method === "PATCH" && id && ["agent_channels", "agent_kit_blocks", "agent_prompts"].includes(nome ?? "")) ||
-    (req.method === "POST" && !id && nome === "agent_kit_blocks");
+    (req.method === "PATCH" && id && ["agent_channels", "agent_kit_blocks", "agent_prompts", "agent_tools"].includes(nome ?? "")) ||
+    (req.method === "POST" && !id && ["agent_kit_blocks", "agent_instructions"].includes(nome ?? ""));
   if (escritaDoAgente) {
     if (acesso.role !== "administrador") {
-      return json(req, 403, { codigo: "sem_permissao", mensagem: "Só administrador altera canais, kit e prompts dos agentes." }, requestId);
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Só administrador altera canais, kit, instruções e ferramentas dos agentes." }, requestId);
     }
     let payload: Record<string, unknown>;
     try { payload = await corpo(req); }
@@ -472,6 +483,32 @@ Deno.serve(async (req: Request) => {
         p_obrigatorio: booleano(payload.obrigatorio),
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: id ? esperado : null,
+      });
+    } else if (nome === "agent_instructions") {
+      oQue = "as instruções";
+      const conteudo = texto(payload.conteudo);
+      if (conteudo !== null && conteudo.length > 100_000) {
+        return json(req, 422, { codigo: "validacao", mensagem: "O texto passou de 100 mil caracteres." }, requestId);
+      }
+      resultado = await segredo.rpc("mind_admin_create_agent_instruction", {
+        p_rota: texto(payload.rota),
+        p_chave: texto(payload.chave),
+        p_titulo: texto(payload.titulo),
+        p_conteudo: conteudo,
+        p_substitui: texto(payload.substitui),
+        p_ator: usuario.user.id,
+      });
+    } else if (nome === "agent_tools") {
+      oQue = "as ferramentas";
+      const descricao = texto(payload.descricao);
+      if (descricao !== null && descricao.length > 4_000) {
+        return json(req, 422, { codigo: "validacao", mensagem: "A descrição passou de 4 mil caracteres." }, requestId);
+      }
+      resultado = await segredo.rpc("mind_admin_update_agent_tool", {
+        p_nome: id,
+        p_descricao: descricao,
+        p_ator: usuario.user.id,
+        p_atualizado_em_esperado: esperado,
       });
     } else {
       oQue = "os prompts";

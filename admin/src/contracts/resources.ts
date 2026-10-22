@@ -11,7 +11,7 @@ import type {
   CustomerKnowledgeGovernance,
   AgentIntelligenceAccess,
 } from './knowledge';
-import type { AgentChannel, AgentKitBlock, AgentPrompt } from './agentes';
+import type { AgentChannel, AgentInstructions, AgentKitBlock, AgentPrompt, AgentTool } from './agentes';
 
 /**
  * O nome do recurso é o mesmo na URL da Edge Function
@@ -50,6 +50,8 @@ export interface MapaRecursos {
   agent_channels: AgentChannel;
   agent_kit_blocks: AgentKitBlock;
   agent_prompts: AgentPrompt;
+  agent_instructions: AgentInstructions;
+  agent_tools: AgentTool;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
@@ -58,7 +60,7 @@ export const NOMES_RECURSOS: NomeRecurso[] = [
   'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
   'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
   'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
-  'agent_channels', 'agent_kit_blocks', 'agent_prompts',
+  'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
 ];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
@@ -77,4 +79,6 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   agent_channels: 'Canal do agente',
   agent_kit_blocks: 'Bloco do kit',
   agent_prompts: 'Prompt',
+  agent_instructions: 'Instruções do agente',
+  agent_tools: 'Ferramenta',
 };
