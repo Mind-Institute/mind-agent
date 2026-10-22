@@ -11,9 +11,17 @@ const source = readFileSync(new URL('../supabase/functions/mindagent-knowledge/i
 const code = stripTypeScriptTypes(source.replace(/^import .*;\n/gm, ''));
 const USUARIO = '33333333-3333-4333-8333-333333333333';
 
-async function call({ method = 'GET', path, role = 'administrador', body, headers = {}, rpcError = null } = {}) {
+async function call({ method = 'GET', path, role = 'administrador', body, headers = {}, rpcError = null, indexador } = {}) {
   let handler;
   const rpcs = [];
+  const buscas = [];
+  /* O indexador (mindagent-index-knowledge) como a rede o devolveria. */
+  const fetch = async (url, init) => {
+    buscas.push(JSON.parse(JSON.stringify({ url, headers: init.headers, body: JSON.parse(init.body) })));
+    if (indexador === 'rede') throw new TypeError('fetch failed');
+    const { status = 200, corpo = { ok: true, requested: 100, indexed: 100, remaining: true } } = indexador ?? {};
+    return new Response(JSON.stringify(corpo), { status, headers: { 'Content-Type': 'application/json' } });
+  };
   const chain = {
     select() { return this; },
     eq() { return this; },
@@ -30,7 +38,7 @@ async function call({ method = 'GET', path, role = 'administrador', body, header
     },
   };
   vm.runInNewContext(code, {
-    Request, Response, URL, crypto: webcrypto, console: { error() {} }, createClient: () => client,
+    Request, Response, URL, fetch, crypto: webcrypto, console: { error() {} }, createClient: () => client,
     Deno: {
       serve: (fn) => { handler = fn; },
       env: { get: (key) => ({ SUPABASE_URL: 'https://test.supabase.co', SUPABASE_ANON_KEY: 'fake-anon', SUPABASE_SERVICE_ROLE_KEY: 'fake-service' })[key] },
@@ -42,7 +50,7 @@ async function call({ method = 'GET', path, role = 'administrador', body, header
     init.headers['Content-Type'] = 'application/json';
   }
   const response = await handler(new Request('https://test.invalid/functions/v1/mindagent-knowledge' + path, init));
-  return { status: response.status, body: await response.json(), rpcs };
+  return { status: response.status, body: await response.json(), rpcs, buscas };
 }
 
 test('lista canais, kit e prompts pelas portas de leitura', async () => {
@@ -143,5 +151,50 @@ for (const [nome, error, status] of [
   test(`recusa do banco: ${nome}`, async () => {
     const r = await call({ method: 'PATCH', path: '/admin/agent_kit_blocks/mia_summit_2026%3A%3Aevento', body: { ativo: false }, rpcError: error });
     assert.equal(r.status, status);
+  });
+}
+
+/* Botão "Gerar embeddings" (Adriana, 22/10/2026): o painel não tem a chave
+   secreta; a mindagent-knowledge confere o admin e chama o indexador. */
+test('gerar embeddings chama o indexador com a chave secreta em apikey', async () => {
+  const r = await call({ method: 'POST', path: '/admin/knowledge_embeddings', role: 'editor', body: { schema: 'summit_2026' } });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { schema: 'summit_2026', processados: 100, pedidos: 100, restantes: true });
+  assert.equal(r.buscas.length, 1);
+  assert.equal(r.buscas[0].url, 'https://test.supabase.co/functions/v1/mindagent-index-knowledge');
+  assert.equal(r.buscas[0].headers.apikey, 'fake-service');
+  assert.equal(r.buscas[0].headers.Authorization, undefined);
+  assert.deepEqual(r.buscas[0].body, { schema: 'summit_2026', limite: 100 });
+});
+
+test('analista não gera embeddings', async () => {
+  const r = await call({ method: 'POST', path: '/admin/knowledge_embeddings', role: 'analista', body: { schema: 'summit_2026' } });
+  assert.equal(r.status, 403);
+  assert.equal(r.buscas.length, 0);
+});
+
+test('base desconhecida não chega ao indexador', async () => {
+  const r = await call({ method: 'POST', path: '/admin/knowledge_embeddings', body: { schema: 'public' } });
+  assert.equal(r.status, 422);
+  assert.equal(r.buscas.length, 0);
+});
+
+test('a última rodada diz que não resta nada', async () => {
+  const r = await call({
+    method: 'POST', path: '/admin/knowledge_embeddings', body: { schema: 'summit_2026' },
+    indexador: { corpo: { ok: true, requested: 40, indexed: 40, remaining: false } },
+  });
+  assert.deepEqual(r.body, { schema: 'summit_2026', processados: 40, pedidos: 40, restantes: false });
+});
+
+for (const [nome, indexador] of [
+  ['indexador recusa', { status: 500, corpo: { error: 'embedding_failed' } }],
+  ['rede cai', 'rede'],
+]) {
+  test(`falha do indexador vira 503 sem vazar o motivo: ${nome}`, async () => {
+    const r = await call({ method: 'POST', path: '/admin/knowledge_embeddings', body: { schema: 'summit_2026' }, indexador });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.codigo, 'indisponivel');
+    assert.equal(JSON.stringify(r.body).includes('embedding_failed'), false);
   });
 }

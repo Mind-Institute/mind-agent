@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AgentChannel, AgentKitBlock, AgentPrompt } from '@/contracts';
 import { criarBanco } from '@/mocks/db';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
-import { renderizarPainel } from './utils';
+import { SESSAO_DE_TESTE, criarPortaFalsa, renderizarPainel } from './utils';
 
 /* ============================================================
    AGENT INTELLIGENCE — cada agente num lugar só
@@ -125,5 +125,72 @@ describe('Agent Intelligence por agente', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Prompts' }));
     expect(await screen.findByLabelText('Texto')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Salvar nova versão' })).not.toBeInTheDocument();
+  });
+});
+
+/* Logado de verdade (o botão manda o token): o perfil vem de `/admin/me`, e o
+   resto da tela segue no banco em memória. */
+function logadoComIndexador(rodadas: Response[]) {
+  vi.stubEnv('VITE_KNOWLEDGE_API_BASE_URL', 'https://knowledge.teste');
+  const chamadas: { url: string; corpo: unknown; token: string | null }[] = [];
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    if (String(url).endsWith('/admin/me')) {
+      return new Response(JSON.stringify({ papel: 'administrador', nome: 'Teste' }), { status: 200 });
+    }
+    chamadas.push({
+      url: String(url),
+      corpo: JSON.parse(String(init?.body)),
+      token: new Headers(init?.headers).get('Authorization'),
+    });
+    return rodadas.shift() ?? new Response('{}', { status: 500 });
+  });
+  vi.stubGlobal('fetch', fetchImpl);
+  renderizarPainel({
+    rota: '/agent-intelligence',
+    porta: criarPortaFalsa({ sessaoInicial: SESSAO_DE_TESTE }),
+    baseUrlApi: 'https://test.supabase.co/functions/v1/admin',
+    fetchImpl,
+    provedor: provedorComAgentes(),
+  });
+  return chamadas;
+}
+
+const rodada = (processados: number, restantes: boolean) =>
+  new Response(JSON.stringify({ schema: 'summit_2026', processados, restantes }), { status: 200 });
+
+describe('gerar embeddings do Summit', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('repete as rodadas até não sobrar trecho e diz quantos processou', async () => {
+    const chamadas = logadoComIndexador([rodada(100, true), rodada(100, true), rodada(40, false)]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Gerar embeddings do Summit' }));
+
+    expect(await screen.findByText('Pronto: 240 trechos ganharam embedding.')).toBeInTheDocument();
+    expect(chamadas).toHaveLength(3);
+    expect(chamadas[0]).toEqual({
+      url: 'https://knowledge.teste/admin/knowledge_embeddings',
+      corpo: { schema: 'summit_2026' },
+      token: `Bearer ${SESSAO_DE_TESTE.accessToken}`,
+    });
+  });
+
+  it('para na falha e conta o que já foi feito', async () => {
+    logadoComIndexador([
+      rodada(100, true),
+      new Response(JSON.stringify({ codigo: 'indisponivel', mensagem: 'Não foi possível gerar embeddings.' }), { status: 503 }),
+    ]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Gerar embeddings do Summit' }));
+
+    expect(await screen.findByText('Não foi possível gerar embeddings. (100 trechos já foram processados.)')).toBeInTheDocument();
+  });
+
+  it('analista não gera embeddings', async () => {
+    renderizarPainel({ rota: '/agent-intelligence', papel: 'analista', provedor: provedorComAgentes() });
+    expect(await screen.findByRole('button', { name: 'Gerar embeddings do Summit' })).toBeDisabled();
   });
 });

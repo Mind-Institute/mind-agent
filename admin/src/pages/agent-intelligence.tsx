@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Bot, Database, History, Plus, Radio, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bot, Database, History, Plus, Radio, ShieldCheck, Sparkles } from 'lucide-react';
 import type { AgentChannel, AgentIntelligenceAccess, AgentKitBlock, AgentPrompt } from '@/contracts';
 import { useAtualizar, useCriar, useItem, useLista } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { enderecoDoKnowledge } from '@/services/provider-context';
 
 /* ============================================================
    AGENT INTELLIGENCE
@@ -267,6 +268,7 @@ function SecaoConhecimento({ itens }: { itens: AgentIntelligenceAccess[] }) {
           slides das palestras para este agente; desligar tira na hora.
         </CardContent>
       </Card>
+      <GerarEmbeddingsSummit />
       <MensagemErro texto={erro} />
       {ORDEM_NAMESPACE.map((namespace) => {
         const doGrupo = itens
@@ -310,6 +312,73 @@ function SecaoConhecimento({ itens }: { itens: AgentIntelligenceAccess[] }) {
         );
       })}
     </div>
+  );
+}
+
+/* Sem embedding, um trecho só é achado pelas palavras exatas; com ele, também
+   pelo sentido. O indexador pede a chave secreta, então o painel passa pela
+   mindagent-knowledge, que confere quem pediu. Cada chamada é uma rodada de
+   até 100 trechos; o botão repete até não sobrar nada. */
+const RODADAS_MAXIMAS = 40;
+
+function GerarEmbeddingsSummit() {
+  const sessao = useSessao();
+  const [gerando, setGerando] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function gerar() {
+    setGerando(true);
+    setErro(null);
+    setStatus(null);
+    let total = 0;
+    try {
+      const base = enderecoDoKnowledge();
+      if (!base) throw new Error('Knowledge API não configurada.');
+      const token = await sessao.obterToken();
+      if (!token) throw new Error('Sessão ausente.');
+      const chave = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+      for (let rodada = 0; rodada < RODADAS_MAXIMAS; rodada += 1) {
+        const resposta = await fetch(`${base}/admin/knowledge_embeddings`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...(chave ? { apikey: chave } : {}),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ schema: 'summit_2026' }),
+        });
+        const payload = await resposta.json().catch(() => ({})) as { processados?: number; restantes?: boolean; mensagem?: string };
+        if (!resposta.ok) throw new Error(payload.mensagem ?? 'Não foi possível gerar embeddings.');
+        total += payload.processados ?? 0;
+        if (!payload.restantes) {
+          setStatus(total === 0 ? 'Nada pendente: todos os trechos já têm embedding.' : `Pronto: ${total} trechos ganharam embedding.`);
+          return;
+        }
+        setStatus(`${total} trechos processados… continuando.`);
+      }
+      setStatus(`${total} trechos processados nesta vez. Ainda há pendentes: clique de novo.`);
+    } catch (e) {
+      setErro(`${e instanceof Error ? e.message : 'Não foi possível gerar embeddings.'}${total ? ` (${total} trechos já foram processados.)` : ''}`);
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-muted-foreground">
+          Busca por sentido no conteúdo do Summit: gera os embeddings que faltam nas transcrições e slides. Vale para
+          todos os agentes que leem esse conteúdo.
+          {status ? <div className="mt-1 text-foreground" role="status">{status}</div> : null}
+          <MensagemErro texto={erro} />
+        </div>
+        <Button variant="outline" className="shrink-0" onClick={() => void gerar()} disabled={gerando || !sessao.pode('editar')}>
+          <Sparkles className="mr-2 size-4" />{gerando ? 'Gerando…' : 'Gerar embeddings do Summit'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

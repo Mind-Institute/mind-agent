@@ -27,6 +27,7 @@
      GET   /admin/agent_prompts             prompts (agentes.prompts); com :id, traz o histórico
      PATCH /admin/agent_prompts/:chave      guarda a versão atual no histórico e salva
      POST  /admin/knowledge_search
+     POST  /admin/knowledge_embeddings      uma rodada de embeddings pendentes (summit_2026, institute, dash)
      GET   /health
 
    Canais, kit e prompts mudam o comportamento do agente na hora: só o
@@ -197,7 +198,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.1.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.2.0" }, requestId);
   }
   if (!origemPermitida(req.headers.get("Origin"))) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
@@ -283,6 +284,49 @@ Deno.serve(async (req: Request) => {
       query,
       agentKey,
       mode: embedding ? "hybrid" : "lexical",
+    }, requestId);
+  }
+
+  if (req.method === "POST" && nome === "knowledge_embeddings" && !id && !sobra) {
+    if (!["administrador","editor","aprovador"].includes(acesso.role)) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Seu papel não permite gerar embeddings." }, requestId);
+    }
+    let payload: Record<string, unknown>;
+    try { payload = await corpo(req); }
+    catch { return json(req, 422, { codigo: "validacao", mensagem: "Corpo inválido." }, requestId); }
+
+    const schema = String(payload.schema ?? "summit_2026");
+    if (!["summit_2026", "institute", "dash"].includes(schema)) {
+      return json(req, 422, { codigo: "validacao", mensagem: "Base de conhecimento desconhecida." }, requestId);
+    }
+
+    // O indexador só aceita a chave secreta do projeto, e é aqui que o admin foi
+    // conferido. A chave vai em `apikey`, o caminho que o gateway deixa passar
+    // (ver mindagent-index-knowledge). Uma rodada por chamada: a tela repete.
+    let resposta: Response;
+    try {
+      resposta = await fetch(`${supabaseUrl}/functions/v1/mindagent-index-knowledge`, {
+        method: "POST",
+        headers: { apikey: chaveSecreta, "Content-Type": "application/json" },
+        body: JSON.stringify({ schema, limite: 100 }),
+      });
+    } catch {
+      return json(req, 503, { codigo: "indisponivel", mensagem: "Não foi possível gerar embeddings." }, requestId);
+    }
+    const rodada = await resposta.json().catch(() => ({})) as {
+      indexed?: number; requested?: number; remaining?: boolean; error?: string;
+    };
+    if (!resposta.ok) {
+      console.error(JSON.stringify({
+        request_id: requestId, error: "knowledge_embeddings_failed", status: resposta.status, motivo: rodada.error ?? null,
+      }));
+      return json(req, 503, { codigo: "indisponivel", mensagem: "Não foi possível gerar embeddings." }, requestId);
+    }
+    return json(req, 200, {
+      schema,
+      processados: Number(rodada.indexed ?? 0),
+      pedidos: Number(rodada.requested ?? 0),
+      restantes: Boolean(rodada.remaining),
     }, requestId);
   }
 
