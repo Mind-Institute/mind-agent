@@ -49,6 +49,7 @@ const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
   agent_tools: ['nome', 'descricao'],
   agents: ['rota', 'nome', 'descricao'],
   channel_entries: ['codigo', 'rotulo', 'descricao'],
+  agent_conversations: ['primeiroNome', 'rota', 'canal'],
 };
 
 /* O que o banco preenche ao criar, para a linha nova aparecer inteira na

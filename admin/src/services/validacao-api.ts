@@ -19,6 +19,7 @@ import {
   agentToolSchema,
   agentSchema,
   channelEntrySchema,
+  agentConversationSchema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -67,6 +68,7 @@ const SCHEMAS = {
   agent_tools: agentToolSchema,
   agents: agentSchema,
   channel_entries: channelEntrySchema,
+  agent_conversations: agentConversationSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

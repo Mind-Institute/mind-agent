@@ -254,6 +254,22 @@ test('descrição gigante de ferramenta é recusada antes do banco', async () =>
   assert.equal(r.rpcs.length, 0);
 });
 
+/* Conversas reais (Adriana, 22/10/2026): só administrador; a porta do banco já
+   mascara telefone e e-mail. */
+test('conversas reais: administrador lista e abre; os outros papéis não veem', async () => {
+  const lista = await call({ path: '/admin/agent_conversations' });
+  assert.equal(lista.status, 200);
+  assert.deepEqual(lista.rpcs, [{ nome: 'mind_admin_read_agent_conversations', args: { p_id: null } }]);
+  const uma = await call({ path: '/admin/agent_conversations/66666666-6666-4666-8666-666666666666' });
+  assert.equal(uma.status, 200);
+  assert.equal(uma.rpcs[0].args.p_id, '66666666-6666-4666-8666-666666666666');
+  for (const role of ['editor', 'aprovador', 'atendimento', 'analista']) {
+    const r = await call({ path: '/admin/agent_conversations', role });
+    assert.equal(r.status, 403, role);
+    assert.equal(r.rpcs.length, 0);
+  }
+});
+
 /* Botão "Gerar embeddings" (Adriana, 22/10/2026): o painel não tem a chave
    secreta; a mindagent-knowledge confere o admin e chama o indexador. */
 test('gerar embeddings chama o indexador com a chave secreta em apikey', async () => {

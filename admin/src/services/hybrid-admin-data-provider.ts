@@ -61,6 +61,7 @@ export const RECURSOS_DO_KNOWLEDGE = [
   'agent_tools',
   'agents',
   'channel_entries',
+  'agent_conversations',
 ] as const satisfies readonly NomeRecurso[];
 
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
@@ -97,6 +98,7 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   agent_tools: new Set(['list', 'get', 'update']),
   agents: new Set(['list', 'get', 'update']),
   channel_entries: new Set(['list', 'get']),
+  agent_conversations: new Set(['list', 'get']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -121,6 +123,7 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   agent_tools: (op) => `Das ferramentas, o painel edita a descrição; ${op} ferramenta não existe no painel.`,
   agents: (op) => `Do agente, o painel edita nome e descrição; ${op} agente não existe no painel.`,
   channel_entries: (op) => `As entradas do WhatsApp nascem no site e na Treble; ${op} entrada não existe no painel.`,
+  agent_conversations: (op) => `Conversas reais só se leem; ${op} conversa não existe no painel.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {

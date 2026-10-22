@@ -14,6 +14,7 @@ import { useAtualizar, useCriar, useItem, useLista } from '@/hooks/use-recurso';
 import { useSessao } from '@/hooks/use-sessao';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Playground } from '@/components/admin/playground';
+import { ConversasDoAgente } from '@/components/admin/conversas-do-agente';
 import { DialogoConfirmacao } from '@/components/admin/dialogos';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -249,6 +250,7 @@ function PainelDoAgente({
           <TabsTrigger value="dados">Dados oficiais</TabsTrigger>
           <TabsTrigger value="canais">Canais</TabsTrigger>
           <TabsTrigger value="playground">Playground</TabsTrigger>
+          <TabsTrigger value="conversas">Conversas</TabsTrigger>
         </TabsList>
         <TabsContent value="instrucoes" className="pt-4">
           <SecaoInstrucoes agente={agente} prompts={prompts} />
@@ -267,6 +269,9 @@ function PainelDoAgente({
         </TabsContent>
         <TabsContent value="playground" className="pt-4">
           <Playground agente={agente} rotulo={rotuloAgente(agente)} />
+        </TabsContent>
+        <TabsContent value="conversas" className="pt-4">
+          <ConversasDoAgente agente={agente} rotulo={rotuloAgente(agente)} />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { AgentChannel, AgentInstructions, AgentKitBlock, AgentPrompt, AgentTool } from '@/contracts';
+import type { AgentChannel, AgentConversation, AgentInstructions, AgentKitBlock, AgentPrompt, AgentTool } from '@/contracts';
 import { criarBanco } from '@/mocks/db';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
 import { SESSAO_DE_TESTE, criarPortaFalsa, renderizarPainel } from './utils';
@@ -447,5 +447,51 @@ describe('playground', () => {
     await userEvent.click(within(grupo).getByRole('button', { name: 'MIA Summit 2026' }));
     await userEvent.click(screen.getByRole('tab', { name: 'Playground' }));
     expect(await screen.findByLabelText('Sua mensagem')).toBeDisabled();
+  });
+});
+
+describe('conversas reais do agente', () => {
+  const CONVERSA: AgentConversation = {
+    id: '66666666-6666-4666-8666-666666666666', canal: 'mindagent-web', agente: 'mindagent-chat', teste: false,
+    rota: 'mia_summit_2026', rotas: ['concierge_summit', 'mia_summit_2026'], primeiroNome: 'Ana',
+    iniciadaEm: QUANDO, ultimaAtividade: QUANDO, mensagens: 4, skills: ['buscar_intelligence'], analisadores: ['analise_concierge'],
+    falas: [
+      { papel: 'lead', texto: 'Meu e-mail é [e-mail], o que disseram sobre burnout?', criadoEm: QUANDO, rota: null, modelo: null, duracaoMs: null, ferramentas: [] },
+      { papel: 'agente', texto: 'Na sessão de abertura…', criadoEm: QUANDO, rota: 'mia_summit_2026', modelo: 'gpt-5.4', duracaoMs: 2300, ferramentas: [{ nome: 'buscar_intelligence', ok: true }] },
+    ],
+    analises: [{ analisador: 'analise_concierge', analisadoEm: QUANDO, modelo: 'gpt-5.4-mini', dados: { customer_memory: [] } }],
+  };
+  const OUTRA: AgentConversation = { ...CONVERSA, id: '77777777-7777-4777-8777-777777777777', rota: 'concierge_summit', rotas: ['concierge_summit'], primeiroNome: 'Bia', falas: [], analises: [] };
+
+  function provedorComConversas() {
+    const p = provedorComAgentes();
+    p.banco.agent_conversations = structuredClone([CONVERSA, OUTRA]);
+    return p;
+  }
+
+  it('lista só as conversas em que o agente respondeu e abre a transcrição mascarada', async () => {
+    renderizarPainel({ rota: '/agent-intelligence', provedor: provedorComConversas() });
+    const grupo = await screen.findByRole('group', { name: 'Agentes' });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'MIA Summit 2026' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Conversas' }));
+
+    expect(await screen.findByTestId(`conversa-${CONVERSA.id}`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`conversa-${OUTRA.id}`)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir' }));
+    const transcricao = await screen.findByRole('log', { name: 'Transcrição da conversa' });
+    expect(transcricao).toHaveTextContent('Meu e-mail é [e-mail]');
+    expect(transcricao).toHaveTextContent('respondeu: mia_summit_2026');
+    expect(transcricao).toHaveTextContent('skills: buscar_intelligence');
+    expect(screen.getByText('analise_concierge')).toBeInTheDocument();
+  });
+
+  it('quem não é administrador não vê conversas', async () => {
+    renderizarPainel({ rota: '/agent-intelligence', papel: 'editor', provedor: provedorComConversas() });
+    const grupo = await screen.findByRole('group', { name: 'Agentes' });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'MIA Summit 2026' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Conversas' }));
+    expect(await screen.findByText('Só administrador vê as conversas reais.')).toBeInTheDocument();
+    expect(screen.queryByTestId(`conversa-${CONVERSA.id}`)).not.toBeInTheDocument();
   });
 });

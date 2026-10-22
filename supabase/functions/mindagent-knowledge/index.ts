@@ -24,6 +24,8 @@
      GET   /admin/agent_channels            canais de cada agente (agentes.canal_competencia)
      PATCH /admin/agent_channels/:canal::rota  atende, roteador pode escolher, entradas diretas
      GET   /admin/channel_entries           as entradas do WhatsApp (engagement.origens), só leitura
+     GET   /admin/agent_conversations       conversas reais atendidas pelos agentes (só administrador; sem telefone/e-mail)
+     GET   /admin/agent_conversations/:id   a conversa, com as falas mascaradas e as análises
      GET   /admin/agent_kit_blocks          kit de cada agente (agentes.kit_blocos)
      POST  /admin/agent_kit_blocks          acrescenta a um agente um bloco que já existe
      PATCH /admin/agent_kit_blocks/:rota::bloco
@@ -68,7 +70,11 @@ const RECURSOS = {
   agent_prompts: { ler: "mind_admin_read_agent_prompts", idParam: "p_id" },
   agent_instructions: { ler: "mind_admin_read_agent_instructions", idParam: "p_id" },
   agent_tools: { ler: "mind_admin_read_agent_tools", idParam: "p_id" },
+  agent_conversations: { ler: "mind_admin_read_agent_conversations", idParam: "p_id" },
 } as const;
+
+/* Conversas reais são assunto sensível (saúde mental): só administrador lê (Adriana, 22/10/2026). */
+const SO_ADMINISTRADOR_LE = new Set<string>(["agent_conversations"]);
 
 /* Recusa do banco nas escritas de canais, kit e prompts, na frase que a tela mostra. */
 function recusaDaEscrita(error: { code?: string; message?: string }, oQue: string) {
@@ -220,7 +226,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.4.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.5.0" }, requestId);
   }
   if (!origemPermitida(req.headers.get("Origin"))) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
@@ -356,6 +362,9 @@ Deno.serve(async (req: Request) => {
   if (!recurso || sobra) return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
 
   if (req.method === "GET") {
+    if (SO_ADMINISTRADOR_LE.has(nome ?? "") && acesso.role !== "administrador") {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Só administrador vê as conversas reais." }, requestId);
+    }
     const args: Record<string, unknown> = { [recurso.idParam]: id ?? null };
     const { data, error } = await segredo.rpc(recurso.ler, args);
     if (error) {

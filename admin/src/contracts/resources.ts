@@ -11,7 +11,16 @@ import type {
   CustomerKnowledgeGovernance,
   AgentIntelligenceAccess,
 } from './knowledge';
-import type { Agent, AgentChannel, AgentInstructions, AgentKitBlock, AgentPrompt, AgentTool, ChannelEntry } from './agentes';
+import type {
+  Agent,
+  AgentChannel,
+  AgentConversation,
+  AgentInstructions,
+  AgentKitBlock,
+  AgentPrompt,
+  AgentTool,
+  ChannelEntry,
+} from './agentes';
 
 /**
  * O nome do recurso é o mesmo na URL da Edge Function
@@ -54,6 +63,7 @@ export interface MapaRecursos {
   agent_tools: AgentTool;
   agents: Agent;
   channel_entries: ChannelEntry;
+  agent_conversations: AgentConversation;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
@@ -63,7 +73,7 @@ export const NOMES_RECURSOS: NomeRecurso[] = [
   'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
   'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
   'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
-  'agents', 'channel_entries',
+  'agents', 'channel_entries', 'agent_conversations',
 ];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
@@ -86,4 +96,5 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   agent_tools: 'Ferramenta',
   agents: 'Agente',
   channel_entries: 'Entrada do canal',
+  agent_conversations: 'Conversa',
 };

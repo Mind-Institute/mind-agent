@@ -163,3 +163,46 @@ export const agentToolSchema = z.object({
   historico: z.array(agentToolVersionSchema).default([]),
 });
 export type AgentTool = z.infer<typeof agentToolSchema>;
+
+export const agentConversationTurnSchema = z.object({
+  papel: z.string().min(1),
+  /** Já sem telefone e e-mail: a porta do banco mascara. */
+  texto: z.string().nullable().default(null),
+  criadoEm: z.string().min(1),
+  rota: z.string().nullable().default(null),
+  modelo: z.string().nullable().default(null),
+  duracaoMs: z.number().nullable().default(null),
+  ferramentas: z.array(z.object({ nome: z.string().nullable().default(null), ok: z.boolean().nullable().default(null) })).default([]),
+});
+export type AgentConversationTurn = z.infer<typeof agentConversationTurnSchema>;
+
+export const agentConversationAnalysisSchema = z.object({
+  analisador: z.string().min(1),
+  analisadoEm: z.string().min(1),
+  modelo: z.string().nullable().default(null),
+  dados: z.unknown().optional(),
+});
+export type AgentConversationAnalysis = z.infer<typeof agentConversationAnalysisSchema>;
+
+/** Uma conversa real atendida por um agente nosso. Só administrador vê; nunca traz telefone nem e-mail. */
+export const agentConversationSchema = z.object({
+  id: z.string().min(1),
+  canal: z.string().min(1),
+  /** mindagent-chat | treble-inbound-agent | mindagent-playground (teste). */
+  agente: z.string().nullable().default(null),
+  teste: z.boolean().default(false),
+  /** O agente que respondeu por último. */
+  rota: z.string().nullable().default(null),
+  /** Todos os agentes que responderam nela. */
+  rotas: z.array(z.string()).default([]),
+  primeiroNome: z.string().nullable().default(null),
+  iniciadaEm: z.string().nullable().default(null),
+  ultimaAtividade: z.string().nullable().default(null),
+  mensagens: z.number().int().default(0),
+  skills: z.array(z.string()).default([]),
+  analisadores: z.array(z.string()).default([]),
+  /** Só ao abrir uma conversa. */
+  falas: z.array(agentConversationTurnSchema).default([]),
+  analises: z.array(agentConversationAnalysisSchema).default([]),
+});
+export type AgentConversation = z.infer<typeof agentConversationSchema>;
