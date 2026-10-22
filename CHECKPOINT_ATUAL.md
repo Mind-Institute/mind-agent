@@ -59,27 +59,32 @@
   - Tela `/canais` (Canais e Roteador): por canal, por onde a pessoa chega (entradas do WhatsApp em
     `engagement.origens`, só leitura; portas diretas do app), quem atende primeiro, "roteador pode
     escolher", entradas diretas por agente e o prompt `router_universal` editável.
-  - **Código versionado, ainda NÃO publicado (deploy controlado, CLAUDE.md):** `router` 1.3.0 lê
-    `roteaveis` e não tem mais lista própria (`tests/router_politica.test.mjs`); `mindagent-chat`
-    1.15.0 lê a porta direta por `mind_origem_rota` em vez de `ROTA_POR_ORIGEM`. O `router` no ar
-    (v11) era idêntico ao do repositório antes desta mudança. Até publicar os dois, os interruptores
-    "roteador pode escolher" e "entradas diretas" ficam gravados mas o runtime ainda usa as listas
-    antigas do código (que coincidem com o semeado).
+  - **Publicado em 22/10 (aprovação explícita da Adriana para o deploy controlado):** `router` 1.3.0
+    (v12) lê `roteaveis` e não tem mais lista própria (`tests/router_politica.test.mjs`);
+    `mindagent-chat` 1.16.0 (v49) lê a porta direta por `mind_origem_rota` e tem o modo teste do
+    Playground. Antes de publicar, conferido que o que estava no ar (router v11, chat v48) era
+    idêntico ao repositório em `cabce79`. O chat passou a ser empacotado como o
+    `treble-inbound-agent`: entrypoint `mindagent-chat/index.ts` + `_shared/*.ts` ao lado (manter
+    esse layout em deploys futuros). Ponta a ponta com sessão anônima do app: entrada
+    `mind_summit_app` → `concierge_summit` (`rota_origem=origem_autoritativa`, lida do banco); sem
+    entrada → roteador → `institute`.
 - **Fase 3 — Playground por agente** (aprovado pela Adriana, 22/10; migration `20261022135030`):
   - `mindagent_playground_start(auth_user, token_hash, rota)`: só administrador ativo; abre uma conversa
     nova (dispositivo próprio `playground:<uuid>`) com `agente = 'mindagent-playground'` e
     `variables = {teste, rota_ativa}`. Esse `agente` é o que a deixa fora de `analise_pendentes` e,
     por consequência, da memória, da continuidade e do HubSpot. `mindagent_chat_get_context` devolve
     também `agente` (chave a mais, o chat v48 no ar ignora).
-  - `mindagent-chat` 1.16.0 (**versionado, NÃO publicado**): `playground.rota` na abertura chama a porta
+  - `mindagent-chat` 1.16.0 (publicado, v49): `playground.rota` na abertura chama a porta
     de teste; nos turnos, `modoTeste = contexto.agente === 'mindagent-playground'` (nunca o corpo).
     Em teste: a `rota_ativa` vale mesmo fora do canal, o Gate tolera só `canal_incompativel` (playbook
     e dados oficiais continuam obrigatórios), nada sobre a pessoa é gravado (identidade, perfil,
     interesses, checkout); as mensagens da conversa de teste são gravadas. Resposta ganha `teste`,
     `rota_origem` e `ferramentas`. Testes: `tests/playground_modo_teste.test.mjs`.
   - Painel: aba **Playground** na ficha do agente (`components/admin/playground.tsx`), chamando a
-    `mindagent-chat` com o token do admin. Só funciona depois de publicar o chat 1.16.0. Conferir na
-    publicação que `MINDAGENT_ALLOWED_ORIGINS` (se configurado) inclui a origem do painel.
+    `mindagent-chat` com o token do admin. CORS conferido: o chat aceita as origens do worker, do
+    preview da branch e de admin.minddash.pro. Falta o teste real do Playground por um administrador
+    (eu não tenho sessão de admin): no preview da branch, Agent Intelligence → MIA → Playground,
+    depois de ligar o playbook dela na aba Instruções.
   - Para testar a MIA hoje: ligar o playbook dela na aba Instruções (os canais podem ficar desligados).
 - **Fase 4 — Conversas reais por agente** (aprovada pela Adriana, 22/10: só administrador, sem
   telefone/e-mail; migrations `20261022140302` e `20261022140901`; `mindagent-knowledge` 1.5.0):
