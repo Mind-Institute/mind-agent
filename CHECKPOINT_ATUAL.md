@@ -65,7 +65,7 @@
     (v11) era idêntico ao do repositório antes desta mudança. Até publicar os dois, os interruptores
     "roteador pode escolher" e "entradas diretas" ficam gravados mas o runtime ainda usa as listas
     antigas do código (que coincidem com o semeado).
-- **Fase 3 — Playground por agente** (aprovado pela Adriana, 22/10; migration `20261022140000`):
+- **Fase 3 — Playground por agente** (aprovado pela Adriana, 22/10; migration `20261022135030`):
   - `mindagent_playground_start(auth_user, token_hash, rota)`: só administrador ativo; abre uma conversa
     nova (dispositivo próprio `playground:<uuid>`) com `agente = 'mindagent-playground'` e
     `variables = {teste, rota_ativa}`. Esse `agente` é o que a deixa fora de `analise_pendentes` e,
