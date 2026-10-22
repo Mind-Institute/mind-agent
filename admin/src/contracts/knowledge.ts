@@ -147,3 +147,42 @@ export const agentIntelligenceAccessSchema = z.object({
   updatedAt: z.string().min(1),
 });
 export type AgentIntelligenceAccess = z.infer<typeof agentIntelligenceAccessSchema>;
+
+/* O que o agente lê de verdade no turno: `agentes.canal_competencia` (onde está ligado, com o
+   veredito do Capability Gate) e `agentes.kit_blocos` (o Kit). Diferente da matriz acima, que
+   é plugável e ainda não chega a nenhum agente. Fonte: mind_admin_read_agent_runtime. */
+export const agentRuntimeCanalSchema = z.object({
+  canal: z.string().min(1),
+  ativo: z.boolean(),
+  observacao: z.string().nullable().default(null),
+  podeExecutar: z.boolean(),
+  motivo: z.string().nullable().default(null),
+  atualizadoEm: z.string().nullable().default(null),
+});
+export type AgentRuntimeCanal = z.infer<typeof agentRuntimeCanalSchema>;
+
+export const agentRuntimeBlocoSchema = z.object({
+  bloco: z.string().min(1),
+  provider: z.string().nullable().default(null),
+  secao: z.string().min(1),
+  obrigatorio: z.boolean(),
+  ativo: z.boolean(),
+});
+export type AgentRuntimeBloco = z.infer<typeof agentRuntimeBlocoSchema>;
+
+export const agentRuntimeSchema = z.object({
+  id: z.string().min(1),
+  agentKey: z.string().min(1),
+  playbook: z.object({
+    chave: z.string().min(1),
+    titulo: z.string().nullable().default(null),
+    versao: z.number().int().nullable().default(null),
+    ativo: z.boolean(),
+    produtoCodigo: z.string().nullable().default(null),
+    atualizadoEm: z.string().nullable().default(null),
+  }).nullable().default(null),
+  canais: z.array(agentRuntimeCanalSchema).default([]),
+  kit: z.array(agentRuntimeBlocoSchema).default([]),
+  updatedAt: z.string().min(1),
+});
+export type AgentRuntime = z.infer<typeof agentRuntimeSchema>;

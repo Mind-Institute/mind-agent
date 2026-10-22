@@ -10,6 +10,7 @@ import type {
   BusinessKnowledgeGovernance,
   CustomerKnowledgeGovernance,
   AgentIntelligenceAccess,
+  AgentRuntime,
 } from './knowledge';
 
 /**
@@ -45,6 +46,8 @@ export interface MapaRecursos {
   business_intelligence: BusinessKnowledgeGovernance;
   customer_intelligence: CustomerKnowledgeGovernance;
   agent_intelligence_access: AgentIntelligenceAccess;
+  /* O que cada agente lê de verdade: canais + Capability Gate + Kit, pela `mindagent-knowledge`. Só leitura. */
+  agent_runtime: AgentRuntime;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
@@ -52,7 +55,7 @@ export type NomeRecurso = keyof MapaRecursos;
 export const NOMES_RECURSOS: NomeRecurso[] = [
   'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
   'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
-  'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
+  'business_intelligence', 'customer_intelligence', 'agent_intelligence_access', 'agent_runtime',
 ];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
@@ -68,4 +71,5 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   business_intelligence: 'Business Intelligence',
   customer_intelligence: 'Customer Intelligence',
   agent_intelligence_access: 'Agent Intelligence',
+  agent_runtime: 'Agente',
 };

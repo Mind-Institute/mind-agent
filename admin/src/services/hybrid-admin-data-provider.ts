@@ -54,6 +54,7 @@ export const RECURSOS_DO_KNOWLEDGE = [
   'business_intelligence',
   'customer_intelligence',
   'agent_intelligence_access',
+  'agent_runtime',
 ] as const satisfies readonly NomeRecurso[];
 
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
@@ -83,6 +84,7 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   business_intelligence: new Set(['list', 'get']),
   customer_intelligence: new Set(['list', 'get']),
   agent_intelligence_access: new Set(['list', 'get', 'update']),
+  agent_runtime: new Set(['list', 'get']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -100,6 +102,7 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   business_intelligence: (op) => `Business Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
   customer_intelligence: (op) => `Customer Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
   agent_intelligence_access: (op) => `Agent Intelligence aceita leitura e edição da matriz; ${op} ainda não existe.`,
+  agent_runtime: (op) => `O que o agente lê de verdade é só leitura no painel; ${op} muda no banco (canais e Kit), não aqui.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {

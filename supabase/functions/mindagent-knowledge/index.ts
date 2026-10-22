@@ -19,6 +19,8 @@
      GET   /admin/customer_intelligence
      GET   /admin/agent_intelligence_access
      PATCH /admin/agent_intelligence_access/:id
+     GET   /admin/agent_runtime          (o que cada agente lê de verdade: canais, gate e Kit)
+     GET   /admin/agent_runtime/:id
      POST  /admin/knowledge_search
      GET   /health
 */
@@ -40,6 +42,7 @@ const RECURSOS = {
   business_intelligence: { ler: "mind_admin_read_business_intelligence", idParam: "p_id" },
   customer_intelligence: { ler: "mind_admin_read_customer_intelligence", idParam: "p_id" },
   agent_intelligence_access: { ler: "mind_admin_read_agent_intelligence_access", idParam: "p_id" },
+  agent_runtime: { ler: "mind_admin_read_agent_runtime", idParam: "p_id" },
 } as const;
 
 function lerChave(nome: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS", alternativa: string) {
