@@ -12,6 +12,9 @@ import {
   businessKnowledgeGovernanceSchema,
   customerKnowledgeGovernanceSchema,
   agentIntelligenceAccessSchema,
+  agentChannelSchema,
+  agentKitBlockSchema,
+  agentPromptSchema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -53,6 +56,9 @@ const SCHEMAS = {
   business_intelligence: businessKnowledgeGovernanceSchema,
   customer_intelligence: customerKnowledgeGovernanceSchema,
   agent_intelligence_access: agentIntelligenceAccessSchema,
+  agent_channels: agentChannelSchema,
+  agent_kit_blocks: agentKitBlockSchema,
+  agent_prompts: agentPromptSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

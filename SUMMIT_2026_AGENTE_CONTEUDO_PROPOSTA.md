@@ -1,6 +1,9 @@
-# Agente de conteúdo do Mind Summit 2026 — proposta para aprovação
+# MIA Summit 2026 — agente de conteúdo do Mind Summit 2026
 
-> **Estado: PROPOSTA.** Nada foi implementado nem alterado no banco, nas funções ou no app.
+> **Estado em 22/10/2026.** O agente se chama **MIA Summit 2026** (rota `mia_summit_2026`) e
+> existe **desligado**. Aprovados e aplicados pela Adriana nesta data: P1, P3, P4 e P5, e a tela
+> Agent Intelligence por agente (canais, kit, prompts com histórico). Ainda dependem de aprovação:
+> P2 (porta do LearnWorlds), P6 (modelo forte), P7 (identidade) e P8 (teste). Detalhe em §8.
 > Cada item abaixo diz de que aprovação depende. Pela D10, a arquitetura é decisão da
 > Adriana; pela D7, nenhuma função é criada ou alterada sem o ok explícito dela.
 > O que for aprovado como decisão de arquitetura é registrado em `arquitetura.decisoes`
@@ -61,16 +64,16 @@ Investigação feita em 22/10/2026 diretamente no Supabase `mind-agent`
 
 ## 4. Proposta (cada item com o seu gate)
 
-### P1 — Rota `conteudo_summit` (dados em casas existentes)
-- `agentes.canal_competencia`: linha `mindagent-web` × `conteudo_summit`, ativa.
+### P1 — Rota `mia_summit_2026` (dados em casas existentes)
+- `agentes.canal_competencia`: linha `mindagent-web` × `mia_summit_2026`, ativa.
 - `agentes.kit_blocos`: `buscar_intelligence` e `ler_intelligence` (ferramentas),
   `programacao` (para indicar a sessão), `evento`.
-- `agentes.prompts`: `playbook_conteudo_summit` (rascunho no §5).
+- `agentes.prompts`: `playbook_mia_summit_2026` (rascunho no §5).
 - Sem tabela nova e sem schema novo.
 - **Gate:** D10. A rota nova foi escolhida em princípio em 22/10; falta o ok neste desenho.
 
 ### P2 — Porta de entrada do LearnWorlds
-- Nova origem `institute_learnworlds → conteudo_summit` em `ROTA_POR_ORIGEM`.
+- Nova origem `institute_learnworlds → mia_summit_2026` em `ROTA_POR_ORIGEM`.
 - O iframe abre o app com `?origem_codigo=institute_learnworlds`.
 - A origem escolhe a porta, não autentica. O Gate de capacidade continua valendo.
 - Hoje o worker não define política de enquadramento (`cloudflare/worker.ts` não manda
@@ -83,9 +86,9 @@ Investigação feita em 22/10/2026 diretamente no Supabase `mind-agent`
 
 ### P3 — Busca e leitura que servem a transcrições
 - `mind_intelligence_buscar_contextual` e `mind_intelligence_ler_contextual`:
-  - incluir `conteudo_summit` entre as rotas que leem `summit_2026`;
+  - incluir `mia_summit_2026` entre as rotas que leem `summit_2026`;
   - trocar o filtro fixo `'concierge'` por "a rota atual está em `agents`".
-    Assim as transcrições recebem `agents = {conteudo_summit}` e não vazam para outras rotas;
+    Assim as transcrições recebem `agents = {mia_summit_2026}` e não vazam para outras rotas;
   - para transcrição e slides, a leitura devolve **o trecho achado e os vizinhos**
     (ordem de grandeza: 8 a 12 mil caracteres), com sessão, palestrantes e minuto,
     em vez do começo do documento.
@@ -101,14 +104,14 @@ Investigação feita em 22/10/2026 diretamente no Supabase `mind-agent`
 - **Gate:** D7 (alteração de função existente).
 
 ### P5 — Ligar o conteúdo (casa existente, sem mudança estrutural)
-- 55 transcrições e 37 slides: `ativo=true`, `agents={conteudo_summit}`.
+- 55 transcrições e 37 slides: `ativo=true`, `agents={mia_summit_2026}`.
 - `aprovado_treble` continua `false`: nada vai para o WhatsApp.
 - **Gate:** a liberação das 55 já foi dada em 22/10. Executar só depois de P3,
   para não expor as transcrições a outras rotas.
 
 ### P6 — Modelo forte nesta rota
 Duas opções:
-- **(a) Modelo forte da OpenAI só na rota `conteudo_summit`.** Mudança menor no
+- **(a) Modelo forte da OpenAI só na rota `mia_summit_2026`.** Mudança menor no
   `mindagent-chat`. Falta confirmar o modelo e o preço vigentes.
 - **(b) Claude da linha Opus só nesta rota.** É a família que faz o MindStudio escrever
   melhor. Acrescenta um segundo provedor ao `mindagent-chat`, uma mudança maior.
@@ -168,7 +171,7 @@ mora (casa existente ou não) e será apresentada antes.
 ### Ordem proposta
 P3 e P4 → P5 → P1 → P6 → P8 → P2 e P7 (piloto com o time no LearnWorlds) → abrir.
 
-## 5. Rascunho — `playbook_conteudo_summit` (para revisão da Adriana)
+## 5. Rascunho — `playbook_mia_summit_2026` (para revisão da Adriana)
 
 ```text
 VOCÊ É O ORIENTADOR DE CONTEÚDO DO MIND SUMMIT 2026
@@ -271,3 +274,36 @@ SOFRIMENTO SEM RISCO IMEDIATO (burnout, ansiedade, tristeza, esgotamento)
 5. **Identidade:** (a) assinada pelo LearnWorlds, se existir, ou (b) e-mail do LearnWorlds
    com código na primeira vez em cada aparelho? Ver P7.
 6. **Apresentação dentro do Institute:** manter "MIA" e a marca do Summit, ou ajustar?
+
+## 8. O que já foi feito (22/10/2026)
+
+Migrations aplicadas no Supabase `mind-agent` e versionadas em `supabase/migrations/`:
+
+| Migration | O que faz |
+|---|---|
+| `20261022120036_painel_knowledge_funcoes_security_definer` | 9 funções do painel de Knowledge/Agent Intelligence davam 503 (sem USAGE do service_role nos schemas); passam a SECURITY DEFINER |
+| `20261022120512_agente_conteudo_summit_nasce_desligado` | cadastra o agente desligado (canal, kit, playbook rascunho, matrizes) e abre a lista fechada de rotas |
+| `20261022121737_agente_mia_summit_2026_nome` | o agente passa a se chamar MIA Summit 2026 (`mia_summit_2026`) |
+| `20261022122040_busca_conteudo_summit_trava_trecho_e_conserto` | conserta a busca e a leitura (quebradas desde 27–29/09), trava transcrição e slides no interruptor "Conteúdo do Summit", lê o trecho achado e vizinhos, fatia por minuto e liga as 55 transcrições e os 37 slides |
+| `20261022122433_painel_agentes_canais_kit_prompts_e_historico` | `agentes.prompts_historico` e as portas do painel para canais, kit e prompts |
+
+Edge Function `mindagent-knowledge` publicada (v8, `1.1.0`) com as rotas de canais, kit e prompts.
+
+Conferido no banco vivo:
+- concierge e suporte voltaram a achar FAQ e sessões, no app e no WhatsApp, e não veem transcrição;
+- a MIA Summit 2026 acha transcrições e slides no app e lê ~9,8 mil caracteres do trecho, sem o link do Drive;
+- desligar "Conteúdo do Summit" tira as transcrições na hora; ligar para outro agente libera para ele;
+- a MIA Summit 2026 não atende: playbook rascunho desligado e canais desligados.
+
+Ainda falta:
+- **embeddings dos 1.140 trechos novos.** Sem eles a busca é só por palavra. O indexador
+  `mindagent-index-knowledge` precisa ser chamado com a chave secreta do projeto
+  (`{"schema":"summit_2026"}`), que não está neste ambiente;
+- revisão do playbook e do protocolo de crise pela Adriana (já editáveis no painel);
+- P2, P6, P7 e P8, e as perguntas abertas do §7.
+
+Achados laterais, registrados e não mexidos:
+- `public.mind_admin_dashboard_counts` lê schemas que não existem mais (`summit.*`, `comum.*`);
+- no app do Summit, o e-mail vindo da Yazo pelo link (`yazo_url`) liga a sessão à pessoa sem prova;
+- no MindStudio (`mind-curator-hub`), as funções de leitura da biblioteca em `src/fn/kb.functions.ts`
+  rodam com a chave de serviço e sem exigir login.

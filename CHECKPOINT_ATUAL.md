@@ -6,6 +6,26 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### MIA Summit 2026 e Agent Intelligence — 22/10/2026
+
+- PR: `Mind-Institute/mind-agent#165`, branch `claude/mind-summit-agent-nc7ztx`. Desenho e estado em
+  `SUMMIT_2026_AGENTE_CONTEUDO_PROPOSTA.md` (§8). Aprovações da Adriana na conversa de 22/10 (D7, D10, D2).
+- Aplicado no banco vivo, com migrations versionadas: `20261022120036`, `20261022120512`,
+  `20261022121737`, `20261022122040`, `20261022122433`.
+- **Conserto em produção:** `mind_intelligence_buscar_contextual` e `_ler_contextual` falhavam em toda
+  chamada desde 27–29/09 (UNION com `d.*` depois de `sessao_id/transcrito/slides`). Concierge, suporte,
+  Institute e Dash estavam sem `buscar_intelligence`/`ler_intelligence`. Agora com colunas explícitas.
+- **Painel:** as 9 funções de Knowledge/Agent Intelligence davam 503 (SECURITY INVOKER sem USAGE do
+  service_role); agora SECURITY DEFINER. Agent Intelligence ganhou visão por agente (conhecimento, kit,
+  canais, prompts com `agentes.prompts_historico`); só administrador edita. `mindagent-knowledge` v8.
+  O frontend dessa visão sai com o merge da PR (Workers Builds).
+- **Agente:** rota `mia_summit_2026` (MIA Summit 2026), **desligada**: playbook rascunho `ativo=false`,
+  canais `ativo=false`. 55 transcrições e 37 slides ligados atrás do interruptor `business/summit_content`
+  (só a MIA tem). 1.140 trechos por minuto, **sem embedding ainda**: falta rodar
+  `mindagent-index-knowledge` com a chave secreta (`{"schema":"summit_2026"}`).
+- Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
+  (P6), identidade (P7) e teste com perguntas reais (P8).
+
 ### Arquitetura no Supabase — 07/10/2026
 
 - Fonte oficial: `arquitetura.decisoes`, projeto mind-agent (`ymnmotgglsrxmjmonwjz`).
