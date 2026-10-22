@@ -6,25 +6,20 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
-### MIA no LearnWorlds — página `/mia` (P2) — 22/10/2026
+### MIA no LearnWorlds — bloco de código (P2) — 22/10/2026
 
-- Branch `claude/keen-bell-rxu0zp`. Pedido da Adriana: só a página onde a MIA funciona e o embed no
-  LearnWorlds (o agente em si é outra janela).
-- `mia.html` + `mia/` (tela, formato, CSS), no mesmo Worker do app: `/mia`. Importa o mesmo
-  `chat-service.js`. `conversaPropria('mia', 'institute_learnworlds')`: sessão de conversa própria (a do
-  concierge guardada no navegador não é continuada) e porta fixa. Sem identidade (P7 aberto).
-- `chat-service.js`: sem `localStorage` (iframe de terceiro com armazenamento bloqueado) a conversa segue
-  na memória da página, em vez de morrer na primeira mensagem.
-- Worker: `/mia` sai com `Content-Security-Policy: frame-ancestors 'self' https://my.mindinstitute.com.br
-  https://*.learnworlds.com` (`politicaDeEnquadramento` em `cloudflare/roteamento.js`). Resto do site sem mudança.
+- Branch `claude/keen-bell-rxu0zp`. Pedido da Adriana: a MIA mora **direto no LearnWorlds**, não no site do
+  app do Summit (o agente em si é outra janela).
+- `learnworlds/mia-embed.html`: bloco único (HTML + CSS + JS) para colar no LearnWorlds. Não é publicado
+  por nenhum site nosso (fora do build). Fala direto com o Supabase: sessão anônima do Auth e
+  `mindagent-chat` com `origem_codigo = institute_learnworlds`. Sem identidade (P7 aberto). Sem
+  `localStorage` disponível, a conversa segue na memória da página.
 - Banco (casa existente): `canal_competencia` `mindagent-web × mia_summit_2026` com
   `entradas_diretas = {institute_learnworlds}`. Inerte enquanto o canal da MIA estiver desligado
-  (`mind_origem_rota` devolve nulo; conferido). **Com o canal desligado, quem abrir `/mia` cai no roteador**:
-  o embed só vai ao ar depois de ligar a MIA no canal `mindagent-web` (painel → Canais e Roteador).
-- Testes: `tests/mia_pagina.test.mjs`; tela conferida no navegador com Supabase simulado (celular, iframe
-  no domínio da escola, recusa em outro domínio).
-- Falta: ligar a MIA no canal web (outra janela/Adriana), colar o iframe no LearnWorlds, testar no app
-  móvel do LearnWorlds se ele for usado (o `frame-ancestors` pode barrar a webview).
+  (`mind_origem_rota` devolve nulo; conferido). **Com o canal desligado, o bloco cai no roteador**: só
+  colar no LearnWorlds depois de ligar a MIA no canal `mindagent-web` (painel → Canais e Roteador).
+- Conferido no Chromium com o Supabase simulado: colado na página (computador e celular) e dentro de iframe
+  isolado (sem armazenamento, origem nula). Porta enviada, conversa contínua, nenhum HTML vindo da resposta.
 
 ### MIA Summit 2026 e Agent Intelligence — 22/10/2026
 

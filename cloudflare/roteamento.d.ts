@@ -23,8 +23,6 @@ export declare function destinoDoPainelForaDoDominio(
   hostname: string | null | undefined,
   pathname: string,
 ): string | null;
-export declare const ENQUADRAM_A_MIA: string[];
-export declare function politicaDeEnquadramento(pathname: string): string | null;
 export declare function pedeArquivo(pathname: string): boolean;
 export declare function ehDoPainel(pathname: string): boolean;
 export declare function decidirAntes(metodo: string, pathname: string): Decisao;

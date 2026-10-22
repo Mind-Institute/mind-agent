@@ -29,7 +29,6 @@ import {
   INDICE_PAINEL, PAGINA_DA_PESQUISA,
   decidirAntes, decidirApos404, decidirNaPesquisa, decidirNoHostDoPainel,
   destinoDoPainelForaDoDominio, ehDaPesquisa, ehDoHostDoPainel, ehDoPainel,
-  politicaDeEnquadramento,
 } from './roteamento.js';
 
 export interface Env {
@@ -142,17 +141,6 @@ export default {
     }
 
     const resposta = await env.ASSETS.fetch(request);
-
-    /* A MIA só pode ser enquadrada pela escola do Mind Institute no
-       LearnWorlds. O cabeçalho vai também no 307 de `/mia.html` → `/mia`:
-       não custa nada e não deixa caminho sem política. */
-    const enquadramento = politicaDeEnquadramento(url.pathname);
-    if (enquadramento) {
-      const comPolitica = new Response(resposta.body, resposta);
-      comPolitica.headers.set('Content-Security-Policy', enquadramento);
-      return comPolitica;
-    }
-
     if (resposta.status !== 404) return resposta;
 
     /* O FALLBACK DE SPA É SÓ DO PAINEL, e agora isso precisa estar

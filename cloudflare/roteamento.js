@@ -148,35 +148,6 @@ export function ehEnderecoDeTeste(hostname) {
   return host.endsWith(SUFIXO_DOS_PREVIEWS) && host.length > SUFIXO_DOS_PREVIEWS.length;
 }
 
-/* ============================================================
-   A MIA NO LEARNWORLDS
-   ============================================================
-   `/mia` é a página da MIA Summit 2026, feita para viver dentro da escola
-   do Mind Institute no LearnWorlds (`my.mindinstitute.com.br`), por embed.
-   Só a escola — e o próprio site — podem enquadrá-la: outro site não
-   veste o nosso agente como se fosse dele. `*.learnworlds.com` entra
-   porque o editor e o endereço de origem da escola moram lá.
-
-   É política da página da MIA, não do site: o app e a pesquisa continuam
-   como estavam. */
-export const ENQUADRAM_A_MIA = [
-  "'self'",
-  'https://my.mindinstitute.com.br',
-  'https://*.learnworlds.com',
-];
-
-/**
- * A política de enquadramento de um caminho, ou `null` quando o caminho
- * não tem política própria.
- *
- * @param {string} pathname
- * @returns {string | null}
- */
-export function politicaDeEnquadramento(pathname) {
-  if (pathname !== '/mia' && pathname !== '/mia/' && pathname !== '/mia.html') return null;
-  return 'frame-ancestors ' + ENQUADRAM_A_MIA.join(' ');
-}
-
 /**
  * Painel pedido fora do domínio dele → o mesmo caminho em
  * `admin.minddash.pro`. `null` quando não há o que desviar: o pedido não é

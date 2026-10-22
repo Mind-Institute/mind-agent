@@ -302,9 +302,9 @@ Ainda falta:
 - revisão do playbook e do protocolo de crise pela Adriana (já editáveis no painel);
 - P2, P6, P7 e P8, e as perguntas abertas do §7.
 
-P2 — página e porta do LearnWorlds (22/10, branch `claude/keen-bell-rxu0zp`): página própria `/mia`
-no Worker do app, porta `institute_learnworlds` gravada em `entradas_diretas` da MIA no canal web,
-enquadramento restrito à escola. Estado em `CHECKPOINT_ATUAL.md`.
+P2 — porta do LearnWorlds (22/10, branch `claude/keen-bell-rxu0zp`): a MIA mora direto no LearnWorlds,
+num bloco de código (`learnworlds/mia-embed.html`), não no site do app. Porta `institute_learnworlds`
+gravada em `entradas_diretas` da MIA no canal web. Estado em `CHECKPOINT_ATUAL.md`.
 
 Achados laterais, registrados e não mexidos:
 - `public.mind_admin_dashboard_counts` lê schemas que não existem mais (`summit.*`, `comum.*`);

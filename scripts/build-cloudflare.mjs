@@ -40,10 +40,6 @@ const DO_CHAT = [
   /* A pesquisa sozinha, servida em avaliacao.mindsummit.com.br. O Worker
      decide pelo Host; aqui ela só precisa existir no disco. */
   'avaliacao.html',
-  /* A MIA Summit 2026 sozinha, para o embed no LearnWorlds (`/mia`), e a
-     pasta com a tela e a folha de estilo dela. */
-  'mia.html',
-  'mia',
   'styles.css',
   'app.js',
   /* Importado por `app.js` no topo. Sem ele o módulo inteiro não

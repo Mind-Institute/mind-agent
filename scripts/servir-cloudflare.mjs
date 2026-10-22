@@ -24,7 +24,6 @@ import { fileURLToPath } from 'node:url';
 import {
   INDICE_PAINEL, PAGINA_DA_PESQUISA,
   decidirAntes, decidirApos404, decidirNaPesquisa, ehDaPesquisa, ehDoPainel,
-  politicaDeEnquadramento,
 } from '../cloudflare/roteamento.js';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -68,20 +67,13 @@ async function lerAsset(pathname) {
       return { corpo: await readFile(indice), tipo: TIPOS['.html'] };
     }
   }
-  /* `/mia` serve `mia.html`, como o `html_handling` do Cloudflare. */
-  const pagina = alvo.replace(/[\\/]$/, '') + '.html';
-  const infoPagina = await stat(pagina).catch(() => null);
-  if (!extname(alvo) && infoPagina?.isFile()) {
-    return { corpo: await readFile(pagina), tipo: TIPOS['.html'] };
-  }
   return null;
 }
 
-function responder(res, status, corpo, tipo, extras) {
+function responder(res, status, corpo, tipo) {
   res.writeHead(status, {
     'content-type': tipo ?? TIPOS['.html'],
     'content-length': Buffer.byteLength(corpo),
-    ...extras,
   });
   res.end(corpo);
 }
@@ -108,9 +100,7 @@ const servidor = createServer(async (req, res) => {
   /* Fora de /admin o Worker não decide nada: asset ou 404, como no chat. */
   if (!ehDoPainel(url.pathname)) {
     const asset = await lerAsset(url.pathname);
-    const enquadramento = politicaDeEnquadramento(url.pathname);
-    const extras = enquadramento ? { 'content-security-policy': enquadramento } : {};
-    if (asset) return responder(res, 200, asset.corpo, asset.tipo, extras);
+    if (asset) return responder(res, 200, asset.corpo, asset.tipo);
     return responder(res, 404, 'Not Found', 'text/plain; charset=utf-8');
   }
 
