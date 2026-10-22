@@ -28,6 +28,9 @@
 - Conferido no Chromium com o Supabase simulado: colado na página (computador e celular) e dentro de iframe
   isolado (sem armazenamento, origem nula). Porta enviada, conversa contínua, nenhum HTML vindo da resposta.
 
+- **Integração com o LearnWorlds:** levantamento e proposta em `LEARNWORLDS_INTEGRACAO_PROPOSTA.md`
+  (API, o que já existe, fases e gates). Nada criado; aguarda credenciais e aprovação da Adriana.
+
 ### MIA Summit 2026 e Agent Intelligence — 22/10/2026
 
 - PR: `Mind-Institute/mind-agent#165`, branch `claude/mind-summit-agent-nc7ztx`. Desenho e estado em
