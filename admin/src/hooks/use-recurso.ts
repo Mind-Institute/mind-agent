@@ -1,3 +1,4 @@
+import { AdminApiError } from '@/contracts';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ListFilters,
@@ -73,6 +74,11 @@ export function useAtualizar<K extends NomeRecurso>(recurso: K) {
       opcoes?: OpcoesEscrita;
     }) => provedor.update(recurso, args.id, args.payload, args.opcoes),
     onSuccess: invalidar,
+    /* Conflito de versão (alguém, ou a própria pessoa num clique rápido, salvou antes):
+       recarrega para o próximo clique partir do que está no banco. */
+    onError: (erro) => {
+      if (erro instanceof AdminApiError && erro.codigo === 'conflito') invalidar();
+    },
   });
 }
 

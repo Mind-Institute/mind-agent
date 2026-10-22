@@ -15,6 +15,7 @@ import { useSessao } from '@/hooks/use-sessao';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Playground } from '@/components/admin/playground';
 import { ConversasDoAgente } from '@/components/admin/conversas-do-agente';
+import { PesosParaMia } from '@/components/admin/pesos-para-mia';
 import { DialogoConfirmacao } from '@/components/admin/dialogos';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -239,6 +240,7 @@ function PainelDoAgente({
             )}
           </div>
           {cadastro ? <OQueFaz cadastro={cadastro} /> : null}
+          {cadastro ? <ModeloDoAgente cadastro={cadastro} /> : null}
         </CardContent>
       </Card>
 
@@ -256,7 +258,7 @@ function PainelDoAgente({
           <SecaoInstrucoes agente={agente} prompts={prompts} />
         </TabsContent>
         <TabsContent value="conhecimento" className="pt-4">
-          <SecaoConhecimento itens={matriz} />
+          <SecaoConhecimento agente={agente} itens={matriz} />
         </TabsContent>
         <TabsContent value="skills" className="pt-4">
           <SecaoSkills agente={agente} blocos={blocos} />
@@ -322,6 +324,79 @@ function OQueFaz({ cadastro }: { cadastro: Agent }) {
   );
 }
 
+/* Modelo (LLM) deste agente. Vazio = o padrão do runtime. A lista traz os
+   modelos que o runtime conhece; "outro" aceita qualquer nome da OpenAI e o
+   Playground mostra, em cada resposta, qual modelo respondeu de fato — se a
+   OpenAI recusar o nome, o motor volta ao padrão. (Adriana, 22/10/2026) */
+export const MODELOS_CONHECIDOS = [
+  { valor: '', rotulo: 'Padrão do runtime (gpt-5.4)' },
+  { valor: 'gpt-5.4', rotulo: 'gpt-5.4' },
+  { valor: 'gpt-5.4-mini', rotulo: 'gpt-5.4-mini (rápido)' },
+] as const;
+const OUTRO_MODELO = '__outro__';
+
+function ModeloDoAgente({ cadastro }: { cadastro: Agent }) {
+  const sessao = useSessao();
+  const podeEditar = sessao.pode('configurar');
+  const atualizar = useAtualizar('agents');
+  const atual = cadastro.modelo ?? '';
+  const conhecido = MODELOS_CONHECIDOS.some((m) => m.valor === atual);
+  const [outro, setOutro] = useState(conhecido ? '' : atual);
+  const [escolhendoOutro, setEscolhendoOutro] = useState(!conhecido);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function salvar(modelo: string) {
+    setErro(null);
+    try {
+      await atualizar.mutateAsync({ id: cadastro.id, payload: { modelo }, opcoes: { atualizadoEmEsperado: cadastro.atualizadoEm } });
+    } catch (e) {
+      setErro(mensagemDe(e));
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Label htmlFor={`modelo-${cadastro.rota}`} className="text-muted-foreground">Modelo</Label>
+      <Select
+        value={escolhendoOutro ? OUTRO_MODELO : atual}
+        disabled={!podeEditar || atualizar.isPending}
+        onValueChange={(v) => {
+          if (v === OUTRO_MODELO) { setEscolhendoOutro(true); return; }
+          setEscolhendoOutro(false);
+          void salvar(v);
+        }}
+      >
+        <SelectTrigger id={`modelo-${cadastro.rota}`} className="h-8 w-64" aria-label="Modelo do agente">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {MODELOS_CONHECIDOS.map((m) => (
+            <SelectItem key={m.valor || 'padrao'} value={m.valor}>{m.rotulo}</SelectItem>
+          ))}
+          <SelectItem value={OUTRO_MODELO}>Outro modelo da OpenAI…</SelectItem>
+        </SelectContent>
+      </Select>
+      {escolhendoOutro ? (
+        <>
+          <Input
+            value={outro}
+            onChange={(e) => setOutro(e.target.value)}
+            placeholder="ex.: gpt-5.4-pro"
+            className="h-8 w-48"
+            aria-label="Nome do modelo"
+            disabled={!podeEditar || atualizar.isPending}
+          />
+          <Button size="sm" variant="outline" disabled={!podeEditar || atualizar.isPending || outro.trim() === ''} onClick={() => void salvar(outro.trim())}>
+            Usar este modelo
+          </Button>
+        </>
+      ) : null}
+      {atual ? <Badge variant="outline">usa {atual}</Badge> : null}
+      {erro ? <span className="text-sm text-destructive">{erro}</span> : null}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ */
 /* Conhecimento: a linha deste agente na matriz                  */
 /* ------------------------------------------------------------ */
@@ -349,7 +424,7 @@ function useAlternarConhecimento() {
   return { alternar, erro, salvando: atualizar.isPending };
 }
 
-function SecaoConhecimento({ itens }: { itens: AgentIntelligenceAccess[] }) {
+function SecaoConhecimento({ agente, itens }: { agente: string; itens: AgentIntelligenceAccess[] }) {
   const sessao = useSessao();
   const { alternar, erro, salvando } = useAlternarConhecimento();
 
@@ -363,6 +438,7 @@ function SecaoConhecimento({ itens }: { itens: AgentIntelligenceAccess[] }) {
         </CardContent>
       </Card>
       <GerarEmbeddingsSummit />
+      {agente === 'mia_summit_2026' ? <PesosParaMia /> : null}
       <MensagemErro texto={erro} />
       {ORDEM_NAMESPACE.map((namespace) => {
         const doGrupo = itens

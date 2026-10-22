@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const MODELO = "text-embedding-3-small";
 const DIMENSOES = 1536;
 // `eventos` saiu em 21/09/2026 (migration 20260921233000): o schema foi
@@ -70,11 +70,27 @@ Deno.serve(async (req: Request) => {
   const aceitas = chavesAceitas();
   const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const apikeyHeader = req.headers.get("apikey") ?? "";
-  const autorizado = aceitas.has(bearer) || aceitas.has(apikeyHeader);
+  let autorizado = aceitas.has(bearer) || aceitas.has(apikeyHeader);
+  if (!supabaseUrl || !serviceKey || !openAiKey) {
+    return resposta(autorizado ? 503 : 401, { ok: false, error: autorizado ? "configuration_missing" : "unauthorized" });
+  }
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  // Segunda porta, a mesma dos jobs internos (analisar-conversa, eduzz-espelho-sync):
+  // `?token=<intelligence.config.analise_token>`. É o que deixa o banco (pg_cron/pg_net) pedir
+  // uma rodada de embeddings sem carregar a service key no comando. 22/10/2026.
+  if (!autorizado) {
+    const token = new URL(req.url).searchParams.get("token") ?? "";
+    if (token) {
+      const { data: cfg } = await admin.rpc("analise_config");
+      const esperado = cfg && typeof cfg.analise_token === "string" ? cfg.analise_token : "";
+      autorizado = esperado.length > 0 && token === esperado;
+    }
+  }
   if (!autorizado) {
     return resposta(401, { ok: false, error: "unauthorized" });
   }
-  if (!supabaseUrl || !openAiKey) return resposta(503, { ok: false, error: "configuration_missing" });
 
   let payload: Record<string, unknown>;
   try {
@@ -86,10 +102,6 @@ Deno.serve(async (req: Request) => {
   const schema = String(payload.schema ?? "summit_2026");
   const limite = Math.max(1, Math.min(100, Math.trunc(Number(payload.limite ?? 50)) || 50));
   if (!SCHEMAS.has(schema)) return resposta(422, { ok: false, error: "invalid_schema" });
-
-  const admin = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const { error: prepararError } = await admin.rpc("mind_knowledge_preparar_chunks", { p_schema: schema });
   if (prepararError) return resposta(502, { ok: false, error: "prepare_failed" });

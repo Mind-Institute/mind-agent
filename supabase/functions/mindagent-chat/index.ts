@@ -62,7 +62,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.16.0";
+const VERSION = "1.17.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -639,7 +639,7 @@ Deno.serve(async (req: Request) => {
   const publishableKey = readKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
   const secretKey = readKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  const modelComplex = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
+  const modelComplexPadrao = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
   const modelFast = Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST;
   const rolloutConfigurado = Number(
     Deno.env.get("OPENAI_FAST_ROLLOUT_PERCENT") ?? DEFAULT_FAST_ROLLOUT_PERCENT,
@@ -1207,6 +1207,14 @@ Deno.serve(async (req: Request) => {
     // Em teste a rota pode não estar no canal; o contrato de saída precisa conhecê-la.
     if (modoTeste && !rotasDoCanal.includes(rotaDecidida)) rotasDoCanal.push(rotaDecidida);
 
+    // MODELO POR AGENTE (painel Agent Intelligence, 22/10/2026). O gate devolve o modelo que a
+    // rota pede; sem nada, vale o padrão do runtime. Se a OpenAI recusar o nome (400/404), o
+    // turno volta ao padrão e registra `modelo_da_rota_indisponivel` na telemetria.
+    const modeloDaRota = typeof gate?.modelo === "string" && /^[a-z0-9][a-z0-9._-]{1,63}$/.test(gate.modelo)
+      ? gate.modelo as string
+      : null;
+    const modelComplex = modeloDaRota ?? modelComplexPadrao;
+
     // -------------------------------------------------------------- KIT
     // NECESSIDADE ATUAL e MEMÓRIA entram por campos separados: `pergunta` é a
     // única coisa que seleciona, `interesses` só reordena o que já foi
@@ -1370,6 +1378,7 @@ Deno.serve(async (req: Request) => {
     let tentativasModelo = 0;
     Object.assign(telemetry, {
       model_inicial: modelInicial,
+      modelo_da_rota: modeloDaRota,
       model_reason: modelDecision.reason,
       model_rollout_bucket: rolloutBucket,
       model_rollout_percent: modelFastRolloutPercent,
@@ -1451,6 +1460,14 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!openAiResponse.ok) {
+        if (
+          modeloDaRota !== null && model === modeloDaRota && modeloDaRota !== modelComplexPadrao &&
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
+        ) {
+          model = modelComplexPadrao;
+          modelEscalation = "modelo_da_rota_indisponivel";
+          continue;
+        }
         if (
           model === modelFast && modelFast !== modelComplex &&
           podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
@@ -1886,6 +1903,7 @@ Deno.serve(async (req: Request) => {
       teste: modoTeste,
       // O que o agente fez neste turno, para o Playground mostrar.
       ferramentas: chamadasFeitas.map((c) => ({ nome: c.nome, ok: c.ok })),
+      modelo: model,
       checkout_sent: checkoutEventoId !== null,
       interests,
       sources,

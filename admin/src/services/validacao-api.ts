@@ -21,6 +21,7 @@ import {
   channelEntrySchema,
   agentConversationSchema,
   analysisRunSchema,
+  summitPesoSchema,
   type ListResult,
   type MapaRecursos,
   type NomeRecurso,
@@ -71,6 +72,7 @@ const SCHEMAS = {
   channel_entries: channelEntrySchema,
   agent_conversations: agentConversationSchema,
   analysis_runs: analysisRunSchema,
+  summit_pesos: summitPesoSchema,
 } as const satisfies Partial<Record<NomeRecurso, z.ZodTypeAny>>;
 
 type RecursoValidado = keyof typeof SCHEMAS;

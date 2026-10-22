@@ -20,7 +20,7 @@ import type {
   AgentPrompt,
   AgentTool,
   AnalysisRun,
-  ChannelEntry,
+  ChannelEntry, SummitPeso,
 } from './agentes';
 
 /**
@@ -66,6 +66,7 @@ export interface MapaRecursos {
   channel_entries: ChannelEntry;
   agent_conversations: AgentConversation;
   analysis_runs: AnalysisRun;
+  summit_pesos: SummitPeso;
 }
 
 export type NomeRecurso = keyof MapaRecursos;
@@ -75,7 +76,7 @@ export const NOMES_RECURSOS: NomeRecurso[] = [
   'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
   'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
   'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
-  'agents', 'channel_entries', 'agent_conversations', 'analysis_runs',
+  'agents', 'channel_entries', 'agent_conversations', 'analysis_runs', 'summit_pesos',
 ];
 
 export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
@@ -100,4 +101,5 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   channel_entries: 'Entrada do canal',
   agent_conversations: 'Conversa',
   analysis_runs: 'Execução da análise',
+  summit_pesos: 'Peso para a MIA',
 };

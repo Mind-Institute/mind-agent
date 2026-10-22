@@ -1124,3 +1124,20 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; 
     genéricos (empresa Heineken também no ingresso da Ivana). Conferir na Yazo/Eduzz antes de usar CPF desses
     ingressos para identidade.
 
+## 22. Fila da Adriana — 22/10/2026 (registrado por Claude Code; nada implementado)
+
+1. **Análise pós-conversa (`analisar-conversa`, prompts em `agentes.prompts`/painel Análise):**
+   - quando a pessoa só responde "descadastrar" / "parar de receber e-mail", a conversa não precisa de
+     análise: tratar no classificador (marcar como opt-out e sair da fila, gravando só a preferência);
+   - o classificador está confundindo produto: faz análise do Summit em compras que eram do Institute
+     (a Adriana já mexeu no prompt; falta regra pelo `produto_codigo`/origem da conversa, não só prompt);
+   - os analisadores devem dizer **quem atendeu**: vendedor (nome) ou agente (qual rota) — a casa já
+     existe (`blocos.rota_aplicada`/`rota` da fala, `agente` da conversa);
+   - identificar **próximos passos** da conversa quando o agente não indicou;
+   - identificar **feedback de aprendizado para o agente**, só quando relevante.
+2. **Inteligência (painel):** ao abrir o que foi gravado e clicar na fonte (source), abrir exemplos reais
+   (mascarados) do que está sendo gravado — serve também ao passo 1 da proposta de memória
+   (`docs/MEMORIA_PESSOA_CONTRATO_PROPOSTA.md`).
+3. **Collections (painel):** trocar o acesso de "Mind only" para "Mind + public" e vice-versa com um
+   clique na própria lista (hoje exige abrir o registro).
+

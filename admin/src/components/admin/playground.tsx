@@ -22,6 +22,7 @@ type Fala = {
   papel: 'voce' | 'agente' | 'sistema';
   texto: string;
   rota?: string | null;
+  modelo?: string | null;
   ferramentas?: { nome: string; ok: boolean }[];
 };
 
@@ -33,6 +34,7 @@ type RespostaDoChat = {
   rota?: string;
   rota_origem?: string;
   teste?: boolean;
+  modelo?: string;
   ferramentas?: { nome: string; ok: boolean }[];
   error?: { code?: string; message?: string };
 };
@@ -114,7 +116,7 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
         setFalas((atual) => [...atual, { papel: 'sistema', texto: 'Esta conversa não foi marcada como teste pelo motor. O Playground parou para não gravar nada de verdade.' }]);
         return;
       }
-      setFalas((atual) => [...atual, { papel: 'agente', texto: corpo.answer ?? '', rota: corpo.rota ?? null, ferramentas: corpo.ferramentas ?? [] }]);
+      setFalas((atual) => [...atual, { papel: 'agente', texto: corpo.answer ?? '', rota: corpo.rota ?? null, modelo: corpo.modelo ?? null, ferramentas: corpo.ferramentas ?? [] }]);
     } catch (e) {
       setFalas((atual) => [...atual, { papel: 'sistema', texto: e instanceof Error ? e.message : 'Não foi possível conversar com o agente agora.' }]);
     } finally {
@@ -152,6 +154,7 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
                 {f.papel === 'agente' ? (
                   <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                     {f.rota ? <Badge variant="outline">respondeu: {f.rota}</Badge> : null}
+                    {f.modelo ? <Badge variant="outline">modelo: {f.modelo}</Badge> : null}
                     {(f.ferramentas ?? []).map((t, j) => (
                       <Badge key={j} variant={t.ok ? 'outline' : 'neutro'}>
                         skill: {t.nome}

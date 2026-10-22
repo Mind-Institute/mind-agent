@@ -52,5 +52,6 @@ export function criarBanco(): BancoMock {
     channel_entries: [],
     agent_conversations: [],
     analysis_runs: [],
+    summit_pesos: [],
   };
 }
