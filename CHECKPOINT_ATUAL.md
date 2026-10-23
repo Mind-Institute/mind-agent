@@ -172,6 +172,18 @@
     mostrar `skill: buscar_intelligence`); decidir item 5 (tornar avisos/regras/FAQ buscáveis para a
     MIA consultar sob demanda); confirmar pesos; ligar o canal da MIA.
   - Testes: `node --test tests/*.test.mjs` 516/516; admin `vitest`/`tsc` ok.
+  - **Busca panorâmica (aprovado pela Adriana às 17h — D7):** o teste dela das 17:10 tinha rodado no
+    Concierge (Playground aberto no card errado), mas a investigação achou um defeito real: para
+    "liderança" os 6 primeiros eram transcrições (nenhuma ficha, nenhum mapa) e "principais temas do
+    Mind Summit 2026" devolvia zero por palavra. Migrations `20261023174500` (score × categoria:
+    mapa 1,3 · ficha 1,2; segunda chance com qualquer termo quando nenhum trecho tem todos) e
+    `20261023181500` (os dois braços propõem um candidato por DOCUMENTO antes do corte n*4 — medido:
+    só assim o mapa entra na disputa). Depois: "liderança" → mapa em 1º e ficha em 4º; "segurança
+    psicológica" → 4 fichas + mapa; "Amy Edmondson erro" → fichas e slides dela. Concierge, WhatsApp
+    e contrato `agent_unified_architecture_contract.sql` iguais. Híbrida 144 ms (quente). Limite
+    conhecido: "temas"/"o que aconteceu" só por palavra continuam em transcrições (os mapas não
+    contêm a palavra "tema"); no vivo o braço por significado cobre. `concierge_livros_autografos_contract.sql`
+    falha numa checagem do aviso "Leve seu livro" (situação do aviso, não da busca) — já falhava.
 
 ### Arquitetura no Supabase — 07/10/2026
 
