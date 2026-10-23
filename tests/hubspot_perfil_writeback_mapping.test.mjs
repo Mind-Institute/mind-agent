@@ -715,3 +715,29 @@ test("pular (sem contato) também traz limpezas vazio, para o relatório somar s
   assert.equal(d.acao, "pular");
   assert.deepEqual(d.limpezas, []);
 });
+
+test("credenciamento manda (forcar): cargo editado no HubSpot e ICP manual são sobrescritos e registrados em substituicoes", () => {
+  const d = planejar(
+    linha({ jobtitle: "Diretora de RH", icp: "analista_bp_rh", icp_confianca: 7, forcar: true, ultimo_escrito: { jobtitle: "Gerente de RH" } }),
+    contato({ jobtitle: "Head de Pessoas", icp: "CEO / C-Suite" }),
+    defs,
+  );
+  assert.equal(d.acao, "atualizar");
+  assert.deepEqual(d.propriedades, { jobtitle: "Diretora de RH", icp: "analista_bp_rh", icp_confianca: "7" });
+  assert.deepEqual(d.preservados, []);
+  assert.deepEqual(d.conflitos, []);
+  assert.deepEqual(d.substituicoes, [
+    { email: "ada@example.com", propriedade: "jobtitle", atual: "Head de Pessoas", novo: "Diretora de RH" },
+    { email: "ada@example.com", propriedade: "icp", atual: "CEO / C-Suite", novo: "analista_bp_rh" },
+  ]);
+});
+
+test("credenciamento manda (forcar) mas não escreve lixo nem grafia equivalente", () => {
+  const equivalente = planejar(linha({ jobtitle: "Diretora de RH", forcar: true }), contato({ jobtitle: "diretora de rh" }), defs);
+  assert.equal(equivalente.acao, "nada");
+  const lixo = planejar(linha({ jobtitle: "https://linkedin.com/in/ada", forcar: true }), contato({ jobtitle: "Gerente de RH" }), defs);
+  assert.deepEqual(lixo.propriedades, {});
+  // sem forcar, a guarda de sempre continua
+  const semForcar = planejar(linha({ icp: "analista_bp_rh" }), contato({ icp: "CEO / C-Suite" }), defs);
+  assert.equal(semForcar.conflitos.length, 1);
+});
