@@ -151,6 +151,27 @@
     próximos passos, feedback de aprendizado); exemplos ao clicar na fonte em Inteligência; trocar
     "Mind only" ↔ "Mind + public" com um clique em Collections.
   - Testes: `node --test tests/*.test.mjs` 515/515; admin `vitest` 221/221; `tsc` e `vite build` ok.
+- **Rodada de 23/10 (PR #167 — a #165 foi mergeada; esta branch foi rebaseada sobre `main`):**
+  - **MIA respondia como Concierge** ("o que aconteceu no Summit" virou VIP/gravações/certificado, sem
+    abrir o acervo). Causas medidas no kit e na telemetria: bloco `evento` (avisos/regras do Concierge)
+    ligado para a MIA; `tom_de_voz` duplicado (instruções em 44k chars); `tool_choice: auto` com
+    raciocínio `low`; contexto "Responda usando este JSON". Feito (dados, sem migration): `evento` e
+    `tom_de_voz` desligados só na MIA; **playbook v5** (v3/v4 no histórico) ensina a função e o uso das
+    skills; bloco novo `mapa_acervo_mia_summit_2026` (temas com contagem, palestrantes e sessões
+    principais) ligado no kit (`instrucoes`, ordem 50). Instruções 44k → ~31k chars; contexto 28k → 15k.
+  - **Busca obrigatória (item 3, aprovado pela Adriana — D7):** migration `20261023120500`:
+    `mind_agent_kit` expõe `obrigatorio` em cada skill (vem de `agentes.kit_blocos.obrigatorio`);
+    `buscar_intelligence` marcada obrigatória só na MIA. `mindagent-chat` **1.18.1 (v54, publicado
+    23/10; vivo == repo nos 5 arquivos)**: quando a skill é obrigatória e a mensagem tem ≥ 20 chars,
+    a primeira rodada força `buscar_intelligence` e o raciocínio sobe para `medium`; telemetria
+    `busca_forcada_pelo_kit`. A 1.18.0 (v53) ficou ~1h40 no ar com um TDZ (flag lida antes de nascer):
+    todo turno com ferramenta caía em `internal_error`; a suíte completa pegou, a parcial não. E2E anônimo
+    no concierge após a 1.18.1: 200, duas buscas, resposta normal.
+  - **Playground:** caixa de histórico some com a conversa vazia; foco em "Sua mensagem".
+  - Pendente da Adriana: retestar a MIA no Playground ("O que aconteceu no Mind Summit 2026?" deve
+    mostrar `skill: buscar_intelligence`); decidir item 5 (tornar avisos/regras/FAQ buscáveis para a
+    MIA consultar sob demanda); confirmar pesos; ligar o canal da MIA.
+  - Testes: `node --test tests/*.test.mjs` 516/516; admin `vitest`/`tsc` ok.
 
 ### Arquitetura no Supabase — 07/10/2026
 
