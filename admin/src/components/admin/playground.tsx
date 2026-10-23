@@ -138,17 +138,11 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
       </CardHeader>
       <CardContent className="space-y-3">
         {!podeTestar ? <div className="text-sm text-muted-foreground">Só administrador testa os agentes.</div> : null}
-        {/* Vazio, o histórico não ganha caixa com borda: parecia um campo de digitação e a pessoa
-            escrevia nele em vez de em "Sua mensagem" (Adriana, 23/10/2026). */}
-        <div
-          className={`max-h-[28rem] space-y-3 overflow-auto ${falas.length === 0 ? '' : 'rounded-md border p-3'}`}
-          aria-label="Conversa de teste"
-          role="log"
-        >
-          {falas.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Escreva abaixo, em "Sua mensagem", e aperte Enter ou Enviar.</div>
-          ) : (
-            falas.map((f, i) => (
+        {/* Sem mensagens, não há caixa nenhuma: a caixa vazia parecia um campo de digitação e a pessoa
+            tentava escrever nela em vez de em "Sua mensagem" (Adriana, 23/10/2026). */}
+        {falas.length > 0 ? (
+          <div className="max-h-[28rem] space-y-3 overflow-auto rounded-md border p-3" aria-label="Conversa de teste" role="log">
+            {falas.map((f, i) => (
               <div key={i} className={`text-sm ${f.papel === 'voce' ? 'text-right' : ''}`}>
                 <div
                   className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-md px-3 py-2 text-left ${
@@ -170,9 +164,9 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
                   </div>
                 ) : null}
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : null}
         <div className="space-y-1">
           <Label htmlFor={`playground-${agente}`}>Sua mensagem</Label>
           <Textarea
