@@ -1,5 +1,9 @@
 # LearnWorlds — levantamento e proposta de integração
 
+> **23/10/2026: Fase 1 no ar** (aprovada pela Adriana: credenciais, tabelas e sincronização). Webhook: não
+> agora. Matrícula automática (Fase 3): depois, disparada pelo pagamento da Eduzz — o LearnWorlds não recebe
+> pagamento, só entrega o curso. Detalhe do que está no ar em §7.
+>
 > **Estado em 22/10/2026.** Levantamento feito na documentação oficial da API do LearnWorlds
 > (learnworlds.dev, 150 páginas) e no Supabase `mind-agent` (`ymnmotgglsrxmjmonwjz`).
 > Nada foi criado além do que já estava aprovado (identidade da MIA, §6). Tabelas novas (D2),
@@ -141,3 +145,33 @@ faltam → Fase 3 (matrícula) → Fase 2 se o atraso do cron incomodar.
 - MIA no LearnWorlds: bloco `learnworlds/mia-embed.html`; identidade pelo LearnWorlds (e-mail + ID) com
   `mindagent_chat_bind_identity` de 7 parâmetros (aplicada) e `mindagent-chat` 1.18.0 (não publicada).
   Ver `CHECKPOINT_ATUAL.md`.
+
+## 7. Fase 1 no ar (23/10/2026)
+
+- **Credenciais:** secrets `LEARNWORLDS_CLIENT_ID` e `LEARNWORLDS_CLIENT_SECRET` (Adriana). Conferidas pelo
+  modo diagnóstico da função. `platform.integracoes` ganhou a linha `learnworlds` (só o nome do secret).
+- **Migration `20261023115452_learnworlds_espelho_fase1`:** `learnworlds.cursos`, `learnworlds.programas`,
+  `learnworlds.usuarios`, `learnworlds.matriculas` (entrada, D9; RLS; só `service_role`); `usuarios` e
+  `matriculas` na Regra #1; escritor único `learnworlds_espelho_gravar` e estado `learnworlds_espelho_estado`
+  (em `crm.sync_estado`); cruzamento nos dois schemas, como a Adriana pediu: `learnworlds.v_cursos_no_catalogo`
+  e `catalogo.v_produtos_learnworlds` (quem lê o catálogo vê o ID do curso no LearnWorlds).
+- **Edge Function `learnworlds-sync` 1.0.0** (v3, `supabase/functions/learnworlds-sync/`): lê cursos, bundles,
+  planos, pessoas (200 por página) e matrículas por produto; grava em lotes de 50 (a porta única leva ~20 ms
+  por pessoa nova e o banco corta a chamada em 8 s); retoma de onde parou se passar de 120 s.
+- **Agenda:** cron `learnworlds_sync`, `11 */6 * * *` (migration `20261023120016_learnworlds_sync_cron`).
+- **Primeira carga (23/10, 70 s):** 20 cursos, 3 bundles, 0 planos, **2.558 pessoas** e **2.334 matrículas**.
+  Pessoas: 2.498 achadas pelo e-mail no cadastro, 60 criadas pela porta única; 0 conflito, 0 erro;
+  2.558 IDs do LearnWorlds em `engagement.identidades`; 2.492 pessoas distintas (66 contas do LearnWorlds
+  caíram numa pessoa que já tinha outra conta).
+- **O mapa `learnworlds.produtos` está desatualizado** (aponta para cursos de 2025 e para `mind-journey-2026`,
+  que não existe). A correção é decisão da Adriana; sugestão entregue a ela em 23/10:
+
+| Produto do catálogo (à venda) | Mapa hoje | Sugestão (no LearnWorlds) |
+|---|---|---|
+| Certificação Liderança Positiva 2027 | bundle `certificacao-avancada` (rascunho) | bundle `certificacao-unificada` |
+| Segurança Psicológica 2027 | curso `formacao-em-seguranca-psicologica` (2025) | curso `seguranca-psicologica-sugestao-pq-unica` |
+| Significado no Trabalho 2027 | curso `formacao-em-engajamento-e-significado-no-trabalho` (2025) | curso `engajamento-sugestao-pg-unica` |
+| Liderança Consciente 2027 | nenhum | curso `lideranca-consciente-sugestao-pg-unica` |
+| Gestão Estratégica 2027 | nenhum | curso `especializacao` |
+| Mind Journey 2027 | curso `mind-journey-2026` (não existe) | bundle `mind-journey2027` |
+

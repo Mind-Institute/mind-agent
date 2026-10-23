@@ -28,8 +28,12 @@
 - Conferido no Chromium com o Supabase simulado: colado na página (computador e celular) e dentro de iframe
   isolado (sem armazenamento, origem nula). Porta enviada, conversa contínua, nenhum HTML vindo da resposta.
 
-- **Integração com o LearnWorlds:** levantamento e proposta em `LEARNWORLDS_INTEGRACAO_PROPOSTA.md`
-  (API, o que já existe, fases e gates). Nada criado; aguarda credenciais e aprovação da Adriana.
+- **Integração com o LearnWorlds:** proposta em `LEARNWORLDS_INTEGRACAO_PROPOSTA.md`. **Fase 1 no ar (23/10):**
+  `learnworlds-sync` 1.0.0 (v3) + cron `learnworlds_sync` a cada 6 h; tabelas `learnworlds.cursos/programas/
+  usuarios/matriculas`; cruzamento em `learnworlds.v_cursos_no_catalogo` e `catalogo.v_produtos_learnworlds`.
+  Primeira carga: 20 cursos, 3 bundles, 2.558 pessoas (2.498 achadas pelo e-mail, 60 criadas), 2.334 matrículas.
+  Falta: a Adriana confirmar a correção do mapa `learnworlds.produtos` (§7 da proposta). Webhook: não agora.
+  Matrícula automática pela Eduzz: depois.
 
 ### MIA Summit 2026 e Agent Intelligence — 22/10/2026
 
