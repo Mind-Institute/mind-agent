@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, Database, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -147,6 +147,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/arquitetura/decisoes',
         icone: Landmark,
         descricao: 'As decisões oficiais no Supabase e o mapa de implementação.',
+      },
+      {
+        id: 'arquitetura-schemas',
+        rotulo: 'Mapa de schemas',
+        caminho: '/arquitetura/schemas',
+        icone: Database,
+        descricao: 'Função, fronteira e inventário auditado de cada schema do sistema.',
       },
     ],
   },
