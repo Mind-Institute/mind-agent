@@ -138,9 +138,15 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
       </CardHeader>
       <CardContent className="space-y-3">
         {!podeTestar ? <div className="text-sm text-muted-foreground">Só administrador testa os agentes.</div> : null}
-        <div className="max-h-[28rem] space-y-3 overflow-auto rounded-md border p-3" aria-label="Conversa de teste" role="log">
+        {/* Vazio, o histórico não ganha caixa com borda: parecia um campo de digitação e a pessoa
+            escrevia nele em vez de em "Sua mensagem" (Adriana, 23/10/2026). */}
+        <div
+          className={`max-h-[28rem] space-y-3 overflow-auto ${falas.length === 0 ? '' : 'rounded-md border p-3'}`}
+          aria-label="Conversa de teste"
+          role="log"
+        >
           {falas.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Escreva como uma pessoa escreveria.</div>
+            <div className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Escreva abaixo, em "Sua mensagem", e aperte Enter ou Enviar.</div>
           ) : (
             falas.map((f, i) => (
               <div key={i} className={`text-sm ${f.papel === 'voce' ? 'text-right' : ''}`}>
@@ -172,6 +178,7 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
           <Textarea
             id={`playground-${agente}`}
             value={texto}
+            autoFocus
             disabled={!podeTestar || enviando}
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={(e) => {
