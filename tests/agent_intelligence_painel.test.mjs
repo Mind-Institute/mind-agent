@@ -30,15 +30,19 @@ async function call({ method = 'GET', path, role = 'administrador', body, header
   const client = {
     auth: { getUser: async () => ({ data: { user: { id: USUARIO } }, error: null }) },
     from: () => chain,
-    rpc: async (nome, args) => {
+    rpc: (nome, args) => {
       /* Os argumentos nascem no contexto do vm: JSON os traz para o realm do teste. */
       rpcs.push(JSON.parse(JSON.stringify({ nome, args })));
-      if (rpcError) return { data: null, error: rpcError };
-      return { data: nome.startsWith('mind_admin_read_') ? [{ id: 'x' }] : { id: 'x' }, error: null };
+      const resultado = rpcError
+        ? { data: null, error: rpcError }
+        : { data: nome.startsWith('mind_admin_read_') ? [{ id: 'x' }] : { id: 'x' }, error: null };
+      /* Como o supabase-js: a escrita encadeia `.abortSignal(...)` antes de esperar. */
+      const chamada = { abortSignal() { return chamada; }, then(ok, falha) { return Promise.resolve(resultado).then(ok, falha); } };
+      return chamada;
     },
   };
   vm.runInNewContext(code, {
-    Request, Response, URL, fetch, crypto: webcrypto, console: { error() {} }, createClient: () => client,
+    Request, Response, URL, AbortSignal, fetch, crypto: webcrypto, console: { error() {} }, createClient: () => client,
     Deno: {
       serve: (fn) => { handler = fn; },
       env: { get: (key) => ({ SUPABASE_URL: 'https://test.supabase.co', SUPABASE_ANON_KEY: 'fake-anon', SUPABASE_SERVICE_ROLE_KEY: 'fake-service' })[key] },
@@ -185,7 +189,7 @@ test('o cadastro do agente (nome e o que faz) repassa o usuário e a versão esp
     nome: 'mind_admin_update_agent',
     args: {
       p_rota: 'mia_summit_2026', p_nome: 'MIA Summit 2026', p_descricao: 'Orienta a partir das palestras.',
-      p_analisa_conversas: null, p_ator: USUARIO, p_atualizado_em_esperado: '2026-10-22T13:35:26+00:00',
+      p_analisa_conversas: null, p_modelo: null, p_ator: USUARIO, p_atualizado_em_esperado: '2026-10-22T13:35:26+00:00',
     },
   }]);
 });

@@ -17,9 +17,9 @@ import { renderizarPainel } from './utils';
 const QUANDO = '2026-10-22T13:35:26.000000+00:00';
 
 const AGENTES: Agent[] = [
-  { id: 'concierge_summit', rota: 'concierge_summit', nome: 'Concierge Summit', descricao: 'Ajuda quem participa do Summit.', analisaConversas: true, atualizadoEm: QUANDO },
-  { id: 'mia_summit_2026', rota: 'mia_summit_2026', nome: 'MIA Summit 2026', descricao: null, analisaConversas: true, atualizadoEm: QUANDO },
-  { id: 'cliente_suporte', rota: 'cliente_suporte', nome: 'Suporte ao cliente', descricao: null, analisaConversas: true, atualizadoEm: QUANDO },
+  { id: 'concierge_summit', rota: 'concierge_summit', nome: 'Concierge Summit', descricao: 'Ajuda quem participa do Summit.', analisaConversas: true, modelo: null, atualizadoEm: QUANDO },
+  { id: 'mia_summit_2026', rota: 'mia_summit_2026', nome: 'MIA Summit 2026', descricao: null, analisaConversas: true, modelo: null, atualizadoEm: QUANDO },
+  { id: 'cliente_suporte', rota: 'cliente_suporte', nome: 'Suporte ao cliente', descricao: null, analisaConversas: true, modelo: null, atualizadoEm: QUANDO },
 ];
 
 const CANAIS: AgentChannel[] = [

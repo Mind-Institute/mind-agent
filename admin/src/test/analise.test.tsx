@@ -13,8 +13,8 @@ import { renderizarPainel } from './utils';
 const QUANDO = '2026-10-22T14:09:01.000000+00:00';
 
 const AGENTES: Agent[] = [
-  { id: 'concierge_summit', rota: 'concierge_summit', nome: 'Concierge Summit', descricao: null, analisaConversas: true, atualizadoEm: QUANDO },
-  { id: 'mia_summit_2026', rota: 'mia_summit_2026', nome: 'MIA Summit 2026', descricao: null, analisaConversas: true, atualizadoEm: QUANDO },
+  { id: 'concierge_summit', rota: 'concierge_summit', nome: 'Concierge Summit', descricao: null, analisaConversas: true, modelo: null, atualizadoEm: QUANDO },
+  { id: 'mia_summit_2026', rota: 'mia_summit_2026', nome: 'MIA Summit 2026', descricao: null, analisaConversas: true, modelo: null, atualizadoEm: QUANDO },
 ];
 
 const prompt = (chave: string, ativo: boolean, conteudo: string): AgentPrompt => ({

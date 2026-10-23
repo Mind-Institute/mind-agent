@@ -34,9 +34,39 @@ export const agentSchema = z.object({
   descricao: z.string().nullable().default(null),
   /** As conversas deste agente passam pela análise pós-conversa. */
   analisaConversas: z.boolean().default(true),
+  /** Modelo da OpenAI que este agente usa; nulo = padrão do runtime (gpt-5.4). */
+  modelo: z.string().nullable().default(null),
   atualizadoEm: z.string().min(1),
 });
 export type Agent = z.infer<typeof agentSchema>;
+
+/** Peso de palestrantes e sessões para a MIA Summit 2026 (Adriana, 22/10/2026). */
+export const PESOS_MIA = ['principal', 'relevante', 'complementar'] as const;
+export type PesoMia = (typeof PESOS_MIA)[number];
+export const ROTULO_PESO: Record<PesoMia, string> = {
+  principal: 'Principal',
+  relevante: 'Relevante',
+  complementar: 'Complementar',
+};
+export const summitPesoSchema = z.object({
+  /** `palestrante:<id>` ou `sessao:<uuid>`. */
+  id: z.string().min(1),
+  tipo: z.enum(['palestrante', 'sessao']),
+  nome: z.string().min(1),
+  detalhe: z.string().nullable().default(null),
+  peso: z.enum(PESOS_MIA),
+  /* Palestrante */
+  destaque: z.boolean().optional(),
+  fichaCurada: z.boolean().optional(),
+  sessoes: z.array(z.object({ id: z.string(), titulo: z.string(), tipo: z.string().nullable() })).default([]),
+  /* Sessão */
+  tipoSessao: z.string().nullable().optional(),
+  temTranscricao: z.boolean().optional(),
+  pesoEfetivo: z.enum(PESOS_MIA).optional(),
+  palestrantes: z.array(z.object({ id: z.union([z.string(), z.number()]), nome: z.string(), peso: z.enum(PESOS_MIA) })).default([]),
+  atualizadoEm: z.string().nullable().default(null),
+});
+export type SummitPeso = z.infer<typeof summitPesoSchema>;
 
 /** `engagement.origens`: por onde a pessoa chega ao WhatsApp (botões e popups do site). Só leitura. */
 export const channelEntrySchema = z.object({

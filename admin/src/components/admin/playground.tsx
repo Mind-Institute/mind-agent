@@ -22,6 +22,7 @@ type Fala = {
   papel: 'voce' | 'agente' | 'sistema';
   texto: string;
   rota?: string | null;
+  modelo?: string | null;
   ferramentas?: { nome: string; ok: boolean }[];
 };
 
@@ -33,6 +34,7 @@ type RespostaDoChat = {
   rota?: string;
   rota_origem?: string;
   teste?: boolean;
+  modelo?: string;
   ferramentas?: { nome: string; ok: boolean }[];
   error?: { code?: string; message?: string };
 };
@@ -114,7 +116,7 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
         setFalas((atual) => [...atual, { papel: 'sistema', texto: 'Esta conversa não foi marcada como teste pelo motor. O Playground parou para não gravar nada de verdade.' }]);
         return;
       }
-      setFalas((atual) => [...atual, { papel: 'agente', texto: corpo.answer ?? '', rota: corpo.rota ?? null, ferramentas: corpo.ferramentas ?? [] }]);
+      setFalas((atual) => [...atual, { papel: 'agente', texto: corpo.answer ?? '', rota: corpo.rota ?? null, modelo: corpo.modelo ?? null, ferramentas: corpo.ferramentas ?? [] }]);
     } catch (e) {
       setFalas((atual) => [...atual, { papel: 'sistema', texto: e instanceof Error ? e.message : 'Não foi possível conversar com o agente agora.' }]);
     } finally {
@@ -136,11 +138,11 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
       </CardHeader>
       <CardContent className="space-y-3">
         {!podeTestar ? <div className="text-sm text-muted-foreground">Só administrador testa os agentes.</div> : null}
-        <div className="max-h-[28rem] space-y-3 overflow-auto rounded-md border p-3" aria-label="Conversa de teste" role="log">
-          {falas.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Escreva como uma pessoa escreveria.</div>
-          ) : (
-            falas.map((f, i) => (
+        {/* Sem mensagens, não há caixa nenhuma: a caixa vazia parecia um campo de digitação e a pessoa
+            tentava escrever nela em vez de em "Sua mensagem" (Adriana, 23/10/2026). */}
+        {falas.length > 0 ? (
+          <div className="max-h-[28rem] space-y-3 overflow-auto rounded-md border p-3" aria-label="Conversa de teste" role="log">
+            {falas.map((f, i) => (
               <div key={i} className={`text-sm ${f.papel === 'voce' ? 'text-right' : ''}`}>
                 <div
                   className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-md px-3 py-2 text-left ${
@@ -152,6 +154,7 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
                 {f.papel === 'agente' ? (
                   <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                     {f.rota ? <Badge variant="outline">respondeu: {f.rota}</Badge> : null}
+                    {f.modelo ? <Badge variant="outline">modelo: {f.modelo}</Badge> : null}
                     {(f.ferramentas ?? []).map((t, j) => (
                       <Badge key={j} variant={t.ok ? 'outline' : 'neutro'}>
                         skill: {t.nome}
@@ -161,14 +164,15 @@ export function Playground({ agente, rotulo }: { agente: string; rotulo: string 
                   </div>
                 ) : null}
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : null}
         <div className="space-y-1">
           <Label htmlFor={`playground-${agente}`}>Sua mensagem</Label>
           <Textarea
             id={`playground-${agente}`}
             value={texto}
+            autoFocus
             disabled={!podeTestar || enviando}
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={(e) => {

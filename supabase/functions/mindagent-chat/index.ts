@@ -7,6 +7,7 @@ import {
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
 import {
+  buscaObrigatoria,
   executarChamadas,
   esforcoDeRaciocinio,
   extrairChamadas,
@@ -62,7 +63,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.16.0";
+const VERSION = "1.18.1";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -639,7 +640,7 @@ Deno.serve(async (req: Request) => {
   const publishableKey = readKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
   const secretKey = readKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  const modelComplex = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
+  const modelComplexPadrao = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
   const modelFast = Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST;
   const rolloutConfigurado = Number(
     Deno.env.get("OPENAI_FAST_ROLLOUT_PERCENT") ?? DEFAULT_FAST_ROLLOUT_PERCENT,
@@ -1207,6 +1208,14 @@ Deno.serve(async (req: Request) => {
     // Em teste a rota pode não estar no canal; o contrato de saída precisa conhecê-la.
     if (modoTeste && !rotasDoCanal.includes(rotaDecidida)) rotasDoCanal.push(rotaDecidida);
 
+    // MODELO POR AGENTE (painel Agent Intelligence, 22/10/2026). O gate devolve o modelo que a
+    // rota pede; sem nada, vale o padrão do runtime. Se a OpenAI recusar o nome (400/404), o
+    // turno volta ao padrão e registra `modelo_da_rota_indisponivel` na telemetria.
+    const modeloDaRota = typeof gate?.modelo === "string" && /^[a-z0-9][a-z0-9._-]{1,63}$/.test(gate.modelo)
+      ? gate.modelo as string
+      : null;
+    const modelComplex = modeloDaRota ?? modelComplexPadrao;
+
     // -------------------------------------------------------------- KIT
     // NECESSIDADE ATUAL e MEMÓRIA entram por campos separados: `pergunta` é a
     // única coisa que seleciona, `interesses` só reordena o que já foi
@@ -1266,7 +1275,7 @@ Deno.serve(async (req: Request) => {
     // ------------------------------------------------------------ TOOLS
     // QUAIS ferramentas existem neste turno é decisão do Kit. COMO executam é Core
     // compartilhado com o WhatsApp, incluindo escopo de rota/produto/canal.
-    const { tools: toolsParaModelo, semExecutor } = toolsDeIntelligence(kit.tools);
+    const { tools: toolsParaModelo, semExecutor, obrigatorias: skillsObrigatorias } = toolsDeIntelligence(kit.tools);
     if (semExecutor > 0) {
       console.warn(JSON.stringify({
         request_id: requestId, event: "tool_sem_executor",
@@ -1274,6 +1283,10 @@ Deno.serve(async (req: Request) => {
       }));
     }
     const nomesDasFerramentas = toolsParaModelo.map((t) => t.name);
+    // Skill obrigatória no Kit: a primeira rodada já entra forçando a busca (ver `buscaObrigatoria`).
+    // Declarada AQUI, antes da telemetria do turno que a registra — na 1.18.0 ela nascia depois
+    // da leitura, e todo turno com ferramenta morria em `internal_error` (TDZ). Medido na suíte.
+    const buscaForcadaPeloKit = buscaObrigatoria(skillsObrigatorias, message, 0) !== null;
 
     const rotaDeVenda = ["summit_b2b", "summit_b2c"].includes(rotaDecidida ?? "");
     const { data: personFacts } = rotaDeVenda && pessoaId
@@ -1370,6 +1383,8 @@ Deno.serve(async (req: Request) => {
     let tentativasModelo = 0;
     Object.assign(telemetry, {
       model_inicial: modelInicial,
+      modelo_da_rota: modeloDaRota,
+      busca_forcada_pelo_kit: buscaForcadaPeloKit,
       model_reason: modelDecision.reason,
       model_rollout_bucket: rolloutBucket,
       model_rollout_percent: modelFastRolloutPercent,
@@ -1385,7 +1400,7 @@ Deno.serve(async (req: Request) => {
     let outputText = "";
     let rodadasTool = 0;
     let recuperacaoForcada = false;
-    let forcarBuscaNaProximaVolta = false;
+    let forcarBuscaNaProximaVolta = buscaForcadaPeloKit;
     const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
 
     for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
@@ -1409,7 +1424,7 @@ Deno.serve(async (req: Request) => {
             // que não deve mudar por causa desta entrega. COM ferramenta, `low`:
             // decidir se busca, o que buscar e se o resultado responde é raciocínio,
             // e com `none` o modelo tende a responder direto sem investigar.
-            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
+            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length, buscaForcadaPeloKit) },
             text: {
               format: {
                 type: "json_schema", name: "mindagent_response", strict: true, schema: responseSchema,
@@ -1451,6 +1466,14 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!openAiResponse.ok) {
+        if (
+          modeloDaRota !== null && model === modeloDaRota && modeloDaRota !== modelComplexPadrao &&
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
+        ) {
+          model = modelComplexPadrao;
+          modelEscalation = "modelo_da_rota_indisponivel";
+          continue;
+        }
         if (
           model === modelFast && modelFast !== modelComplex &&
           podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
@@ -1861,6 +1884,7 @@ Deno.serve(async (req: Request) => {
       checkout_event_id: checkoutEventoId,
       tools_expostas: nomesDasFerramentas.length, rodadas_tool: rodadasTool,
       recuperacao_forcada: recuperacaoForcada,
+      busca_forcada_pelo_kit: buscaForcadaPeloKit,
       historico: historico.length,
       chamadas_tool: chamadasFeitas.length,
       identity_email_received: identityEmailReceived,
@@ -1886,6 +1910,7 @@ Deno.serve(async (req: Request) => {
       teste: modoTeste,
       // O que o agente fez neste turno, para o Playground mostrar.
       ferramentas: chamadasFeitas.map((c) => ({ nome: c.nome, ok: c.ok })),
+      modelo: model,
       checkout_sent: checkoutEventoId !== null,
       interests,
       sources,

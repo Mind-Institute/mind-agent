@@ -110,6 +110,80 @@
     e registra como erro, embora a função termine); `silence_reavaliar` continua desligado.
 - Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
   (P6), identidade (P7) e teste com perguntas reais (P8).
+- **Rodada de 22/10 à tarde (pedidos da Adriana; HEAD desta PR):**
+  - **Liga/desliga travado (503 após 125 s):** `admin_conflict` saía com SQLSTATE 40001 e o PostgREST
+    repetia a chamada dezenas de vezes até estourar. Migration `20261022171852` troca o errcode para
+    55000 em todas as funções `mind_admin_*` (a Edge mapeia pela mensagem, não pelo código);
+    `mindagent-knowledge` 1.7.0 (v14) põe prazo de 20 s em toda escrita; a tela recarrega no
+    conflito. O toggle do playbook na verdade tinha funcionado (v3 ativo às 16:48); o que travava
+    era o segundo clique.
+  - **Embeddings pelo botão:** `mind_knowledge_preparar_chunks` refazia todos os trechos a cada
+    chamada e morria no statement_timeout de 8 s. Agora é incremental (mesma migration).
+    `mindagent-index-knowledge` 1.1.0 (v10) aceita `?token=` (o `analise_token` de
+    `intelligence.config`) para rodadas disparadas por `net.http_post`. **1.254 trechos do Summit,
+    todos com embedding, 0 stale** (rodadas 1–13 feitas por SQL em 22/10; o botão continua servindo
+    para o que vier depois).
+  - **Fichas por sessão e mapa temático:** 54 `ficha_sessao` (uma por transcrição revisada: em uma
+    frase, ideias centrais com minuto, dados citados, ferramentas, aplicação, limites, frases,
+    "para quem busca") e 31 `mapa_tematico` em `summit_2026.knowledge_documents`, `fonte_id`
+    apontando para a transcrição, `metadata.gerado_por = Claude Code 22/10`. Gate `summit_content`
+    cobre os dois tipos; `mind_intelligence_buscar_contextual` devolve `categoria` e `peso`;
+    `_ler_contextual` lê ficha e mapa inteiros (corte 3.600). Achados laterais: várias transcrições
+    truncadas no fim; muitos palestrantes sem cargo/instituição no banco (as fichas dizem de onde
+    tiraram a descrição).
+  - **Peso por palestrante e por sessão (sugestão para a Adriana confirmar):** colunas `peso_mia`
+    em `ecossistema.palestrantes_especialistas` e `summit_2026.sessions` (migration `20261022173220`;
+    palestrantes 4 principal / 73 relevante / 10 complementar; sessões 13 / 43 / 25).
+    `mind_summit_peso_sessao` = máximo entre sessão e palestrantes; a busca multiplica o score por
+    1,25 / 1,0 / 0,85. Painel: aba Conhecimento da MIA → "Pesos para a MIA" (RPCs
+    `mind_admin_read_summit_pesos` / `mind_admin_update_summit_peso`, recurso `summit_pesos`).
+  - **Modelo (LLM) por agente:** `agentes.rotas.modelo` (migration `20261022173325`); painel
+    (ficha do agente, "Modelo") salva; `mind_rota_capacidade` devolve `modelo`; `mindagent-chat`
+    **1.17.0 (v50, publicado 22/10; conferido que v49 era idêntico ao repo)** usa o modelo da rota,
+    volta ao padrão em 400/404 (`modelo_da_rota_indisponivel`) e devolve `modelo` na resposta (o
+    Playground mostra). Sem modelo, nada muda.
+  - **Playbook v4 da MIA** em `agentes.prompts` (v3 da Adriana no histórico): identidade dela +
+    como usar as skills, fichas, mapa e peso + quatro níveis de fidelidade + limites + passar adiante.
+    Canal `mindagent-web × mia_summit_2026` segue `ativo=false, roteavel=false`: ligar é dela.
+  - **Memória da pessoa:** orientação em `docs/MEMORIA_PESSOA_CONTRATO_PROPOSTA.md` (inventário das
+    15.732 memórias ativas e proposta de três classes de visibilidade). Nada entregue ao agente.
+  - **Fila registrada** (BACKLOG §22): análise pós-conversa (opt-out, Summit×Institute, quem atendeu,
+    próximos passos, feedback de aprendizado); exemplos ao clicar na fonte em Inteligência; trocar
+    "Mind only" ↔ "Mind + public" com um clique em Collections.
+  - Testes: `node --test tests/*.test.mjs` 515/515; admin `vitest` 221/221; `tsc` e `vite build` ok.
+- **Rodada de 23/10 (PR #167 — a #165 foi mergeada; esta branch foi rebaseada sobre `main`):**
+  - **MIA respondia como Concierge** ("o que aconteceu no Summit" virou VIP/gravações/certificado, sem
+    abrir o acervo). Causas medidas no kit e na telemetria: bloco `evento` (avisos/regras do Concierge)
+    ligado para a MIA; `tom_de_voz` duplicado (instruções em 44k chars); `tool_choice: auto` com
+    raciocínio `low`; contexto "Responda usando este JSON". Feito (dados, sem migration): `evento` e
+    `tom_de_voz` desligados só na MIA; **playbook v5** (v3/v4 no histórico) ensina a função e o uso das
+    skills; bloco novo `mapa_acervo_mia_summit_2026` (temas com contagem, palestrantes e sessões
+    principais) ligado no kit (`instrucoes`, ordem 50). Instruções 44k → ~31k chars; contexto 28k → 15k.
+  - **Busca obrigatória (item 3, aprovado pela Adriana — D7):** migration `20261023120500`:
+    `mind_agent_kit` expõe `obrigatorio` em cada skill (vem de `agentes.kit_blocos.obrigatorio`);
+    `buscar_intelligence` marcada obrigatória só na MIA. `mindagent-chat` **1.18.1 (v54, publicado
+    23/10; vivo == repo nos 5 arquivos)**: quando a skill é obrigatória e a mensagem tem ≥ 20 chars,
+    a primeira rodada força `buscar_intelligence` e o raciocínio sobe para `medium`; telemetria
+    `busca_forcada_pelo_kit`. A 1.18.0 (v53) ficou ~1h40 no ar com um TDZ (flag lida antes de nascer):
+    todo turno com ferramenta caía em `internal_error`; a suíte completa pegou, a parcial não. E2E anônimo
+    no concierge após a 1.18.1: 200, duas buscas, resposta normal.
+  - **Playground:** caixa de histórico some com a conversa vazia; foco em "Sua mensagem".
+  - Pendente da Adriana: retestar a MIA no Playground ("O que aconteceu no Mind Summit 2026?" deve
+    mostrar `skill: buscar_intelligence`); decidir item 5 (tornar avisos/regras/FAQ buscáveis para a
+    MIA consultar sob demanda); confirmar pesos; ligar o canal da MIA.
+  - Testes: `node --test tests/*.test.mjs` 516/516; admin `vitest`/`tsc` ok.
+  - **Busca panorâmica (aprovado pela Adriana às 17h — D7):** o teste dela das 17:10 tinha rodado no
+    Concierge (Playground aberto no card errado), mas a investigação achou um defeito real: para
+    "liderança" os 6 primeiros eram transcrições (nenhuma ficha, nenhum mapa) e "principais temas do
+    Mind Summit 2026" devolvia zero por palavra. Migrations `20261023174500` (score × categoria:
+    mapa 1,3 · ficha 1,2; segunda chance com qualquer termo quando nenhum trecho tem todos) e
+    `20261023181500` (os dois braços propõem um candidato por DOCUMENTO antes do corte n*4 — medido:
+    só assim o mapa entra na disputa). Depois: "liderança" → mapa em 1º e ficha em 4º; "segurança
+    psicológica" → 4 fichas + mapa; "Amy Edmondson erro" → fichas e slides dela. Concierge, WhatsApp
+    e contrato `agent_unified_architecture_contract.sql` iguais. Híbrida 144 ms (quente). Limite
+    conhecido: "temas"/"o que aconteceu" só por palavra continuam em transcrições (os mapas não
+    contêm a palavra "tema"); no vivo o braço por significado cobre. `concierge_livros_autografos_contract.sql`
+    falha numa checagem do aviso "Leve seu livro" (situação do aviso, não da busca) — já falhava.
 
 ### Arquitetura no Supabase — 07/10/2026
 

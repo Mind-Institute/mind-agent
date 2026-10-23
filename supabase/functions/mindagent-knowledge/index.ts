@@ -40,6 +40,8 @@
      PATCH /admin/agent_tools/:nome         nova descrição, guardando a anterior
      POST  /admin/knowledge_search
      POST  /admin/knowledge_embeddings      uma rodada de embeddings pendentes (summit_2026, institute, dash)
+     GET   /admin/summit_pesos               peso (principal/relevante/complementar) de palestrantes e sessões para a MIA
+     PATCH /admin/summit_pesos/:id           troca o peso (palestrante:<id> ou sessao:<uuid>)
      GET   /health
 
    Canais, kit, prompts, instruções e ferramentas mudam o comportamento do
@@ -74,7 +76,12 @@ const RECURSOS = {
   agent_tools: { ler: "mind_admin_read_agent_tools", idParam: "p_id" },
   agent_conversations: { ler: "mind_admin_read_agent_conversations", idParam: "p_id" },
   analysis_runs: { ler: "mind_admin_read_analysis_runs", idParam: "p_id" },
+  summit_pesos: { ler: "mind_admin_read_summit_pesos", idParam: "p_id" },
 } as const;
+
+/* Nenhuma escrita espera mais que isto: se o banco não responder, a tela recebe um erro claro em vez
+   de ficar 2 minutos pendurada (o que acontecia no conflito 40001 repetido pelo PostgREST, 22/10). */
+const PRAZO_ESCRITA_MS = 20_000;
 
 /* Conversas reais são assunto sensível (saúde mental): só administrador lê (Adriana, 22/10/2026). */
 const SO_ADMINISTRADOR_LE = new Set<string>(["agent_conversations", "analysis_runs"]);
@@ -96,6 +103,12 @@ function recusaDaEscrita(error: { code?: string; message?: string }, oQue: strin
   }
   if (m.includes("admin_validation:entrada_em_uso")) {
     return { status: 422, corpo: { codigo: "validacao", mensagem: "Essa entrada já abre em outro agente neste canal. Uma entrada abre em um agente só." } };
+  }
+  if (m.includes("admin_validation:modelo")) {
+    return { status: 422, corpo: { codigo: "validacao", mensagem: "Nome de modelo inválido: letras minúsculas, números, ponto, traço e _ (ex.: gpt-5.4)." } };
+  }
+  if (m.includes("admin_validation:peso")) {
+    return { status: 422, corpo: { codigo: "validacao", mensagem: "Peso inválido: principal, relevante ou complementar." } };
   }
   if (m.includes("admin_validation:entrada")) {
     return { status: 422, corpo: { codigo: "validacao", mensagem: "Código de entrada inválido: letras minúsculas, números e _ (ex.: mind_summit_app)." } };
@@ -229,7 +242,7 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(req) });
   if (req.method === "GET" && partes.at(-1) === "health") {
-    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.6.0" }, requestId);
+    return json(req, 200, { ok: true, service: "mindagent-knowledge", version: "1.7.0" }, requestId);
   }
   if (!origemPermitida(req.headers.get("Origin"))) {
     return json(req, 403, { codigo: "sem_permissao", mensagem: "Origem não autorizada." }, requestId);
@@ -340,6 +353,7 @@ Deno.serve(async (req: Request) => {
         method: "POST",
         headers: { apikey: chaveSecreta, "Content-Type": "application/json" },
         body: JSON.stringify({ schema, limite: 100 }),
+        signal: AbortSignal.timeout(110_000),
       });
     } catch {
       return json(req, 503, { codigo: "indisponivel", mensagem: "Não foi possível gerar embeddings." }, requestId);
@@ -411,7 +425,7 @@ Deno.serve(async (req: Request) => {
       p_access_max: String(payload.accessMax ?? "mind_public"),
       p_customer_scope: payload.customerScope == null ? null : String(payload.customerScope),
       p_updated_at_expected: esperado || null,
-    });
+    }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     if (error) {
       const m = error.message ?? "";
       if (m.includes("admin_conflict") || error.code === "40001") {
@@ -449,7 +463,7 @@ Deno.serve(async (req: Request) => {
       p_prioridade: Number(payload.prioridade ?? 50),
       p_acesso_maximo: String(payload.acessoMaximo ?? "mind_public"),
       p_atualizado_em_esperado: esperado || null,
-    });
+    }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     if (error) {
       const m = error.message ?? "";
       if (m.includes("admin_conflict") || error.code === "40001") {
@@ -468,7 +482,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const escritaDoAgente =
-    (req.method === "PATCH" && id && ["agents", "agent_channels", "agent_kit_blocks", "agent_prompts", "agent_tools"].includes(nome ?? "")) ||
+    (req.method === "PATCH" && id && ["agents", "agent_channels", "agent_kit_blocks", "agent_prompts", "agent_tools", "summit_pesos"].includes(nome ?? "")) ||
     (req.method === "POST" && !id && ["agent_kit_blocks", "agent_instructions"].includes(nome ?? ""));
   if (escritaDoAgente) {
     if (acesso.role !== "administrador") {
@@ -490,14 +504,20 @@ Deno.serve(async (req: Request) => {
       if (descricao !== null && descricao.length > 4_000) {
         return json(req, 422, { codigo: "validacao", mensagem: "A descrição passou de 4 mil caracteres." }, requestId);
       }
+      /* `modelo`: ausente = não mexe; "" = volta ao padrão do runtime; nome = passa a usar. */
+      const modelo = texto(payload.modelo);
+      if (modelo !== null && modelo.trim() !== "" && !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(modelo.trim())) {
+        return json(req, 422, { codigo: "validacao", mensagem: "Nome de modelo inválido: letras minúsculas, números, ponto, traço e _ (ex.: gpt-5.4)." }, requestId);
+      }
       resultado = await segredo.rpc("mind_admin_update_agent", {
         p_rota: id,
         p_nome: texto(payload.nome),
         p_descricao: descricao,
         p_analisa_conversas: booleano(payload.analisaConversas),
+        p_modelo: modelo === null ? null : modelo.trim(),
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: esperado,
-      });
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     } else if (nome === "agent_channels") {
       oQue = "os canais";
       const entradas = Array.isArray(payload.entradasDiretas)
@@ -511,7 +531,7 @@ Deno.serve(async (req: Request) => {
         p_observacao: texto(payload.observacao),
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: esperado,
-      });
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     } else if (nome === "agent_kit_blocks") {
       oQue = "o kit";
       const [rota, bloco] = id ? id.split("::") : [texto(payload.rota), texto(payload.bloco)];
@@ -525,7 +545,14 @@ Deno.serve(async (req: Request) => {
         p_obrigatorio: booleano(payload.obrigatorio),
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: id ? esperado : null,
-      });
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
+    } else if (nome === "summit_pesos") {
+      oQue = "os pesos";
+      resultado = await segredo.rpc("mind_admin_update_summit_peso", {
+        p_id: id,
+        p_peso: texto(payload.peso),
+        p_ator: usuario.user.id,
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     } else if (nome === "agent_instructions") {
       oQue = "as instruções";
       const conteudo = texto(payload.conteudo);
@@ -539,7 +566,7 @@ Deno.serve(async (req: Request) => {
         p_conteudo: conteudo,
         p_substitui: texto(payload.substitui),
         p_ator: usuario.user.id,
-      });
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     } else if (nome === "agent_tools") {
       oQue = "as ferramentas";
       const descricao = texto(payload.descricao);
@@ -551,7 +578,7 @@ Deno.serve(async (req: Request) => {
         p_descricao: descricao,
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: esperado,
-      });
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     } else {
       oQue = "os prompts";
       const conteudo = texto(payload.conteudo);
@@ -565,7 +592,7 @@ Deno.serve(async (req: Request) => {
         p_ativo: booleano(payload.ativo),
         p_ator: usuario.user.id,
         p_atualizado_em_esperado: esperado,
-      });
+      }).abortSignal(AbortSignal.timeout(PRAZO_ESCRITA_MS));
     }
 
     if (resultado.error) {

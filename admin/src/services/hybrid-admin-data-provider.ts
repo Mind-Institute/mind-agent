@@ -63,6 +63,7 @@ export const RECURSOS_DO_KNOWLEDGE = [
   'channel_entries',
   'agent_conversations',
   'analysis_runs',
+  'summit_pesos',
 ] as const satisfies readonly NomeRecurso[];
 
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
@@ -101,6 +102,7 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   channel_entries: new Set(['list', 'get']),
   agent_conversations: new Set(['list', 'get']),
   analysis_runs: new Set(['list', 'get']),
+  summit_pesos: new Set(['list', 'get', 'update']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -127,6 +129,7 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   channel_entries: (op) => `As entradas do WhatsApp nascem no site e na Treble; ${op} entrada não existe no painel.`,
   agent_conversations: (op) => `Conversas reais só se leem; ${op} conversa não existe no painel.`,
   analysis_runs: (op) => `As execuções da análise só se leem; ${op} execução não existe no painel.`,
+  summit_pesos: (op) => `Os pesos se leem e se trocam; ${op} peso não existe no painel.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {
