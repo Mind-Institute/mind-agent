@@ -139,5 +139,5 @@ faltam → Fase 3 (matrícula) → Fase 2 se o atraso do cron incomodar.
 
 ## 6. Já feito nesta frente (22/10)
 - MIA no LearnWorlds: bloco `learnworlds/mia-embed.html`; identidade pelo LearnWorlds (e-mail + ID) com
-  `mindagent_chat_bind_identity` de 7 parâmetros (aplicada) e `mindagent-chat` 1.17.0 (não publicada).
+  `mindagent_chat_bind_identity` de 7 parâmetros (aplicada) e `mindagent-chat` 1.18.0 (não publicada).
   Ver `CHECKPOINT_ATUAL.md`.

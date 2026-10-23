@@ -15,12 +15,12 @@
   `mindagent-chat` com `origem_codigo = institute_learnworlds`. Sem `localStorage` disponível, a
   conversa segue na memória da página.
 - **Identidade (P7, decisão da Adriana em 22/10: confiar no LearnWorlds):** o bloco manda
-  `{{USER.EMAIL}}`, `{{USER.NAME}}` e `{{USER.ID}}` com `source = learnworlds`. `mindagent-chat` 1.17.0
+  `{{USER.EMAIL}}`, `{{USER.NAME}}` e `{{USER.ID}}` com `source = learnworlds`. `mindagent-chat` 1.18.0
   aceita essa fonte e passa o ID para `mindagent_chat_bind_identity` (assinatura nova de 7 parâmetros,
   migration `20261022175330`, **aplicada**; a de 6 só repassa). A porta única grava
-  `learnworlds_user_id` em `engagement.identidades`. **A função 1.17.0 não está publicada** (no ar: v49 =
-  1.16.0, conferida igual à main): publicar depois do merge, e a outra janela (modelo por agente) precisa
-  levar esta mudança junto se publicar a dela.
+  `learnworlds_user_id` em `engagement.identidades`. **Não publicada.** Em 22/10 à noite a outra janela publicou a v50
+  (também numerada 1.17.0, PR #167, sem a identidade do LearnWorlds); por isso esta virou 1.18.0. Publicar a
+  1.18.0 só depois de juntar as duas (merge do #167 na main e da main neste PR); até lá a MIA fica anônima.
 - Banco (casa existente): `canal_competencia` `mindagent-web × mia_summit_2026` com
   `entradas_diretas = {institute_learnworlds}`. Inerte enquanto o canal da MIA estiver desligado
   (`mind_origem_rota` devolve nulo; conferido). **Com o canal desligado, o bloco cai no roteador**: só
