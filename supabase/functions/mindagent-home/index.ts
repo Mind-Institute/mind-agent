@@ -316,6 +316,23 @@ Deno.serve(async (req: Request) => {
     return json(req, 200, { fonte: "arquitetura.decisoes", itens }, requestId);
   }
 
+  // Mapa auditado dos schemas: leitura autenticada, sem conteúdo arquitetural no código.
+  if (recurso === "mapa-schemas") {
+    if (id || acao || partes.length !== iAdmin + 2) {
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
+    }
+    if (req.method !== "GET") {
+      return json(req, 405, { codigo: "metodo_nao_permitido", mensagem: "O mapa de schemas é somente leitura." }, requestId);
+    }
+    if (!ACOES_POR_PAPEL[acesso.role].has("view")) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Sem permissão para visualizar." }, requestId);
+    }
+    const { data, error } = await comSegredo.schema("arquitetura").from("mapa_schemas")
+      .select("*").order("tipo").order("schema_name");
+    if (error) return erroDeRpc(req, error, requestId);
+    return json(req, 200, { fonte: "arquitetura.mapa_schemas", itens: data ?? [] }, requestId);
+  }
+
   if (!recurso || !RECURSOS.has(recurso)) {
     return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
   }
