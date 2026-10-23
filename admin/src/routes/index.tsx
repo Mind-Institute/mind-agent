@@ -12,6 +12,7 @@ import { PaginaAgentIntelligence } from '@/pages/agent-intelligence';
 import { PaginaCanais } from '@/pages/canais';
 import { PaginaAnalise } from '@/pages/analise';
 import { PaginaArquitetura } from '@/pages/arquitetura';
+import { PaginaMapaSchemas } from '@/pages/mapa-schemas';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -57,6 +58,7 @@ export const rotasAdmin: RouteObject[] = [
       { path: 'analise', element: <PaginaAnalise /> },
 
       { path: 'arquitetura/decisoes', element: <PaginaArquitetura /> },
+      { path: 'arquitetura/schemas', element: <PaginaMapaSchemas /> },
 
       { path: 'admins', element: <PaginaAdmins /> },
       { path: 'admins/:id', element: <PaginaAdmins /> },
