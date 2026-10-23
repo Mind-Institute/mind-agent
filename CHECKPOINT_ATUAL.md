@@ -34,6 +34,19 @@
   Primeira carga: 20 cursos, 3 bundles, 2.558 pessoas (2.498 achadas pelo e-mail, 60 criadas), 2.334 matrículas.
   Falta: a Adriana confirmar a correção do mapa `learnworlds.produtos` (§7 da proposta). Webhook: não agora.
   Matrícula automática pela Eduzz: depois.
+- **As 60 pessoas criadas pela carga (decisão da Adriana, 23/10, tudo por `mind_fusao_decidir`):**
+  - 19 já existiam com outro Mind ID, achadas por nome ou ingresso: a proposta errada (com a dona do e-mail)
+    foi rejeitada, e uma nova, com a pessoa certa, foi aprovada.
+  - 13 eram a dona do e-mail com apelido ou nome de empresa: aprovadas.
+  - 17 compraram para outra pessoa e ficam separadas; a proposta foi rejeitada. Causa: a Eduzz grava o
+    participante com o e-mail de quem comprou.
+  - 8 testes ou contas internas: ficam como estão, sem apagar.
+  - 2 são novas de verdade.
+  - Amanda Lêdo (Ad Singular) fica separada da Leticia Tambani: celulares diferentes.
+  - Sobram 28 Mind IDs novos e nenhuma pendência de fusão com eles.
+  - Ainda sem decisão: devolver o e-mail de quem comprou (hoje colado no participante) e ligar a venda dela
+    na Eduzz, hoje sem Mind ID; a "busca ao nascer" (procurar todo Mind ID novo nos outros sistemas,
+    inclusive por nome; precisa de D7).
 
 ### MIA Summit 2026 e Agent Intelligence — 22/10/2026
 
