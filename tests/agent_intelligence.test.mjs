@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buscaObrigatoria,
   executarChamadas,
   esforcoDeRaciocinio,
   extrairChamadas,
@@ -42,6 +43,22 @@ test('o mesmo Core expõe somente ferramentas de leitura allowlisted', () => {
   assert.deepEqual(tools.map((tool) => tool.name), ['buscar_intelligence', 'ler_intelligence']);
   assert.equal(semExecutor, 1);
   assert.ok(tools.every((tool) => tool.strict === true));
+});
+
+test('skill obrigatória no Kit força a busca só na primeira rodada e só em pergunta de verdade', () => {
+  const { obrigatorias } = toolsDeIntelligence([
+    { ...ferramentas[0], obrigatorio: true },
+    ferramentas[1],
+  ]);
+  assert.deepEqual(obrigatorias, ['buscar_intelligence']);
+  assert.equal(buscaObrigatoria(obrigatorias, 'O que aconteceu no Mind Summit 2026?', 0), 'buscar_intelligence');
+  assert.equal(buscaObrigatoria(obrigatorias, 'O que aconteceu no Mind Summit 2026?', 1), null);
+  assert.equal(buscaObrigatoria(obrigatorias, 'oi', 0), null);
+  assert.equal(buscaObrigatoria([], 'O que aconteceu no Mind Summit 2026?', 0), null);
+  assert.deepEqual(toolsDeIntelligence(ferramentas).obrigatorias, []);
+  /* Forçada, a busca sobe o raciocínio mesmo numa pergunta curta e simples. */
+  assert.equal(esforcoDeRaciocinio('qual o horário?', 2, true), 'medium');
+  assert.equal(esforcoDeRaciocinio('qual o horário?', 2, false), 'low');
 });
 
 test('o Core encontra o produto escopado sem depender do canal', () => {

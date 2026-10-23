@@ -7,6 +7,7 @@ import {
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
 import {
+  buscaObrigatoria,
   executarChamadas,
   esforcoDeRaciocinio,
   extrairChamadas,
@@ -62,7 +63,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.17.0";
+const VERSION = "1.18.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -1274,7 +1275,7 @@ Deno.serve(async (req: Request) => {
     // ------------------------------------------------------------ TOOLS
     // QUAIS ferramentas existem neste turno é decisão do Kit. COMO executam é Core
     // compartilhado com o WhatsApp, incluindo escopo de rota/produto/canal.
-    const { tools: toolsParaModelo, semExecutor } = toolsDeIntelligence(kit.tools);
+    const { tools: toolsParaModelo, semExecutor, obrigatorias: skillsObrigatorias } = toolsDeIntelligence(kit.tools);
     if (semExecutor > 0) {
       console.warn(JSON.stringify({
         request_id: requestId, event: "tool_sem_executor",
@@ -1379,6 +1380,7 @@ Deno.serve(async (req: Request) => {
     Object.assign(telemetry, {
       model_inicial: modelInicial,
       modelo_da_rota: modeloDaRota,
+      busca_forcada_pelo_kit: buscaForcadaPeloKit,
       model_reason: modelDecision.reason,
       model_rollout_bucket: rolloutBucket,
       model_rollout_percent: modelFastRolloutPercent,
@@ -1394,7 +1396,9 @@ Deno.serve(async (req: Request) => {
     let outputText = "";
     let rodadasTool = 0;
     let recuperacaoForcada = false;
-    let forcarBuscaNaProximaVolta = false;
+    // Skill obrigatória no Kit: a primeira rodada já entra forçando a busca (ver `buscaObrigatoria`).
+    const buscaForcadaPeloKit = buscaObrigatoria(skillsObrigatorias, message, 0) !== null;
+    let forcarBuscaNaProximaVolta = buscaForcadaPeloKit;
     const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
 
     for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
@@ -1418,7 +1422,7 @@ Deno.serve(async (req: Request) => {
             // que não deve mudar por causa desta entrega. COM ferramenta, `low`:
             // decidir se busca, o que buscar e se o resultado responde é raciocínio,
             // e com `none` o modelo tende a responder direto sem investigar.
-            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
+            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length, buscaForcadaPeloKit) },
             text: {
               format: {
                 type: "json_schema", name: "mindagent_response", strict: true, schema: responseSchema,
@@ -1878,6 +1882,7 @@ Deno.serve(async (req: Request) => {
       checkout_event_id: checkoutEventoId,
       tools_expostas: nomesDasFerramentas.length, rodadas_tool: rodadasTool,
       recuperacao_forcada: recuperacaoForcada,
+      busca_forcada_pelo_kit: buscaForcadaPeloKit,
       historico: historico.length,
       chamadas_tool: chamadasFeitas.length,
       identity_email_received: identityEmailReceived,
