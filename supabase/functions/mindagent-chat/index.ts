@@ -63,7 +63,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.18.0";
+const VERSION = "1.18.1";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -1283,6 +1283,10 @@ Deno.serve(async (req: Request) => {
       }));
     }
     const nomesDasFerramentas = toolsParaModelo.map((t) => t.name);
+    // Skill obrigatória no Kit: a primeira rodada já entra forçando a busca (ver `buscaObrigatoria`).
+    // Declarada AQUI, antes da telemetria do turno que a registra — na 1.18.0 ela nascia depois
+    // da leitura, e todo turno com ferramenta morria em `internal_error` (TDZ). Medido na suíte.
+    const buscaForcadaPeloKit = buscaObrigatoria(skillsObrigatorias, message, 0) !== null;
 
     const rotaDeVenda = ["summit_b2b", "summit_b2c"].includes(rotaDecidida ?? "");
     const { data: personFacts } = rotaDeVenda && pessoaId
@@ -1396,8 +1400,6 @@ Deno.serve(async (req: Request) => {
     let outputText = "";
     let rodadasTool = 0;
     let recuperacaoForcada = false;
-    // Skill obrigatória no Kit: a primeira rodada já entra forçando a busca (ver `buscaObrigatoria`).
-    const buscaForcadaPeloKit = buscaObrigatoria(skillsObrigatorias, message, 0) !== null;
     let forcarBuscaNaProximaVolta = buscaForcadaPeloKit;
     const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
 
