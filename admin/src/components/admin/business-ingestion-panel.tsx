@@ -71,7 +71,7 @@ export function BusinessIngestionPanel() {
                 <p className="font-semibold">{r.source?.title ?? String(r.metadata.source_title ?? r.source_id)}</p>
                 <p className="text-xs text-muted-foreground">{r.current_stage ?? r.status} · protocolo {r.protocol_version}</p>
               </div>
-              <Badge variant={r.status === 'published' ? 'sucesso' : r.status === 'failed' ? 'destrutivo' : 'neutro'}>{r.status.replaceAll('_',' ')}</Badge>
+              <Badge variant={r.status === 'published' ? 'sucesso' : r.status === 'failed' ? 'destructive' : 'neutro'}>{r.status.replaceAll('_',' ')}</Badge>
             </button>
           ))}
         </CardContent>
@@ -109,7 +109,7 @@ export function BusinessIngestionPanel() {
                     <div className="mt-2 space-y-2">
                       {detail.data.findings.map((f) => (
                         <div key={f.id} className="rounded-md border p-3 text-sm">
-                          <div className="flex items-center gap-2"><Badge variant={f.severity === 'critical' ? 'destrutivo' : f.severity === 'warning' ? 'atencao' : 'neutro'}>{f.severity}</Badge><strong>{f.finding_type}</strong></div>
+                          <div className="flex items-center gap-2"><Badge variant={f.severity === 'critical' ? 'destructive' : f.severity === 'warning' ? 'atencao' : 'neutro'}>{f.severity}</Badge><strong>{f.finding_type}</strong></div>
                           <p className="mt-1 text-muted-foreground">{f.description}</p>
                         </div>
                       ))}
