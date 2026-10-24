@@ -7,6 +7,7 @@ import {
   GitBranch,
   Layers3,
   Network,
+  CircleGauge,
 } from 'lucide-react';
 import type { BusinessKnowledgeGovernance } from '@/contracts';
 import { useLista } from '@/hooks/use-recurso';
@@ -85,6 +86,38 @@ function VisaoComoLer() {
           <div className="rounded-lg border p-4">
             <div className="mb-2 flex items-center gap-2 font-semibold"><BookOpen className="size-4" />Grounding</div>
             <p className="text-sm text-muted-foreground">De onde veio e onde voltar ao material original.</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function VisaoCobertura() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CircleGauge className="size-4" />
+          Cobertura e lacunas
+        </CardTitle>
+        <CardDescription>
+          Cada problema deve mostrar não só quais conhecimentos existem, mas também o quanto a base atual sustenta uma resposta robusta e o que ainda falta aprender.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border p-4">
+            <div className="font-semibold">Cobertura forte</div>
+            <p className="mt-1 text-sm text-muted-foreground">Há modelos, métodos e relações suficientes para orientar diagnóstico e decisão.</p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <div className="font-semibold">Cobertura parcial</div>
+            <p className="mt-1 text-sm text-muted-foreground">A IA consegue ajudar, mas deve explicitar limites e conhecimentos complementares necessários.</p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <div className="font-semibold">Lacuna</div>
+            <p className="mt-1 text-sm text-muted-foreground">O problema está mapeado, mas ainda não há base suficiente para recomendar com confiança.</p>
           </div>
         </div>
       </CardContent>
@@ -196,6 +229,7 @@ export function PaginaBusinessIntelligence() {
       />
 
       <VisaoComoLer />
+      <VisaoCobertura />
 
       {query.isLoading ? <div className="text-sm text-muted-foreground">Carregando Business Intelligence…</div> : null}
       {query.error ? (
@@ -216,8 +250,8 @@ export function PaginaBusinessIntelligence() {
           <TabsContent value="problems" className="mt-4">
             <IntegracaoPendente
               titulo="Problemas e jobs consultivos"
-              descricao="A visão principal deve começar pela pergunta que o consultor precisa resolver, não pelo livro."
-              caminho="área de problema → job consultivo → conhecimentos relevantes → dependências entre jobs"
+              descricao="A visão principal começa pelo problema. Cada job deve mostrar conhecimentos relevantes, dependências, fontes, nível de cobertura e lacunas da base."
+              caminho="área de problema → job consultivo → cobertura/lacunas → conhecimentos relevantes → dependências entre jobs → groundings"
             />
           </TabsContent>
 
