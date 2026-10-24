@@ -8,7 +8,6 @@ import type {
   KnowledgeCollection,
   KnowledgeSource,
   BusinessKnowledgeGovernance,
-  BusinessKnowledgeMap,
   CustomerKnowledgeGovernance,
   AgentIntelligenceAccess,
 } from './knowledge';
@@ -55,7 +54,6 @@ export interface MapaRecursos {
   knowledge_assets: KnowledgeAsset;
   agent_knowledge_access: AgentKnowledgeAccess;
   business_intelligence: BusinessKnowledgeGovernance;
-  business_knowledge_map: BusinessKnowledgeMap;
   customer_intelligence: CustomerKnowledgeGovernance;
   agent_intelligence_access: AgentIntelligenceAccess;
   /* Agentes: canais, kit e prompts (schema `agentes`), pela mindagent-knowledge. */
@@ -75,7 +73,7 @@ export type NomeRecurso = keyof MapaRecursos;
 export const NOMES_RECURSOS: NomeRecurso[] = [
   'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
   'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
-  'business_intelligence', 'business_knowledge_map', 'customer_intelligence', 'agent_intelligence_access',
+  'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
   'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
   'agents', 'channel_entries', 'agent_conversations', 'analysis_runs',
 ];
@@ -91,7 +89,6 @@ export const ROTULO_RECURSO: Record<NomeRecurso, string> = {
   knowledge_assets: 'Knowledge asset',
   agent_knowledge_access: 'Acesso de agente',
   business_intelligence: 'Business Intelligence',
-  business_knowledge_map: 'Mapa consultivo',
   customer_intelligence: 'Customer Intelligence',
   agent_intelligence_access: 'Agent Intelligence',
   agent_channels: 'Canal do agente',
