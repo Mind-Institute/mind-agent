@@ -41,6 +41,7 @@ export function criarBanco(): BancoMock {
     knowledge_assets: [],
     agent_knowledge_access: [],
     business_intelligence: [],
+    business_knowledge_map: [],
     customer_intelligence: [],
     agent_intelligence_access: [],
     agent_channels: [],
