@@ -1124,3 +1124,226 @@ alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; 
     genéricos (empresa Heineken também no ingresso da Ivana). Conferir na Yazo/Eduzz antes de usar CPF desses
     ingressos para identidade.
 
+
+## 22. Summit 2026 — ID da sessão/palestrante interligando tudo (26/09/2026, Adriana)
+
+Pedido da Adriana: o ID da sessão (e do palestrante) tem de funcionar como o `mind_id` das pessoas —
+perguntado sobre uma sessão ou um palestrante, o sistema precisa saber que há mais informação sobre ele em
+outros lugares. Programação e palestrantes do Summit 2026 foram completados no banco em 26/09 (PR #142).
+
+### O que já existe (verificado em 26/09)
+
+- `summit_2026.sessions.id` (uuid) é a chave de fato. FKs para ela: `summit_2026.session_speakers`,
+  `credenciamento_summit_2026."Reservas_Agenda_APP"` (21.032/21.032 ligadas), `"Check Ins Summit"`
+  (9.718/9.718) e, desde 27/09, `summit_2026.knowledge_documents.sessao_id` (transcrição de cada palestra,
+  uma linha por palestra; palestrantes vêm pela sessão). Nome legível e único: `site_session_id` (81/81).
+  Id do app: `yazo_ids` (as 4 masterclasses têm 2 — turma HNK × demais).
+- 27/09 (Adriana): saíram as quatro tabelas vazias que também apontavam para a sessão —
+  `engagement.sessao_feedback`, `engagement.jornada_sessao`, `engagement.jornada_eventos`,
+  `intelligence.recomendacoes` — com as visões `concierge.v_funil_valor`, `v_sessoes_avaliadas`,
+  `v_aderencia_por_area` e o gatilho da jornada (migration `20260927191158`).
+- `engagement.pesquisa_summit_2026.notas_atividades` (origens `app_dia`/`app_evento`) já grava `sessao_id`:
+  798 notas, todas apontando para sessão existente.
+- `public.mind_intelligence_ler(p_tipo, p_id, p_corte)` já lê `sessao` e `palestrante` por id, mas **não**
+  segue para reservas, check-ins nem notas de pesquisa.
+
+### Pendências
+
+1. **(a) Ficha completa da sessão** — leitura por id que junte palestrantes, reservas, check-ins e notas das
+   pesquisas (só agregados, sem dado pessoal). Coletor factual: não decide nem pontua.
+2. **(b) Ficha completa do palestrante** — sessões de que participou, notas recebidas e, quando houver, o
+   `mind_id` dele.
+3. **(d) Pesquisa do Mind Dash ("Mind Summit 2026 - Participante")** — as linhas das grades (P22–P61)
+   identificam a sessão só pelo texto. Antes de importar as respostas para `engagement`, montar a tabela de
+   correspondência linha → `summit_2026.sessions.id` (ou `site_session_id`), senão a nota não se liga à
+   sessão, aos palestrantes nem aos check-ins. A Adriana faz depois.
+
+## 23. Funções de LGPD e resumo do dia apontando para casas que não existem (27/09/2026)
+
+Descoberta lateral ao apagar as tabelas vazias da jornada (migration `20260927191158`). Não corrigido:
+mexer em LGPD é gate da Adriana.
+
+- `mind.esquecer_participante(uuid)` já falhava antes de 27/09 e continua falhando: começa com
+  `insert into participantes` e depois atualiza `nps_summit`, e nenhuma das duas existe no `search_path`
+  dela (schemas `summit`/`comum` saíram). Hoje ninguém consegue ser "esquecido" por essa função. Falta
+  decidir qual é a porta de esquecimento do D5 (anonimizar `pessoas.pessoas`? apagar?) e reescrever a
+  função sobre as casas atuais.
+- `concierge.resumo_do_dia(uuid, date)` lia `summit.sessions` (não existe); em 27/09 passou a ler
+  `summit_2026.sessions` porque o banco não aceita recriar a função apontando para tabela inexistente.
+  Ninguém chama a função (nem banco, nem cron, nem Edge, nem app).
+- O contrato `tests/d5_identidade_universal_contract.sql` usava `engagement.jornada_sessao` como exemplo de
+  PK composta na fusão; passou a usar `crm.pessoa_nps` (PK `mind_id, produto_codigo`). A fusão varre as FKs
+  para `pessoas.pessoas` em tempo de execução, então a cobertura é a mesma. O contrato não foi rodado
+  inteiro em 27/09.
+
+## 24. Slides do Summit 2026 — pendências (29/09/2026, Adriana)
+
+Os slides entraram em `summit_2026.knowledge_documents` (`tipo_conteudo = 'slides'`, texto na coluna
+`slides`, repetido em `corpo`), um documento por arquivo, ligado à palestra por `sessao_id`. A transcrição
+da mesma palestra é outro documento, com o texto em `transcrito`. Estado em 29/09: 37 arquivos em 31
+palestras. PR #142.
+
+### Quem lê — decidido (Adriana, 29/09)
+
+Slides e transcrições ficam **só para uso interno por enquanto**: todos com `ativo = false`, e os
+agentes não leem. As leituras (`mind_intelligence_*`) e o chunking só pegam documentos com `ativo`.
+
+Os 7 slides que outra sessão tinha carregado ligados foram desligados em 29/09, com o motivo em
+`metadata->>'desligado_motivo'`:
+- Jan De Neve;
+- Amy Edmondson ×2;
+- Christina Maslach ×2;
+- Sonja Lyubomirsky ×2.
+
+Estado: 37 slides e 16 transcrições, todos desligados.
+
+### Faltam — o Drive não devolveu texto (precisa de PDF com texto)
+
+- Michelle Schneider — `d1-1500-seu-emprego` (pptx de 788 MB);
+- Renata Rivetti — `d1-1500-autonomia-desorganizacao` (pptx grande);
+- Carla Tieppo, palestra — `d2-1130-onde-foi` (pptx grande; o workshop dela entrou);
+- Fernanda Craveiro — `d2-1440-segunda-feira` (PDF só de imagem; o Google Doc também veio vazio).
+
+Issao Imamura (`d2-0900-quem-enxerga`) fica **sem slides**, por decisão da Adriana (29/09).
+
+### Entraram cortados (refazer com PDF, se a Adriana quiser)
+
+- Igor Gomes Menezes e Esabela Cruz — `d1-1130-mensuracao-pgr`. Termina em "concausa para o seu adoe".
+- Cirlene Luiza Zimmermann — `d2-1130-riscos-psicossociais`. Termina em "poss"; os emojis vieram quebrados.
+
+### Conferir
+
+- Carol Romano — `d1-1600-relacoes-sustentam`: o texto do arquivo "NOVO: Carol Romano, Relações que
+  Sustentam 16h" começa como "Copy of luciana lima mind summit". Parece modelo reaproveitado; confirmar se é
+  a apresentação certa.
+- Fernanda Monteforte — `d2-1340-antes-cobrar`: só a capa tem texto.
+- Ivana Moreira, abertura — `d1-0900-abertura`: quase sem texto. A leitura trouxe um "الله" que não é
+  do slide.
+
+### Sem arquivo na pasta
+
+Palestras, masterclasses e workshops sem nenhum slide carregado. Pode ser que não tenham usado
+apresentação:
+
+- Adriana Drulla — `d1-0915-beneficio-transformacao`;
+- Jan De Neve, masterclass — `d1-1130-mensurar-intervir`;
+- Yuri Trafane — `d1-1130-trabalho-ainda`;
+- Fernanda Catena — `d1-1230-nova-era`;
+- Oscar de Bos — `d1-1500-economia-distracao`;
+- Ana Claudia Quintana Arantes — `d1-1600-consciencia-finitude`;
+- Clarissa Daroit, Esabela Cruz e Igor Gomes Menezes — `d2-1130-comeca-agenda`;
+- Alana Anijar — `d2-1230-lideranca-emocionalmente`;
+- Michael E. Long — `d2-1600-quem-esta`.
+
+Painéis, lançamentos e a entrevista também não têm slides; o normal é não terem.
+
+## 25. Transcrições do Summit 2026 — carga da pasta "Transcritos" (29/09/2026)
+
+Pedido da Adriana: ingerir a pasta do Drive "Transcritos" (subpastas 16.09 e 17.09) e repetir o estudo/diff a
+cada hora até as 9h. Foram 7 rodadas, de 02:55 a 08:55 (horário de Brasília).
+
+### Estado em 29/09, fim do dia
+
+55 transcrições em `summit_2026.knowledge_documents` (29 do dia 16, 26 do dia 17). São as 54 da carga até 08:55
+mais a masterclass da Amy, colada depois pela Adriana (ver "Masterclass da Amy Edmondson" abaixo):
+- uma por palestra, `tipo_conteudo = 'transcricao'`;
+- texto em `transcrito`, repetido em `corpo`;
+- cabeçalho do arquivo em `metadata->'cabecalho'`;
+- `metadata.drive_file_id` e `metadata.drive_modified_time` servem para o diff;
+- todas desligadas (`ativo = false`, `audiencia = interno`, 0 chunks).
+
+Conferências:
+- hash confere em todas;
+- palavras entre 100,6% e 101,4% do número declarado no cabeçalho de cada arquivo.
+
+Arquivos editados no Drive depois da carga:
+- Bel Mota e Liderança Consciente: atualizados no mesmo registro; a versão anterior fica em
+  `metadata->'versoes_anteriores'`.
+- Masterclasses de Sonja e Jan, palestra da Maslach e "Seu cérebro não foi feito para isso": só o cabeçalho
+  mudou. Nesses 4 foi atualizada só a data; o cabeçalho antigo, mais detalhado, continua no banco.
+
+Casos especiais:
+- `d1-0915-beneficio-transformacao`: a versão do PDF de 27/09 foi trocada pela revisada, no mesmo registro.
+  `metadata->'substituiu'` guarda a origem da versão anterior.
+- Avisos das 11h10 (Ivana Moreira e Tiago): ligados a `d1-1110-intervalo`. Esta transcrição e a de
+  `d2-1020-obrigacao-gestao` contêm oferta comercial falada no palco; o `metadata` anota que não são fonte de
+  preço nem de condição comercial.
+
+### Masterclass da Amy Edmondson — carregada à mão
+
+Sessão `d1-1500-tres-movimentos`, fileId `1bVBUuO6R65ZFw7mXHrPUAEEOKvozOLsO`, documento
+`5cba5dfa-9650-4995-8a60-b970f6f7c886`:
+- na carga automática, um filtro de segurança interrompeu a cópia do texto e nada foi gravado; não foi retentado
+  nem contornado;
+- a Adriana autorizou a carga ("temos em contrato") e colou o texto ela mesma no SQL Editor do Supabase;
+- a conferência foi feita parágrafo a parágrafo contra o arquivo do Drive, sem recopiar o texto, e deu 88/88 iguais.
+  Foi restaurada a linha em branco entre parágrafos, perdida na colagem. Agora o md5 é igual ao do arquivo
+  processado como as outras;
+- o cabeçalho foi gravado em `metadata->'cabecalho'` e a plateia anonimizada (5 trocas);
+- a transcrição segue desligada, como as outras.
+
+### Sessões sem gravação — fechado (Adriana, 29/09: "não existem gravações")
+
+Estas 10 sessões aconteceram no intervalo do almoço, entre 13h40 e 14h40, e não foram gravadas. Não haverá
+transcrição:
+- alumni talks: `d1-1340`, `d1-1400`, `d1-1420`, `d1-1440`, `d2-1340`, `d2-1400-custo-caber`, `d2-1420`, `d2-1440`;
+- lançamentos: `d1-1430-virada-diversidade`, `d2-1400-poder-sororidade`.
+
+### Revisar antes de ligar para qualquer agente — `metadata.dados_sensiveis`
+
+8 transcrições têm relatos da plateia ou de terceiros com dado pessoal sensível (saúde, orientação sexual,
+luto, assédio, menor de idade, pessoa identificável pelo cargo, situação financeira de empresa):
+- `d1-1130-produtividade-sustentavel`
+- `d1-1600-curadoria`
+- `d2-1130-bem-estar`
+- `d2-1130-comeca-agenda`
+- `d2-1130-feedback-falta`
+- `d2-1130-voce-aguenta`
+- `d2-1500-desalinhamentos-burnout`
+- `d2-1500-sobreviver-destruir`
+
+Ligar essas transcrições depende do contrato de sensibilidade (CLAUDE.md), o que pede anonimizar ou recortar
+antes.
+
+### Plateia anonimizada (decisão da Adriana, 29/09)
+
+Regra da Adriana: "pode anonimizar a plateia mas não precisa anonimizar o que foi dito pelos palestrantes".
+
+Onde ficou cada versão:
+- `corpo` (o que os agentes leem e o que vira chunk) tem a versão com a plateia anonimizada;
+- `transcrito` guarda o original, intacto;
+- `metadata->'anonimizacao'` registra cada troca pela marca de tempo, só o "depois".
+
+Resultado:
+- as 55 transcrições foram revisadas;
+- 25 tiveram trocas, 257 no total;
+- nas outras 30 não há plateia identificável.
+
+Critério aplicado:
+- nomes da plateia viram `[participante N]`;
+- detalhes que identificam a pessoa viram `[empresa]`, `[cargo]`, `[órgão público]`, `[cidade]`/`[estado]`, `[filho]`,
+  `[idade]`;
+- relatos pessoais sensíveis da plateia (saúde, orientação sexual, luto, situação familiar) viram marcador genérico.
+
+Casos para a Adriana confirmar:
+- em `d1-1720-lideranca-consciente` e `d2-1600-curadoria`, o cargo da pessoa da plateia foi tirado também da fala
+  da palestrante;
+- em `d1-1130-produtividade-sustentavel`, a titular de uma secretaria de educação foi anonimizada;
+- em `d1-1130-mensurar-intervir`, a empresa de uma participante dá para deduzir pela resposta do Jan (fala do palco,
+  mantida);
+- em `d1-1500-tres-movimentos`, o cargo e o órgão público do 1º participante foram trocados, mas a resposta da Amy
+  (fala do palco, mantida) diz "firefighters", o que deixa o órgão dedutível. É o mesmo caso do Jan.
+
+`metadata->'cabecalho'` ainda cita nomes da plateia nas notas de revisão. Os agentes não leem esse campo; ele é
+interno, como `transcrito`.
+
+### Pessoas citadas nos cabeçalhos — decidido (Adriana, 29/09): nada entra no banco
+
+- Adriana Drulla **não** é registrada como mediadora da palestra do Jan (`d1-0940-bem-estar`).
+- `d1-1230-nova-era` (Fernanda Catena) **fica `palestra`**. A mediação de Virginie Leite, citada no
+  cabeçalho, não é registrada.
+- As apresentações também não são registradas:
+  - Ivana Moreira;
+  - Izabella Camargo;
+  - Mariana Kaplan, que não está no cadastro de palestrantes.
+- Tiago (parceiro do Mind) não entra no cadastro.

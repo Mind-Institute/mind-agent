@@ -24,7 +24,7 @@ alter table crm.contato_espelho disable trigger zz_d5_pessoa_antes_de_escrever;
 do $$
 declare
   a uuid; b uuid; c uuid; d uuid; e uuid; f uuid; g uuid; s uuid; k uuid; k2 uuid; s2 uuid; r2 uuid;
-  r jsonb; prop jsonb; crit text; n int; n2 int; sess uuid; auth_b uuid := gen_random_uuid();
+  r jsonb; prop jsonb; crit text; n int; n2 int; prod text; auth_b uuid := gen_random_uuid();
   pessoas_antes int; falhou boolean;
   suf text := substr(md5(random()::text), 1, 8);
   tel_a text; tel_g text; tel_s text; hub_a text; hub_z text;
@@ -40,8 +40,8 @@ declare
   mail_ana text := 'd5.ana.' || suf || '@exemplo.invalid';
   cod_edz text := 'D5P' || suf;
 begin
-  select id into sess from summit_2026.sessions order by inicio limit 1;
-  if sess is null then raise exception 'contrato D5: precisa de uma sessão em summit_2026.sessions'; end if;
+  select codigo into prod from catalogo.produtos order by codigo limit 1;
+  if prod is null then raise exception 'contrato D5: precisa de um produto em catalogo.produtos'; end if;
 
   -- identificadores que nao existem no banco (telefones celulares BR validos, id HubSpot numerico)
   loop
@@ -93,7 +93,7 @@ begin
     (b, 'auth_user', auth_b::text,  true,  'alta');
 
   -- linhas que apontam para A e B: PK composta (colide) e FK simples (move)
-  insert into engagement.jornada_sessao (mind_id, sessao_id, planejou, atualizado_em) values (a, sess, true, now()), (b, sess, true, now());
+  insert into crm.pessoa_nps (mind_id, produto_codigo, nota, fonte) values (a, prod, 9, 'contrato_d5'), (b, prod, 10, 'contrato_d5');
   insert into crm.consents (mind_id, finalidade, concedido, politica_chave, politica_versao, texto_exibido, origem, criado_em)
     values (a, 'd5_teste_' || suf, true, 'd5', 1, 'texto de teste', 'contrato_d5', now());
 
@@ -143,8 +143,8 @@ begin
   if (select count(*) from engagement.identidades where mind_id = b and canal in ('whatsapp','hubspot')) < 2 then
     raise exception 'D5.3 whatsapp e hubspot de A não passaram para B';
   end if;
-  if (select count(*) from engagement.jornada_sessao where sessao_id = sess and mind_id in (a, b)) <> 1
-     or (select mind_id from engagement.jornada_sessao where sessao_id = sess and mind_id in (a, b)) <> b then
+  if (select count(*) from crm.pessoa_nps where produto_codigo = prod and mind_id in (a, b)) <> 1
+     or (select mind_id from crm.pessoa_nps where produto_codigo = prod and mind_id in (a, b)) <> b then
     raise exception 'D5.3 PK composta: deveria sobrar só a linha de B';
   end if;
   if (select mind_id from crm.consents where finalidade = 'd5_teste_' || suf) <> b then raise exception 'D5.3 consents não foi repontado'; end if;
