@@ -32,7 +32,7 @@ type ChatRequest = {
   device_id?: string;
   client_message_id?: string;
   session?: { id?: string; conversation_id?: string; token?: string };
-  identity?: { email?: string; name?: string; source?: string };
+  identity?: { email?: string; name?: string; source?: string; learnworlds_user_id?: string };
   // Porta de entrada da conversa. NÃO é identidade: diz de onde a pessoa veio, não
   // quem ela é. Persistido em `engagement.conversas.origem_codigo`, a mesma casa que
   // o WhatsApp já usa (`summit_info_evento`, `summit_garantir_ingresso`, …).
@@ -62,7 +62,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.16.0";
+const VERSION = "1.18.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -594,10 +594,22 @@ Deno.serve(async (req: Request) => {
     ? [sinalJornada]
     : null;
   const modoJornada = payload.journey_signal != null || payload.journey_signals != null;
-  const identitySource = payload.identity?.source === "yazo_url" ? "yazo_url" : null;
-  const identityEmailReceived = identitySource === "yazo_url" && validEmail(payload.identity?.email);
-  const identityNameReceived = identitySource === "yazo_url" &&
+  // Quem diz o e-mail: a Yazo, no link do app do Summit, e o LearnWorlds, no bloco da MIA
+  // colado na escola (variáveis da pessoa logada). Nenhum dos dois é assinado; confiar no
+  // LearnWorlds foi decisão da Adriana (22/10/2026). A ligação passa pela porta única.
+  const identitySource = payload.identity?.source === "yazo_url" || payload.identity?.source === "learnworlds"
+    ? payload.identity.source
+    : null;
+  const identityEmailReceived = identitySource !== null && validEmail(payload.identity?.email);
+  const identityNameReceived = identitySource !== null &&
     typeof payload.identity?.name === "string" && payload.identity.name.trim().length > 0;
+  // O ID de quem está logado no LearnWorlds ({{USER.ID}}), só quando a fonte é ele.
+  // Vai junto do e-mail para a porta única, que o grava em `engagement.identidades`.
+  const learnworldsUserId = identitySource === "learnworlds" &&
+      typeof payload.identity?.learnworlds_user_id === "string" &&
+      /^[A-Za-z0-9_-]{6,64}$/.test(payload.identity.learnworlds_user_id.trim())
+    ? payload.identity.learnworlds_user_id.trim()
+    : null;
   // Só na ABERTURA da conversa isto tem efeito: o banco grava com `where origem_codigo
   // is null`. Um turno posterior não reescreve a porta de entrada, e é isso que a torna
   // autoritativa em vez de um parâmetro que o cliente redefine quando quiser.
@@ -732,6 +744,8 @@ Deno.serve(async (req: Request) => {
         p_token_hash: tokenHash,
         p_email: email.trim().toLowerCase(),
         p_nome: name?.trim().slice(0, 160) || null,
+        // Só com o ID: sem ele, a assinatura de 6 parâmetros continua sendo a chamada.
+        ...(learnworldsUserId ? { p_learnworlds_user_id: learnworldsUserId } : {}),
       });
       if (error) {
         console.warn(JSON.stringify({ request_id: requestId, event: "identity_bind_failed" }));
