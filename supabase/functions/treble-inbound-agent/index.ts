@@ -1,5 +1,17 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.10.5 — TURNO BLOQUEADO TAMBÉM É TURNO REGISTRADO. Os dois desvios de
+// `guarded` (checkout sem oficial e preço inventado sem carrinho) respondiam à
+// Treble com `needs_human=true` e retornavam ANTES de chamar `mind_turno_registrar`.
+// A pessoa recebia a fala de handoff, mas `engagement.conversas` nunca sabia:
+// audience, stage e o próprio `needs_human` continuavam null/desatualizados, e a
+// fila de pós-turno nunca via a conversa. Medido em produção (07/09, conversa
+// real): uma pergunta sobre condição especial foi barrada pelo guardrail, o lead
+// recebeu "já te chamo um consultor", e o banco não tinha nenhum turno do agente
+// nem sinal de handoff pendente — a promessa não deixava rastro. Os dois desvios
+// agora persistem pelo mesmo `mind_turno_registrar` do caminho feliz, com o motivo
+// do bloqueio em `p_meta.guard_motivo`, antes de responder.
+//
 // v1.10.4 — CUPOM INDIVIDUAL NO GUARDRAIL DE PREÇO. As condições do lote 7 passam a ser
 // cupons de valor fixo digitados no checkout (200OFF no Mind, 300OFF no VIP). O guardrail
 // lê o objeto `desconto` de uma regra com `cupom` como economia sem faixa e reconhece
@@ -179,7 +191,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.4";
+const VERSION = "1.10.5";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -1058,6 +1070,36 @@ Deno.serve(async (req: Request) => {
     // leitura do modelo; nunca a subtrai.
     const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
 
+    // TURNO BLOQUEADO TAMBÉM É TURNO REGISTRADO. Os dois desvios abaixo respondem
+    // à Treble com needs_human=true e RETORNAM — sem isto, o handoff prometido ao
+    // lead não deixava rastro em engagement.conversas (audience/stage/needs_human
+    // continuavam null), e a fila de pós-turno nunca via a conversa. É o mesmo
+    // `mind_turno_registrar` do caminho feliz; só o motivo do bloqueio muda.
+    const registrarTurnoGuardado = async (motivo: string, resposta: string) => {
+      const { error: errGuard } = await supabase.rpc("mind_turno_registrar", {
+        p_conversa_id: conv.conversation_id,
+        p_resposta: resposta,
+        p_estado: {
+          audience: audienceFinal,
+          needs_human: true,
+          stage: turn.stage ?? conv.stage ?? null,
+        },
+        p_meta: {
+          request_id: requestId, version: VERSION,
+          rota: rotaDecidida, rota_aplicada: rotaAplicada,
+          precisa_esclarecer: precisaEsclarecer, candidatas,
+          gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
+          rota_origem: rotaOrigem,
+          guard_motivo: motivo,
+        },
+      });
+      if (errGuard) {
+        console.error(JSON.stringify({
+          request_id: requestId, event: "save_falhou_guard", motivo, detalhe: errGuard.message,
+        }));
+      }
+    };
+
     // CHECKOUT É AÇÃO DO RUNTIME, NÃO TEXTO LIVRE DO MODELO. O modelo pode escolher
     // somente uma URL que veio no Kit; o runtime confere, assina e registra. Como
     // compatibilidade, uma URL oficial já escrita em `answer` também é reconhecida.
@@ -1068,10 +1110,12 @@ Deno.serve(async (req: Request) => {
     const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
     if (checkoutSolicitado && !checkoutOficial) {
       console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial" }));
+      const respostaGuard = "Não consegui abrir um checkout oficial agora. Já vou te conectar com alguém do nosso time!";
+      await registrarTurnoGuardado("checkout_nao_oficial", respostaGuard);
       return json(200, {
         ok: true, guarded: true,
         user_session_keys: [
-          { key: "resposta_ia", value: "Não consegui abrir um checkout oficial agora. Já vou te conectar com alguém do nosso time!" },
+          { key: "resposta_ia", value: respostaGuard },
           { key: "needs_human", value: "true" },
           { key: "checkout_sent", value: "false" },
         ],
@@ -1095,10 +1139,12 @@ Deno.serve(async (req: Request) => {
       }));
     }
     if (decisaoPreco.bloqueia) {
+      const respostaGuard = "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌";
+      await registrarTurnoGuardado("preco_inventado", respostaGuard);
       return json(200, {
         ok: true, guarded: true,
         user_session_keys: [
-          { key: "resposta_ia", value: "Deixa eu confirmar esse valor com o time para não te passar nada errado — já te chamo um consultor! 🙌" },
+          { key: "resposta_ia", value: respostaGuard },
           { key: "needs_human", value: "true" },
         ],
       });
