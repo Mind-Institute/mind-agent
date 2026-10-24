@@ -11,15 +11,27 @@
     Com o canal da MIA desligado, a porta não vale e o roteador decide.
   - A chave abaixo é a publishable key do Supabase, pública por construção.
     Nenhum segredo aqui.
-  - Quem está logado: o LearnWorlds troca {{USER.EMAIL}}, {{USER.NAME}} e {{USER.ID}}
-    pelos dados da pessoa ao abrir a página. O chat liga a conversa a ela pela porta
-    única de identidade. Não é assinado; confiar no LearnWorlds foi decisão da Adriana
-    (22/10/2026). Fora do LearnWorlds as variáveis não são trocadas e a conversa fica anônima.
+  - Quem está logado: o LearnWorlds troca as variáveis pelos dados da pessoa ao abrir.
+    Na atividade de embed do curso o formato é USER_EMAIL, USER_NAME, USER_ID, mais
+    COURSE_ID e UNIT_ID, entre chaves duplas (conferido no curso MIA Summit 2026 em
+    24/10/2026); numa página da escola é USER.EMAIL, USER.NAME, USER.ID. O bloco traz os
+    dois e usa o que vier trocado. Aqui no comentário vão sem chaves, para o LearnWorlds
+    não trocar o texto do comentário. O chat liga a conversa à pessoa pela porta única de identidade.
+    Não é assinado; confiar no LearnWorlds foi decisão da Adriana (22/10/2026). Fora do
+    LearnWorlds as variáveis não são trocadas e a conversa fica anônima.
+  - Curso e aula seguem junto (`contexto`). A mindagent-chat ainda não usa; vão no envio
+    para a MIA poder saber onde a pessoa está sem precisar colar o bloco de novo.
   - Tudo tem prefixo `mia-`, para não mexer no visual da página do LearnWorlds.
 -->
 <div id="mia-lw" class="mia-lw">
   <!-- Quem está logado: o LearnWorlds troca as variáveis ao abrir a página. Ficam em
        elementos escondidos, e não no script, para um nome com apóstrofo não quebrar o código. -->
+  <span hidden data-mia="email">{{USER_EMAIL}}</span>
+  <span hidden data-mia="nome">{{USER_NAME}}</span>
+  <span hidden data-mia="id">{{USER_ID}}</span>
+  <span hidden data-mia="curso">{{COURSE_ID}}</span>
+  <span hidden data-mia="aula">{{UNIT_ID}}</span>
+  <!-- Numa página da escola (fora do curso) o formato é com ponto. -->
   <span hidden data-mia="email">{{USER.EMAIL}}</span>
   <span hidden data-mia="nome">{{USER.NAME}}</span>
   <span hidden data-mia="id">{{USER.ID}}</span>
@@ -133,11 +145,16 @@
   var EVENTO = 'mind-summit-2026';
   var PREFIXO = 'mia-lw:';
 
-  /* Quem está logado no LearnWorlds. Sem troca (fora da escola), as variáveis
-     chegam como estão e não passam na conferência: a conversa fica anônima. */
+  /* Quem está logado no LearnWorlds. Vale o primeiro formato que veio trocado;
+     sem troca (fora da escola), as variáveis chegam como estão e não passam na
+     conferência: a conversa fica anônima. */
   function variavel(nome) {
-    var el = document.querySelector('#mia-lw [data-mia="' + nome + '"]');
-    return el ? String(el.textContent || '') : '';
+    var els = document.querySelectorAll('#mia-lw [data-mia="' + nome + '"]');
+    for (var i = 0; i < els.length; i++) {
+      var v = String(els[i].textContent || '').trim();
+      if (v && v.indexOf('{{') < 0) return v;
+    }
+    return '';
   }
   var LW = { email: variavel('email'), nome: variavel('nome'), id: variavel('id') };
   var emailOk = /^[^\s@{}]+@[^\s@{}]+\.[^\s@{}]{2,}$/.test(LW.email.trim());
@@ -150,6 +167,13 @@
     learnworlds_user_id: idOk ? LW.id.trim() : undefined,
   } : undefined;
   var PRIMEIRO_NOME = nomeOk ? LW.nome.trim().split(/\s+/)[0] : '';
+  var codigoOk = function (v) { return /^[A-Za-z0-9_-]{1,80}$/.test(v); };
+  var CURSO = variavel('curso'), AULA = variavel('aula');
+  var CONTEXTO = codigoOk(CURSO) ? {
+    plataforma: 'learnworlds',
+    curso: CURSO,
+    aula: codigoOk(AULA) ? AULA : undefined,
+  } : undefined;
 
   var raiz = document.getElementById('mia-lw');
   if (!raiz || raiz.dataset.ligada) return;
@@ -249,6 +273,7 @@
           session: ler('conversa') || undefined,
           origem_codigo: PORTA,
           identity: IDENTIDADE,
+          contexto: CONTEXTO,
         }),
         cache: 'no-store',
         signal: controle.signal,

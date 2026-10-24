@@ -27,6 +27,16 @@
   colar no LearnWorlds depois de ligar a MIA no canal `mindagent-web` (painel → Canais e Roteador).
 - Conferido no Chromium com o Supabase simulado: colado na página (computador e celular) e dentro de iframe
   isolado (sem armazenamento, origem nula). Porta enviada, conversa contínua, nenhum HTML vindo da resposta.
+- **A MIA vira curso (Adriana, 23–24/10):** curso `mia-summit-2026` no LearnWorlds, com o bloco numa
+  atividade de embed.
+  - O acesso vem pela matrícula (pacotes). Decisão ainda aberta: pacotes do Summit On Demand ou um
+    pacote de IAs.
+  - Teste no player do curso (24/10): o código roda, dentro de iframe, com armazenamento e conexão com
+    o Supabase.
+  - O curso troca `{{USER_EMAIL}}`, `{{USER_NAME}}`, `{{USER_ID}}`, `{{COURSE_ID}}` e `{{UNIT_ID}}`; o
+    formato com ponto não é trocado. O ID do LearnWorlds da Adriana já resolve o Mind ID dela.
+  - O bloco agora lê os dois formatos e manda curso e aula em `contexto`. A chat ainda ignora o
+    `contexto`: ele já vai no envio para não precisar colar o bloco de novo quando a MIA passar a usar.
 
 - **Integração com o LearnWorlds:** proposta em `LEARNWORLDS_INTEGRACAO_PROPOSTA.md`. **Fase 1 no ar (23/10):**
   `learnworlds-sync` 1.0.0 (v3) + cron `learnworlds_sync` a cada 6 h; tabelas `learnworlds.cursos/programas/
