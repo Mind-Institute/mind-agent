@@ -43,15 +43,11 @@ begin
     'select count(*) from public.summit_contato_criar_pendentes(1)',
     format('select public.mind_identificador_declarado_registrar(%L::uuid, ''whatsapp'', '''')', v_pessoa),
     format('select public.mind_play_chamada_iniciar(''fumaca'', %L::uuid, %L, ''{}''::jsonb, null)', v_pessoa, 'fumaca-' || v_pessoa::text),
-    'select public.mind_avaliacao_do_dia_respostas(''mind-summit-2026'', current_date, null, null, 1, 5)',
-    'select public.mind_avaliacao_do_evento_respostas(''mind-summit-2026'', null, 1, 5)',
     'select public.mind_identidade_enriquecer_todas(1, true)',
     'select public.mind_identidade_criar_faltantes(''crm.leads_capturados''::regclass, 1, true)'
   ];
   if v_auth is not null then
     stmts := stmts || array[
-      format('select public.mind_avaliacao_do_dia_estado(%L::uuid, ''mind-summit-2026'', current_date)', v_auth),
-      format('select public.mind_avaliacao_do_evento_estado(%L::uuid, ''mind-summit-2026'')', v_auth),
       format('select public.mindagent_chat_start(%L::uuid, ''fumaca-device'', ''fumaca'', md5(''fumaca''), null)', v_auth),
       format('select api.me(%L)', 'fumaca-token'),
       format('select api.quem_sou(%L)', 'fumaca-token'),
