@@ -16,6 +16,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArvoreConhecimento } from '@/components/admin/arvore-conhecimento';
+import { ConsultingJobsPanel } from '@/components/admin/consulting-jobs-panel';
+import { BusinessIngestionPanel } from '@/components/admin/business-ingestion-panel';
 
 /* BUSINESS CONSULTING KNOWLEDGE (pedido da Adriana, 24/10/2026). O conhecimento que o agente
    consultor interno — que só fala com ela e com o time — usa para aconselhar: livros de business
@@ -81,7 +83,7 @@ export function PaginaBusinessConsulting() {
     <div className="space-y-6">
       <CabecalhoPagina
         titulo="Business Consulting Knowledge"
-        descricao="O conhecimento de business que o agente consultor interno usa para aconselhar a Adriana e o time: livros ingeridos em business_strategy, com a página de cada ideia e as relações entre elas."
+        descricao="Inteligência consultiva organizada por problemas e jobs. Knowledge objects são a unidade central; livros permanecem como provenance e auditoria."
       />
 
       {simulada ? (
@@ -106,10 +108,12 @@ export function PaginaBusinessConsulting() {
             <ResumoCard icone={Link2} rotulo="Relações entre objetos" valor={consulta.data.totais.relacoes} />
           </section>
 
+          <ConsultingJobsPanel jobs={consulta.data.jobs} abrirObjeto={setAberto} />
+
           <Card>
             <CardHeader>
-              <CardTitle>Livros</CardTitle>
-              <CardDescription>O que já foi ingerido e quanto de cada livro está processado.</CardDescription>
+              <CardTitle>Fontes</CardTitle>
+              <CardDescription>Provenance e auditoria: o que já foi ingerido e quanto de cada fonte está processado.</CardDescription>
             </CardHeader>
             <CardContent>
               {livros.length === 0 ? (
@@ -204,6 +208,8 @@ export function PaginaBusinessConsulting() {
           </section>
             </TabsContent>
           </Tabs>
+
+          <BusinessIngestionPanel />
         </>
       ) : null}
 
