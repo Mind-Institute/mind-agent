@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, Database, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, GraduationCap, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, Database, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -67,6 +67,15 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/cupons',
         icone: TicketPercent,
         descricao: 'Os cupons de desconto do schema catalogo.',
+      },
+      /* Pedido da Adriana (24/10/2026): acima do Global Knowledge, o conhecimento de business
+         que o agente consultor interno usa para aconselhar — ingerido pelo ChatGPT. */
+      {
+        id: 'business-consulting',
+        rotulo: 'Business Consulting Knowledge',
+        caminho: '/business-consulting',
+        icone: GraduationCap,
+        descricao: 'Livros de business que o agente consultor interno usa para aconselhar a Adriana e o time.',
       },
       {
         id: 'knowledge',
