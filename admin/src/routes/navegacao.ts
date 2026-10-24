@@ -80,7 +80,7 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         rotulo: 'Business Intelligence',
         caminho: '/business-intelligence',
         icone: BriefcaseBusiness,
-        descricao: 'Governança do conhecimento de produto, oferta, comercial e operação.',
+        descricao: 'Raio-X da inteligência consultiva: problemas, conhecimentos, relações e fontes que orientam o consultor.',
       },
       {
         id: 'customer-intelligence',
