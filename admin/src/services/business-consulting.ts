@@ -54,7 +54,77 @@ const respostaSchema = z.object({
   objetos: z.array(objetoSchema),
   secoes: z.array(secaoSchema),
   relacoes: z.array(z.object({ de: z.string(), para: z.string(), tipo: z.string() })),
-  totais: z.object({ livros: z.number(), objetos: z.number(), citacoes: z.number(), relacoes: z.number() }),
+  jobs: z.array(z.object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    description: z.string(),
+    userQuestions: z.array(z.string()).default([]),
+    expectedOutput: z.string().nullable(),
+    status: z.string(),
+    area: z.object({
+      id: z.string(),
+      slug: z.string(),
+      name: z.string(),
+      description: z.string(),
+      sortOrder: z.number(),
+    }),
+    coverage: z.object({
+      knowledgeCount: z.number(),
+      sourceCount: z.number(),
+    }),
+    relatedJobs: z.array(z.object({
+      direction: z.enum(['incoming', 'outgoing']),
+      relationshipType: z.string(),
+      rationale: z.string().nullable(),
+      jobId: z.string(),
+      jobSlug: z.string(),
+      jobName: z.string(),
+    })).default([]),
+    knowledge: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      family: z.string(),
+      objectType: z.string(),
+      summary: z.string().nullable(),
+      scope: z.string().nullable(),
+      topics: z.array(z.string()).default([]),
+      knowledgeRole: z.string(),
+      relevance: z.number(),
+      rationale: z.string(),
+      source: z.object({
+        id: z.string(),
+        title: z.string(),
+        authors: z.array(z.string()).default([]),
+        sourceType: z.string().nullable(),
+        publicationYear: z.number().nullable(),
+        sourceFileRef: z.string().nullable(),
+      }),
+      groundings: z.array(z.object({
+        id: z.string(),
+        role: z.string().nullable(),
+        locator: z.string().nullable(),
+        pageStart: z.number().nullable(),
+        pageEnd: z.number().nullable(),
+        summary: z.string().nullable(),
+        section: z.object({
+          id: z.string(),
+          number: z.string().nullable(),
+          title: z.string().nullable(),
+          type: z.string().nullable(),
+        }).nullable(),
+      })).default([]),
+      relations: z.array(z.object({
+        direction: z.enum(['incoming', 'outgoing']),
+        relationshipType: z.string(),
+        summary: z.string().nullable(),
+        objectId: z.string(),
+        objectName: z.string(),
+        objectType: z.string().nullable(),
+      })).default([]),
+    })).default([]),
+  })).default([]),
+  totais: z.object({ livros: z.number(), objetos: z.number(), citacoes: z.number(), relacoes: z.number(), jobs: z.number().default(0) }),
 });
 
 const detalheSchema = z.object({
@@ -91,6 +161,7 @@ const detalheSchema = z.object({
 export type LivroConsulting = z.infer<typeof livroSchema>;
 export type ObjetoConsulting = z.infer<typeof objetoSchema>;
 export type SecaoConsulting = z.infer<typeof secaoSchema>;
+export type JobConsulting = z.infer<typeof respostaSchema>['jobs'][number];
 export type BusinessConsulting = z.infer<typeof respostaSchema>;
 export type DetalheConsulting = z.infer<typeof detalheSchema>;
 
