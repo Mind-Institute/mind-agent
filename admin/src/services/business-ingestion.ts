@@ -80,6 +80,17 @@ const detailSchema = z.object({
   findings: z.array(findingSchema),
   relationships: z.array(z.record(z.unknown())),
   job_links: z.array(z.record(z.unknown())),
+  sections: z.array(z.object({
+    id: z.string(),
+    source_id: z.string(),
+    section_type: z.string(),
+    section_number: z.string().nullable(),
+    title: z.string(),
+    section_order: z.number(),
+    page_start: z.number().nullable(),
+    page_end: z.number().nullable(),
+    processing_status: z.string(),
+  })).default([]),
 });
 
 export type IngestionAgent = z.infer<typeof agentSchema>;
