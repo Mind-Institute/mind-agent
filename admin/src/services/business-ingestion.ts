@@ -10,6 +10,7 @@ const agentSchema = z.object({
   reasoning_effort: z.string().nullable(),
   prompt_version: z.number(),
   active: z.boolean(),
+  instructions: z.string(),
 });
 
 const runSchema = z.object({
@@ -79,6 +80,17 @@ const detailSchema = z.object({
   findings: z.array(findingSchema),
   relationships: z.array(z.record(z.unknown())),
   job_links: z.array(z.record(z.unknown())),
+  sections: z.array(z.object({
+    id: z.string(),
+    source_id: z.string(),
+    section_type: z.string(),
+    section_number: z.string().nullable(),
+    title: z.string(),
+    section_order: z.number(),
+    page_start: z.number().nullable(),
+    page_end: z.number().nullable(),
+    processing_status: z.string(),
+  })).default([]),
 });
 
 export type IngestionAgent = z.infer<typeof agentSchema>;
@@ -87,13 +99,13 @@ export type IngestionRunDetail = z.infer<typeof detailSchema>;
 
 type Opcoes = { token: string; sinal?: AbortSignal; fetchImpl?: typeof fetch };
 
-function baseUrl() {
+function supabaseBase() {
   const base = import.meta.env.VITE_SUPABASE_URL?.trim().replace(/\/+$/, '') ?? '';
-  if (!base.startsWith('http://') && !base.startsWith('https://')) {
-    throw new Error('Ingestion Engine não configurado.');
-  }
-  return `${base}/functions/v1/mindagent-business-ingestion`;
+  if (!base.startsWith('http://') && !base.startsWith('https://')) throw new Error('Supabase não configurado.');
+  return base;
 }
+function baseUrl() { return `${supabaseBase()}/functions/v1/mindagent-business-ingestion`; }
+function sourceBaseUrl() { return `${supabaseBase()}/functions/v1/mindagent-business-source`; }
 
 async function chamar(caminho: string, opcoes: Opcoes, init?: RequestInit) {
   const headers: Record<string,string> = {
@@ -124,4 +136,72 @@ export async function buscarRunsIngestao(opcoes: Opcoes): Promise<IngestionRun[]
 
 export async function buscarRunIngestao(id: string, opcoes: Opcoes): Promise<IngestionRunDetail> {
   return detailSchema.parse(await chamar(`/admin/runs/${encodeURIComponent(id)}`, opcoes));
+}
+
+
+async function chamarSource(caminho: string, opcoes: Opcoes, init?: RequestInit) {
+  const headers: Record<string,string> = {
+    Authorization: `Bearer ${opcoes.token}`,
+    Accept: 'application/json',
+  };
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+  if (key) headers.apikey = key;
+  const r = await (opcoes.fetchImpl ?? fetch)(`${sourceBaseUrl()}${caminho}`, {
+    ...init,
+    headers: { ...headers, ...(init?.headers ?? {}) },
+    signal: opcoes.sinal,
+  });
+  if (!r.ok) throw await erroDaResposta(r);
+  return r.json();
+}
+
+export async function enviarPdfIngestao(
+  arquivo: File,
+  dados: { titulo?: string; autores?: string; ano?: string; isbn?: string },
+  opcoes: Opcoes,
+) {
+  const form = new FormData();
+  form.set('file', arquivo);
+  if (dados.titulo) form.set('title', dados.titulo);
+  if (dados.autores) form.set('authors', dados.autores);
+  if (dados.ano) form.set('publication_year', dados.ano);
+  if (dados.isbn) form.set('isbn', dados.isbn);
+  return chamarSource('/admin/upload', opcoes, { method: 'POST', body: form });
+}
+
+export async function mapearFonte(runId: string, opcoes: Opcoes) {
+  return chamarSource(`/admin/runs/${encodeURIComponent(runId)}/map`, opcoes, { method: 'POST' });
+}
+
+export async function gerarChunksFonte(runId: string, opcoes: Opcoes) {
+  return chamarSource(`/admin/runs/${encodeURIComponent(runId)}/chunk`, opcoes, { method: 'POST' });
+}
+
+export async function abrirPdfOriginal(sourceId: string, opcoes: Opcoes) {
+  const raw = z.object({ url: z.string().url() }).parse(
+    await chamarSource(`/admin/sources/${encodeURIComponent(sourceId)}/file`, opcoes),
+  );
+  return raw.url;
+}
+
+export async function abrirPdfSecao(sectionId: string, opcoes: Opcoes) {
+  const raw = z.object({ url: z.string().url() }).parse(
+    await chamarSource(`/admin/sections/${encodeURIComponent(sectionId)}/file`, opcoes),
+  );
+  return raw.url;
+}
+
+export async function processarSecao(runId: string, sectionId: string, opcoes: Opcoes) {
+  return chamar(`/admin/runs/${encodeURIComponent(runId)}/extract-section`, opcoes, {
+    method: 'POST',
+    body: JSON.stringify({ section_id: sectionId }),
+  });
+}
+
+export async function finalizarIngestao(runId: string, opcoes: Opcoes) {
+  return chamar(`/admin/runs/${encodeURIComponent(runId)}/finalize`, opcoes, { method: 'POST' });
+}
+
+export async function publicarIngestao(runId: string, opcoes: Opcoes) {
+  return chamar(`/admin/runs/${encodeURIComponent(runId)}/publish`, opcoes, { method: 'POST' });
 }

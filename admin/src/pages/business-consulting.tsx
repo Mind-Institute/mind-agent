@@ -17,7 +17,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArvoreConhecimento } from '@/components/admin/arvore-conhecimento';
 import { ConsultingJobsPanel } from '@/components/admin/consulting-jobs-panel';
-import { BusinessIngestionPanel } from '@/components/admin/business-ingestion-panel';
 
 /* BUSINESS CONSULTING KNOWLEDGE (pedido da Adriana, 24/10/2026). O conhecimento que o agente
    consultor interno — que só fala com ela e com o time — usa para aconselhar: livros de business
@@ -209,7 +208,6 @@ export function PaginaBusinessConsulting() {
             </TabsContent>
           </Tabs>
 
-          <BusinessIngestionPanel />
         </>
       ) : null}
 
