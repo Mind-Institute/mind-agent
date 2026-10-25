@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, CheckCircle2, FileUp, Loader2, Play, SplitSquareVertical } from 'lucide-react';
+import { BookOpen, CheckCircle2, CircleDot, FileUp, Loader2 } from 'lucide-react';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,6 @@ import {
   buscarRunIngestao,
   buscarRunsIngestao,
   enviarPdfIngestao,
-  gerarChunksFonte,
-  mapearFonte,
-  processarSecao,
 } from '@/services/business-ingestion';
 
 export function PaginaBusinessConsultingIngestion() {
@@ -61,19 +58,6 @@ export function PaginaBusinessConsultingIngestion() {
       await qc.invalidateQueries({queryKey:['business-ingestion']});
     },
   });
-  const mapear = useMutation({
-    mutationFn: async () => mapearFonte(runId!, await opcoes()),
-    onSuccess: async () => qc.invalidateQueries({queryKey:['business-ingestion']}),
-  });
-  const chunk = useMutation({
-    mutationFn: async () => gerarChunksFonte(runId!, await opcoes()),
-    onSuccess: async () => qc.invalidateQueries({queryKey:['business-ingestion']}),
-  });
-  const processar = useMutation({
-    mutationFn: async (sectionId:string) => processarSecao(runId!, sectionId, await opcoes()),
-    onSuccess: async () => qc.invalidateQueries({queryKey:['business-ingestion']}),
-  });
-
   const selecionado = useMemo(
     () => runs.data?.find((r) => r.id === runId) ?? detalhe.data?.run,
     [runs.data, detalhe.data?.run, runId],
@@ -109,7 +93,7 @@ export function PaginaBusinessConsultingIngestion() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileUp className="size-4"/>Nova fonte</CardTitle>
-          <CardDescription>O PDF original é preservado em Storage privado. Os capítulos são derivados dele e nunca substituem o original.</CardDescription>
+          <CardDescription>O PDF original é preservado em Storage privado. Depois do upload, o pipeline segue sozinho até QA/publicação ou até encontrar um bloqueio crítico.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <label
@@ -157,7 +141,7 @@ export function PaginaBusinessConsultingIngestion() {
           </div>
           <Button disabled={!arquivo || upload.isPending} onClick={()=>upload.mutate()}>
             {upload.isPending ? <Loader2 className="mr-2 size-4 animate-spin"/> : <FileUp className="mr-2 size-4"/>}
-            Salvar PDF original
+            Salvar PDF e iniciar ingestão
           </Button>
           {upload.error ? <p className="text-sm text-destructive">{upload.error.message}</p> : null}
         </CardContent>
@@ -186,16 +170,15 @@ export function PaginaBusinessConsultingIngestion() {
           <CardContent className="space-y-5">
             {selecionado ? (
               <>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <Button variant="outline" onClick={abrirOriginal}><BookOpen className="mr-2 size-4"/>Abrir PDF original</Button>
-                  <Button variant="outline" disabled={mapear.isPending} onClick={()=>mapear.mutate()}>
-                    {mapear.isPending ? <Loader2 className="mr-2 size-4 animate-spin"/> : <Play className="mr-2 size-4"/>}
-                    Mapear capítulos
-                  </Button>
-                  <Button variant="outline" disabled={chunk.isPending || !(detalhe.data?.sections.length)} onClick={()=>chunk.mutate()}>
-                    {chunk.isPending ? <Loader2 className="mr-2 size-4 animate-spin"/> : <SplitSquareVertical className="mr-2 size-4"/>}
-                    Gerar chunks
-                  </Button>
+                  <div className="flex items-center gap-2 rounded-full border px-3 py-2 text-sm">
+                    {selecionado.status === 'published'
+                      ? <CheckCircle2 className="size-4 text-emerald-600"/>
+                      : <CircleDot className="size-4 animate-pulse"/>}
+                    <span className="font-semibold">Pipeline automático</span>
+                    <span className="text-muted-foreground">{selecionado.current_stage ?? selecionado.status}</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -212,10 +195,6 @@ export function PaginaBusinessConsultingIngestion() {
                           {s.processing_status}
                         </Badge>
                         <Button size="sm" variant="ghost" onClick={()=>void abrirSecao(s.id)}>Abrir chunk</Button>
-                        <Button size="sm" disabled={processar.isPending || s.processing_status==='processed'} onClick={()=>processar.mutate(s.id)}>
-                          {s.processing_status==='processed' ? <CheckCircle2 className="mr-1 size-4"/> : <Play className="mr-1 size-4"/>}
-                          Processar
-                        </Button>
                       </div>
                     </div>
                   ))}
