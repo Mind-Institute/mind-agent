@@ -209,7 +209,7 @@ export const ITENS_NAVEGACAO: ItemNavegacao[] = NAVEGACAO.flatMap((grupo) => [
 ]);
 
 export function itemPorCaminho(caminho: string): ItemNavegacao | undefined {
-  return ITENS_NAVEGACAO.find((item) =>
-    item.caminho === '/' ? caminho === '/' : caminho.startsWith(item.caminho),
-  );
+  return [...ITENS_NAVEGACAO]
+    .filter((item) => item.caminho === '/' ? caminho === '/' : caminho.startsWith(item.caminho))
+    .sort((a, b) => b.caminho.length - a.caminho.length)[0];
 }
