@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, GraduationCap, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, Database, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, GraduationCap, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, Database, Upload, Workflow, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -68,15 +68,6 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         icone: TicketPercent,
         descricao: 'Os cupons de desconto do schema catalogo.',
       },
-      /* Pedido da Adriana (24/10/2026): acima do Global Knowledge, o conhecimento de business
-         que o agente consultor interno usa para aconselhar — ingerido pelo ChatGPT. */
-      {
-        id: 'business-consulting',
-        rotulo: 'Business Consulting Knowledge',
-        caminho: '/business-consulting',
-        icone: GraduationCap,
-        descricao: 'Livros de business que o agente consultor interno usa para aconselhar a Adriana e o time.',
-      },
       {
         id: 'knowledge',
         rotulo: 'Global Knowledge',
@@ -118,6 +109,36 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         caminho: '/analise',
         icone: ScanSearch,
         descricao: 'O que roda depois de cada conversa: prompts, liga/desliga por agente, últimas execuções e o que gravou.',
+      },
+    ],
+    submenus: [
+      {
+        id: 'business-consulting',
+        rotulo: 'Business Consulting Knowledge',
+        icone: GraduationCap,
+        itens: [
+          {
+            id: 'business-consulting-overview',
+            rotulo: 'Visão consultiva',
+            caminho: '/business-consulting',
+            icone: BriefcaseBusiness,
+            descricao: 'Problemas, jobs, conhecimentos, relações e fontes do consultor interno.',
+          },
+          {
+            id: 'business-consulting-ingestion',
+            rotulo: 'Ingestão',
+            caminho: '/business-consulting/ingestion',
+            icone: Upload,
+            descricao: 'Upload de PDFs, processamento por etapas, runs e QA da ingestão.',
+          },
+          {
+            id: 'business-consulting-agents',
+            rotulo: 'Agentes & Prompts',
+            caminho: '/business-consulting/agents',
+            icone: Workflow,
+            descricao: 'Fluxo dos agentes, prompts, modelos, versões e histórico de execução.',
+          },
+        ],
       },
     ],
   },
