@@ -63,6 +63,7 @@ export function PaginaBusinessConsultingAgents() {
           <CardDescription>Escolha uma ingestão para colorir o fluxo conforme o que já passou por cada agente.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
+          {runs.isError ? <p className="text-sm text-destructive">Erro ao carregar runs: {runs.error.message}</p> : null}
           {(runs.data ?? []).map((r)=>(
             <button key={r.id} type="button" onClick={()=>setRunId(r.id)}
               className={runId===r.id ? 'rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background' : 'rounded-full border px-3 py-1.5 text-xs font-semibold'}>
@@ -72,6 +73,22 @@ export function PaginaBusinessConsultingAgents() {
           {(runs.data ?? []).length===0 ? <p className="text-sm text-muted-foreground">Ainda não existe run. O fluxo abaixo mostra a configuração atual.</p> : null}
         </CardContent>
       </Card>
+
+      {agents.isError ? (
+        <Card>
+          <CardContent className="p-5">
+            <p className="font-semibold text-destructive">Não foi possível carregar os agentes.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{agents.error.message}</p>
+            <button type="button" className="mt-3 text-sm font-semibold underline" onClick={() => void agents.refetch()}>
+              Tentar novamente
+            </button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {agents.isPending ? (
+        <Card><CardContent className="p-5 text-sm text-muted-foreground">Carregando configuração dos agentes…</CardContent></Card>
+      ) : null}
 
       <section className="overflow-x-auto pb-2">
         <div className="flex min-w-max items-stretch gap-2">
