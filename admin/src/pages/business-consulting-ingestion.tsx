@@ -22,6 +22,8 @@ export function PaginaBusinessConsultingIngestion() {
   const { simulada, obterToken, marcarSessaoExpirada } = useSessao();
   const qc = useQueryClient();
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [arrastando, setArrastando] = useState(false);
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null);
   const [titulo, setTitulo] = useState('');
   const [autores, setAutores] = useState('');
   const [ano, setAno] = useState('');
@@ -77,6 +79,17 @@ export function PaginaBusinessConsultingIngestion() {
     [runs.data, detalhe.data?.run, runId],
   );
 
+  function selecionarPdf(file: File | null) {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setErroArquivo('Use um arquivo PDF.');
+      return;
+    }
+    setErroArquivo(null);
+    setArquivo(file);
+    if (!titulo.trim()) setTitulo(file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' '));
+  }
+
   async function abrirOriginal() {
     if (!selecionado) return;
     window.open(await abrirPdfOriginal(selecionado.source_id, await opcoes()), '_blank', 'noopener,noreferrer');
@@ -99,7 +112,44 @@ export function PaginaBusinessConsultingIngestion() {
           <CardDescription>O PDF original é preservado em Storage privado. Os capítulos são derivados dele e nunca substituem o original.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Input type="file" accept="application/pdf" onChange={(e)=>setArquivo(e.target.files?.[0] ?? null)} />
+          <label
+            className={`flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors ${
+              arrastando ? 'border-foreground bg-muted/60' : 'border-muted-foreground/30 hover:bg-muted/30'
+            }`}
+            onDragEnter={(e) => { e.preventDefault(); setArrastando(true); }}
+            onDragOver={(e) => { e.preventDefault(); setArrastando(true); }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              if (e.currentTarget === e.target) setArrastando(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setArrastando(false);
+              selecionarPdf(e.dataTransfer.files?.[0] ?? null);
+            }}
+          >
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              onChange={(e) => selecionarPdf(e.target.files?.[0] ?? null)}
+            />
+            <FileUp className="mb-3 size-7 text-muted-foreground" />
+            {arquivo ? (
+              <>
+                <p className="font-bold">{arquivo.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {(arquivo.size / 1024 / 1024).toFixed(1)} MB · solte outro PDF aqui para trocar
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-bold">Arraste o PDF aqui</p>
+                <p className="mt-1 text-sm text-muted-foreground">ou clique para escolher o arquivo</p>
+              </>
+            )}
+          </label>
+          {erroArquivo ? <p className="text-sm text-destructive">{erroArquivo}</p> : null}
           <div className="grid gap-3 md:grid-cols-3">
             <Input placeholder="Título do livro" value={titulo} onChange={(e)=>setTitulo(e.target.value)} />
             <Input placeholder="Autor(es)" value={autores} onChange={(e)=>setAutores(e.target.value)} />
