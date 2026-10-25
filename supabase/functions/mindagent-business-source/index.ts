@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 import { PDFDocument } from "npm:pdf-lib@1.17.1";
+import { getDocumentProxy, extractText } from "npm:unpdf@1.7.0";
 
 const VERSION = "1.0.0";
 const BUCKET = "business-consulting-sources";
@@ -241,13 +242,28 @@ Deno.serve(async (req: Request) => {
         const base=`${run.source_id}/sections/${s.id}`;
         const pdfPath=`${base}/section.pdf`;
         const jsonPath=`${base}/section.json`;
+        let extractedText="";
+        let textExtractionError:string|null=null;
+        try {
+          const proxy=await getDocumentProxy(outBytes);
+          const extracted=await extractText(proxy,{mergePages:true});
+          extractedText=typeof extracted.text==="string" ? extracted.text : Array.isArray(extracted.text) ? extracted.text.join("\n\n") : "";
+        } catch(e) {
+          textExtractionError=e instanceof Error?e.message:String(e);
+        }
         const meta={
           source_id:run.source_id,section_id:s.id,title:s.title,section_number:s.section_number,
           source_page_start:start,source_page_end:end,original_source_file_ref:source.source_file_ref,
-          derived_from:storagePath,generated_at:new Date().toISOString(),authority:"derived"
+          derived_from:storagePath,generated_at:new Date().toISOString(),authority:"derived",
+          text_extracted:Boolean(extractedText),text_extraction_error:textExtractionError
         };
         const {error:pdfError}=await admin.storage.from(BUCKET).upload(pdfPath,new Blob([outBytes],{type:"application/pdf"}),{contentType:"application/pdf",upsert:true});
         if(pdfError) throw pdfError;
+        if(extractedText){
+          const txtPath=`${base}/section.txt`;
+          const {error:txtError}=await admin.storage.from(BUCKET).upload(txtPath,new Blob([extractedText],{type:"text/plain;charset=utf-8"}),{contentType:"text/plain;charset=utf-8",upsert:true});
+          if(txtError) throw txtError;
+        }
         const {error:jsonError}=await admin.storage.from(BUCKET).upload(jsonPath,new Blob([JSON.stringify(meta,null,2)],{type:"application/json"}),{contentType:"application/json",upsert:true});
         if(jsonError) throw jsonError;
         made++;
