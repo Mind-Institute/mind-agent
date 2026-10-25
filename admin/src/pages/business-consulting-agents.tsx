@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Bot, Braces, CheckCircle2, CircleDot, Code2 } from 'lucide-react';
+import { ArrowRight, Bot, CheckCircle2, CircleDot, Code2 } from 'lucide-react';
 import { CabecalhoPagina } from '@/components/admin/cabecalho-pagina';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,6 @@ const ORDEM = ['orchestrator','source_extractor','grounding_reviewer','semantic_
 export function PaginaBusinessConsultingAgents() {
   const { simulada, obterToken, marcarSessaoExpirada } = useSessao();
   const [runId, setRunId] = useState<string | null>(null);
-  const [aberto, setAberto] = useState<string | null>(null);
 
   const token = async () => {
     const t = await obterToken();
@@ -96,8 +95,7 @@ export function PaginaBusinessConsultingAgents() {
             const status=statusDoAgente(a.agent_key);
             return (
               <div key={a.agent_key} className="flex items-center gap-2">
-                <button type="button" onClick={()=>setAberto(aberto===a.agent_key?null:a.agent_key)}
-                  className="w-64 rounded-xl border bg-card p-4 text-left hover:bg-muted/40">
+                <div className="w-64 rounded-xl border bg-card p-4 text-left">
                   <div className="flex items-start justify-between gap-2">
                     <div className="rounded-lg bg-muted p-2">
                       {a.execution_kind==='code' ? <Code2 className="size-4"/> : <Bot className="size-4"/>}
@@ -111,7 +109,7 @@ export function PaginaBusinessConsultingAgents() {
                     {a.reasoning_effort ? <Badge variant="secondary">reasoning {a.reasoning_effort}</Badge> : null}
                     <Badge variant="neutro">prompt v{a.prompt_version}</Badge>
                   </div>
-                </button>
+                </div>
                 {i<ordenados.length-1 ? <ArrowRight className="size-5 shrink-0 text-muted-foreground"/> : null}
               </div>
             );
@@ -119,53 +117,54 @@ export function PaginaBusinessConsultingAgents() {
         </div>
       </section>
 
-      {aberto ? (() => {
-        const a=ordenados.find((x)=>x.agent_key===aberto);
-        if(!a) return null;
-        const stages=detalhe.data?.stages.filter((s)=>s.agent_key===a.agent_key) ?? [];
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>{a.role_name}</CardTitle>
-              <CardDescription>{a.agent_key} · {a.stage}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div>
-                <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Prompt / instructions</p>
-                <pre className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm leading-6">{a.instructions}</pre>
-              </div>
-              <div className="grid gap-3 md:grid-cols-4">
-                <Mini rotulo="Execução" valor={a.execution_kind}/>
-                <Mini rotulo="Modelo" valor={a.model ?? '—'}/>
-                <Mini rotulo="Reasoning" valor={a.reasoning_effort ?? '—'}/>
-                <Mini rotulo="Prompt" valor={`v${a.prompt_version}`}/>
-              </div>
-              <div>
-                <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Execuções neste run</p>
-                {stages.length===0 ? <p className="text-sm text-muted-foreground">Ainda não passou por este agente.</p> : (
-                  <div className="space-y-2">
-                    {stages.map((s)=>(
-                      <div key={s.id} className="rounded-md border p-3 text-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <strong>{s.stage}</strong><Status status={s.status}/>
-                        </div>
-                        {s.output_summary ? <p className="mt-1 text-muted-foreground">{s.output_summary}</p> : null}
-                        {s.error ? <p className="mt-1 text-destructive">{s.error}</p> : null}
-                      </div>
-                    ))}
+      <div className="space-y-4">
+        {ordenados.map((a)=>{
+          const stages=detalhe.data?.stages.filter((s)=>s.agent_key===a.agent_key) ?? [];
+          return (
+            <Card key={a.agent_key}>
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>{a.role_name}</CardTitle>
+                    <CardDescription>{a.agent_key} · {a.stage}</CardDescription>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })() : (
-        <Card>
-          <CardContent className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
-            <Braces className="size-4"/>Clique em um agente para abrir o prompt real e seu histórico.
-          </CardContent>
-        </Card>
-      )}
+                  <Status status={statusDoAgente(a.agent_key)}/>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div>
+                  <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Prompt / instructions</p>
+                  <pre className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm leading-6">{a.instructions}</pre>
+                </div>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <Mini rotulo="Execução" valor={a.execution_kind}/>
+                  <Mini rotulo="Modelo" valor={a.model ?? '—'}/>
+                  <Mini rotulo="Reasoning" valor={a.reasoning_effort ?? '—'}/>
+                  <Mini rotulo="Prompt" valor={`v${a.prompt_version}`}/>
+                </div>
+                {runId ? (
+                  <div>
+                    <p className="mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground">Execuções neste run</p>
+                    {stages.length===0 ? <p className="text-sm text-muted-foreground">Ainda não passou por este agente.</p> : (
+                      <div className="space-y-2">
+                        {stages.map((s)=>(
+                          <div key={s.id} className="rounded-md border p-3 text-sm">
+                            <div className="flex items-center justify-between gap-2">
+                              <strong>{s.stage}</strong><Status status={s.status}/>
+                            </div>
+                            {s.output_summary ? <p className="mt-1 text-muted-foreground">{s.output_summary}</p> : null}
+                            {s.error ? <p className="mt-1 text-destructive">{s.error}</p> : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
