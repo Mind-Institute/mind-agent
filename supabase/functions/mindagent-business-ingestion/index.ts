@@ -95,29 +95,39 @@ Deno.serve(async (req: Request) => {
     if (error || !data) throw new Error("agent_config_missing:"+agentKey);
     return data as Record<string,unknown>;
   }
-  async function callAgent(agentKey: string, input: unknown, maxTokens=12000) {
+  async function callAgent(agentKey: string, input: unknown, maxTokens=12000, fileUrl?: string) {
     if (!openAiKey) throw new Error("openai_not_configured");
     const cfg = await agentConfig(agentKey);
     const model = String(cfg.model ?? "");
     const instructions = String(cfg.instructions ?? "");
     const effort = String(cfg.reasoning_effort ?? "medium");
+    const content: Record<string,unknown>[] = [];
+    if (fileUrl) content.push({type:"input_file",file_url:fileUrl});
+    content.push({type:"input_text",text:"Responda somente com JSON válido.\n"+JSON.stringify(input)});
     const r = await fetch("https://api.openai.com/v1/responses",{
       method:"POST",
       headers:{"Authorization":`Bearer ${openAiKey}`,"Content-Type":"application/json"},
       body:JSON.stringify({
         model,
         instructions,
-        input:[{role:"user",content:"Responda somente com JSON válido.\n"+JSON.stringify(input)}],
+        input:[{role:"user",content}],
         reasoning:{effort},
         text:{format:{type:"json_object"}},
         max_output_tokens:maxTokens,
         store:false,
       }),
     });
-    if (!r.ok) throw new Error("openai_"+r.status+":"+(await r.text()).slice(0,300));
+    if (!r.ok) throw new Error("openai_"+r.status+":"+(await r.text()).slice(0,500));
     const payload = await r.json() as Record<string,unknown>;
     const raw = extractOutput(payload);
     return { cfg, data: JSON.parse(raw) as Record<string,unknown> };
+  }
+
+  async function sectionSignedUrl(sourceId:string, sectionId:string) {
+    const path = `${sourceId}/sections/${sectionId}/section.pdf`;
+    const {data,error}=await admin.storage.from("business-consulting-sources").createSignedUrl(path,3600);
+    if(error||!data?.signedUrl) throw new Error("section_pdf_missing");
+    return data.signedUrl;
   }
   async function stageStart(runId:string,sectionId:string|null,stage:string,agentKey:string) {
     const cfg = await agentConfig(agentKey);
@@ -184,14 +194,15 @@ Deno.serve(async (req: Request) => {
 
     if (!action && req.method === "GET") {
       const run=await getRun(id);
-      const [{data:stages},{data:candidates},{data:findings},{data:rels},{data:links}] = await Promise.all([
+      const [{data:stages},{data:candidates},{data:findings},{data:rels},{data:links},{data:sections}] = await Promise.all([
         bs.from("ingestion_stage_runs").select("*").eq("run_id",id).order("created_at"),
         bs.from("extraction_candidates").select("id,provisional_name,family,object_type,candidate_status,source_section_id,canonical_object_id").eq("run_id",id).order("created_at"),
         bs.from("ingestion_qa_findings").select("*").eq("run_id",id).order("created_at"),
         bs.from("candidate_relationships").select("*").eq("run_id",id),
         bs.from("candidate_job_links").select("*").eq("run_id",id),
+        bs.from("source_sections").select("id,source_id,section_type,section_number,title,section_order,page_start,page_end,processing_status").eq("source_id",run.source_id).order("section_order"),
       ]);
-      return json(req,200,{run,stages:stages??[],candidates:candidates??[],findings:findings??[],relationships:rels??[],job_links:links??[]},requestId);
+      return json(req,200,{run,stages:stages??[],candidates:candidates??[],findings:findings??[],relationships:rels??[],job_links:links??[],sections:sections??[]},requestId);
     }
 
     if (action === "extract-section" && req.method === "POST") {
@@ -199,8 +210,6 @@ Deno.serve(async (req: Request) => {
       if (["published","ready_to_publish"].includes(String(run.status))) return json(req,409,{ok:false,error:"run_closed"},requestId);
       const body=obj(await req.json().catch(()=>({})));
       if(!uuid(body.section_id)) return json(req,422,{ok:false,error:"invalid_section_id"},requestId);
-      const sectionText=text(body.text,MAX_SECTION_CHARS);
-      if(sectionText.length<50) return json(req,422,{ok:false,error:"section_text_too_short"},requestId);
       const {data:section,error:sectionError}=await bs.from("source_sections").select("*").eq("id",body.section_id).eq("source_id",run.source_id).single();
       if(sectionError||!section) return json(req,404,{ok:false,error:"section_not_found"},requestId);
 
@@ -220,8 +229,7 @@ Deno.serve(async (req: Request) => {
               groundings:[{role:"definition|evidence|example|implementation|limitation|extension",locator:"string|null",page_start:"number|null",page_end:"number|null",summary:"string",confidence:"0..1"}]
             }]
           },
-          text:sectionText,
-        },14000);
+        },14000,await sectionSignedUrl(String(run.source_id),String(section.id)));
         const created:Record<string,unknown>[]=[];
         for(const raw of arr(extraction.data.candidates)){
           const c=obj(raw);
@@ -261,8 +269,7 @@ Deno.serve(async (req: Request) => {
             }]},
             candidates:created.map((c)=>({id:c.id,name:c.provisional_name,summary:c.summary,scope:c.scope,conditions:c.conditions,limitations:c.limitations,epistemic_status:c.epistemic_status})),
             section:{id:section.id,title:section.title,page_start:section.page_start,page_end:section.page_end},
-            text:sectionText,
-          },12000);
+          },12000,await sectionSignedUrl(String(run.source_id),String(section.id)));
           let verified=0,rejected=0,needsReview=0;
           for(const raw of arr(review.data.reviews)){
             const rv=obj(raw); if(!uuid(rv.candidate_id)) continue;
