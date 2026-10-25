@@ -5,6 +5,7 @@ import {
   HybridAdminDataProvider,
   RECURSOS_DO_ACESSO,
   RECURSOS_DO_CATALOGO,
+  RECURSOS_DO_KNOWLEDGE,
   RECURSOS_DO_SUMMIT,
 } from '@/services/hybrid-admin-data-provider';
 import { MockAdminDataProvider } from '@/services/mock-admin-data-provider';
@@ -49,11 +50,24 @@ const ROTAS_BASICAS = {
 
 describe('encaminhamento', () => {
   it('cada recurso do painel tem a sua função', () => {
-    expect([...NOMES_RECURSOS]).toEqual(['products', 'admins', 'summit_2026_sessions', 'offers', 'coupons']);
+    expect([...NOMES_RECURSOS]).toEqual([
+      'products', 'admins', 'summit_2026_sessions', 'offers', 'coupons',
+      'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
+      'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
+      'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
+      'agents', 'channel_entries', 'agent_conversations', 'analysis_runs',
+    ]);
     /* O schema `catalogo` inteiro na mesma função: produtos, ofertas e cupons. */
     expect([...RECURSOS_DO_CATALOGO]).toEqual(['products', 'offers', 'coupons']);
     expect([...RECURSOS_DO_ACESSO]).toEqual(['admins']);
     expect([...RECURSOS_DO_SUMMIT]).toEqual(['summit_2026_sessions']);
+    /* Knowledge e os agentes (canais, kit, prompts, instruções, skills) na mindagent-knowledge. */
+    expect([...RECURSOS_DO_KNOWLEDGE]).toEqual([
+      'knowledge_collections', 'knowledge_sources', 'knowledge_assets', 'agent_knowledge_access',
+      'business_intelligence', 'customer_intelligence', 'agent_intelligence_access',
+      'agent_channels', 'agent_kit_blocks', 'agent_prompts', 'agent_instructions', 'agent_tools',
+      'agents', 'channel_entries', 'agent_conversations', 'analysis_runs',
+    ]);
   });
 
   it('anuncia o modo como hybrid — nem mock, nem http', () => {

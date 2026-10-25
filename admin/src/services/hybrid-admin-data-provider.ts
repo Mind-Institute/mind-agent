@@ -54,6 +54,15 @@ export const RECURSOS_DO_KNOWLEDGE = [
   'business_intelligence',
   'customer_intelligence',
   'agent_intelligence_access',
+  'agent_channels',
+  'agent_kit_blocks',
+  'agent_prompts',
+  'agent_instructions',
+  'agent_tools',
+  'agents',
+  'channel_entries',
+  'agent_conversations',
+  'analysis_runs',
 ] as const satisfies readonly NomeRecurso[];
 
 const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
@@ -83,6 +92,15 @@ const OPERACOES: Record<NomeRecurso, Set<string>> = {
   business_intelligence: new Set(['list', 'get']),
   customer_intelligence: new Set(['list', 'get']),
   agent_intelligence_access: new Set(['list', 'get', 'update']),
+  agent_channels: new Set(['list', 'get', 'update']),
+  agent_kit_blocks: new Set(['list', 'get', 'create', 'update']),
+  agent_prompts: new Set(['list', 'get', 'update']),
+  agent_instructions: new Set(['list', 'get', 'create']),
+  agent_tools: new Set(['list', 'get', 'update']),
+  agents: new Set(['list', 'get', 'update']),
+  channel_entries: new Set(['list', 'get']),
+  agent_conversations: new Set(['list', 'get']),
+  analysis_runs: new Set(['list', 'get']),
 };
 
 const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
@@ -100,6 +118,15 @@ const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
   business_intelligence: (op) => `Business Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
   customer_intelligence: (op) => `Customer Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
   agent_intelligence_access: (op) => `Agent Intelligence aceita leitura e edição da matriz; ${op} ainda não existe.`,
+  agent_channels: (op) => `Os canais de cada agente se ligam e desligam; ${op} canal não existe no painel.`,
+  agent_kit_blocks: (op) => `O kit aceita ligar, desligar e acrescentar blocos que já existem; ${op} bloco não existe no painel.`,
+  agent_prompts: (op) => `Prompts se leem e editam, com histórico; ${op} prompt não existe no painel.`,
+  agent_instructions: (op) => `As instruções se montam a partir dos prompts e do kit; ${op} instrução não existe no painel.`,
+  agent_tools: (op) => `Das ferramentas, o painel edita a descrição; ${op} ferramenta não existe no painel.`,
+  agents: (op) => `Do agente, o painel edita nome e descrição; ${op} agente não existe no painel.`,
+  channel_entries: (op) => `As entradas do WhatsApp nascem no site e na Treble; ${op} entrada não existe no painel.`,
+  agent_conversations: (op) => `Conversas reais só se leem; ${op} conversa não existe no painel.`,
+  analysis_runs: (op) => `As execuções da análise só se leem; ${op} execução não existe no painel.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {

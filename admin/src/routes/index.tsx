@@ -6,10 +6,16 @@ import { PaginaSummitProgramacao } from '@/pages/summit-programacao';
 import { PaginaOfertas } from '@/pages/ofertas';
 import { PaginaCupons } from '@/pages/cupons';
 import { PaginaKnowledge } from '@/pages/knowledge';
+import { PaginaBusinessConsulting } from '@/pages/business-consulting';
+import { PaginaBusinessConsultingIngestion } from '@/pages/business-consulting-ingestion';
+import { PaginaBusinessConsultingAgents } from '@/pages/business-consulting-agents';
 import { PaginaBusinessIntelligence } from '@/pages/business-intelligence';
 import { PaginaCustomerIntelligence } from '@/pages/customer-intelligence';
 import { PaginaAgentIntelligence } from '@/pages/agent-intelligence';
+import { PaginaCanais } from '@/pages/canais';
+import { PaginaAnalise } from '@/pages/analise';
 import { PaginaArquitetura } from '@/pages/arquitetura';
+import { PaginaMapaSchemas } from '@/pages/mapa-schemas';
 import { PaginaNaoEncontrada } from '@/pages/nao-encontrada';
 
 /* ============================================================
@@ -47,12 +53,18 @@ export const rotasAdmin: RouteObject[] = [
       { path: 'summit/2026/programacao', element: <PaginaSummitProgramacao /> },
       { path: 'summit/2026/programacao/:id', element: <PaginaSummitProgramacao /> },
 
+      { path: 'business-consulting', element: <PaginaBusinessConsulting /> },
+      { path: 'business-consulting/ingestion', element: <PaginaBusinessConsultingIngestion /> },
+      { path: 'business-consulting/agents', element: <PaginaBusinessConsultingAgents /> },
       { path: 'knowledge', element: <PaginaKnowledge /> },
       { path: 'business-intelligence', element: <PaginaBusinessIntelligence /> },
       { path: 'customer-intelligence', element: <PaginaCustomerIntelligence /> },
       { path: 'agent-intelligence', element: <PaginaAgentIntelligence /> },
+      { path: 'canais', element: <PaginaCanais /> },
+      { path: 'analise', element: <PaginaAnalise /> },
 
       { path: 'arquitetura/decisoes', element: <PaginaArquitetura /> },
+      { path: 'arquitetura/schemas', element: <PaginaMapaSchemas /> },
 
       { path: 'admins', element: <PaginaAdmins /> },
       { path: 'admins/:id', element: <PaginaAdmins /> },

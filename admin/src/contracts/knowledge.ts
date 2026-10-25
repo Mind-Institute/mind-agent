@@ -147,3 +147,82 @@ export const agentIntelligenceAccessSchema = z.object({
   updatedAt: z.string().min(1),
 });
 export type AgentIntelligenceAccess = z.infer<typeof agentIntelligenceAccessSchema>;
+
+
+const businessKnowledgeGroundingSchema = z.object({
+  id: z.string().uuid(),
+  role: z.string().nullable().default(null),
+  locator: z.string().nullable().default(null),
+  pageStart: z.number().int().nullable().default(null),
+  pageEnd: z.number().int().nullable().default(null),
+  summary: z.string().nullable().default(null),
+  section: z.object({
+    id: z.string().uuid(),
+    number: z.string().nullable().default(null),
+    title: z.string().nullable().default(null),
+    type: z.string().nullable().default(null),
+  }).nullable().default(null),
+});
+
+const businessKnowledgeRelationSchema = z.object({
+  direction: z.enum(['incoming', 'outgoing']),
+  relationshipType: z.string().min(1),
+  summary: z.string().nullable().default(null),
+  objectId: z.string().uuid(),
+  objectName: z.string().min(1),
+  objectType: z.string().nullable().default(null),
+});
+
+const businessKnowledgeObjectSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  family: z.string().min(1),
+  objectType: z.string().min(1),
+  summary: z.string().nullable().default(null),
+  scope: z.string().nullable().default(null),
+  topics: z.array(z.string()).default([]),
+  knowledgeRole: z.string().min(1),
+  relevance: z.number(),
+  rationale: z.string().min(1),
+  source: z.object({
+    id: z.string().uuid(),
+    title: z.string().min(1),
+    authors: z.array(z.string()).default([]),
+    sourceType: z.string().nullable().default(null),
+    publicationYear: z.number().int().nullable().default(null),
+    sourceFileRef: z.string().nullable().default(null),
+  }),
+  groundings: z.array(businessKnowledgeGroundingSchema).default([]),
+  relations: z.array(businessKnowledgeRelationSchema).default([]),
+});
+
+export const businessKnowledgeMapSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  userQuestions: z.array(z.string()).default([]),
+  expectedOutput: z.string().nullable().default(null),
+  status: z.string().min(1),
+  area: z.object({
+    id: z.string().uuid(),
+    slug: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().min(1),
+    sortOrder: z.number().int(),
+  }),
+  coverage: z.object({
+    knowledgeCount: z.number().int().min(0),
+    sourceCount: z.number().int().min(0),
+  }),
+  relatedJobs: z.array(z.object({
+    direction: z.enum(['incoming', 'outgoing']),
+    relationshipType: z.string().min(1),
+    rationale: z.string().nullable().default(null),
+    jobId: z.string().uuid(),
+    jobSlug: z.string().min(1),
+    jobName: z.string().min(1),
+  })).default([]),
+  knowledge: z.array(businessKnowledgeObjectSchema).default([]),
+});
+export type BusinessKnowledgeMap = z.infer<typeof businessKnowledgeMapSchema>;
