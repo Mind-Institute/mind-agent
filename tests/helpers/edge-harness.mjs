@@ -100,6 +100,11 @@ function respostasPadrao() {
       expires_at: '2026-09-01T12:00:00+00:00',
     },
     mindagent_chat_bind_identity: { found: true, conflict: false },
+    // Conversa de teste do Playground: o banco só abre para administrador.
+    mindagent_playground_start: (args) => ({
+      session_id: randomUUID(), conversation_id: randomUUID(), participant_id: PESSOA_ID,
+      rota: args.p_rota, expires_at: '2026-09-01T12:00:00+00:00',
+    }),
     mindagent_chat_get_context: {
       participant_profile: {
         participant_id: PESSOA_ID,
@@ -119,6 +124,11 @@ function respostasPadrao() {
     }),
     mind_rota_capacidade: { ok: true, pode_executar: true, reason: null },
     mind_canal_rotas: { ok: true, canal: 'mindagent-web', rotas: ['cliente_suporte', 'concierge_summit'] },
+    // A porta direta como está no banco (agentes.canal_competencia.entradas_diretas):
+    // o app oficial do Summit abre no concierge; qualquer outra entrada, o Router decide.
+    mind_origem_rota: (args) => (
+      args.p_origem === 'mind_summit_app' && args.p_canal === 'mindagent-web' ? 'concierge_summit' : null
+    ),
     mind_agent_kit: KIT_COMPLETO,
     mind_pessoa_fatos: {
       ok: true,

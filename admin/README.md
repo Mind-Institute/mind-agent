@@ -1,31 +1,42 @@
-# Painel administrativo — Mind Agent
+# Mind Intelligence Admin — o painel do Mind
 
-Interface de administração do **Mind Agent**: o lugar onde se edita o que o
-chat próprio e o agente do Treble respondem sobre o Mind Summit 2026.
+Interface de administração do Mind. Desde 26/09/2026, nas palavras da Adriana,
+é **o painel de controle da inteligência do Mind** — não mais o admin do app do
+Summit, que foi como ele nasceu.
+
+**O que saiu (26/09/2026, decisões dela):** a visão geral, o grupo Evento
+(evento, programação, palestrantes, espaços, rotas e estandes) e a Home V3
+(visualização e avisos), que eram do app; e depois **tudo o que não era dado
+real** — ofertas, conteúdo, documentos, conversas, perguntas, usuários e
+auditoria, que mostravam demonstração; e por fim as avaliações do dia e do
+evento, a tela de configurações e o rodapé com a data do Summit. O menu tem um
+título por vertical — **Summit, Institute, Dash** —, por ora vazios: as tabelas
+de cada uma entram quando ela as mapear. A raiz do painel abre no Catálogo até ela
+definir a tela inicial, e **o que entra no painel é ela quem define** — nada de
+estrutura presumida. O backend dessas telas (Edge Functions `mindagent-admin` e
+`mindagent-home`, e as tabelas) continua como estava: o app ainda depende dele.
 
 Aplicação **independente**, dentro de `admin/`. O chat da raiz continua sendo
 site estático sem build — este painel não toca em nenhum arquivo dele. A única
-coisa que atravessa a fronteira é leitura: `../dados/summit.json` como semente e
-`../assets/` para a fonte Satoshi, o símbolo e o favicon.
+coisa que atravessa a fronteira é leitura: `../assets/` para a fonte Satoshi, o
+símbolo e o favicon.
 
-Estado atual: **o núcleo do evento é real; os módulos de apoio seguem em
-demonstração.**
+Estado atual: **o painel mostra só dado real.**
 
 - O acesso passa por **Supabase Auth**. Papel e permissões vêm exclusivamente de
   `GET /admin/me`, validado no backend.
-- **Reais, em leitura e escrita:** visão geral, evento, programação,
-  palestrantes, espaços e temas (temas só em leitura).
-- **Ainda em memória:** rotas, estandes, ofertas, conteúdo institucional,
-  documentos, conversas, perguntas sem resposta, usuários e auditoria.
+- **Catálogo, real em leitura e edição:** os produtos de `catalogo.produtos`,
+  pela Edge Function `mindagent-catalogo` — a origem de tudo. Salvar manda
+  para o banco só o que mudou; `codigo` e `schema_dados` não se editam; criar
+  e arquivar produto ainda não existem. Ver [Catálogo](#catálogo).
+- **Admins do sistema, real em leitura e escrita:** quem entra no painel
+  (`mind_admin_users`, por Mind ID), pela `mindagent-acesso`. Só administrador vê
+  e mexe. Ver [Admins do sistema](#admins-do-sistema).
 
-Essa mistura é a coisa mais perigosa do painel, então ela é dita em voz alta. A
-faixa do topo mostra, em todas as páginas:
-
-> **Evento, programação, palestrantes e espaços reais · Demais módulos em
-> demonstração.**
-
-E cada listagem carrega um selo próprio — *dados reais* ou *demonstração* — para
-não haver dúvida sobre qual tabela você está editando. Ver
+A faixa do topo diz de onde vem o que está na tela — **dados reais** em
+produção, **dados simulados** no preview e nos testes, que não têm banco ligado —
+e cada listagem carrega o seu selo, para não haver dúvida sobre qual tabela você
+está editando. Ver
 [Limites desta versão](#limites-desta-versão).
 
 ## Como executar
@@ -115,12 +126,11 @@ Três regras sustentam o desenho:
 mesmo jeito que o chat da raiz fala com `data-service.js`. Trocar mock por HTTP
 não reescreve tela nenhuma.
 
-**2. Regra de negócio mora em `lib/`, não na tela.** A listagem de programação e
-a visão geral usam as mesmas funções de `lib/pendencias.ts`. Se divergissem, o
-painel mentiria em uma das duas.
+**2. Regra de negócio mora em `lib/`, não na tela.** A conversão entre o banco e
+o formulário do Catálogo mora em `lib/catalogo.ts`, uma cópia só.
 
-**3. O painel não inventa dado.** Quando a fonte é ambígua — o local do evento,
-por exemplo — ele mostra a divergência e pede revisão humana, em vez de escolher.
+**3. O painel não inventa dado.** Quando a fonte é ambígua, ele mostra a
+divergência e pede revisão humana, em vez de escolher.
 Quando a API responde fora do contrato, aparece erro de contrato, não campo
 preenchido por conta própria nem queda silenciosa para o mock. É o mesmo
 princípio que sustenta o agente.
@@ -133,25 +143,13 @@ segunda a partir da primeira, e nunca lê `user_metadata`.
 
 | Rota | Módulo |
 |---|---|
-| `/` | Visão geral |
-| `/evento` | Evento |
-| `/programacao` · `/programacao/:id` | Programação |
-| `/palestrantes` · `/palestrantes/:id` | Palestrantes |
-| `/espacos` · `/espacos/:id` | Espaços |
-| `/rotas` · `/rotas/:id` | Rotas |
-| `/estandes` · `/estandes/:id` | Estandes |
-| `/ofertas` · `/ofertas/:id` | Ingressos e ofertas |
-| `/conteudo` · `/conteudo/:id` | Conteúdo da Mind |
-| `/documentos` · `/documentos/:id` | FAQ e documentos |
-| `/conversas` · `/conversas/:id` | Conversas (somente leitura) |
-| `/perguntas` · `/perguntas/:id` | Perguntas sem resposta |
-| `/usuarios` | Usuários e permissões |
-| `/auditoria` | Auditoria |
-| `/configuracoes` | Configurações |
+| `/` | leva ao Catálogo |
+| `/catalogo` · `/catalogo/:id` | Catálogo de produtos |
+| `/summit/2026/programacao` · `/summit/2026/programacao/:id` | SUMMIT → Mind Summit 2026 → Programação (só leitura) |
+| `/admins` · `/admins/:id` | Admins do sistema (só administrador) |
 
 Os módulos com edição em drawer têm **duas entradas para a mesma página**: a
-listagem continua montada atrás, o endereço é compartilhável, e o link de
-pendência da visão geral abre direto no registro.
+listagem continua montada atrás e o endereço é compartilhável.
 
 **Login não é rota.** `GuardaAutenticacao` fica fora do roteador: sem sessão e
 sem perfil não existe painel — nem barra lateral, nem endereço. É mais honesto
@@ -159,8 +157,8 @@ que renderizar a casca e ir escondendo pedaço, e evita todo o vaivém de
 `redirectTo` na URL. Quem entra volta para o mesmo endereço que estava tentando
 abrir, porque a rota nunca chegou a mudar.
 
-Filtro também mora na URL (`/programacao?dia=2026-09-17&espacoId=null`). Só
-metadado — dia, espaço, status. **Nunca dado pessoal:** URL vaza em histórico,
+Filtro também mora na URL (`/catalogo?vertical=institute`). Só
+metadado — vertical, tipo, situação. **Nunca dado pessoal:** URL vaza em histórico,
 log de proxy e print de tela.
 
 ## Componentes
@@ -268,7 +266,7 @@ A página não pergunta "foi HTTP 409?" — pergunta `erro.codigo === 'conflito'
 
 ```typescript
 interface AdminDataProvider {
-  readonly modo: 'mock' | 'http';
+  readonly modo: 'mock' | 'http' | 'hybrid';
 
   list(resource, filters?)                    // GET    /admin/:resource
   get(resource, id)                           // GET    /admin/:resource/:id
@@ -276,8 +274,6 @@ interface AdminDataProvider {
   update(resource, id, payload, opcoes?)      // PATCH  /admin/:resource/:id
   publish(resource, id, opcoes?)              // POST   /admin/:resource/:id/publish
   archive(resource, id, opcoes?)              // POST   /admin/:resource/:id/archive
-  requestReindex(documentId)                  // POST   /admin/documents/:id/reindex
-  getDashboard()                              // GET    /admin/dashboard
 }
 ```
 
@@ -291,17 +287,11 @@ Três implementações:
   `obterToken`, manda no header `Authorization`, e avisa a camada de sessão por
   `aoNaoAutorizado` quando leva 401. Sem `VITE_ADMIN_API_BASE_URL` o construtor
   recusa a criação em vez de chutar um endereço.
-- **`HybridAdminDataProvider`** — o desta etapa. Encaminha por recurso:
+- **`HybridAdminDataProvider`** — o de produção. O único recurso é o Catálogo:
 
   | Recurso | Destino | Operações que a API expõe |
   |---|---|---|
-  | `dashboard` | HTTP | leitura |
-  | `event` | HTTP | list, get, update |
-  | `sessions` | HTTP | list, get, create, update, publish, archive |
-  | `speakers` | HTTP | list, get, create, update, publish, archive |
-  | `spaces` | HTTP | list, get, create, update, archive |
-  | `themes` | HTTP | list (somente leitura) |
-  | todos os outros | mock | tudo |
+  | `products` | HTTP, na `mindagent-catalogo` (mock se ela não estiver configurada) | list, get, update |
 
   Duas garantias que valem mais que o roteamento em si:
 
@@ -309,8 +299,8 @@ Três implementações:
   erro. Cair no mock em silêncio faria o painel apresentar dado inventado como se
   fosse do banco.
 
-  **Operação sem endpoint é recusada antes de sair.** Publicar um espaço ou
-  escrever num tema devolve uma frase dizendo que a API não expõe aquilo — em vez
+  **Operação sem endpoint é recusada antes de sair.** Criar, publicar ou
+  arquivar produto devolve uma frase dizendo que o painel não faz aquilo — em vez
   de mandar a requisição e traduzir o 404 do gateway em "Registro não
   encontrado", que mandaria o operador procurar problema de dado onde o problema
   é de contrato.
@@ -323,50 +313,147 @@ sabe qual dos três está ativo — nem precisa.**
 permite montar, no teste, o provedor HTTP ligado à sessão real — e assim
 verificar que o token chega ao header e que o 401 volta para o login.
 
-O nome do recurso (`sessions`, `spaces`, `offers`…) é o mesmo na URL da futura
-Edge Function e na chave do TanStack Query. Um nome, escrito num lugar só.
+O nome do recurso (`products`) é o mesmo na URL da Edge Function e na chave do
+TanStack Query. Um nome, escrito num lugar só.
+
+## Catálogo
+
+`/catalogo` espelha `catalogo.produtos` — um registro por produto do Mind, o
+vocabulário que CRM, conhecimento e agentes referenciam — e edita o que já
+existe.
+
+| Camada | Onde |
+|---|---|
+| Tela | `src/pages/catalogo.tsx` (listagem + drawer de edição) |
+| Regras da tela | `src/lib/catalogo.ts` — fuso de Brasília na janela de venda, e o recorte do que mudou |
+| Contrato | `src/contracts/product.ts` |
+| API | `supabase/functions/mindagent-catalogo` — `GET /admin/products`, `GET`/`PATCH /admin/products/:id` |
+| Banco | `mind_admin_read_catalogo` e `mind_admin_mutate_catalogo` (migration `20260925183716`); contrato em `tests/catalogo_painel_contract.sql` |
+
+Três regras seguram a edição:
+
+- **Só vai para o banco o que mudou.** A janela de venda guarda segundos
+  (`02:59:59`); regravar o formulário inteiro arredondaria o que ninguém tocou e
+  sujaria a auditoria.
+- **`codigo` e `schema_dados` não se editam.** O código é a chave de 13 tabelas
+  de outros schemas. A tela mostra os dois travados, e o banco recusa de novo.
+- **Mesmas garantias das outras escritas:** papel conferido na função e no banco
+  (administrador, editor e aprovador editam), versão obrigatória — `409` abre o
+  diálogo de conflito — e antes/depois em `public.mind_admin_audit`.
+
+**No Institute, as datas são as da turma** (pedido da Adriana, 26/09/2026): os dois
+sites e o agente leem `api.programas`, que usa a data de `institute.programas` e,
+quando ela está vazia, o primeiro e o último encontro da turma. Produto com turma
+mostra essas mesmas datas, travadas, com a turma indicada; salvar nunca as manda, e
+o banco recusa (`datas_da_turma`) se alguém tentar por fora da tela. O contrato
+`CATALOGO_OK` confere, produto a produto, que o painel mostra as datas do site.
+
+**Ordenar pelas colunas** (pedido da Adriana, 26/09/2026): todo cabeçalho do
+Catálogo ordena. Um clique é crescente, o segundo decrescente, o terceiro volta à
+ordem do banco (por vertical e nome). A ordem mora na URL (`?ordenar=-comecaEm`),
+volta à página 1 e é feita pela `mindagent-catalogo` na lista inteira, antes de
+paginar. Vazio fica no fim nos dois sentidos; em Situação e Venda, "não" vem
+antes de "sim"; a Janela de venda ordena pela data em que o produto sai de venda.
+
+## Ofertas e Cupons — o schema `catalogo` no painel
+
+Decisão da Adriana (26/09/2026): preço, oferta, order bump e cupom moram no
+schema `catalogo`, em tabelas separadas, e "o painel é o controle deste
+schema". Plano: `docs/PLANO_OFERTAS_PASSO_A_PASSO.md`. As **ofertas se editam**
+desde o Passo 4; os **cupons** seguem só leitura.
+
+- **Ofertas** (`/ofertas`): cada oferta de `catalogo.ofertas` com os preços
+  (um por produto, com o código vendável), o bônus, o que ela exige (order
+  bump no carrinho, upgrade para quem já comprou) e a **situação** calculada
+  pelo banco com as mesmas pontas de janela do site: no ar, só por link,
+  agendada, encerrada, desligada, histórico. O selo **no site** marca o
+  preço que o site lê agora (`api.ofertas`). O detalhe mostra ainda o preço
+  de lista na cópia da Eduzz, quando a linha tem o código do produto lá, e
+  "de onde veio" cada linha importada.
+- **Cupons** (`/cupons`): `catalogo.cupons` (até 26/09, `checkout.cupons`), com
+  desconto, situação (valendo, agendado, esgotado, encerrado, desligado,
+  histórico), onde se aplica, usos e prazo.
+- Hoje o catálogo tem o histórico do Summit 2026 (14 ofertas, 28 preços, 3
+  upgrades, 3 cupons). As ofertas do Institute entram na virada (Passo 5).
+- **Editar oferta (Passo 4):**
+  - **Nova oferta** nasce desligada, como rascunho (`/ofertas/nova`);
+    **Duplicar** copia preços, bônus e exigências, com prazo e códigos em
+    branco (`/ofertas/nova/:de` — na query, a origem viraria filtro da lista);
+  - o formulário tem a oferta, os **preços por produto** (código vendável,
+    à vista, parcelas com a conta ao vivo, riscado, sistema e link), o
+    **bônus** (o produto que ele entrega, custo, valor e prazo) e as
+    **exigências** do order bump / upgrade;
+  - salvar manda **só o que mudou** (`payloadDaOferta`); oferta ligada pede
+    confirmação com o preço antes e depois e o lembrete da Eduzz;
+  - **Pôr no ar** e **Tirar do ar** com confirmação. "Pôr no ar" aparece
+    travado, com o motivo que o banco dá (`bloqueioPorNoAr`), até um site ler
+    o catálogo — o Institute, na virada;
+  - oferta que já esteve no ar trava os códigos e não perde linha;
+  - cada oferta mostra o **histórico de alterações** (quem, quando, o quê) e,
+    recolhido, "como está no banco";
+  - o histórico importado abre só para consulta, com **Duplicar**.
+- As regras de verdade moram no banco (`mind_admin_mutate_ofertas`, migration
+  `20260926210134`, contrato `tests/ofertas_edicao_contract.sql` →
+  `OFERTAS_EDICAO_OK`); a tela só adianta o que dá para dizer antes de enviar.
+  Em demonstração o banco em memória imita a situação, o bloqueio e o
+  histórico (`src/mocks/ofertas-mock.ts`); `ligarLeitorDoCatalogo()` imita a
+  virada nos testes.
+- Porta: `mindagent-catalogo` 1.4.0 (`/admin/offers` lê, cria, edita,
+  `/publish` e `/archive`; `/admin/coupons` só lê), que chama
+  `mind_admin_read_ofertas`, `mind_admin_mutate_ofertas` e
+  `mind_admin_read_cupons` (só `service_role`). Preço em reais
+  (`formatarReais`), não em centavos.
+- Qualquer papel do painel vê. Criar pede o papel que cria, pôr no ar e tirar
+  do ar os papéis que publicam e arquivam (a matriz de `lib/permissions.ts`);
+  hoje só há um administrador ativo. Cupom: escrever é recusado antes de sair.
+
+## Summit → Mind Summit 2026 → Programação
+
+Pedido da Adriana (26/09/2026): no menu SUMMIT, um submenu por produto — hoje
+"Mind Summit 2026" — com a tabela de programação "conforme está no backend".
+É `summit_2026.sessions`, **só leitura**, pela `mindagent-summit`
+(`mind_admin_read_summit_2026_sessoes`, só `service_role`; contrato
+`tests/summit_programacao_contract.sql` → `SUMMIT_PROGRAMACAO_OK`).
+
+- A lista mostra dia, horário (fuso de São Paulo), sessão, tipo (o código do
+  banco), espaço, palestrantes e reserva; busca, filtros por dia, tipo e
+  reserva, e ordem por coluna.
+- Abrir uma sessão mostra **todas as colunas, com os nomes do banco** — coluna
+  nova aparece sem versão nova do painel.
+- Qualquer papel do painel vê. Escrever é recusado antes de sair.
+
+## Admins do sistema
+
+Pedido da Adriana (26/09/2026): ver e cadastrar quem entra no painel. A casa é a
+que já existia, `public.mind_admin_users`, por Mind ID — nenhuma tabela nova. A
+porta é a `mindagent-acesso`, e quem decide é o banco (`mind_admin_read_admins`,
+`mind_admin_mutate_admins`, só `service_role` executa; contrato
+`tests/admins_no_painel_contract.sql` → `ADMINS_PAINEL_OK`).
+
+- **Dar acesso:** e-mail @joinmind.com.br e papel (escolhido, sem valor pronto).
+  O banco acha a pessoa no Mind ID pelo e-mail: tem que existir, ser uma só, não
+  fundida e **marcada como equipe**. A lista nunca cria pessoa. Quem tinha acesso
+  desligado volta na mesma linha.
+- **Na linha:** papel e situação ("Pode entrar no painel"). Tirar o acesso é
+  desligar a situação — a linha fica, para a auditoria e para religar depois.
+  Salvar manda só o que mudou, com a versão (409 abre o conflito).
+- **Travas do banco:** só administrador ativo lê e escreve; ninguém tira o próprio
+  acesso nem o próprio papel de administrador; o painel nunca fica sem
+  administrador ativo. Toda escrita vai para `mind_admin_audit`.
+- A conta antiga, de senha, aparece com o selo **sem Mind ID**.
 
 ## Dados simulados
 
-`../dados/summit.json` é a origem inicial de **evento, temas, sessões e
-pessoas** — o mesmo arquivo que o chat usa como fallback. Ele é **lido, nunca
-escrito**: continua sendo gerado por `scripts/gerar-dados-mindagent.mjs` no
-repositório do site.
-
-A conversão para o formato administrativo (`src/mocks/seed/summit.ts`) é
-determinística — nada de `Math.random()`, para o painel abrir igual em toda
-sessão e os testes poderem afirmar valores.
-
-Mocks pequenos, escritos à mão, para o resto: espaços (aliases, "como chegar",
-coordenadas), rotas, estandes, ofertas, conteúdo institucional, fontes,
-documentos, conversas, perguntas sem resposta, usuários e auditoria.
-
-Duas escolhas que valem registrar:
-
-- **Os mocks nascem imperfeitos de propósito.** Sessão sem espaço, palco sem
-  alias, oferta sem checkout, documento com erro de indexação, conteúdo em
-  rascunho. Sem isso a visão geral abriria vazia e ninguém veria o painel fazer
-  o que ele existe para fazer.
-- **Há uma sessão de demonstração declarada** (`ses_demo_conflito`). A grade real
-  do Summit não tem nenhum choque de horário — ótimo para o evento, péssimo para
-  revisar a tela. Esse registro não vem do `summit.json`, o título diz o que ele
-  é, e ele nasce em rascunho.
-
-**Nenhum dado pessoal real.** As pessoas das conversas e da lista de usuários são
-fictícias, os endereços usam domínios de exemplo, e ainda assim a tela mascara
-tudo antes de mostrar. As duas coisas, porque uma sozinha não é garantia.
+Só existe para os testes e para o preview de cada versão, que é montado sem as
+variáveis do Supabase: **em produção o painel mostra só dado real.** A semente é
+`src/mocks/seed/catalogo.ts` — seis produtos escritos à mão no formato de
+`catalogo.produtos`, que vende e que não vende, ativo e inativo, com e sem
+vertical —, e o selo da listagem diz *demonstração* sempre que ela aparece.
 
 ## Estados obrigatórios
 
 Toda página prevê: carregando, vazio, erro (com "tentar novamente"), sucesso,
-sem permissão, alterações não salvas, confirmação de arquivamento e conflito de
-atualização.
-
-O fluxo editorial (`rascunho → em_revisao → publicado → arquivado`) aparece
-assim: editor salva rascunho e envia para revisão; aprovador publica e arquiva;
-o que está publicado mostra data e responsável; sair de formulário sujo pede
-confirmação; e **o painel prefere arquivar a excluir** — arquivar tira das
-listagens ativas e mantém o rastro na auditoria.
+sem permissão, alterações não salvas e conflito de atualização.
 
 ## Variáveis de ambiente
 
@@ -378,13 +465,15 @@ Modelo em `.env.example`; copie para `.env.local` e preencha localmente.
 | `VITE_ADMIN_DATA_MODE` | `mock`, `hybrid` (padrão quando há URL) ou `http`. |
 | `VITE_SUPABASE_URL` | Projeto Supabase, para o Auth. Vazio = painel abre sem login. |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publicável (`sb_publishable_…`/anon). Pública por design, depende de RLS. |
+| `VITE_CATALOGO_API_BASE_URL` | Opcional. Raiz da `mindagent-catalogo`; vazia, sai de `VITE_SUPABASE_URL` + `/functions/v1/mindagent-catalogo`. |
+| `VITE_ACESSO_API_BASE_URL` | Opcional. Raiz da `mindagent-acesso` (primeiro login com Google); vazia, sai de `VITE_SUPABASE_URL` + `/functions/v1/mindagent-acesso`. |
 
 **Toda variável `VITE_*` é embutida no bundle e é pública por definição.** Por
 isso só cabem aí URL e chave publicável. `service_role`, secret key e chave de
 Edge Function **não existem neste código** — nem em variável, nem em header.
 Quem guarda segredo é o backend.
 
-A tela de Configurações mostra se cada variável está definida — **nunca o
+Nenhuma tela mostra o valor de variável — **nunca o
 valor**.
 
 `.env.example` fica sem valores de propósito; os reais vivem em `.env.local`, que
@@ -478,6 +567,33 @@ O token é renovado sob demanda: `obterToken()` devolve o token atual e, faltand
 menos de 60 segundos para o vencimento, pede um novo ao Supabase — em vez de
 mandar um token morto e derrubar a sessão da pessoa no meio de uma edição.
 
+### Admins do sistema: entrar com o Google da Mind
+
+Decisão da Adriana (25/09/2026): o painel é dos **admins deste sistema**. A lista
+é `mind_admin_users` **por Mind ID** — a pessoa tem que existir antes e estar
+marcada como equipe (`staff` em `pessoas.relacionamento_mind`); a lista nunca
+cria pessoa (migration `20260925232508`, contrato
+`tests/admins_do_sistema_contract.sql` → `ADMINS_OK`).
+
+1. **"Entrar com o Google da Mind"** — `signInWithOAuth` com PKCE e
+   `hd=joinmind.com.br`. O app de login no Google é "Interno" do Workspace: conta
+   de fora nem passa pelo Google.
+2. **A volta** — o `?code=` vira sessão só com o verificador guardado neste
+   navegador na ida, e sai do endereço logo depois.
+3. **Primeiro login** — `/admin/me` ainda não conhece a conta (403). O painel
+   chama uma vez `POST /admin/vincular` na `mindagent-acesso`, e o banco
+   (`mind_admin_vincular_login`) liga a conta à pessoa: Google, e-mail verificado
+   @joinmind.com.br, uma pessoa só com esse e-mail, acesso ativo e marca de
+   equipe. Aí `/admin/me` é chamado de novo. Recusa do banco aparece com a frase
+   dele, sem nova tentativa.
+
+E-mail e senha continuam na tela durante a transição; saem quando todos
+entrarem pelo Google.
+
+Para o Google devolver a pessoa ao painel, o endereço precisa estar em
+**Authentication → URL Configuration → Redirect URLs** do Supabase — produção
+(`…/admin/`) e previews (`https://*-mind-agent.adriana-3eb.workers.dev/admin/**`).
+
 ### Estados tratados
 
 | Situação | O que a pessoa vê |
@@ -493,8 +609,7 @@ mandar um token morto e derrubar a sessão da pessoa no meio de uma edição.
 
 ## Integração com Edge Functions
 
-Ligado para o núcleo do evento. A Edge Function `mindagent-admin` responde no
-formato do contrato — inclusive o corpo de erro
+As funções respondem no formato do contrato — inclusive o corpo de erro
 (`{ "codigo": "sem_permissao", "mensagem": "…" }`), o `ListResult`
 (`{ itens, total, pagina, porPagina }`) e o header
 `If-Unmodified-Since-Version` para concorrência otimista.
@@ -502,79 +617,38 @@ formato do contrato — inclusive o corpo de erro
 Endpoints em uso:
 
 ```text
-GET    /admin/me
-GET    /admin/dashboard
-
-GET    /admin/event · GET /admin/event/:id · PATCH /admin/event/:id
-GET    /admin/sessions · /:id · POST · PATCH · POST /:id/publish · /:id/archive
-GET    /admin/speakers · /:id · POST · PATCH · POST /:id/publish · /:id/archive
-GET    /admin/spaces   · /:id · POST · PATCH · POST /:id/archive
-GET    /admin/themes
+mindagent-admin      GET   /admin/me                  (quem é você e o que pode)
+mindagent-acesso     POST  /admin/vincular            (primeiro login com Google)
+mindagent-acesso     GET   /admin/admins · /:id · POST /admin/admins · PATCH /:id
+mindagent-catalogo   GET   /admin/products · /:id · PATCH /:id
+mindagent-summit     GET   /admin/summit_2026_sessions · /:id   (só leitura)
 ```
 
 Toda escrita manda `If-Unmodified-Since-Version: <atualizadoEm>`, e `409` abre o
 diálogo de conflito em vez de sobrescrever o trabalho de outra pessoa.
 
 **Paginação.** A listagem pede `porPagina=50` e usa o `total` da resposta para
-montar o rodapé; `pagina` fica na URL. Listas usadas como OPÇÃO de formulário
-(espaços, palestrantes, temas) pedem `porPagina=500`, porque uma lista cortada
-faria o `Select` não encontrar o valor do registro.
+montar o rodapé; `pagina` fica na URL.
 
-O que falta para sair do híbrido: rotas, estandes, ofertas, conteúdo, documentos,
-conversas, perguntas, usuários e auditoria na API, mais o pipeline real de
-indexação. Do lado do frontend é trocar `VITE_ADMIN_DATA_MODE` para `http` —
-nenhuma página muda.
+A `mindagent-admin` ainda serve as rotas do evento e o dashboard para quem
+quiser usá-los, mas o painel não chama mais nenhuma delas: só `/admin/me`.
 
 ## Limites desta versão
 
-- **Nove módulos ainda são demonstração.** Rotas, estandes, ofertas, conteúdo
-  institucional, documentos, conversas, perguntas sem resposta, usuários e
-  auditoria vivem na memória do navegador: recarregar desfaz. O selo da listagem
-  e a faixa do topo dizem qual é qual em cada tela.
-- **Escrita real, com o alcance da API.** Sessões e palestrantes aceitam criar,
-  editar, publicar e arquivar; espaços não têm `publish`; o evento só aceita
-  `PATCH`; temas são somente leitura. Pedir o que não existe devolve uma frase
-  explicando, não um 404 disfarçado.
-- **Nenhuma tabela foi criada, nenhuma migration foi aplicada, nenhum deploy foi
-  feito.** O painel só consome os endpoints já publicados.
-- **A tela de login não tem "esqueci minha senha" nem cadastro.** Recuperação e
-  convite de usuário ficam para a etapa em que Usuários deixar de ser leitura.
-- **Não há tela de criação.** `create` existe no provedor, vai para a API e é
-  testado, mas as telas desta versão editam o que já está lá.
-- **Os formatos de resposta foram validados contra o contrato, não contra um
-  login real.** Não posso digitar senha, então `/admin/me`, `/admin/dashboard`
-  e as listagens foram exercitadas com `fetch` falso no formato combinado. As
-  contagens de `sessions`, `speakers` e `themes` foram conferidas contra a API
-  pública do chat (`mindagent-bootstrap`), que serve os mesmos dados: **67, 44 e
-  10**. Se algum campo divergir, o painel mostra erro ou o valor cru — nunca um
-  palpite.
-- **O contrato de `/admin/dashboard` também é conferido em runtime.** Faltando
-  `metricas`, `pendencias` ou `alertas`, aparece erro — não um dashboard vazio
-  que parece ter funcionado.
-- **A reindexação não indexa.** Ela enfileira (`nao_indexado` → `na_fila`) e diz,
-  em texto, que nada foi indexado. O recibo carrega `simulado: true`. Um painel
-  que dissesse "pronto!" sem o pipeline ligado faria o time confiar num índice
-  que não existe.
-- **Não há criação de registro pela interface.** `create` existe no provedor e é
-  testado, mas as telas desta versão editam o que já está lá. Cadastro novo entra
-  junto com a persistência.
+- **Só o Catálogo escreve, e só edição.** Criar, publicar e arquivar produto
+  ainda não existem. Pedir o que não existe devolve uma frase explicando, não um
+  404 disfarçado.
+- **As avaliações são somente leitura,** de propósito: resposta enviada não se
+  edita, nem pelo painel.
+- **Nenhuma tabela foi criada para o painel.** Ele só consome os endpoints já
+  publicados.
+- **A tela de login não tem "esqueci minha senha" nem cadastro.** O acesso é
+  pelo Google da Mind; quem entra é quem está na lista de admins do sistema, por
+  Mind ID.
+- **Não há tela de criação.** `create` existe no provedor e é testado, mas a
+  tela do Catálogo edita o que já está lá.
 - **Paginação simples.** `porPagina=50` com "anterior/próxima". Sem salto para
   uma página específica e sem escolha de tamanho.
-- **Rotas não têm editor de mapa.** O diagrama de conexões é de conferência —
-  serve para ver de relance quem ficou sem caminho.
-- **Usuários é leitura, e ainda vem do mock.** Convidar pessoa e trocar papel
-  dependem de endpoints que não existem.
-- **A tela de Usuários é demonstração; a autorização não é.** A lista vem do
-  banco em memória — convidar pessoa e trocar papel dependem de endpoints que
-  não existem. A recusa de escrita por papel já roda no backend, em duas camadas
-  (Edge Function + `mind_admin_mutate_resource`), com `anon` e `authenticated`
-  sem acesso direto à RPC.
-- **Conversas é somente leitura,** de propósito: o painel não responde por aqui.
-- **O local do evento está em divergência e continua assim.** `summit.json` diz
-  "São Paulo Expo", material de divulgação diz "Transamérica Expo Center". O
-  painel mostra as duas versões com a origem de cada uma e pede confirmação —
-  escolher seria inventar dado.
-- **Sem deploy.** Nada foi publicado.
 
 ## Testes
 
@@ -582,21 +656,23 @@ nenhuma página muda.
 npm test --prefix admin
 ```
 
-166 testes, onze arquivos. Cobrem:
+141 testes, treze arquivos. Cobrem, entre outros:
 
 | Arquivo | O que garante |
 |---|---|
-| `api-real.test.tsx` | Validação de contrato: resposta válida aceita com os opcionais vindo do default, registro sem `id`, sem `atualizadoEm`, sem `titulo`/`nome`, listagem sem `itens`, envelope sem `total`/`pagina`/`porPagina`, tema sem `codigo`, tipo desconhecido preservado, erro apontando o índice sem revelar conteúdo, e nenhuma escrita no console. Mais: os verbos e caminhos dos cinco recursos reais; `If-Unmodified-Since-Version` em toda escrita; token e `apikey` nos headers e fora da URL; os dez filtros da programação na query string; paginação a partir do `total` da API; 401, 403, 404, 409, 422 e 503; a divergência de local do evento; os novos enums com rótulo em português; categoria desconhecida mostrada crua; e a regressão do `Select` que apagava o espaço da sessão. |
-| `modo-hibrido.test.tsx` | Encaminhamento seletivo recurso por recurso, leitura e escrita reais nos módulos reais, o resto em memória, temas somente leitura, operação sem endpoint recusada antes de sair, ausência de queda para o mock em erro, e a faixa nomeando os módulos. |
-| `autenticacao.test.tsx` | Restauração da sessão, `onAuthStateChange`, login, validação do formulário, credencial inválida, serviço de auth fora, logout, 401, 403, papel irreconhecível, papel e permissões vindos de `/admin/me`, ausência do seletor "Ver como", token no `Authorization`, token fora da URL e fora do console, e sessão expirada no meio do uso. |
-| `provedor-dados.test.ts` | Listagem, filtros, busca sem acento, publicação, arquivamento, conflito de atualização, auditoria, reindexação, injeção de falha, isolamento entre instâncias — e, no `HttpAdminDataProvider`, os caminhos combinados, a tradução de status HTTP e o token fora da URL. |
-| `dominio.test.ts` | Máscaras, formatação em BRL e pt-BR, campos faltantes, conflito de horário (inclusive os casos que **não** são conflito) e a matriz de permissões. |
-| `navegacao.test.tsx` | Os quinze módulos no menu, cada um abrindo sem quebrar, o 404 e a faixa de demonstração. |
-| `listagens.test.tsx` | Listagens dos módulos, aliases, alertas de oferta, estados de indexação, auditoria com antes/depois, busca e a marcação visual de conflito. |
-| `filtros-e-estados.test.tsx` | Filtro por dia, espaço e status; limpar filtros; vazio; erro com "tentar novamente"; sem permissão por papel; esqueleto de carregamento. |
-| `formularios.test.tsx` | Validação (nome vazio, slug inválido, data invertida, fim antes do início, reserva sem vagas), salvamento, editor de aliases, prévia do cartão e os três caminhos de alteração não salva. |
-| `fluxo-editorial.test.tsx` | Publicação mock, arquivamento mock com confirmação, botões que somem por papel, conflito de atualização e reindexação mock. |
-| `mascaramento-na-tela.test.tsx` | Que as telas realmente usam as máscaras — que é onde o vazamento aconteceria. |
+| `api-real.test.tsx` | Contrato das respostas da `mindagent-catalogo` (registro sem `id`, sem `atualizadoEm`, sem `nome`/`ativo`, envelope incompleto, erro apontando o índice sem revelar conteúdo, nada no console); verbos e caminhos; `If-Unmodified-Since-Version`; token e `apikey` nos headers e fora da URL; e, na tela, 401, 403, 404, 409, 422, 503 e o `requestId`. |
+| `modo-hibrido.test.tsx` | O Catálogo como único recurso, real com a função e demonstração sem ela, operação inexistente recusada antes de sair, sem queda para o mock em erro, token fora da URL e do console, e o selo do topo. |
+| `catalogo.test.tsx` | Conversão entre banco e formulário (fuso de Brasília, só o que mudou), endereço da função, contrato, roteamento e a tela do Catálogo. |
+| `autenticacao.test.tsx` | Restauração da sessão, `onAuthStateChange`, login, validação, credencial inválida, serviço de auth fora, logout, 401, 403, papel irreconhecível, papel e permissões vindos de `/admin/me`, login com o Google da Mind, token no `Authorization` e fora da URL e do console. |
+| `provedor-dados.test.ts` | Listagem, filtros, busca sem acento, arquivamento, conflito de atualização, injeção de falha e isolamento no mock — e, no `HttpAdminDataProvider`, os caminhos, a tradução de status HTTP e o token fora da URL. |
+| `dominio.test.ts` | Máscaras de dado pessoal, formatação em BRL e pt-BR e a matriz de permissões. |
+| `navegacao.test.tsx` | Os quatro módulos no menu, cada um abrindo sem quebrar, a raiz no Catálogo, o 404 — e que nada do que saiu volta ao menu. |
+| `filtros-e-estados.test.tsx` | Filtro na URL, limpar filtros, vazio, erro com "tentar novamente" e esqueleto de carregamento. |
+| `formularios.test.tsx` | O drawer não fecha por cima de alteração não salva. |
+| `fluxo-editorial.test.tsx` | Conflito de atualização: a alteração de outra pessoa não é sobrescrita em silêncio. |
+| `listagens.test.tsx` | Busca textual. |
+| `publicacao.test.tsx` | O painel sob `/admin` e as regras de roteamento do Worker. |
+| `admins.test.tsx` | A lista vem da `mindagent-acesso`; dar acesso manda só e-mail e papel; e-mail de fora da Mind e papel vazio não saem da tela; recusas do banco aparecem; mudar papel ou situação manda só o que mudou, com a versão; conflito; quem não é administrador não vê. |
 
 Os testes montam o painel inteiro, com rotas e provedores reais e um banco novo
 em memória por teste. `src/test/setup.ts` traz três remendos de ambiente

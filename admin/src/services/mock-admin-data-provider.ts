@@ -20,44 +20,43 @@ import {
   type NomeRecurso,
   type OpcoesEscrita,
   type CodigoErroAdmin,
-  type ReciboReindexacao,
-  type ResumoPainel,
-  type Documento,
   type StatusEditorial,
 } from '@/contracts';
-import { criarBanco, rotuloDoRegistro, type BancoMock } from '@/mocks/db';
-import { montarResumoPainel } from '@/mocks/dashboard';
+import { criarBanco, type BancoMock } from '@/mocks/db';
+import { montarLinhas, recalcular, registrarAlteracao, type EscritaOferta } from '@/mocks/ofertas-mock';
+import { motivoDoBloqueio } from '@/lib/ofertas';
+import type { OfertaCatalogo } from '@/contracts';
 import type { AdminDataProvider, ContextoAutor } from './admin-data-provider';
 
 /** Campos varridos pela busca textual de cada recurso. */
 const CAMPOS_BUSCA: Record<NomeRecurso, string[]> = {
-  event: ['nome', 'slug', 'local', 'cidade'],
-  sessions: ['titulo', 'descricao', 'quemTexto'],
-  speakers: ['nome', 'organizacao', 'cargo', 'biografia'],
-  spaces: ['nome', 'slug', 'descricao', 'comoChegar', 'aliases'],
-  routes: ['instrucoes'],
-  booths: ['nome', 'slug', 'descricao', 'contato'],
-  offers: ['codigo', 'nome', 'descricao', 'elegibilidade'],
-  content: ['titulo', 'slug', 'conteudo'],
-  documents: ['titulo', 'previa', 'urlOrigem'],
-  sources: ['nome', 'descricao'],
-  conversations: ['assuntos'],
-  unanswered: ['pergunta', 'categoriaSugerida', 'responsavel'],
-  users: ['nome', 'papel'],
-  audit: ['usuario', 'recurso', 'registroRotulo', 'requestId'],
-  themes: ['codigo', 'rotulo'],
-  home_state: ['momento', 'modo'],
-  home_schedule: ['momento', 'nota'],
-  home_notices: ['titulo', 'subtitulo', 'descricao'],
+  products: ['codigo', 'nome', 'descricaoCurta', 'descricao'],
+  admins: ['nome', 'email'],
+  summit_2026_sessions: ['titulo', 'descricao', 'espaco', 'palestrantes'],
+  offers: ['codigo', 'nome', 'descricao', 'precos'],
+  coupons: ['codigo', 'descricao'],
+  knowledge_collections: ['chave', 'nome', 'descricao'],
+  knowledge_sources: ['titulo', 'tituloOriginal', 'autores', 'tipoFonte', 'evidenceRole', 'doi', 'isbn', 'drivePath', 'collections'],
+  knowledge_assets: ['titulo', 'assetType', 'originSchema', 'originTable', 'collections'],
+  agent_knowledge_access: ['agentKey', 'collectionKey', 'collectionName'],
+  business_intelligence: ['collectionKey', 'collectionName', 'knowledgeType', 'vertical', 'sourceSchema', 'sourceTable', 'description'],
+  customer_intelligence: ['collectionKey', 'collectionName', 'intelligenceType', 'sourceSchema', 'sourceTable', 'description', 'purposes'],
+  agent_intelligence_access: ['agentKey', 'namespace', 'knowledgeKey', 'knowledgeName', 'ownerScope'],
+  agent_channels: ['canal', 'rota', 'observacao'],
+  agent_kit_blocks: ['rota', 'bloco', 'provider', 'secao'],
+  agent_prompts: ['chave', 'titulo', 'conteudo', 'rota'],
+  agent_instructions: ['rota'],
+  agent_tools: ['nome', 'descricao'],
+  agents: ['rota', 'nome', 'descricao'],
+  channel_entries: ['codigo', 'rotulo', 'descricao'],
+  agent_conversations: ['primeiroNome', 'rota', 'canal'],
+  analysis_runs: ['analisador', 'rota', 'primeiroNome'],
 };
 
-/** Filtro cujo nome na URL difere do campo do registro. */
-const ALIAS_FILTRO: Record<string, string> = {
-  tema: 'temas',
-  palestranteId: 'palestranteIds',
-  agente: 'agentes',
-  trilha: 'trilhas',
-  assunto: 'assuntos',
+/* O que o banco preenche ao criar, para a linha nova aparecer inteira na
+   tela. Dar acesso manda só e-mail e papel; o resto vem do Mind ID. */
+const PADRAO_AO_CRIAR: Partial<Record<NomeRecurso, Record<string, unknown>>> = {
+  admins: { mindId: null, nome: null, ativo: true, loginLigado: false, ultimoLoginEm: null },
 };
 
 const CHAVES_RESERVADAS = new Set(['busca', 'pagina', 'porPagina', 'ordenar']);
@@ -78,15 +77,21 @@ function combinaBusca(registro: unknown, campos: string[], termo: string): boole
   if (!alvo) return true;
   return campos.some((campo) => {
     const valor = valorDoCampo(registro, campo);
-    if (Array.isArray(valor)) return valor.some((v) => normalizar(v).includes(alvo));
+    if (Array.isArray(valor)) {
+      /* Lista de objetos (os preços de uma oferta): olha os campos de cada um. */
+      return valor.some((v) =>
+        v && typeof v === 'object'
+          ? Object.values(v as Record<string, unknown>).some((x) => normalizar(x).includes(alvo))
+          : normalizar(v).includes(alvo),
+      );
+    }
     return normalizar(valor).includes(alvo);
   });
 }
 
 function combinaFiltro(registro: unknown, chave: string, valor: unknown): boolean {
   if (valor === undefined || valor === null || valor === '' || valor === 'todos') return true;
-  const campo = ALIAS_FILTRO[chave] ?? chave;
-  const doRegistro = valorDoCampo(registro, campo);
+  const doRegistro = valorDoCampo(registro, chave);
   if (Array.isArray(valor)) {
     if (valor.length === 0) return true;
     return valor.some((v) => combinaFiltro(registro, chave, v));
@@ -97,6 +102,25 @@ function combinaFiltro(registro: unknown, chave: string, valor: unknown): boolea
   return String(doRegistro) === String(valor);
 }
 
+/* A mesma comparação da `mindagent-catalogo`, para a demonstração ordenar
+   como o banco: vazio no fim nos dois sentidos, número como número,
+   instante como instante (fusos diferentes) e texto no alfabeto do português. */
+const INSTANTE = /^\d{4}-\d{2}-\d{2}T/;
+
+function vazio(valor: unknown): boolean {
+  return valor === null || valor === undefined || valor === '';
+}
+
+function comparar(a: unknown, b: unknown): number {
+  if (typeof a === 'number' && typeof b === 'number') return a === b ? 0 : a < b ? -1 : 1;
+  if (typeof a === 'string' && typeof b === 'string' && INSTANTE.test(a) && INSTANTE.test(b)) {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    if (!Number.isNaN(ta) && !Number.isNaN(tb)) return ta === tb ? 0 : ta < tb ? -1 : 1;
+  }
+  return String(a).localeCompare(String(b), 'pt-BR');
+}
+
 function ordenarItens<T>(itens: T[], ordenar?: string): T[] {
   if (!ordenar) return itens;
   const desc = ordenar.startsWith('-');
@@ -104,19 +128,14 @@ function ordenarItens<T>(itens: T[], ordenar?: string): T[] {
   return [...itens].sort((a, b) => {
     const va = valorDoCampo(a, campo);
     const vb = valorDoCampo(b, campo);
-    if (va === vb) return 0;
-    if (va === null || va === undefined) return 1;
-    if (vb === null || vb === undefined) return -1;
-    const cmp = va > vb ? 1 : -1;
-    return desc ? -cmp : cmp;
+    if (vazio(va) || vazio(vb)) return vazio(va) === vazio(vb) ? 0 : vazio(va) ? 1 : -1;
+    return comparar(va, vb) * (desc ? -1 : 1);
   });
 }
 
 export interface OpcoesMock {
   /** Latência simulada em ms. Os testes usam 0. */
   latenciaMs?: number;
-  /** Instante base das sementes que dependem de "agora". */
-  agora?: number;
   autor?: ContextoAutor;
   banco?: BancoMock;
 }
@@ -133,9 +152,13 @@ export class MockAdminDataProvider implements AdminDataProvider {
   private autor: ContextoAutor;
   private falhas = new Map<string, CodigoErroAdmin>();
   private sequencia = 0;
+  /* Algum site lê as ofertas do catálogo? Em produção, só depois da virada
+     (Passo 5). A demonstração começa como hoje: ninguém lê, e "pôr no ar"
+     fica travado com o motivo. O teste liga quando quer o outro lado. */
+  private leitorDoCatalogo = false;
 
   constructor(opcoes: OpcoesMock = {}) {
-    this.banco = opcoes.banco ?? criarBanco(opcoes.agora ?? Date.now());
+    this.banco = opcoes.banco ?? criarBanco();
     this.latenciaMs = opcoes.latenciaMs ?? 260;
     this.autor = opcoes.autor ?? { nome: 'Você (demonstração)' };
   }
@@ -144,8 +167,8 @@ export class MockAdminDataProvider implements AdminDataProvider {
   /* Instrumentação para testes e para o menu "simular erro"          */
   /* -------------------------------------------------------------- */
 
-  /** `configurarFalha('sessions', 'rede')` faz a próxima leitura falhar. */
-  configurarFalha(escopo: NomeRecurso | 'dashboard' | 'reindex', codigo: CodigoErroAdmin | null) {
+  /** `configurarFalha('products', 'rede')` faz a próxima leitura falhar. */
+  configurarFalha(escopo: NomeRecurso, codigo: CodigoErroAdmin | null) {
     if (codigo) this.falhas.set(escopo, codigo);
     else this.falhas.delete(escopo);
   }
@@ -162,6 +185,12 @@ export class MockAdminDataProvider implements AdminDataProvider {
     this.latenciaMs = ms;
   }
 
+  /** Imita a virada: `api.ofertas` passa a ler o catálogo e "pôr no ar" destrava. */
+  ligarLeitorDoCatalogo(ligado = true) {
+    this.leitorDoCatalogo = ligado;
+    for (const o of this.banco.offers) Object.assign(o, recalcular(o, this.banco.offers, ligado));
+  }
+
   private async esperar() {
     if (this.latenciaMs > 0) {
       await new Promise((resolve) => {
@@ -170,7 +199,7 @@ export class MockAdminDataProvider implements AdminDataProvider {
     }
   }
 
-  private verificarFalha(escopo: NomeRecurso | 'dashboard' | 'reindex') {
+  private verificarFalha(escopo: NomeRecurso) {
     const codigo = this.falhas.get(escopo);
     if (!codigo) return;
     const mensagens: Record<CodigoErroAdmin, string> = {
@@ -227,27 +256,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     }
   }
 
-  private registrarAuditoria(
-    acao: 'criar' | 'atualizar' | 'publicar' | 'arquivar' | 'reindexar',
-    recurso: NomeRecurso | 'documents',
-    registro: Record<string, unknown>,
-    antes: Record<string, unknown> | null,
-    depois: Record<string, unknown> | null,
-  ) {
-    this.banco.audit.unshift({
-      id: `aud_mock_${String(this.banco.audit.length + 1).padStart(3, '0')}`,
-      usuario: this.autor.nome,
-      acao,
-      recurso,
-      registroId: String(registro.id ?? ''),
-      registroRotulo: rotuloDoRegistro(recurso as NomeRecurso, registro),
-      antes,
-      depois,
-      ocorridoEm: this.agora(),
-      requestId: this.proximoRequestId(),
-    });
-  }
-
   /* -------------------------------------------------------------- */
   /* Leitura                                                         */
   /* -------------------------------------------------------------- */
@@ -289,12 +297,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     return { ...this.encontrar(resource, id) };
   }
 
-  async getDashboard(): Promise<ResumoPainel> {
-    await this.esperar();
-    this.verificarFalha('dashboard');
-    return montarResumoPainel(this.banco);
-  }
-
   /* -------------------------------------------------------------- */
   /* Escrita                                                         */
   /* -------------------------------------------------------------- */
@@ -306,9 +308,14 @@ export class MockAdminDataProvider implements AdminDataProvider {
     await this.esperar();
     this.verificarFalha(resource);
 
+    if (resource === 'offers') {
+      return this.escreverOferta(null, payload as Record<string, unknown>, { acao: 'criar', por: this.autor.nome }) as MapaRecursos[K];
+    }
+
     const agora = this.agora();
     const tabela = this.tabela(resource);
     const registro = {
+      ...PADRAO_AO_CRIAR[resource],
       ...(payload as Record<string, unknown>),
       id: `${resource.slice(0, 3)}_novo_${String(tabela.length + 1).padStart(3, '0')}`,
       criadoEm: agora,
@@ -317,9 +324,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
     } as MapaRecursos[K];
 
     tabela.unshift(registro);
-    this.registrarAuditoria('criar', resource, registro as Record<string, unknown>, null, {
-      ...(payload as Record<string, unknown>),
-    });
     return { ...registro };
   }
 
@@ -335,9 +339,11 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
-    const antes: Record<string, unknown> = {};
-    for (const chave of Object.keys(payload as Record<string, unknown>)) {
-      antes[chave] = registro[chave];
+    if (resource === 'offers') {
+      return this.escreverOferta(registro as OfertaCatalogo, payload as Record<string, unknown>, {
+        acao: 'atualizar',
+        por: this.autor.nome,
+      }) as MapaRecursos[K];
     }
 
     Object.assign(registro, payload, {
@@ -345,9 +351,6 @@ export class MockAdminDataProvider implements AdminDataProvider {
       atualizadoPor: this.autor.nome,
     });
 
-    this.registrarAuditoria('atualizar', resource, registro, antes, {
-      ...(payload as Record<string, unknown>),
-    });
     return { ...(registro as MapaRecursos[K]) };
   }
 
@@ -362,7 +365,10 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
-    const antes = { status: registro.status as StatusEditorial | undefined };
+    if (resource === 'offers') {
+      return this.escreverOferta(registro as OfertaCatalogo, { ativo: true }, { acao: 'publicar', por: this.autor.nome }) as MapaRecursos[K];
+    }
+
     const agora = this.agora();
     Object.assign(registro, {
       status: 'publicado' satisfies StatusEditorial,
@@ -372,14 +378,13 @@ export class MockAdminDataProvider implements AdminDataProvider {
       atualizadoPor: this.autor.nome,
     });
 
-    this.registrarAuditoria('publicar', resource, registro, antes, { status: 'publicado' });
     return { ...(registro as MapaRecursos[K]) };
   }
 
   /**
-   * Arquivar é o "excluir" do painel. O registro continua no banco, sai
-   * das listagens ativas e mantém o rastro na auditoria — apagar de
-   * verdade não é oferecido nesta versão, de propósito.
+   * Arquivar é o "excluir" do painel. O registro continua no banco e sai
+   * das listagens ativas — apagar de verdade não é oferecido nesta
+   * versão, de propósito.
    */
   async archive<K extends NomeRecurso>(
     resource: K,
@@ -392,60 +397,92 @@ export class MockAdminDataProvider implements AdminDataProvider {
     const registro = this.encontrar(resource, id) as Record<string, unknown>;
     this.conferirConcorrencia(registro, opcoes);
 
-    const antes: Record<string, unknown> = {};
-    const depois: Record<string, unknown> = {};
+    if (resource === 'offers') {
+      return this.escreverOferta(registro as OfertaCatalogo, { ativo: false }, { acao: 'arquivar', por: this.autor.nome }) as MapaRecursos[K];
+    }
 
-    if ('status' in registro) {
-      antes.status = registro.status;
-      depois.status = 'arquivado';
-      registro.status = 'arquivado';
-    }
-    if ('ativo' in registro) {
-      antes.ativo = registro.ativo;
-      depois.ativo = false;
-      registro.ativo = false;
-    }
+    if ('status' in registro) registro.status = 'arquivado';
+    if ('ativo' in registro) registro.ativo = false;
 
     Object.assign(registro, { atualizadoEm: this.agora(), atualizadoPor: this.autor.nome });
-    this.registrarAuditoria('arquivar', resource, registro, antes, depois);
     return { ...(registro as MapaRecursos[K]) };
   }
 
+  /* -------------------------------------------------------------- */
+  /* Ofertas: as regras que a tela precisa ver acontecer              */
+  /* -------------------------------------------------------------- */
+
   /**
-   * Enfileira o documento e diz, em texto, que NÃO indexou.
-   *
-   * A tentação aqui seria mudar o status para `indexado` e mostrar um
-   * "pronto!" — o que faria o painel mentir sobre o estado do agente.
-   * O recibo carrega `simulado: true` e a tela repete isso.
+   * Criar, editar, pôr no ar e tirar do ar uma oferta, como o banco faz: a
+   * oferta nasce desligada; o histórico importado não muda; o código trava
+   * depois que a oferta esteve no ar; "pôr no ar" respeita o bloqueio; e
+   * cada escrita entra no histórico de alterações. As outras regras (parcela
+   * que fecha, código reservado…) são do banco e não se repetem aqui.
    */
-  async requestReindex(documentId: string): Promise<ReciboReindexacao> {
-    await this.esperar();
-    this.verificarFalha('reindex');
-
-    const documento = this.encontrar('documents', documentId) as Documento;
-    const statusAnterior = documento.statusIndexacao;
-
-    documento.statusIndexacao = 'na_fila';
-    documento.erroIndexacao = null;
-    documento.atualizadoEm = this.agora();
-    documento.atualizadoPor = this.autor.nome;
-
-    this.registrarAuditoria(
-      'reindexar',
-      'documents',
-      documento as unknown as Record<string, unknown>,
-      { statusIndexacao: statusAnterior },
-      { statusIndexacao: 'na_fila' },
-    );
-
-    return {
-      documentoId: documentId,
-      statusAnterior,
-      statusAtual: 'na_fila',
-      enfileiradoEm: this.agora(),
-      simulado: true,
-      mensagem:
-        'Pedido registrado em modo demonstração. Nada foi indexado: o pipeline de indexação vive no backend e ainda não está ligado.',
+  private escreverOferta(atual: OfertaCatalogo | null, mudancas: Record<string, unknown>, escrita: EscritaOferta) {
+    const recusar = (mensagem: string) => {
+      throw new AdminApiError('validacao', mensagem, { requestId: this.proximoRequestId() });
     };
+    const tabela = this.banco.offers;
+    if (atual?.historico) recusar(motivoDoBloqueio('historico_so_leitura') as string);
+    if (escrita.acao === 'publicar' && atual && !atual.ativo) {
+      const motivo = recalcular(atual, tabela, this.leitorDoCatalogo).bloqueioPorNoAr;
+      if (motivo) recusar(motivoDoBloqueio(motivo) as string);
+    }
+    const codigo = mudancas.codigo as string | undefined;
+    if (codigo !== undefined && codigo !== atual?.codigo) {
+      if (atual?.jaFoiAoAr) recusar('Esta oferta já esteve no ar: os códigos não mudam mais, porque links, pedidos e acessos usam esses códigos.');
+      if (tabela.some((o) => o.codigo === codigo)) recusar('Este código já é usado por outra oferta, outro preço, um programa ou um produto.');
+    }
+
+    const agora = this.agora();
+    const base: OfertaCatalogo =
+      atual ??
+      ({
+        id: `off_novo_${String(tabela.length + 1).padStart(3, '0')}`,
+        codigo: '',
+        nome: '',
+        tipo: '',
+        situacao: 'desligada',
+        situacaoOrdem: 5,
+        descricao: null,
+        ativo: false,
+        publico: true,
+        historico: false,
+        iniciaEm: null,
+        encerraEm: null,
+        meiosPagamento: [],
+        noSite: false,
+        verticais: [],
+        produtos: [],
+        precos: [],
+        bonus: [],
+        requer: [],
+        origem: null,
+        jaFoiAoAr: false,
+        bloqueioPorNoAr: null,
+        sobrepostas: [],
+        alteracoes: [],
+        criadoEm: agora,
+        atualizadoEm: agora,
+      } as OfertaCatalogo);
+    const antes = atual ? (JSON.parse(JSON.stringify(atual)) as OfertaCatalogo) : null;
+
+    const proxima = recalcular(
+      {
+        ...base,
+        ...mudancas,
+        ...montarLinhas(mudancas, this.banco.products),
+        jaFoiAoAr: base.jaFoiAoAr || escrita.acao === 'publicar',
+        atualizadoEm: agora,
+      } as OfertaCatalogo,
+      tabela,
+      this.leitorDoCatalogo,
+    );
+    proxima.alteracoes = registrarAlteracao(antes, proxima, escrita, agora);
+
+    if (atual) Object.assign(atual, proxima);
+    else tabela.unshift(proxima);
+    return JSON.parse(JSON.stringify(proxima)) as OfertaCatalogo;
   }
 }

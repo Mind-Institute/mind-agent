@@ -31,7 +31,7 @@ function mensagemDoErro(erro: unknown): { titulo: string; descricao: string } | 
       return {
         titulo: 'Sem acesso ao painel',
         descricao:
-          'Esta conta existe, mas não tem papel administrativo cadastrado. Fale com quem administra o Mind Agent.',
+          'Esta conta existe, mas não tem papel administrativo cadastrado. Fale com quem administra o Mind Intelligence Admin.',
       };
     case 'rede':
       return {
@@ -69,9 +69,9 @@ export function PaginaLogin() {
         <header className="space-y-2 text-center">
           <img src={simboloMind} alt="" className="mx-auto size-10" />
           <div>
-            <h1 className="text-lg font-black tracking-tight">Mind Agent</h1>
+            <h1 className="text-lg font-black tracking-tight">Mind Intelligence</h1>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Administração
+              Admin
             </p>
           </div>
         </header>
@@ -90,6 +90,27 @@ export function PaginaLogin() {
             <AlertTitle>{aviso.titulo}</AlertTitle>
             <AlertDescription>{aviso.descricao}</AlertDescription>
           </Alert>
+        ) : null}
+
+        {sessao.podeEntrarComGoogle ? (
+          <div className="space-y-2 rounded-lg border bg-card p-5">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={sessao.carregandoLogin}
+              onClick={() => void sessao.entrarComGoogle().catch(() => undefined)}
+            >
+              {sessao.carregandoLogin ? <Salvando /> : <LogIn />}
+              Entrar com o Google da Mind
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Só para admins do sistema, com a conta @joinmind.com.br.
+            </p>
+          </div>
+        ) : null}
+
+        {sessao.podeEntrarComGoogle ? (
+          <p className="text-center text-xs text-muted-foreground">ou, por enquanto, com e-mail e senha</p>
         ) : null}
 
         <form

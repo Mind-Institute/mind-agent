@@ -316,7 +316,7 @@ carregava já tem casa canônica no mesmo turno. Esta consulta prova campo a cam
 nenhuma coluna pode vir vazia num caso que teve turno de agente:
 
   select c.session_external_id,
-         c.participante_id     is not null as pessoa,
+         c.mind_id             is not null as pessoa,
          c.session_external_id is not null as referencia,
          c.agente              is not null as agente,
          c.produto_codigo      is not null as produto,

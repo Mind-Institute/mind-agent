@@ -19,6 +19,12 @@ export function formatarMoeda(
   }).format(valorEmCentavos / 100);
 }
 
+/** Formata REAIS em BRL — como o schema `catalogo` guarda o preço (numeric), sem centavos inteiros. */
+export function formatarReais(valor: number | null | undefined, moeda = 'BRL'): string {
+  if (valor === null || valor === undefined || Number.isNaN(valor)) return '—';
+  return new Intl.NumberFormat(LOCALE, { style: 'currency', currency: moeda }).format(valor);
+}
+
 /** `2026-09-16` → `16/09/2026`. Sem `new Date()` para não escorregar de fuso. */
 export function formatarData(iso: string | null | undefined): string {
   if (!iso) return '—';

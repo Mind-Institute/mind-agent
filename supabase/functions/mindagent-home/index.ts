@@ -292,6 +292,69 @@ Deno.serve(async (req: Request) => {
   const id = iAdmin >= 0 ? partes[iAdmin + 2] : undefined;
   const acao = iAdmin >= 0 ? partes[iAdmin + 3] : undefined;
 
+  // Decisões oficiais: reutiliza o mesmo gate de sessão/admin desta porta.
+  // Somente leitura; implementação é uma fotografia separada da decisão.
+  if (recurso === "decisoes") {
+    if (id || acao || partes.length !== iAdmin + 2) {
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
+    }
+    if (req.method !== "GET") {
+      return json(req, 405, { codigo: "metodo_nao_permitido", mensagem: "As decisões são somente leitura." }, requestId);
+    }
+    if (!ACOES_POR_PAPEL[acesso.role].has("view")) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Sem permissão para visualizar." }, requestId);
+    }
+    const { data, error } = await comSegredo.schema("arquitetura").from("decisoes")
+      .select("*,implementacao:implementacao_decisoes(*)").order("numero");
+    if (error) return erroDeRpc(req, error, requestId);
+    const itens = (data ?? []).map((d: Record<string, unknown>) => {
+      const { implementacao, ...decisao } = d;
+      const mapa = implementacao as Record<string, unknown> | null;
+      return { ...decisao, situacao: mapa?.situacao ?? null, leitura: mapa?.leitura ?? null,
+        lugares: mapa?.lugares ?? null, medido_em: mapa?.medido_em ?? null };
+    });
+    return json(req, 200, { fonte: "arquitetura.decisoes", itens }, requestId);
+  }
+
+  // Mapa auditado dos schemas: leitura autenticada, sem conteúdo arquitetural no código.
+  if (recurso === "mapa-schemas") {
+    if (id || acao || partes.length !== iAdmin + 2) {
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
+    }
+    if (req.method !== "GET") {
+      return json(req, 405, { codigo: "metodo_nao_permitido", mensagem: "O mapa de schemas é somente leitura." }, requestId);
+    }
+    if (!ACOES_POR_PAPEL[acesso.role].has("view")) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Sem permissão para visualizar." }, requestId);
+    }
+    const { data, error } = await comSegredo.schema("arquitetura").from("mapa_schemas")
+      .select("*").order("tipo").order("schema_name");
+    if (error) return erroDeRpc(req, error, requestId);
+    return json(req, 200, { fonte: "arquitetura.mapa_schemas", itens: data ?? [] }, requestId);
+  }
+
+  // Business Consulting Knowledge: o conhecimento de business que o agente consultor interno usa
+  // (livros ingeridos em `business_strategy`). Somente leitura, pela função do painel — o schema
+  // não é exposto na API. Sem id: livros, objetos e totais. Com id: um objeto com citações e relações.
+  if (recurso === "business-consulting") {
+    if (acao || partes.length > iAdmin + 3) {
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
+    }
+    if (req.method !== "GET") {
+      return json(req, 405, { codigo: "metodo_nao_permitido", mensagem: "O Business Consulting Knowledge é somente leitura." }, requestId);
+    }
+    if (!ACOES_POR_PAPEL[acesso.role].has("view")) {
+      return json(req, 403, { codigo: "sem_permissao", mensagem: "Sem permissão para visualizar." }, requestId);
+    }
+    if (id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return json(req, 404, { codigo: "nao_encontrado", mensagem: "Registro não encontrado." }, requestId);
+    }
+    const { data, error } = await comSegredo.rpc("mind_admin_read_business_consulting", { p_objeto_id: id ?? null });
+    if (error) return erroDeRpc(req, error, requestId);
+    if (id && !data) return json(req, 404, { codigo: "nao_encontrado", mensagem: "Registro não encontrado." }, requestId);
+    return json(req, 200, { fonte: "business_strategy", ...(data as Record<string, unknown>) }, requestId);
+  }
+
   if (!recurso || !RECURSOS.has(recurso)) {
     return json(req, 404, { codigo: "nao_encontrado", mensagem: "Rota não encontrada." }, requestId);
   }

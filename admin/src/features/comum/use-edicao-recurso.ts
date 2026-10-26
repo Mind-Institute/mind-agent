@@ -69,11 +69,18 @@ export function useEdicaoRecurso<K extends NomeRecurso, TForm extends FieldValue
   useEffect(() => {
     if (registro) formulario.reset(paraFormulario(registro));
     else formulario.reset(padrao);
-    setSalvo(false);
-    setErroEscrita(null);
     // `formulario` e `padrao` são estáveis o bastante; reagir ao registro basta.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registro]);
+
+  /* A confirmação de "salvo" e o erro da última escrita pertencem ao
+     registro aberto: trocar de registro limpa os dois. A releitura que a
+     própria escrita provoca, não — senão a confirmação sumiria no instante
+     em que o banco devolve o valor novo. */
+  useEffect(() => {
+    setSalvo(false);
+    setErroEscrita(null);
+  }, [id]);
 
   /** Toda escrita manda o `atualizadoEm` que a tela viu.
    *  Nem todo recurso tem o campo (tema e auditoria não têm) — sem ele

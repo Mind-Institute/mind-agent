@@ -6,6 +6,629 @@
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
 
+### MIA Summit 2026 e Agent Intelligence — 22/10/2026
+
+- PR: `Mind-Institute/mind-agent#165`, branch `claude/mind-summit-agent-nc7ztx`. Desenho e estado em
+  `SUMMIT_2026_AGENTE_CONTEUDO_PROPOSTA.md` (§8). Aprovações da Adriana na conversa de 22/10 (D7, D10, D2).
+- Aplicado no banco vivo, com migrations versionadas: `20261022120036`, `20261022120512`,
+  `20261022121737`, `20261022122040`, `20261022122433`.
+- **Conserto em produção:** `mind_intelligence_buscar_contextual` e `_ler_contextual` falhavam em toda
+  chamada desde 27–29/09 (UNION com `d.*` depois de `sessao_id/transcrito/slides`). Concierge, suporte,
+  Institute e Dash estavam sem `buscar_intelligence`/`ler_intelligence`. Agora com colunas explícitas.
+- **Painel:** as 9 funções de Knowledge/Agent Intelligence davam 503 (SECURITY INVOKER sem USAGE do
+  service_role); agora SECURITY DEFINER. Agent Intelligence ganhou visão por agente (conhecimento, kit,
+  canais, prompts com `agentes.prompts_historico`); só administrador edita. `mindagent-knowledge` v8
+  (hoje v10).
+  O frontend dessa visão sai com o merge da PR (Workers Builds).
+- **Agente:** rota `mia_summit_2026` (MIA Summit 2026), **desligada**: playbook rascunho `ativo=false`,
+  canais `ativo=false`. 55 transcrições e 37 slides ligados atrás do interruptor `business/summit_content`
+  (só a MIA tem). 1.140 trechos por minuto, **sem embedding ainda** (ver o botão abaixo).
+- **Embeddings:** botão "Gerar embeddings do Summit" na aba Conhecimento (`POST /admin/knowledge_embeddings`
+  na `mindagent-knowledge`, que chama o indexador com a chave secreta). Sai com o merge.
+- **Fase 1 da ficha do agente** (aprovada pela Adriana, 22/10; migration `20261022131251`,
+  `mindagent-knowledge` v10 / 1.3.0):
+  - `public.mind_agent_instrucoes(rota)` é a montagem única das instruções: `base` → playbook →
+    `kit_blocos` seção `instrucoes` (por `ordem`, liga/desliga por agente) → `decisioning`. O
+    `mind_agent_kit` passou a usá-la; a migration conferiu que o texto de todas as rotas saiu idêntico.
+    Bloco `instrucoes` obrigatório e ligado sem texto: a montagem devolve nada e o agente não responde.
+  - O protocolo de crise da MIA saiu do playbook (v2, a v1 está no histórico) e virou o bloco
+    obrigatório `protocolo_crise_mia_summit_2026`. Desligar pede confirmação na tela.
+  - **`tom_de_voz` não chegava a nenhum agente** (removido do caminho em `20260903110000`). Agora aparece
+    desligado em todos os agentes, com "criar versão própria" (copia o texto para `<bloco>_<rota>`).
+  - Skills: descrição de `concierge.ferramentas` editável, versão anterior em `prompts_historico` com
+    chave `ferramenta:<nome>`.
+  - Tela: abas Instruções (ordem real, texto completo, editor), Conhecimento, Skills, Dados oficiais,
+    Canais. Sai com o merge.
+- **Achados para as próximas fases (não mexidos):**
+  - o `router` só escolhe entre 6 rotas fixas no código (`ROTAS`): a MIA não pode ser escolhida por ele;
+  - a porta direta `ROTA_POR_ORIGEM` (`mind_summit_app → concierge_summit`) está no código da `mindagent-chat`;
+  - a análise pós-conversa (`analisar-conversa` v16, não versionada no repo) não olha a rota:
+    `analise_pendentes` filtra por `agente` (runtime). Não há interruptor por agente. Analisador
+    desligado deixa a conversa na fila e o classificador roda de novo a cada 15 min (BACKLOG §18.1).
+    O cron `silence_reavaliar` está desligado;
+  - `intelligence.config` guarda segredos em texto legível por qualquer leitor SQL.
+- **Fase 2 — Canais e Roteador** (aprovada pela Adriana, 22/10; migration `20261022133526`,
+  `mindagent-knowledge` v11 / 1.4.0):
+  - `agentes.rotas` (D2): cadastro dos agentes — nome, "o que faz" (editável na ficha do agente) e
+    `analisa_conversas` (ainda sem efeito; é para o menu da Análise). `canal_competencia.rota` referencia.
+  - `agentes.canal_competencia` ganha `roteavel` (o roteador pode escolher este agente neste canal) e
+    `entradas_diretas` (entradas que abrem direto nele). Semeado igual ao código de antes: as 6 rotas da
+    lista fixa do `router` roteáveis onde já estavam; `mind_summit_app → concierge_summit` no app.
+  - `mind_canal_rotas` devolve `roteaveis`; `mind_origem_rota(origem, canal)` é a porta direta.
+    `mind_admin_update_agent_channel` ganhou assinatura de 7 parâmetros; a de 5 ficou e só repassa.
+  - Tela `/canais` (Canais e Roteador): por canal, por onde a pessoa chega (entradas do WhatsApp em
+    `engagement.origens`, só leitura; portas diretas do app), quem atende primeiro, "roteador pode
+    escolher", entradas diretas por agente e o prompt `router_universal` editável.
+  - **Publicado em 22/10 (aprovação explícita da Adriana para o deploy controlado):** `router` 1.3.0
+    (v12) lê `roteaveis` e não tem mais lista própria (`tests/router_politica.test.mjs`);
+    `mindagent-chat` 1.16.0 (v49) lê a porta direta por `mind_origem_rota` e tem o modo teste do
+    Playground. Antes de publicar, conferido que o que estava no ar (router v11, chat v48) era
+    idêntico ao repositório em `cabce79`. O chat passou a ser empacotado como o
+    `treble-inbound-agent`: entrypoint `mindagent-chat/index.ts` + `_shared/*.ts` ao lado (manter
+    esse layout em deploys futuros). Ponta a ponta com sessão anônima do app: entrada
+    `mind_summit_app` → `concierge_summit` (`rota_origem=origem_autoritativa`, lida do banco); sem
+    entrada → roteador → `institute`.
+- **Fase 3 — Playground por agente** (aprovado pela Adriana, 22/10; migration `20261022135030`):
+  - `mindagent_playground_start(auth_user, token_hash, rota)`: só administrador ativo; abre uma conversa
+    nova (dispositivo próprio `playground:<uuid>`) com `agente = 'mindagent-playground'` e
+    `variables = {teste, rota_ativa}`. Esse `agente` é o que a deixa fora de `analise_pendentes` e,
+    por consequência, da memória, da continuidade e do HubSpot. `mindagent_chat_get_context` devolve
+    também `agente` (chave a mais, o chat v48 no ar ignora).
+  - `mindagent-chat` 1.16.0 (publicado, v49): `playground.rota` na abertura chama a porta
+    de teste; nos turnos, `modoTeste = contexto.agente === 'mindagent-playground'` (nunca o corpo).
+    Em teste: a `rota_ativa` vale mesmo fora do canal, o Gate tolera só `canal_incompativel` (playbook
+    e dados oficiais continuam obrigatórios), nada sobre a pessoa é gravado (identidade, perfil,
+    interesses, checkout); as mensagens da conversa de teste são gravadas. Resposta ganha `teste`,
+    `rota_origem` e `ferramentas`. Testes: `tests/playground_modo_teste.test.mjs`.
+  - Painel: aba **Playground** na ficha do agente (`components/admin/playground.tsx`), chamando a
+    `mindagent-chat` com o token do admin. CORS conferido: o chat aceita as origens do worker, do
+    preview da branch e de admin.minddash.pro. Falta o teste real do Playground por um administrador
+    (eu não tenho sessão de admin): no preview da branch, Agent Intelligence → MIA → Playground,
+    depois de ligar o playbook dela na aba Instruções.
+  - Para testar a MIA hoje: ligar o playbook dela na aba Instruções (os canais podem ficar desligados).
+- **Fase 4 — Conversas reais por agente** (aprovada pela Adriana, 22/10: só administrador, sem
+  telefone/e-mail; migrations `20261022140302` e `20261022140901`; `mindagent-knowledge` 1.5.0):
+  `mind_admin_read_agent_conversations(p_id)` lista as conversas dos últimos 90 dias atendidas por
+  agente nosso (`mindagent-chat`, `treble-inbound-agent`, `mindagent-playground`), com quem respondeu
+  cada fala (`blocos.rota_aplicada`/`rota`), skills, modelo, tempo e as análises. Nunca seleciona
+  telefone/e-mail e mascara o que aparecer nos textos e nos JSONs das análises
+  (`mind_admin_mascarar_contato`: e-mail e 10+ dígitos; `mind_admin_mascarar_jsonb` só em strings —
+  número JSON cru não é mascarado). Aba Conversas na ficha do agente. Conversas dos fluxos da Treble
+  (sem agente nosso) ficam de fora.
+- **Fase 5 — Análise pós-conversa** (aprovada pela Adriana, 22/10; migration `20261022141316`;
+  `mindagent-knowledge` 1.6.0; `analisar-conversa` v17 versionada em `supabase/functions/analisar-conversa/`):
+  - `analise_pendentes` honra `agentes.rotas.analisa_conversas` pelo último agente que respondeu
+    (fluxos da Treble, sem agente, continuam entrando). A fila tinha 2 conversas sem agente no
+    momento, então o interruptor foi conferido pela lógica, não por conversa real.
+  - `analisar-conversa` v17: conversa sem nenhum analisador ativo recebe a marca `sem_analisador`
+    (`analise_gravar` com dados vazios) e sai da fila até mensagem nova — conserto do BACKLOG §18.1.
+  - `mind_admin_read_analysis_runs` (só administrador, mascarado): últimas execuções, conclusão e as
+    memórias que cada uma gravou. `mind_admin_update_agent` ganhou `p_analisa_conversas`.
+  - Tela `/analise`: prompts da análise (editáveis, com histórico), liga/desliga por agente, últimas
+    execuções e o que gravaram.
+  - Não mexido: o cron `analise_conversas` sem `timeout_milliseconds` (pg_net responde timeout em 5 s
+    e registra como erro, embora a função termine); `silence_reavaliar` continua desligado.
+- Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
+  (P6), identidade (P7) e teste com perguntas reais (P8).
+
+### Arquitetura no Supabase — 07/10/2026
+
+- Fonte oficial: `arquitetura.decisoes`, projeto mind-agent (`ymnmotgglsrxmjmonwjz`).
+  D1–D11 transferidas e conferidas. Não manter cópias nem gerar exportações de decisões.
+- `arquitetura.implementacao_decisoes` separa a fotografia de aplicação do texto aprovado.
+  A data de aferição limita a validade dos números antigos; aplicação integral não é presumida.
+- `mindagent-home` v9 publicada: `GET /admin/decisoes`, mesma validação de sessão e admin
+  ativo existente. Leitura direta do schema arquitetura, sem view/RPC em outro schema.
+  Sem login: 401, inclusive com Origin do painel. POST recusado. Só service_role lê as
+  duas tabelas; visitantes não têm acesso e a porta não tem permissão de escrita.
+- `arquitetura` acrescentado aos schemas de PostgREST, preservando public/graphql_public/api.
+  Existia override no role authenticator; a migration preserva a lista e acrescenta o schema.
+- Entrada obrigatória de agentes/pessoas está no início de AGENTS.md, com referências
+  nos demais documentos da raiz. Estudar as decisões e o schema antes de tocar no sistema.
+- Frontend PUBLICADO em produção pelo Workers Builds do commit `92fd46b` (check success).
+  Conferido em `https://admin.minddash.pro/admin/arquitetura/decisoes`: HTTP 200, bundle novo
+  `index-CyAMnyaI.js` contém a leitura `/admin/decisoes`, fonte arquitetura.decisoes e atualização
+  a cada 60 segundos. Sem lista fixa ou fallback local. Sessão real da Adriana não foi usada.
+- Validação: 13 testes de frontend/navegação e 8 testes da porta Edge passaram; typecheck,
+  build combinado e dry-run do Worker passaram; contrato SQL passou no banco vivo.
+- Supabase Preview segue falhando com "Remote migration versions not found in local migrations
+  directory". A mesma falha estava no commit anterior `e1b10ea`; não foi causada por esta entrega.
+  Estrutura aplicada diretamente e conferida; não tratar esse check como prova de ausência no banco.
+- A migration versionada contém somente estrutura/permissões; os textos foram transferidos
+  uma vez por SQL e vivem somente no Supabase. Uma instância vazia não recebe decisões falsas
+  de um arquivo de código. Não inserir seed local para substituir a fonte oficial.
+
+### Eduzz API2 — estado desta sessão, 07/10/2026
+
+- Adaptação da `eduzz-api` aprovada pela Adriana nesta conversa e publicada, v4.
+  É a porta central de leitura da API2 (`https://api2.eduzz.com`), não Bearer da API moderna.
+- Credenciais vivem nos secrets Edge do Supabase: `EDUZZ_API_KEY`, `EDUZZ_EMAIL`;
+  `EDUZZ_PUBLIC_KEY` opcional. Não copiar valores para código, documentos ou chat.
+  O email solicitado foi salvo em `EDUZZ_EMAIL`. O ambiente de desenvolvimento usa
+  `SUPABASE_ACCESS_TOKEN` para Management e `SUPABASE_Secret_Key` para REST de serviço;
+  essas variáveis não substituem os secrets de runtime da Eduzz.
+- Autenticação API2: POST /credential/generate_token com email/publickey/apikey;
+  chamadas GET usam header token, renovado por profile.token. `eduzz-api` não devolve
+  credenciais. Chamada exige o token interno existente em intelligence.config.
+- Leitura integral conferida: 373 produtos, 15 páginas. `eduzz.produtos` ainda tem 343;
+  o espelho continua ativo. Conversão da gravação NÃO publicada: o rascunho que misturava
+  entrada e tratamento foi retirado e preservado em /tmp, pois conflita com a decisão D9.
+  A definição da separação exige aprovação arquitetural antes da implementação.
+
+### D8 · sem n8n — 07/10/2026
+
+Da Adriana: *"não quero usar n8n, e o que existia em n8n deve ser migrado para funções usando a
+API dos sistemas"*. Congelada em `PROJECT_STATE.md` v12 e `CLAUDE.md`. Nada foi migrado nem
+desligado ainda; cada substituição é proposta e aprovada por D7 antes. Workflows ativos vistos em
+07/10 que falam com o ecossistema: "Mind Vendas — Eduzz → HubSpot" (`hRHhDrckKD8Lj7VX`, webhook
+`/webhook/eduzz-events`, 62 nós, grava em `mind-hubpost`), "Mind Vendas — Blinket Ingressos
+(Eduzz → HubSpot)" (`9D1PYxk3wYHGYPEr`), "Mind — Summit 2026 Participação → HubSpot"
+(`zrHHtKHJ5BjxZ0A1`), "Mind — Validate Combo" (`73WDAsMt1GDz3M8P`). Inventário completo dos
+workflows ainda não feito.
+
+### D7 · catálogo Eduzz autoral · funções Eduzz pendentes — 07/10/2026
+
+Da Adriana (07/10): *"a tabela eduzz.produto_catalogo em agents vai puxar direto da eduzz os
+produtos todos que estiverem la … ela nao mais sera espelho"* · *"Você não pode criar nenhuma
+função sem eu aprovar"* · *"Antes de você sair criando coisa igual, você tem que melhorar o que já
+está aí"*. Contexto: a Eduzz cria um produto novo a cada variação de oferta (preço, combo), por
+isso o catálogo dela tem centenas de itens; a estratégia combinada é **construir o novo ao lado e
+desligar o velho quando estiver inativo**, não migrar em bloco o `mind-hubpost`.
+
+- **D7 congelada** (`PROJECT_STATE.md` v11, `CLAUDE.md`): nenhuma função criada, alterada ou
+  apagada sem o "ok" dela.
+- **`eduzz.produto_catalogo` deixou de ser espelho do `mind-hubpost` — LOCAL_AUTHORITATIVE
+  (mudança de proveniência pedida por ela, D2).** Feito: fonte `produto_catalogo` removida do
+  `eduzz-espelho-sync` (v11 viva); `id` com default `gen_random_uuid()`, `updated_at` com default e
+  trigger `produto_catalogo_touch`; `sincronizado_em` virou histórico (nulo = nascida aqui); UNIQUE
+  em `eduzz_product_id`; trigger `produtos_garante_catalogo` em `eduzz.produtos` cria a linha
+  (sem mapeamento) para todo produto novo; backfill: **343 linhas = 193 mapeadas + 150 sem
+  mapeamento** (134 delas produto-pai arquivado). `mapped_at` nulo = ainda não mapeado.
+  Sobrou a linha `produto_catalogo` em `public.espelho_estado` (último status "ok"): o `delete`
+  pelo MCP travou à espera de confirmação — apagar à mão.
+- **Atenção:** o n8n "Mind Vendas — Eduzz → HubSpot" (`hRHhDrckKD8Lj7VX`) ainda lê o catálogo do
+  `mind-hubpost` (`get_catalog_with_combo`). Mapear no mind-agent **não** muda o que o n8n faz, e
+  o que se mapear no front antigo não chega mais aqui, até o n8n apontar para o mind-agent.
+- **`eduzz.produtos` continua espelho do `mind-hubpost`** (que puxa da API a cada 2 dias com o
+  `EDUZZ_API_TOKEN` de lá). A `EDUZZ_API_KEY` do mind-agent, trocada por ela em 07/10, **continua
+  recusada pela Eduzz** (`/accounts/v1/me` → 401 *invalid_token*; OAuth → *App not found*): é
+  chave do formato antigo, não token de acesso.
+- **Criadas SEM aprovação (violam D7) — aguardam a decisão dela, nada mais foi mexido:**
+  Edge Functions `eduzz-produtos-sync` (v3, não agendada, nunca sincronizou) e `eduzz-api` (v1,
+  leitura genérica, nunca usada); funções de banco `public.eduzz_produtos_gravar(jsonb)` e
+  `public.eduzz_produtos_arquivar_pais()` (só `service_role`; usadas apenas pela primeira).
+- **Inventário (07/10):** nenhuma função existente puxa "qualquer coisa" da Eduzz. As que falam
+  com a API estão todas no `mind-hubpost`, cada uma fixa: `sync-eduzz-products`,
+  `check-eduzz-sale-status`, `eduzz-ingest-desconto`, `eduzz-cupom-probe`, `eduzz-webhook-admin`
+  (todas com `EDUZZ_API_TOKEN` como Bearer em `api.eduzz.com`). No mind-agent só `eduzz-diag` e
+  `eduzz-espelho-sync`.
+
+### Catálogo no painel · Summit fora de venda · Join no mesmo banco — 25/09/2026
+
+Da Adriana (25/09): *"O Summit não tá mais à venda. Pode parar de copiar a cada 30 minutos."* ·
+*"As ofertas do instituto precisam ser todas as ofertas do Mind. Vão ser manipuladas a partir de um
+painel de admin ligado ao agente aqui."* · *"comece a tela de catálogo primeiro"* · *"vou querer editar
+no frontend e essa edição ir para o backend quando eu quiser salvar"* · *"o git deve ser o git do mind
+agent"* · *"Pare de dizer que o Vinicius irá executar qualquer coisa"*.
+
+- **Catálogo no painel — EM PRODUÇÃO no banco e na função; a tela sai no merge.** `/catalogo` no
+  `admin/` lê e edita `catalogo.produtos`. Banco: `mind_admin_read_catalogo` e
+  `mind_admin_mutate_catalogo` (ledger `20260925183716`, arquivo com o mesmo número e md5), só
+  `service_role` executa; papel conferido de novo, versão obrigatória (409 em conflito), antes/depois em
+  `mind_admin_audit` (`resource = 'products'`); `codigo` (chave de 13 tabelas) e `schema_dados` não se
+  editam; nada se cria nem se apaga. Contrato `tests/catalogo_painel_contract.sql` → `CATALOGO_OK`
+  (rodado em produção, sem rastro). Edge Function nova `mindagent-catalogo` **v2 viva = o código do
+  repo**, `verify_jwt = false` (valida a sessão por dentro, como a `mindagent-home`); conferida pelo
+  `pg_net`: `health` 200, sem login 401, origem estranha 403, token falso 401. A tela manda ao banco só
+  o que mudou (a janela de venda guarda segundos). Painel: 218/218 testes, build Cloudflare verde.
+- **Summit fora de venda — executado.** Jobs `mindagent-sync-precos` (30 min, ledger `20260925181108`)
+  e `mindagent-sync-disponibilidade-diaria` (21h, ledger `20260925182409`) desligados, não apagados. As
+  3 linhas do Lote 7 passaram a `ativo = false`, `publico = false`. Nenhuma oferta do Summit ativa.
+- **Projetos do Summit fora deste banco — decisão dela:** `mind-summit-vendas-dashboard` **nunca
+  apagar** (pode virar "mind financeiro"; renomear não quebra nada, este banco usa o ref
+  `tkludhksqcnhhpgqyfqq`) — é a única conta com token válido da Eduzz e a origem do
+  `eduzz-espelho-sync`, por onde entram as vendas do Institute (30 desde 18/09). `app-palestrantes` e
+  `convites-temporario` ficam. O site do Summit fica no ar como está. `mind-summit-propostas`: **deixar
+  inativo, não apagar** — **não pausado ainda**: o site do Summit ainda chama a função `site-lote` dele
+  (10 vezes em 24 h, de um worker Cloudflare) e a `pricing` foi aberta por navegadores; pausar faz essas
+  chamadas falharem. Decisão dela (25/09): não mexer nele por enquanto.
+- **Decidido (produto):** o painel único é o `admin/` deste repo, servido pelo worker `mind-agent`. O
+  modelo de oferta do Institute vira o de todas as ofertas do Mind; **onde ele mora** (generalizar
+  `institute.ofertas` por `produto_codigo` ou ocupar `catalogo.ofertas`, hoje vazia) é troca de
+  autoridade — D2 antes de implementar. Docs (`CLAUDE.md`, `AGENTS.md`, `PROJECT_STATE.md`, mapa vivo):
+  D2 continua com ela como única aprovadora; a atribuição de execução ao Vinicius saiu.
+- **Verificado — Join:** `joinmind.com.br` e `mindinstitute` usam este projeto (`ymnmotgglsrxmjmonwjz`).
+  O `/admin` do joinmind está no código publicado, mas não está em uso: a única conta da equipe não é a
+  da Adriana (último login 17/09), nas últimas 24 h só houve acesso sem login (401), 7 das 9 telas servem
+  o checkout próprio, desligado desde 16/09, e a última mudança de oferta (21/09) foi SQL direto.
+- **Auditoria de acesso (login com Google — auditar antes, implementar depois):** 4.156 usuários de
+  login, 4.155 anônimos (o app); **uma** conta com e-mail e senha, a única de `mind_admin_users` e de
+  `seguranca.equipe`. Nenhuma identidade Google. A Adriana não tem conta própria neste projeto.
+  A equipe do Mind está em `pessoas.pessoas.relacionamento_mind` (15 pessoas `staff`, 14 com e-mail
+  `@joinmind.com.br` em `engagement.identidades`) — ser staff não dá acesso ao painel; quem dá é
+  `mind_admin_users`, por `user_id`.
+- **Permissões de função — EXECUTADO (decisão dela, 25/09).** As 19 funções internas das filas
+  (`silence_*`, `summit_*` de status/contato, `treble_*` de evento/status) e `espelho_para_mind` passaram
+  a ser só do `service_role` (ledger `20260925201217`, arquivo com o mesmo número e md5). Quem as chama
+  é o próprio sistema (chave secreta e os jobs `treble_status_dia`/`treble_status_noite`); nada mais
+  dependia delas, e as chamadas do sistema seguiram em 200 depois da troca. **Função nova nasce sem
+  EXECUTE para PUBLIC** (padrão global do postgres): a migration concede explicitamente a quem chama.
+  Contrato `tests/permissoes_funcoes_contract.sql` → `PERMISSOES_OK`. Pedido dela, na sequência: as duas
+  portas do site, `mind_origem` e `mind_utm_registrar`, também fecharam (ledger `20260925212628`; sem uso:
+  `engagement.utm_sessoes` parou em 22/08). Aberta de propósito ficou só `mind_fusao_decidir`, que confere
+  admin/aprovador por dentro. No `mind-summit-vendas-dashboard` (fora deste git), as 4 funções do espelho
+  de lá (`espelho_blinket_*` e `espelho_cupons_*`, fire e load) passaram a ser só do sistema (ledger de lá
+  `20260925212819`); os jobs delas rodam como o dono e seguem iguais.
+- **Segredo do espelho de vendas — trocado (25/09).** O par `intelligence.config.vendas_espelho_segredo`
+  (aqui) ↔ `mind_agent_espelho_segredo` (Vault do `mind-summit-vendas-dashboard`) ganhou valor novo,
+  gerado no banco e levado de um projeto ao outro por `pg_net`, sem passar pela conversa; a porta
+  temporária da troca foi apagada. Sessões antigas da conta admin encerradas.
+- **Admins do sistema por Mind ID — banco e função no ar; o login Google espera a configuração dela.**
+  Da Adriana (25/09): *"não é backoffice mas admins deste sistema e daí sim podemos fazer por Mind ID e
+  sempre antes de colocar a pessoa ela deve existir como um Mind ID e em Mind ID da equipe tem que poder
+  marcar equipe para não confundir com lead"*; e, antes, *"mesmo banco, porta própria"*.
+  - `mind_admin_users` ganhou `mind_id` (ledger `20260925232508`, arquivo com o mesmo número e md5):
+    a pessoa tem que existir, não pode ser fundida e, com acesso ativo, tem que estar marcada como
+    equipe (`staff` em `relacionamento_mind`, a marca de 23/09). A lista nunca cria pessoa. `user_id`
+    fica vazio até o primeiro login; chave nova `id`. A conta genérica antiga (sem pessoa) vale até o
+    Google entrar e depois sai.
+  - `mind_admin_vincular_login` (só `service_role`) liga a conta no primeiro login: Google, e-mail
+    verificado @joinmind.com.br, uma pessoa só com esse e-mail, acesso ativo e equipe; o login vira
+    identidade pela porta única, sem criar pessoa. Contrato `tests/admins_do_sistema_contract.sql` →
+    `ADMINS_OK` (12 casos, rodado em produção, sem rastro).
+  - A Adriana é a primeira admin, pelo Mind ID. Edge Function nova `mindagent-acesso`
+    (`POST /admin/vincular`), **v1 viva = o código do repo**, conferida pelo `pg_net`. Painel: botão
+    "Entrar com o Google da Mind" (PKCE, `hd=joinmind.com.br`); 403 em `/admin/me` → vincula uma vez
+    → `/admin/me` de novo. Painel 223/223, raiz 419/419, build verde.
+  - **Falta (dela):** app de login "Interno" no Google Workspace; Client ID e Secret colados no
+    provedor Google do Supabase; Redirect URLs do painel (produção e previews). Depois: tirar e-mail e
+    senha do painel, apagar a conta genérica, aposentar `seguranca.equipe` e o admin antigo do Join,
+    endereço próprio do painel e a tela "Admins do sistema" para ela dar e tirar acesso.
+- **Painel em `admin.minddash.pro` (pedido dela, 26/09).** O domínio foi ligado por ela ao worker
+  `mind-agent` pelo painel da Cloudflare. O mesmo worker separa por endereço: ali só o painel (raiz e
+  navegação levam a `/admin/`, arquivo do app público é 404); o `/admin` de **qualquer outro endereço**
+  do worker — o `workers.dev`, o domínio do app, um domínio ligado depois — leva para lá (302); só os
+  endereços de teste (previews e máquina local) seguem com o painel no próprio endereço. Pedido dela:
+  *"duas coisas diferentes em dois endereços distintos"*. Regras em `cloudflare/roteamento.js`, teste
+  `tests/roteamento_painel.test.mjs`. `avaliacao.mindsummit.com.br` foi desligado do worker por ela
+  (26/09, *"não vou usar ele aqui"*): a regra da pesquisa no Worker fica parada, sem efeito. **Aberto
+  (dela):** um worker ou dois. Código do app na raiz, do painel em `admin/` (não importa nada de
+  fora); separar depois muda só o worker atrás do endereço — Supabase e Google não se refazem. **Falta (dela):** secret `ADMIN_ALLOWED_ORIGINS =
+  https://admin.minddash.pro` nas Edge Functions (hoje as quatro do painel recusam a origem nova) e a
+  Redirect URL `https://admin.minddash.pro/admin/` no Auth. Previews montam sem as variáveis de build do
+  Supabase e abrem em demonstração: o teste de login é em produção.
+- **Conteúdo do admin — ela define.** Da Adriana (26/09): *"eu quero um admin da empresa, da
+  inteligência da empresa de modo geral"* · *"eu prefiro construir do que você assumir o que eu quero"*.
+  O painel atual nasceu como admin do app do Summit; o que entra no admin da empresa sai dela, sem
+  proposta pronta.
+- **O painel mostra só dado real (26/09, pedidos dela).** *"aqui estamos fazendo o painel de controle
+  da inteligência do Mind"*. Saíram do código do painel, em dois passos: primeiro o que era do app — a
+  **Home V3** (*"isso é sobre o app"*), o grupo **Evento** (evento, programação, palestrantes, espaços,
+  rotas, estandes) e a **visão geral**; depois, *"limpa tudo que não for dado real"* — **ofertas,
+  conteúdo, documentos, conversas, perguntas, usuários e auditoria**, que eram demonstração. Com eles
+  saiu a camada de dados que só os servia (tipos, sementes, dashboard, reindexação, rotas do evento no
+  provedor híbrido). Ficaram: **Catálogo** (real, `mindagent-catalogo`), **Avaliação do dia** e **do
+  evento** (reais, `mindagent-avaliacao`, leitura) e **Configurações**; a raiz abre no Catálogo, por
+  escolha dela, até ela definir a tela inicial. O mock ficou só como arnês de teste e do preview (sem
+  variáveis do Supabase), com a semente do catálogo; em produção o selo do topo diz *dados reais*.
+  Backend intocado: `mindagent-admin` (porta de `/admin/me`, e ainda serve as rotas do evento a quem
+  usar) e `mindagent-home` (o app lê a home dela) seguem vivas; nenhuma tabela mudou. A variável de build
+  `VITE_HOME_API_BASE_URL`, se existir na Cloudflare, não é mais lida. Painel 141/141, `tsc` limpo,
+  build verde; raiz 426/426. PR [#137](https://github.com/Mind-Institute/mind-agent/pull/137).
+- **Mind Intelligence Admin: menu por vertical e admins do sistema (26/09, pedidos dela).** O painel
+  se chama *Mind Intelligence Admin*. Saíram as **avaliações do dia e do evento**, **Configurações** e o
+  rodapé com a data do Summit (*"tira isso do painel"*). O menu tem o Catálogo, um título por vertical —
+  **Summit, Institute, Dash**, por ora vazios (*"so os titulos depois vamos mapear as principais tabelas
+  neles"*) — e **Administração → Admins do sistema** (*"a visão do quadro do backend onde eu cadastro as
+  pessoas que podem entrar no sistema"*, opção "ver e cadastrar"). Casa existente, `mind_admin_users`,
+  nenhuma tabela nova: portas `mind_admin_read_admins`/`mind_admin_mutate_admins` (ledger
+  `20260926144621` e `20260926144815`, arquivos com o mesmo número e md5; só `service_role`); dar acesso
+  exige pessoa única, não fundida e marcada como equipe no Mind ID; ninguém tira o próprio acesso; nunca
+  fica sem administrador; auditoria em `mind_admin_audit` (`resource = 'admins'`). Contrato
+  `tests/admins_no_painel_contract.sql` → `ADMINS_PAINEL_OK` (15 casos, rodado em produção, sem rastro).
+  `mindagent-acesso` **v3 viva = código do repo**. O Catálogo já salvava no banco (PATCH →
+  `mind_admin_mutate_catalogo` → `catalogo.produtos` + auditoria). Painel 146/146, raiz 433/433, build
+  verde. **Aberto para ela:** marcar equipe no Mind ID ainda não está no painel; aposentar a conta antiga
+  de senha (aparece como *sem Mind ID*); um ou dois workers.
+- **Catálogo ordena por qualquer coluna (26/09, pedido dela).** *"quero poder ordenar os produtos de
+  acordo com as colunas em ordem crescente e decrescente"*. Cabeçalho clicável (crescente → decrescente →
+  ordem do banco), ordem na URL, feita pela `mindagent-catalogo` (`1.1.0`, v4 viva = repo) na lista
+  inteira antes de paginar. De carona, conserto: trocar filtro não voltava à página 1 (duas navegações
+  seguidas, a segunda desfazia a primeira). Explicado a ela: `ativo` = o produto existe no vocabulário
+  (agentes, CRM e conhecimento usam); `vende` = pode ser vendido agora (o agente só oferece compra com os
+  dois ligados); `mind` (tipo empresa) é o código do conteúdo sobre o Mind como um todo.
+- **SUMMIT → Mind Summit 2026 → Programação (26/09, pedido dela).** *"em Summit quero um menu Mind Summit
+  2026 e dentro dele um menu com a tabela de programação conforme está no backend"*. `summit_2026.sessions`
+  (81 sessões), só leitura: porta `mind_admin_read_summit_2026_sessoes` (ledger `20260926154547`, mesmo md5;
+  contrato `SUMMIT_PROGRAMACAO_OK`), Edge Function nova `mindagent-summit` (v1 viva = repo), tela com lista,
+  filtros, ordem e detalhe com todas as colunas pelos nomes do banco; o menu ganhou submenu por produto dentro
+  da vertical. **Descoberta lateral:** a porta antiga `mind_admin_read_resource('sessions')` (usada pela
+  `mindagent-admin` em `/admin/sessions`) está quebrada — lê o schema `summit`, que virou `summit_2026`; nada no
+  painel a chama; registrada, sem ação.
+- **Institute: as datas do produto vêm da turma (26/09, pedido dela).** *"produtos do Institute devem
+  carregar a cópia e não deixar editar esses campos quando a fonte da verdade vier de outro lugar"*.
+  Conferido: checkout, ofertas, cupons, kits dos agentes, busca do chat e contexto do WhatsApp leem
+  `institute.programas.inicia_em/encerra_em`; `catalogo.produtos.comeca_em/encerra_em` só o painel lia — e
+  as duas não batem em nenhuma das 6 turmas. Agora `mind_admin_read_catalogo` mostra as datas da turma
+  (`datasDaTurma`) e `mind_admin_mutate_catalogo` recusa editá-las (`datas_da_turma`); ledger
+  `20260926153820`, mesmo md5; contrato `CATALOGO_OK` com os casos novos, sem rastro; `mindagent-catalogo`
+  1.2.0 (v5) com a frase. As colunas do catálogo NÃO foram sobrescritas: **aberto para ela** dizer quais
+  datas estão certas — depois disso, alinhar os dados e ligar a cópia à turma (gatilho).
+  **Correção no mesmo dia (ledger `20260926163932`, mesmo md5):** a leitura pegava a coluna crua da turma,
+  vazia em 4 das 6 — o painel mostrava as datas em branco. Os dois sites e o kit do agente
+  (`mind_kit_institute_catalogo`) leem `api.programas`, que, com a coluna vazia, usa o primeiro e o último
+  encontro (da turma ou da composição); `api.criar_pedido` não lê datas (a frase acima sobre checkout,
+  ofertas, cupons etc. lerem `inicia_em` estava errada). Agora o painel calcula igual; o contrato
+  `CATALOGO_OK` confere produto a produto contra `api.programas` (falhou no código antigo, passa no novo,
+  sem rastro). Hoje a cópia do catálogo bate com o site em 1 de 12 datas.
+- **Fonte da verdade dos sites e plano de preços no `catalogo` (26/09, pedidos dela).** *"sites do Join e
+  Institute não são um único projeto mas se alimentam do mesmo banco — preciso saber qual a fonte da
+  verdade"* e *"as tabelas de preços de quaisquer coisas a serem vendidas no Mind ... devem vir para o
+  schema catalogo — faça uma auditoria da database e mapeie o que precisa ser migrado fazendo um plano"*.
+  Dois documentos, só leitura, sem PII, números de venda nem achados de segurança (esses foram a ela à
+  parte): `docs/FONTE_DA_VERDADE_SITES.md` (os dois sites leem as mesmas 6 views `api.*` sobre
+  `institute.*`; só o `/admin` do Join e SQL escrevem; link de compra e preço cobrado estão na Eduzz; em
+  01/10 o site passa ao preço de balcão — menos a seção "Avulsas", ver abaixo — e a Eduzz continua cobrando a Condição se ninguém mudar lá) e
+  `docs/PLANO_PRECOS_CATALOGO.md` (estado, destino de cada objeto, modelo alvo nas 4 tabelas `oferta*` que
+  já existem e estão vazias, etapas E0–E9 reversíveis com paridade na mesma transação, e 18 perguntas
+  para ela). **Aguarda a D2 dela**; nada foi executado. **Descoberta lateral para a lane #40:** o bloco
+  `institute_catalogo` entrega preço só em texto (`a_vista`/`parcelado`) e o guardrail de preço da
+  `treble-inbound-agent` não o reconhece — pergunta de preço do Institute tende a virar transferência;
+  e a `treble-inbound-agent` não recebeu nenhuma chamada de 22/09 a 26/09 (a `treble-webhook` recebeu).
+- **Passo 5 — a virada do Institute preparada e ensaiada (26–27/09; nada aplicado; espera o "pode virar").** Fora de
+  `supabase/migrations/` até o dia (`docs/sql/virada-institute/`): `01-virada.sql` carrega as 16 ofertas do
+  Institute no `catalogo` (copiadas dentro do banco, com a linha original em `origem`; os 2 testes como histórico;
+  o teste sem programa sem preço; os 8 bônus — o ingresso 2027 aponta para `mind-summit-2027-mind`, que não abre
+  acesso; as 5 regras de bump como exigência de carrinho), cria `catalogo.institute_ofertas` (a forma antiga,
+  lida do catálogo; rascunho que nunca foi ao ar e upgrade ficam de fora), põe `criar_pedido`, `validar_cupom` e
+  `cadastrar_compra_manual` para ler dela (só o nome muda), destrava "pôr no ar" (`produto_tem_leitor` aceita
+  leitura por qualquer relação do `catalogo`), congela as 3 tabelas antigas (gatilho; as 5 funções de edição do
+  /admin do Join passam a responder "Preços, ofertas e bumps agora se editam no painel do Mind. Nada foi
+  alterado.") e, por último, troca as 3 portas (`api.ofertas` só o que vale agora — decisão 8), com a paridade
+  conferida na mesma transação (portas, bloco do agente, fonte das funções, dono/permissões/tipos). `02-volta.sql`
+  devolve tudo e antes copia para a casa antiga o que o painel mudou. **Ensaios no banco real, desfeitos, sem
+  rastro:** A (portas em cópias temporárias) 14 = 14, 5 = 5, 8 = 8, carga 16/15/8/5, 64 ms; B (virada + 5 edições
+  no painel + volta) portas da casa antiga = do catálogo (16/5/9), rascunho fora. Contratos:
+  `tests/virada_institute_contract.sql` (`VIRADA_OK`, roda depois da virada) e `tests/ofertas_edicao_contract.sql`
+  agora vale antes e depois (`OFERTAS_EDICAO_OK` antes). **Ensaio C** (troca real das portas + os 2 contratos + a
+  volta, uma transação desfeita): `ENSAIO_C_OK`, portas presas 1.053 ms no total (na virada de verdade, só troca e
+  conferência: < 0,1 s), nenhuma leitura do site falhou, sem rastro. O site lê `api.ofertas` ~250 vezes/hora,
+  constante, dia e noite. **Pergunta (b), saída melhor que tirar o bump:** no checkout próprio do Join, o bump
+  aceito entra no carrinho buscando o preço em `api.ofertas` pelo código — tirá-lo de lá quebraria isso. Então
+  `03-bump-fora-da-lista.sql` (só com o OK dela) entrega o bump sem programa: ele sai das listas por programa (a
+  "Avulsas" deixa de mostrar R$ 1.497) e o checkout segue igual. Ensaio D (virada + 03 + volta, reais, desfeitos):
+  `ENSAIO_D_OK`, 250 ms, sem rastro. **Pergunta (a) pronta também:** `04-condicao-sai-sozinha.sql` (só com o OK
+  dela) desliga os 4 textos e as 4 perguntas do FAQ quando a última das 5 condições termina (agendamento de minuto
+  em minuto das 02h00 às 03h59 UTC de 01/10, que se apaga sozinho; se ela prorrogar no painel, eles ficam). Ensaio
+  E: `ENSAIO_E_OK`, sem rastro. **Respostas dela (27/09):** "1 - sim" (bump sem programa: 03 roda logo depois da
+  virada) e "2- sim" (textos e FAQ): **APLICADO** `20260927133341_condicao_summit_sai_sozinha` (ledger = arquivo, md5
+  `102b3325…`): agendamento `condicao-summit-2026-sai` ativo (`* 2-3 1 10 *`, UTC), função fechada, os 4 textos e as
+  4 perguntas seguem no ar até a condição acabar. Sem texto novo para as 3 perguntas: elas só saem. Sobre a data da
+  virada, ela escolheu (27/09) "Você dá o sinal, eu aplico": **nada roda antes de ela escrever "pode virar"**.
+  **Pacote do sinal pronto (27/09):** cabeçalhos aprovados em 01 e 03, com os nomes das migrations
+  (`virada_institute_le_o_catalogo` e `bump_fora_da_lista_de_precos`); o contrato da virada agora também confere o
+  bump sem programa na porta de preços; o aviso novo da tela Ofertas testado (tela Ofertas 25/25, build verde) e
+  guardado para o PR do sinal, porque diz que o site já lê o catálogo — o texto está no runbook. **Ensaio F** (01 +
+  03 + a Condição Summit + os 2 contratos, com as portas reais, numa transação que não podia gravar): `ENSAIO_F_OK`,
+  virada e bump em 162 ms, a condição continua saindo só depois da hora, sem rastro. Runbook do sinal:
+  `docs/sql/virada-institute/README.md`. **Falta:** o sinal dela, antes de 30/09 23h59. **Descoberta lateral (não é desta frente):**
+  `rpc/summit_status_pendentes`, chamada por uma Edge Function 1–2 vezes por hora, volta 500 em cerca de metade das
+  vezes desde 25/09 ~23h UTC; sem ERROR no `postgres_logs` da janela. Registrado; investigar depois.
+- **Passo 4 — ofertas editáveis no painel (26/09, noite; PR #149).** Banco (ledger `20260926210134`, mesmo
+  md5): `mind_admin_mutate_ofertas` (só `service_role`) — criar (nasce desligada), atualizar (listas de
+  preços, bônus e exigências inteiras), publicar e arquivar (os nomes que `mind_admin_audit` aceita); trava de
+  versão; antes e depois na auditoria com a hora do relógio; recusas com motivo (histórico só leitura, código
+  reservado — inclusive os 16 de `institute.ofertas` — ou travado depois de ir ao ar, linha que não sai de
+  oferta que já esteve no ar, parcela que não fecha, base sem prazo, exigência só em condicional, um preço sem
+  prazo no ar por produto, sem preço, prazo vencido, **sem leitor**). "Pôr no ar" só destrava quando
+  `api.ofertas` depender de `catalogo.ofertas` e o produto tiver programa no Institute — sozinho, na virada.
+  A leitura ganhou `jaFoiAoAr`, `bloqueioPorNoAr`, `sobrepostas` e o histórico de alterações. Contrato
+  `OFERTAS_EDICAO_OK` em produção (57 recusas, ensaio da virada dentro da transação), sem rastro.
+  `mindagent-catalogo` 1.4.0: `POST /admin/offers`, `PATCH /:id`, `POST /:id/publish` e `/:id/archive`; cupom
+  segue só leitura. Painel: Nova oferta, formulário com preços, bônus e exigências, Duplicar, Pôr no ar / Tirar
+  do ar com confirmação, histórico de alterações. Raiz 467/467, painel 189/189, build verde. Caiu a regra
+  "nenhuma condicional no ar" (ela manteve os bumps). **NO AR (26/09, noite):** #149 mergeada (`aa60742`);
+  `mindagent-catalogo` **v7 viva = o código do repo** (md5 `02fe24d2…`), conferida pelo `pg_net`: `health` 1.4.0,
+  criar sem login 401, pôr no ar de origem estranha 403. Divergência vista no ledger, de outra frente: `20260926210031_masterclasses_duplicadas_sao_turma_hnk`
+  aplicada sem arquivo em `main`.
+- **Passo 2 — telas Ofertas e Cupons no painel, só leitura (26/09, noite).** Portas
+  `mind_admin_read_ofertas` / `mind_admin_read_cupons` (ledger `20260926202049`, mesmo md5; situação
+  calculada com as pontas de janela de `api.ofertas`; `noSite` = o código está em `api.ofertas`; preço
+  de lista da cópia da Eduzz quando há código do produto lá); contrato `OFERTAS_PAINEL_OK` em produção,
+  sem rastro. `mindagent-catalogo` 1.3.0 serve `offers` e `coupons` (GET; escrita → 405), recurso só por
+  chave própria do mapa. Painel: menu Catálogo · Ofertas · Cupons, listas com filtros e ordem, detalhe
+  com preços, bônus, exigência (bump/upgrade), origem e colunas do banco. Painel 174/174, raiz 458/458.
+  **NO AR (26/09, noite):** #147 mergeada (`1abcd87`); `mindagent-catalogo` **v6 viva = o código do repo**
+  (md5 `f73cf90b…`), conferida pelo `pg_net`: `health` 1.3.0, sem login 401, origem estranha 403; o bundle
+  publicado em admin.minddash.pro já tem as duas telas. Hoje elas mostram só o histórico do Summit 2026
+  (14 ofertas, 28 preços, 3 cupons); as ofertas do Institute entram no `catalogo` na virada (Passo 5).
+- **Casa das ofertas no `catalogo` — Passo 3 APLICADO (26/09, noite).** Respostas dela ao plano: tudo de
+  preço, oferta, order bump e cupom no `catalogo` (tabelas separadas), espelhado e editável no painel; o
+  checkout próprio (InfinitePay) *"não tem nada relevante ... podemos migrar sem medo de quebrar"*; bumps
+  não saem do ar; nada desligado à mão — virada antes de 30/09; agente nunca com preço escrito (regra no
+  `CLAUDE.md`). Migration `20260926201053_catalogo_ofertas_forma_historico_e_cupons` (ledger = arquivo,
+  md5 igual): colunas novas nas 4 tabelas `oferta*` (código vendável único, origem, bônus com texto e
+  prazo, exigência com modo carrinho/posse, `condicional`, produto com preço não se apaga), `produtos.produto_pai`,
+  `checkout.cupons` → `catalogo.cupons` (`criar_pedido`, `validar_cupom` e `salvar_cupom` regravadas só no
+  nome da tabela; grants e SECURITY DEFINER iguais; a tela de cupons do /admin do Join deixa de abrir),
+  produtos `mind-summit-2026-{mind,vip,prime}` e `mind-summit-2027(-mind)` desligados/sem venda/sem funil, e o
+  histórico do Summit 2026 (14 ofertas, 28 preços, 3 upgrades, 3 cupons) copiado dentro do banco. Contratos
+  `CATALOGO_OFERTAS_OK` (novo, `tests/catalogo_ofertas_contract.sql`) e `CATALOGO_OK` em produção, sem rastro;
+  ensaio completo rodado antes, desfeito. Site e agente intocados. **Aberto com ela:** "vale até" nos textos e
+  no FAQ da condição, e bump fora da lista de preços da página. **Próximo:** Passo 2 (tela "Ofertas").
+- **Plano passo a passo: todas as ofertas no `catalogo`, editáveis no painel (26/09, pedido dela).** *"quero
+  trazer as ofertas para catalogo inclusive as do institute ... e também o histórico, quero ter tudo no schema
+  catalogo e espelhado e editável no admin assim sei o que está no ar e controlo na mão — fazer plano passo a
+  passo"*. `docs/PLANO_OFERTAS_PASSO_A_PASSO.md` (só leitura; investigação em 3 frentes, 2 críticas
+  independentes, fechamento conferido) substitui a §4 do plano anterior: **P1** virada de 30/09 pelos dados
+  (desligar os 3 bumps já; às 00h00 BRT de 01/10 = 03h00 UTC, um agendamento de uma vez desliga as 5 condições,
+  4 textos e 4 perguntas do FAQ), **P2** tela "Ofertas" só leitura com a Eduzz ao lado, **P3** forma do
+  `catalogo` (D2) + histórico do Summit 2026, **P4** edição no painel, **P5** virada do Institute depois de
+  01/10, P6–P7 histórico opcional, **P8** Summit 2027, **P9** aposentar. 10 decisões dela. **Nada executado.**
+  **Conferido por mim no código e no banco (26/09):** a seção "Avulsas" da Certificação nos dois sites pega
+  `find(vigente && encerra_em) ?? ofertas[0]` sobre `api.ofertas` ordenada por valor — depois de 30/09 23h59,
+  sem o P1, mostra o bump de R$1.497 na Liderança Consciente e a condição vencida nas outras duas; a cópia da
+  Eduzz copia a cada 30 min, mas a última leitura da Eduzz é de 24/09 21h02 BRT (`eduzz.produtos.last_synced_at`);
+  `cron.timezone` = GMT.
+- **Admins do sistema: o e-mail da lista é o da Mind (26/09, pedido dela).** A linha dela mostrava o
+  e-mail principal do Mind ID, que é pessoal; agora vem o do login, senão o @joinmind.com.br do Mind ID
+  (ledger `20260926152305`, mesmo md5; contrato `ADMINS_PAINEL_OK: 16 casos`, sem rastro). E, a pedido dela,
+  saiu da lista a conta antiga de senha (sem Mind ID), com registro em `mind_admin_audit`; a conta de login
+  dela no Auth ficou (sem linha na lista, não entra no painel).
+- **`public.mind_conteudo` apagada (26/09, pedido dela).** Lia `summit.conhecimento`, que não existe mais;
+  conferido antes: nenhuma função, view ou job do banco, nenhuma das 35 Edge Functions publicadas, nenhum
+  código do repo e nenhuma chamada nos logs de 24 h. Ledger `20260926152044`, arquivo com o mesmo número e md5.
+- **Descoberta lateral:** a `espelho_para_mind` **deste** projeto (fonte `institute_vendas`, feita para
+  o projeto Midias) confere `midias_espelho_segredo`, que não existe no Vault daqui — hoje ela recusa
+  toda chamada. A migration dela (`20260914212957`) está no ledger sem arquivo no repo.
+- **Próximo:** decidir o login com Google (provedor no
+  Supabase, app OAuth do Google Workspace e como liberar a equipe por e-mail) · D2 da casa das ofertas.
+
+### ICP e JTBD — catálogos em `intelligence`, perfil por regra e HubSpot — 23/09/2026, EM PRODUÇÃO
+
+Pedidos da Adriana (23/09, manhã): *"crie essas duas tabelas na intelligence"*, *"colocar todas as
+pessoas que foram no summit para passar por essa classificação"*, *"usar o que as pessoas escreveram
+de empresa e cargo para fazer update em cargo no hubspot, empresa no hubspot (sempre checando… typo
+ou duplicação)"*, *"escrever cargo e empresa em pessoas.pessoas"*, *"eu já criei as propriedades
+[icp e jtbd no HubSpot]; agora a gente tem que popular"*. Mapa completo e plano: `docs/PERFIL_ICP_JTBD.md`.
+
+- **Catálogos (D2 exercida por ela):** `intelligence.icp` (13 perfis = as 13 opções que ela deixou na
+  propriedade `icp` do HubSpot, com `hubspot_valor` = valor interno — 3 valores antigos reaproveitados
+  com significado novo — e `rotulo_legado` para traduzir memórias antigas; + `concorrente`, Vittude por
+  `regex_empresa`) e `intelligence.jtbd` (13 jobs mind = as 13 opções da propriedade `jtbd` + JT01–JT15
+  do estudo, com `produtos`, `icps_tipicos`, `jt_raiz` e `sinais`). `summit_2026.sessions.jtbd`: 62 sessões.
+- **Regra:** `intelligence.icp_por_cargo` (determinística), `perfil_evidencias` (check-in 0,70 · reserva
+  0,60 · jornada do app · jobs-raiz de conversa traduzidos · patrocínio · produto preferido · contexto por
+  família de ICP), `perfil_projetar` grava em `participante_memoria` sem derrubar memória de conversa nem
+  ICP manual do HubSpot; `perfil_projetar_lote` por prefixo de uuid; `perfil_gravar_pessoas` leva cargo e
+  empresa a `pessoas.pessoas`. Escritor e leitor validam pelos catálogos (rótulos antigos traduzidos).
+- **Executado:** 3.855 pessoas classificadas (2.250 ICP `ativa` + 17 `proposta` divergentes da conversa;
+  6.970 jobs `ativa` + 4.990 `proposta`; 1.779 cargos e 1.677 empresas como memória);
+  `pessoas.pessoas`: 1.815 cargos e 1.667 empresas gravados. Ledger: `20260923081119`, `081602`,
+  `081831`, `082020`, `082744`, `083527`. Contrato `tests/perfil_icp_jtbd_contract.sql` → `PERFIL_OK`.
+- **HubSpot (manhã):** Edge Function `hubspot-perfil-writeback` (v2, publicada às 08:40 UTC; ensaio por padrão)
+  — plano de 2.627 pessoas, 2.587 com contato; `icp` 2.230 (0 conflitos), `jtbd` 1.795, `jobtitle` 1.654
+  (712 trocas reais listadas em `substituicoes`; 82 variações da mesma coisa seguradas), `company` 1.278
+  (83 trocas; 91 seguradas, ex.: "Beiwrsdorf"). **Executado às 08:42–08:44 UTC em 5 lotes (25 + 700 +
+  700 + 700 + 502): 2.318 contatos atualizados, 0 erros; `icp` 2.231 gravados e 9 conflitos (ICP manual
+  já existia, não sobrescrito); `jtbd` 1.805; `jobtitle` 1.664 (722 trocas); `company` 1.283 (84 trocas).**
+  Relatórios completos (com a lista das trocas, para ela rever) em `public.mind_admin_audit`
+  (`resource = 'hubspot_perfil_writeback'`, `record_id` = `ensaio-7560`, `execucao-7561…7565`).
+- **Descobertas:** 18 pares de pessoas do banco apontam para o mesmo contato no HubSpot (candidatas a
+  fusão); opção `Fundadot / Sócio / Empreendedor` com typo no HubSpot (rótulo corrigível na tela);
+  o token do app privado não devolve escopos na introspecção (HTTP 400) — `crm.schemas.contacts.write`
+  só se descobre tentando (`acao: "propriedades"` em ensaio).
+- **Tarde de 23/09 — segunda rodada, com revisão crítica (docs/PERFIL_ICP_JTBD.md §6).** Ledger:
+  `085242` (guarda de última escrita: `mind_hubspot_perfil_registrar`, plano com `p_desde`/`resumo`/
+  `ultimo_escrito`, `perfil_resumo`), `090316` (`memoria_regex`: o que a pessoa disse vira evidência),
+  `091022` e `093110` (regra revisada: check-in pesa pelo tamanho da sala, reserva 0,50 nunca faz job
+  sozinha, veto por ICP típico, rebaixamento, cargo com siglas/abreviações/RH antes de saúde, ICP manual
+  só quando não é do Mind), `093258` (resumo, plano sem staff/palestrantes, leitor com fonte/evidência),
+  `095020` (conversa não pisa na linha da regra), `095258` (**automático**: `pg_cron` hh:36 reprojeção +
+  hh:41 write-back de quem mudou em 2 h; gatilhos `icp_alinhar_hubspot`/`jtbd_alinhar_hubspot`).
+  Resultado no banco: jobs ativos **7.068 → 3.844**, pessoas com 6+ jobs **221 → 34**, 2,4 jobs por
+  contato. Edge Function **v4** (guarda + JTBD como conjunto + qualidade do valor novo; 41 testes Node).
+  HubSpot: propriedades alinhadas pela função (rótulo "Fundadot" corrigido; `mind_resumo_inteligencia`
+  criada — o token tem `crm.schemas.contacts.write`); execução em 4 lotes às 09:45–09:48 UTC: **2.288
+  contatos, 0 erros, 2.288 registros de última escrita**; `jtbd` 1.368 (1.343 conjuntos corrigidos),
+  resumo 2.252, `icp` 72 (BPs que estavam como CHRO), `jobtitle` 1 gravado e **5 preservados** (editados
+  no HubSpot entre as rodadas — a guarda funcionou). Contrato `tests/perfil_icp_jtbd_contract.sql` →
+  `PERFIL_OK` (26 casos de cargo, pesos, reserva fraca, rebaixamento, idempotência, escritor × regra).
+- **Fim da tarde de 23/09 — relacionamento com o Mind (pedido dela: *"limpa ICP e JTBD de staff e
+  palestrante do HubSpot e backend… se é professor ou parceiro de venda não é lead e portanto não
+  coletamos JTBD e ICP… guardar em pessoas.pessoas uma coluna com o tipo de relacionamento"*).** Ledger
+  `20260923143941`: coluna `pessoas.pessoas.relacionamento_mind` (`{lead}` ou staff/palestrante/professor/
+  parceiro_venda), derivada de hora em hora das fontes (credenciamento `staff_mind`/`palestrante`, e-mail
+  `@joinmind.com.br`, `seguranca.equipe`, `mind_admin_users`, `ecossistema.perfis_publicos`,
+  `institute.programa_pessoas`); `parceiro_venda` sem fonte no banco (marca-se à mão). Regra: quem não é
+  lead não tem ICP nem JTBD — a regra apaga a própria classificação, a de conversa vira `rejeitada`, o
+  escritor ignora, o leitor do Agent não devolve, o HubSpot é limpo. **80 não-leads** (57 palestrantes,
+  22 staff, 4 professores); memórias de ICP/JTBD deles zeradas (210 da regra apagadas, 1 de conversa
+  rejeitada); Edge Function **v5** executada às 14:47 UTC: 41
+  contatos, 86 limpezas (`icp` 39, `icp_confianca` 39, `jtbd` 6, resumo 2), 0 erros; ensaio seguinte 0/0.
+  Corrigido junto: o escritor perdia JTBD de conversa quando a regra já tinha o job ativo (`FOUND`
+  sobrescrito no `095020`). Contrato → `PERFIL_OK` em produção; 45 testes Node.
+- **Noite de 23/09 — decisões da Adriana executadas.** (1) `20260923145909`: os prompts de inteligência
+  (análise pós-conversa `analisar-conversa` e Silence) não rodam para não-lead — trava em `analise_pendentes`,
+  `analise_montar_contexto` e `silence_claim_pendentes` (contrato `tests/analise_nao_lead_contract.sql` →
+  `ANALISE_NAO_LEAD_OK`). (2) 8 fusões por `mind_fusao_decidir`: Adriana (3→1, nome corrigido para Drulla),
+  Tamara, Elaine, Ivana (3→1), Juliana, Thiago Araújo; Thiago Barros (thiago@) fica separado (outro CPF).
+  (3) `20260923150946`: parceiro de venda por domínio (`intelligence.config.parceiro_venda_dominios` =
+  Mais Diversidade → 13) e `contato@joinmind.com.br` fora do staff; HubSpot 13 contatos/22 limpezas/0 erros.
+  (4) Apagadas as 3 contas "ZZ TESTE — apagar"; a "Mayra … Hnk" ficou (convidada Heineken com ingresso e
+  check-in; voltou a lead). Parceiros marcados à mão: Igor Gomes Menezes (deu workshop com a Mais
+  Diversidade) e Esabela Cruz (registro de palestrante).
+- **Gates que restam:** reprocessar as 4.921 análises de conversa com prompt novo (custo — dela);
+  decisões de produto/semântica listadas em BACKLOG §21 (tradução de evidência por família, valores
+  internos novos no HubSpot, empresa como sinal, rótulo de saúde pessoal no CRM); limpar por lista no
+  HubSpot o "Outros" de ~120 contatos (a função não apaga valor de lead); espelho diário de contatos do HubSpot travado desde 20/09 no teto de 10 mil da busca (BACKLOG §21.18).
+
+### D6 — o ID universal chama-se `mind_id` — 23/09/2026, APLICADA EM PRODUÇÃO
+
+Pedido da Adriana: *"varra todas as tabelas do banco e, nas colunas onde a gente tem o universal ID,
+renomeie a coluna como universal MIND ID"*. Migration `20260923071424` (`d6_mind_id.sql`), provada em
+produção em `begin … rollback` (migration + contrato D5 + fumaça de 35 funções e 12 views) e depois
+aplicada.
+
+- **53 colunas renomeadas para `mind_id`**: 51 FKs para `pessoas.pessoas` (`pessoa_id` em 20 tabelas,
+  `participante_id` em 27, `participant_id` em `intelligence.recovery_inbox`, `person_id` em
+  `summit_2026.registrations`) mais `crm.empenho_summit_2026.pessoa_id` e
+  `crm.pipeline_leads_inbound.pessoa_id`, que estavam vazias e sem FK e ganharam a FK. Nas 11 tabelas
+  da Regra #1 as companheiras viram `mind_id_criterio` e `mind_id_resolvido_em`. Índices e constraints
+  com o nome antigo foram renomeados; 63 funções reescritas só nas referências a coluna.
+- **O que não mudou, de propósito**: as chaves dos payloads das funções (`pessoa_id`, `participante_id`
+  em jsonb e em `returns table`) e os nomes de saída das views (`api.*`, `v_participantes`,
+  `v_ingressos`…) — contrato de API lido pelas Edge Functions e pelo app. **Nenhuma Edge Function
+  precisou de deploy.** `pessoas.v_pessoa_360` é a única view cuja saída muda (`mind_id`).
+- Não são o ID universal e ficaram: `"Check Ins Summit".participante_id`, `"Reservas_Agenda_APP".participante_id`,
+  `controle_de_inscritos_e_presenca.participante_id` (id do credenciamento) e `yazo_envio_fila.participant_id`
+  (id de `participantes`).
+- Descobertas laterais registradas em `BACKLOG.md` §20 (`v_participantes` ainda resolve por junção;
+  `api.me` lia schema inexistente; funções presas a `engagement.checkout_clicks`, tabela que saiu).
+- **Varredura das 160 tabelas concluída (07:37 UTC)** — `scripts/infra/identidade/60_varredura_mind_id.sql`:
+  das 164 tabelas, 110 não tinham FK para pessoa; 5 com informação de cliente entraram na Regra #1
+  (`crm.pipeline_leads_inbound`, `crm.status_summit_hs`, `treble.status_hs_contatos`,
+  `treble.status_da_conversa`, `engagement.verificacoes_email`) e foram preenchidas **sem criar pessoa**:
+  15.406 linhas ligadas por identificador já conhecido, 71 pelo `mind_id` do espelho, 149 marcadas como
+  "sem pessoa" (contato fora do espelho ou telefone de teste). `engagement.treble_eventos` (log bruto) e
+  `crm.empenho_summit_2026` (pessoa em `propriedades._contatos`, gate) ficaram de fora de propósito; as
+  103 restantes não falam de cliente ou herdam a pessoa do pai. Lateral nova: BACKLOG §20.8.
+- Testes: `tests/d5_identidade_universal_contract.sql` adaptado a `mind_id` (13 cenários, verde em
+  produção dentro da prova); os demais contratos SQL do repo renomeados mecanicamente.
+
+### D5 — identidade universal — 23/09/2026, APLICADA E PASSADA EXECUTADA EM PRODUÇÃO
+
+Regra #1 em `READ_ME_FIRST.md` (regras v2 combinadas com a Adriana na madrugada de 23/09:
+**e-mail + nome/sobrenome vencem; depois WhatsApp; depois CPF; depois CNPJ**; nome parecido é o
+mesmo nome; nome e e-mail distintos = pessoas diferentes inscritas por terceiro; telefone/CPF
+de linha comprada por terceiro ficam de fora; bater sempre com `pessoas.pessoas` antes de criar).
+
+Quatro migrations no ledger de produção, todas provadas antes num Postgres 16 descartável com
+`tests/d5_identidade_universal_contract.sql` (13 cenários, inclusive secretária/colega) e com
+hash das funções conferido byte a byte: `20260923024555` (a porta em toda fonte),
+`20260923033919` (a regra do nome/e-mail), `d5_3_enriquecer_indexado` (fase A por índice) e
+`d5_4_proposta_guarda_a_evidencia_mais_forte`. A passada foi executada pelo Claude, a pedido
+dela ("nada deve ficar comigo, execute"), entre 03:55 e 04:47 UTC:
+
+- **incidente desfeito**: a primeira migration (02:47) deixou o telefone vencer o e-mail; o sync
+  das 02:50 colou 13.205 identificadores a pessoas erradas (colegas inscritos pelo comprador).
+  Triggers desligados às 03:12, tudo apagado e refeito com a regra nova
+  (`scripts/infra/identidade/20_desfazer_janela_2309.sql`);
+- **fase A**: 9.451 pessoas enriquecidas, 0 criadas;
+- **fase C** na ordem dela: HubSpot 13.321/13.321 com pessoa (6.784 criadas, 705 ligadas) ·
+  Eduzz vendas 4.572/4.739 (167 ficaram sem pessoa de propósito: e-mail já é de outra pessoa
+  com nome diferente) · Blinket 4.764/4.765 · Treble 4 ligadas (38 conversas não têm
+  identificador nenhum) · credenciamento 2.577/2.577 · Yazo 2.910/2.910 · Relatório Yazzo
+  2.367/2.415 · pedidos 10/11. `pessoas.pessoas`: 9.451 → ~16.800.
+- **fase B — só a Adriana decide**: fila em `engagement.identidade_fusoes` por `padrao`
+  (`mesmo_id_de_terceiro` e `mesmo_email*` alta; `mesmo_telefone_emails_diferentes` média;
+  `nomes_divergentes`/`mesmo_email_nomes_diferentes` baixa, nunca em bloco). Nada foi fundido.
+
+O sync da Eduzz/credenciamento apaga e regrava as quatro tabelas espelhadas a cada 30 min
+(:20 e :50): o trigger D5 refaz `pessoa_id` a cada sync — funciona, mas custa ~80 s e disputa
+locks com qualquer passada rodando ao mesmo tempo (deadlock em 04:20). Melhoria registrada:
+`eduzz_espelho_gravar` passar a upsert. Branch `claude/trusting-einstein-pydyqb`, PR #110.
+
 ### Avaliação do evento — NO AR desde 18/09/2026
 
 A segunda pesquisa: o Summit inteiro, respondido depois que ele acaba. As mesmas
@@ -435,6 +1058,12 @@ tabela).
 
 **PR aberto no repo do site:** Mind-Institute/mindsummit2026#31 — `schedule` de 07:00 e
 19:00 BRT no workflow, parando sozinho depois de 16/09.
+
+**Baixa em 26/09/2026:** a `summit-programacao-sync` foi aposentada (v10 responde 410, sem o segredo no
+código, `verify_jwt = true`); a programação se lê no painel (`/summit/2026/programacao`, só leitura). As
+pendências abaixo sobre `SYNC_SECRET`, o PR mindsummit2026#31 e o segredo no código deixam de valer.
+Falta: apagar a função no painel do Supabase (a Adriana; o MCP não apaga) e desligar o workflow
+`sync-programacao.yml` no repo do site, que passa a falhar.
 
 **Pendências que são gate da Adriana, não minhas:**
 - criar `SYNC_SECRET` em `mindsummit2026`. Sem isso o job continua 401, agendado ou não;
@@ -878,7 +1507,8 @@ Já fechado e não precisa ser rediscutido:
 - completar toda Intelligence do Summit;
 - taxonomy/conceitos novos;
 - RAG/vector sem necessidade real;
-- Intelligence Inbox/autodiscovery;
+- ~~Intelligence Inbox/autodiscovery~~ — **liberado em 21/09/2026**: esta linha protegia o
+  prazo do Summit, que já aconteceu. Ver a revogação em `BACKLOG.md` §12.11;
 - limpeza de legado por estética;
 - segunda identidade/backend/session lifecycle para Play;
 - `mind_lead_capturar`;

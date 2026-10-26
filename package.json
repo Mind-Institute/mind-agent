@@ -13,6 +13,8 @@
     "banco:inspecionar": "node scripts/alimentar-banco.mjs inspecionar",
     "banco:lacunas": "node scripts/alimentar-banco.mjs lacunas",
     "banco:aplicar": "node scripts/alimentar-banco.mjs aplicar",
+    "banco:dicionario": "psql \"$DATABASE_URL\" -At -f scripts/infra/dicionario_gerar.sql > docs/DICIONARIO.md",
+    "banco:contrato-objetivo": "psql \"$DATABASE_URL\" -f tests/objetivo_por_tabela_contract.sql",
     "typecheck:admin": "npm run typecheck --prefix admin",
     "test:edge": "node --test tests/*.test.mjs",
     "test:admin": "npm run test --prefix admin",

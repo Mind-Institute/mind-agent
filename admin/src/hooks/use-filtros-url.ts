@@ -33,7 +33,33 @@ export function useFiltrosUrl(padrao: Record<string, string> = {}) {
     [params, setParams],
   );
 
-  const limpar = useCallback(() => setParams(new URLSearchParams(), { replace: true }), [setParams]);
+  /* Várias chaves numa navegação só. Duas chamadas seguidas de `definir`
+     partem da mesma URL e a segunda desfaz a primeira — mudar filtro ou
+     ordem e voltar à página 1 precisa ser uma coisa só. */
+  const definirVarios = useCallback(
+    (mudancas: Record<string, string | null>) => {
+      const proximos = new URLSearchParams(params);
+      for (const [chave, valor] of Object.entries(mudancas)) {
+        if (valor === null || valor === '' || valor === 'todos') proximos.delete(chave);
+        else proximos.set(chave, valor);
+      }
+      setParams(proximos, { replace: true });
+    },
+    [params, setParams],
+  );
+
+  /** Tira tudo da URL, menos as chaves em `manter` (a ordem, por exemplo). */
+  const limpar = useCallback(
+    (manter: string[] = []) => {
+      const proximos = new URLSearchParams();
+      for (const chave of manter) {
+        const valor = params.get(chave);
+        if (valor) proximos.set(chave, valor);
+      }
+      setParams(proximos, { replace: true });
+    },
+    [params, setParams],
+  );
 
   const ativos = useMemo(
     () => Array.from(params.keys()).filter((c) => params.get(c)),
@@ -50,5 +76,5 @@ export function useFiltrosUrl(padrao: Record<string, string> = {}) {
     return saida;
   }, [filtros]);
 
-  return { filtros, paraProvedor, definir, limpar, ativos };
+  return { filtros, paraProvedor, definir, definirVarios, limpar, ativos };
 }

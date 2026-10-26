@@ -38,6 +38,63 @@ function desembrulhar(corpo: unknown): unknown {
   return corpo;
 }
 
+/* ============================================================
+   POST /admin/vincular — o primeiro login com Google
+   ============================================================
+   Admin do sistema entra na lista pelo Mind ID, antes de ter conta de
+   login. No primeiro login com o Google da Mind, `/admin/me` ainda não
+   reconhece a conta; esta chamada pede ao banco que a ligue à pessoa.
+   Quem decide é o banco (`mind_admin_vincular_login`): conta Google,
+   e-mail @joinmind.com.br, pessoa única, acesso ativo e marca de equipe.
+   Recusa volta como `sem_permissao`, com a frase que a tela mostra. */
+
+/** Explícito, ou `<VITE_SUPABASE_URL>/functions/v1/mindagent-acesso`; `null` sem nenhum dos dois. */
+export function enderecoDoAcesso(
+  explicito = import.meta.env.VITE_ACESSO_API_BASE_URL,
+  supabaseUrl = import.meta.env.VITE_SUPABASE_URL,
+): string | null {
+  const direto = explicito?.trim();
+  if (direto) return direto;
+  const base = supabaseUrl?.trim().replace(/\/+$/, '');
+  return base ? `${base}/functions/v1/mindagent-acesso` : null;
+}
+
+export interface RespostaVinculo {
+  vinculado: boolean;
+  papel: string | null;
+  nome: string | null;
+}
+
+export async function vincularLoginAdmin(opcoes: OpcoesPerfil): Promise<RespostaVinculo> {
+  const base = opcoes.baseUrl.trim().replace(/\/+$/, '');
+  const buscar = opcoes.fetchImpl ?? globalThis.fetch.bind(globalThis);
+  const cabecalhos: Record<string, string> = {
+    Accept: 'application/json',
+    Authorization: `Bearer ${opcoes.token}`,
+  };
+  if (opcoes.chavePublicavel) cabecalhos.apikey = opcoes.chavePublicavel;
+
+  let resposta: Response;
+  try {
+    resposta = await buscar(`${base}/admin/vincular`, {
+      method: 'POST',
+      headers: cabecalhos,
+      signal: opcoes.sinal,
+    });
+  } catch (erro) {
+    if (erro instanceof DOMException && erro.name === 'AbortError') throw erro;
+    throw erroDeRede(erro);
+  }
+  if (!resposta.ok) throw await erroDaResposta(resposta);
+
+  const corpo = (await resposta.json().catch(() => ({}))) as Partial<RespostaVinculo>;
+  return {
+    vinculado: Boolean(corpo.vinculado),
+    papel: typeof corpo.papel === 'string' ? corpo.papel : null,
+    nome: typeof corpo.nome === 'string' ? corpo.nome : null,
+  };
+}
+
 export async function buscarPerfilAdmin(opcoes: OpcoesPerfil): Promise<PerfilAdmin> {
   const base = opcoes.baseUrl.trim().replace(/\/+$/, '');
   if (!base) {

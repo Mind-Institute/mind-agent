@@ -3,7 +3,10 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 const VERSION = "1.0.0";
 const MODELO = "text-embedding-3-small";
 const DIMENSOES = 1536;
-const SCHEMAS = new Set(["summit_2026", "institute", "dash", "eventos"]);
+// `eventos` saiu em 21/09/2026 (migration 20260921233000): o schema foi
+// removido e as funções de knowledge recusam o nome. Sem esta linha a Edge
+// devolveria 502 `prepare_failed` em vez do 422 `invalid_schema` correto.
+const SCHEMAS = new Set(["summit_2026", "institute", "dash"]);
 
 function secretKey() {
   const raw = Deno.env.get("SUPABASE_SECRET_KEYS");

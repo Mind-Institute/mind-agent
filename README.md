@@ -1,5 +1,9 @@
 # Mind Agent / Mind Intelligence
 
+**Antes de tocar no sistema, leia [`AGENTS.md`](AGENTS.md) e cumpra seu primeiro passo:
+ler as decisões e estudar o schema `arquitetura` no Supabase. A arquitetura vive no
+Supabase, em um único lugar; o repositório aponta para ela, e o frontend apenas a consulta.**
+
 Repositório do **Core Universal do Mind** e das superfícies que o consomem: vendedor Summit via Treble/WhatsApp, Concierge/Play do Summit no app e futuros agentes.
 
 Canal é adapter, não arquitetura. Agente novo não reimplementa identidade, histórico, memória, Router, Gate ou Intelligence.
@@ -8,8 +12,9 @@ Canal é adapter, não arquitetura. Agente novo não reimplementa identidade, hi
 
 Se você está entrando sem contexto:
 
+0. **[`AGENTS.md`](AGENTS.md) e o schema `arquitetura` no Supabase** — leitura obrigatória das decisões e estudo da arquitetura antes de qualquer intervenção.
 1. **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)** — ponto exato onde o go-live está agora.
-2. **[`PROJECT_STATE.md`](PROJECT_STATE.md)** — arquitetura/gates/decisões congeladas.
+2. **[`PROJECT_STATE.md`](PROJECT_STATE.md)** — documentação do projeto; decisões somente no Supabase.
 3. **[`GO_LIVE_PARALLEL_20260830.md`](GO_LIVE_PARALLEL_20260830.md)** — lanes e ordem de integração.
 4. **[`BACKLOG.md`](BACKLOG.md)** — investigação deferida; leia só a frente relevante.
 5. **[`docs/CORE_UNIVERSAL.md`](docs/CORE_UNIVERSAL.md)** — contratos e componentes já vivos.

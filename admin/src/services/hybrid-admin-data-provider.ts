@@ -1,26 +1,27 @@
 /* ============================================================
-   HybridAdminDataProvider — meio caminho, dito em voz alta
+   HybridAdminDataProvider — o dado real, dito em voz alta
    ============================================================
-   Nesta etapa o painel tem TRÊS origens:
+   Desde 26/09/2026 o painel mostra só dado real (decisão da Adriana).
+   Saíram o evento, a Home V3, a visão geral e os módulos que eram
+   demonstração. Cada recurso que ficou tem a sua função:
 
-   - o núcleo do evento — visão geral, evento, programação, palestrantes,
-     espaços e temas — vem da `mindagent-admin`, em leitura e escrita;
-   - o módulo Home V3 — avisos, composição no ar e trocas programadas —
-     vem da `mindagent-home`, que é função separada. Ela existe porque
-     essas rotas não cabiam na outra sem editar função viva de outra
-     lane, e porque o conteúdo é de outra natureza: o que o painel
-     PUBLICA, não o que a grade informa;
-   - rotas, estandes, ofertas, conteúdo institucional, documentos,
-     conversas, perguntas, usuários e auditoria continuam no banco em
-     memória.
+   - o Catálogo (`catalogo.produtos`), na `mindagent-catalogo`: lê e
+     edita — criar, publicar e arquivar produto não existem por aqui;
+   - as ofertas do mesmo schema, na mesma função: criar (nasce
+     desligada), editar, pôr no ar (publish) e tirar do ar (archive) —
+     apagar não existe (Passo 4 do plano de ofertas);
+   - os cupons do mesmo schema: por enquanto só leitura;
+   - os admins do sistema (`mind_admin_users`), na `mindagent-acesso`:
+     vê, dá acesso e muda papel ou situação — tirar o acesso é desligar
+     a situação, e a linha fica;
+   - a programação do Mind Summit 2026 (`summit_2026.sessions`), na
+     `mindagent-summit`: só leitura.
 
-   Essa mistura é a coisa mais perigosa do painel: quem edita um
-   palestrante real e um estande falso na mesma sessão precisa saber
-   qual é qual. Por isso o modo é `hybrid` e não `http`, a faixa do topo
-   nomeia os módulos reais, e `origemDoRecurso()` deixa cada página
-   ajustar o que diz depois de salvar.
+   Sem a função configurada (os testes e o preview de cada versão, que é
+   montado sem as variáveis do Supabase), o recurso fica no banco em
+   memória, e a listagem diz "demonstração" no selo.
 
-   NÃO EXISTE QUEDA PARA O MOCK. Se um recurso real falha, a tela mostra
+   NÃO EXISTE QUEDA PARA O MOCK. Se o recurso real falha, a tela mostra
    o erro. Cair no mock em silêncio faria o painel apresentar dado
    inventado como se fosse do banco — e é justamente o que o projeto
    inteiro existe para não fazer. */
@@ -31,57 +32,101 @@ import type {
   MapaRecursos,
   NomeRecurso,
   OpcoesEscrita,
-  ReciboReindexacao,
-  ResumoPainel,
 } from '@/contracts';
 import { AdminApiError } from '@/contracts';
 import type { AdminDataProvider } from './admin-data-provider';
 
-/** Recursos servidos pela API real nesta etapa. */
-export const RECURSOS_REAIS = [
-  'event',
-  'sessions',
-  'speakers',
-  'spaces',
-  'themes',
+/** Servido pela `mindagent-catalogo`: o schema `catalogo` — produtos, ofertas e cupons. */
+export const RECURSOS_DO_CATALOGO = ['products', 'offers', 'coupons'] as const satisfies readonly NomeRecurso[];
+
+/** Servido pela `mindagent-acesso`: quem entra no painel. */
+export const RECURSOS_DO_ACESSO = ['admins'] as const satisfies readonly NomeRecurso[];
+
+/** Servido pela `mindagent-summit`: as tabelas do Summit, só leitura. */
+export const RECURSOS_DO_SUMMIT = ['summit_2026_sessions'] as const satisfies readonly NomeRecurso[];
+
+/** Servido pela mindagent-knowledge: control plane transversal do RAG. */
+export const RECURSOS_DO_KNOWLEDGE = [
+  'knowledge_collections',
+  'knowledge_sources',
+  'knowledge_assets',
+  'agent_knowledge_access',
+  'business_intelligence',
+  'customer_intelligence',
+  'agent_intelligence_access',
+  'agent_channels',
+  'agent_kit_blocks',
+  'agent_prompts',
+  'agent_instructions',
+  'agent_tools',
+  'agents',
+  'channel_entries',
+  'agent_conversations',
+  'analysis_runs',
 ] as const satisfies readonly NomeRecurso[];
 
-export type RecursoReal = (typeof RECURSOS_REAIS)[number];
-
-/** Servidos pela `mindagent-home`, não pela `mindagent-admin`. */
-export const RECURSOS_DA_HOME = [
-  'home_notices',
-  'home_state',
-  'home_schedule',
-] as const satisfies readonly NomeRecurso[];
-
-const CONJUNTO_HOME = new Set<string>(RECURSOS_DA_HOME);
-
-export function ehRecursoDaHome(resource: NomeRecurso): boolean {
-  return CONJUNTO_HOME.has(resource);
-}
-
-const CONJUNTO_REAIS = new Set<string>(RECURSOS_REAIS);
-
-export function ehRecursoReal(resource: NomeRecurso): boolean {
-  return CONJUNTO_REAIS.has(resource);
-}
+const CONJUNTO_CATALOGO = new Set<string>(RECURSOS_DO_CATALOGO);
+const CONJUNTO_ACESSO = new Set<string>(RECURSOS_DO_ACESSO);
+const CONJUNTO_SUMMIT = new Set<string>(RECURSOS_DO_SUMMIT);
+const CONJUNTO_KNOWLEDGE = new Set<string>(RECURSOS_DO_KNOWLEDGE);
 
 /**
- * O que cada recurso real aceita, conforme os endpoints publicados.
+ * O que cada função aceita.
  *
  * Existe para o painel recusar a operação com uma frase explicando o
  * porquê, em vez de mandar a requisição e traduzir o 404 do gateway em
  * "Registro não encontrado" — que mandaria o operador procurar um
- * problema de dado onde o problema é de contrato.
+ * problema de dado onde o problema é de contrato. Recurso novo declara
+ * aqui o que a função dele aceita: o tipo não deixa esquecer.
  */
-const OPERACOES: Record<RecursoReal, Set<string>> = {
-  event: new Set(['list', 'get', 'update']),
-  sessions: new Set(['list', 'get', 'create', 'update', 'publish', 'archive']),
-  speakers: new Set(['list', 'get', 'create', 'update', 'publish', 'archive']),
-  spaces: new Set(['list', 'get', 'create', 'update', 'archive']),
-  /* Temas são somente leitura nesta etapa: só existe GET /admin/themes. */
-  themes: new Set(['list']),
+const OPERACOES: Record<NomeRecurso, Set<string>> = {
+  products: new Set(['list', 'get', 'update']),
+  admins: new Set(['list', 'get', 'create', 'update']),
+  summit_2026_sessions: new Set(['list', 'get']),
+  offers: new Set(['list', 'get', 'create', 'update', 'publish', 'archive']),
+  coupons: new Set(['list', 'get']),
+  knowledge_collections: new Set(['list', 'get']),
+  knowledge_sources: new Set(['list', 'get']),
+  knowledge_assets: new Set(['list', 'get']),
+  agent_knowledge_access: new Set(['list', 'get', 'update']),
+  business_intelligence: new Set(['list', 'get']),
+  customer_intelligence: new Set(['list', 'get']),
+  agent_intelligence_access: new Set(['list', 'get', 'update']),
+  agent_channels: new Set(['list', 'get', 'update']),
+  agent_kit_blocks: new Set(['list', 'get', 'create', 'update']),
+  agent_prompts: new Set(['list', 'get', 'update']),
+  agent_instructions: new Set(['list', 'get', 'create']),
+  agent_tools: new Set(['list', 'get', 'update']),
+  agents: new Set(['list', 'get', 'update']),
+  channel_entries: new Set(['list', 'get']),
+  agent_conversations: new Set(['list', 'get']),
+  analysis_runs: new Set(['list', 'get']),
+};
+
+const RECUSA: Record<NomeRecurso, (operacao: string) => string> = {
+  products: (op) => `O catálogo aceita leitura e edição; ${op} produto ainda não existe no painel.`,
+  admins: (op) =>
+    `A lista de admins aceita ver, dar acesso e mudar papel ou situação; ${op} admin não existe no painel.`,
+  summit_2026_sessions: (op) =>
+    `A programação do Summit 2026 é só leitura no painel; ${op} sessão não existe por aqui.`,
+  offers: (op) => `Ofertas se criam, editam, põem no ar e tiram do ar; ${op} oferta não existe no painel.`,
+  coupons: (op) => `Os cupons ainda são só leitura no painel; ${op} cupom chega no próximo passo.`,
+  knowledge_collections: (op) => `Collections são só leitura nesta primeira versão; ${op} collection ainda não existe no painel.`,
+  knowledge_sources: (op) => `Sources são só leitura nesta primeira versão; ${op} source ainda não existe no painel.`,
+  knowledge_assets: (op) => `Knowledge assets são só leitura nesta primeira versão; ${op} asset ainda não existe no painel.`,
+  agent_knowledge_access: (op) => `A matriz Agente × Knowledge aceita leitura e edição; ${op} ainda não existe.`,
+  business_intelligence: (op) => `Business Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
+  customer_intelligence: (op) => `Customer Intelligence é leitura da governança mapeada; ${op} ainda não existe.`,
+  agent_intelligence_access: (op) => `Agent Intelligence aceita leitura e edição da matriz; ${op} ainda não existe.`,
+  agent_channels: (op) => `Os canais de cada agente se ligam e desligam; ${op} canal não existe no painel.`,
+  agent_kit_blocks: (op) => `O kit aceita ligar, desligar e acrescentar blocos que já existem; ${op} bloco não existe no painel.`,
+  agent_prompts: (op) => `Prompts se leem e editam, com histórico; ${op} prompt não existe no painel.`,
+  agent_instructions: (op) => `As instruções se montam a partir dos prompts e do kit; ${op} instrução não existe no painel.`,
+  agent_tools: (op) => `Das ferramentas, o painel edita a descrição; ${op} ferramenta não existe no painel.`,
+  agents: (op) => `Do agente, o painel edita nome e descrição; ${op} agente não existe no painel.`,
+  channel_entries: (op) => `As entradas do WhatsApp nascem no site e na Treble; ${op} entrada não existe no painel.`,
+  agent_conversations: (op) => `Conversas reais só se leem; ${op} conversa não existe no painel.`,
+  analysis_runs: (op) => `As execuções da análise só se leem; ${op} execução não existe no painel.`,
 };
 
 const NOME_OPERACAO: Record<string, string> = {
@@ -93,79 +138,41 @@ const NOME_OPERACAO: Record<string, string> = {
   archive: 'arquivar',
 };
 
-/**
- * Conferência mínima da resposta do dashboard.
- *
- * O painel prefere falhar a desenhar pela metade — é o mesmo princípio
- * do `conferir()` em `data-service.js`, do chat. Um dashboard "real"
- * que renderiza vazio porque o formato mudou é pior que uma tela de
- * erro: ele parece que funcionou.
- */
-function conferirResumo(resumo: unknown): ResumoPainel {
-  const candidato = resumo as Partial<ResumoPainel> | null;
-  if (!candidato || typeof candidato !== 'object') {
-    throw new AdminApiError('desconhecido', 'A API devolveu um dashboard vazio.');
-  }
-  const faltando: string[] = [];
-  if (!Array.isArray(candidato.metricas)) faltando.push('metricas');
-  if (!Array.isArray(candidato.pendencias)) faltando.push('pendencias');
-  if (!Array.isArray(candidato.alertas)) faltando.push('alertas');
-  if (faltando.length) {
-    throw new AdminApiError(
-      'desconhecido',
-      `A resposta de /admin/dashboard não segue o contrato do painel — faltando ${faltando.join(', ')}.`,
-    );
-  }
-  return candidato as ResumoPainel;
-}
-
 export class HybridAdminDataProvider implements AdminDataProvider {
   readonly modo = 'hybrid' as const;
 
   constructor(
-    private readonly http: AdminDataProvider,
     private readonly mock: AdminDataProvider,
-    /* Ausente, o módulo Home V3 continua em memória — é o que acontece
-       nos testes e em qualquer build sem `VITE_HOME_API_BASE_URL`. */
-    private readonly home?: AdminDataProvider,
+    /* Ausentes, o recurso fica em memória — nos testes e em build sem
+       endereço do Supabase. */
+    private readonly catalogo?: AdminDataProvider,
+    private readonly acesso?: AdminDataProvider,
+    private readonly summit?: AdminDataProvider,
+    private readonly knowledge?: AdminDataProvider,
   ) {}
 
+  /** A função real do recurso, quando configurada. */
+  private real(resource: NomeRecurso): AdminDataProvider | undefined {
+    if (CONJUNTO_CATALOGO.has(resource)) return this.catalogo;
+    if (CONJUNTO_ACESSO.has(resource)) return this.acesso;
+    if (CONJUNTO_SUMMIT.has(resource)) return this.summit;
+    if (CONJUNTO_KNOWLEDGE.has(resource)) return this.knowledge;
+    return undefined;
+  }
+
   origemDoRecurso(resource: NomeRecurso): 'http' | 'mock' {
-    if (ehRecursoDaHome(resource)) return this.home ? 'http' : 'mock';
-    return ehRecursoReal(resource) ? 'http' : 'mock';
+    return this.real(resource) ? 'http' : 'mock';
   }
 
-  /** Escolhe o destino e, para recurso real, confere se a operação existe. */
+  /** Escolhe o destino e confere se a operação existe. */
   private destino(resource: NomeRecurso, operacao: string): AdminDataProvider {
-    /* A Home V3 tem API própria e todas as operações que as páginas
-       usam — não passa pela tabela de OPERACOES, que existe para
-       descrever as lacunas da API do evento. */
-    if (ehRecursoDaHome(resource)) return this.home ?? this.mock;
-    if (!ehRecursoReal(resource)) return this.mock;
-
-    const permitidas = OPERACOES[resource as RecursoReal];
-    if (!permitidas.has(operacao)) {
-      throw new AdminApiError(
-        'validacao',
-        resource === 'themes'
-          ? 'Temas são somente leitura nesta etapa: a API expõe apenas GET /admin/themes.'
-          : `A API administrativa não expõe ${NOME_OPERACAO[operacao] ?? operacao} para ${resource} nesta etapa.`,
-      );
+    /* A recusa vale também em demonstração: a tela não pode ensinar um
+       botão que a API de verdade não tem. */
+    if (!OPERACOES[resource].has(operacao)) {
+      throw new AdminApiError('validacao', RECUSA[resource](NOME_OPERACAO[operacao] ?? operacao));
     }
-    return this.http;
+    return this.real(resource) ?? this.mock;
   }
-
-  /* ------------------------------------------------------------ */
-  /* Visão geral — sempre real                                     */
-  /* ------------------------------------------------------------ */
-
-  async getDashboard(): Promise<ResumoPainel> {
-    return conferirResumo(await this.http.getDashboard());
-  }
-
-  /* ------------------------------------------------------------ */
-  /* Leitura                                                       */
-  /* ------------------------------------------------------------ */
 
   /* Os métodos são `async` de propósito: assim a recusa do guard sai
      como promessa rejeitada, igual a qualquer erro de API, e a tela não
@@ -180,10 +187,6 @@ export class HybridAdminDataProvider implements AdminDataProvider {
   async get<K extends NomeRecurso>(resource: K, id: string): Promise<MapaRecursos[K]> {
     return this.destino(resource, 'get').get(resource, id);
   }
-
-  /* ------------------------------------------------------------ */
-  /* Escrita — real nos módulos reais                              */
-  /* ------------------------------------------------------------ */
 
   async create<K extends NomeRecurso>(
     resource: K,
@@ -215,10 +218,5 @@ export class HybridAdminDataProvider implements AdminDataProvider {
     opcoes?: OpcoesEscrita,
   ): Promise<MapaRecursos[K]> {
     return this.destino(resource, 'archive').archive(resource, id, opcoes);
-  }
-
-  /** Documentos seguem em demonstração — a reindexação também. */
-  requestReindex(documentId: string): Promise<ReciboReindexacao> {
-    return this.mock.requestReindex(documentId);
   }
 }

@@ -58,7 +58,7 @@ function PerfilRecusado() {
           {semPapel ? (
             <p className="text-sm text-muted-foreground">
               O login funcionou, mas o backend não encontrou papel administrativo para você. Quem
-              concede isso é quem administra o Mind Agent — o painel não tem como se autorizar.
+              concede isso é quem administra o Mind Intelligence Admin — o painel não tem como se autorizar.
             </p>
           ) : null}
           {sessao.email ? (

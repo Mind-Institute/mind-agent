@@ -17,7 +17,7 @@ import {
   type SessaoAuth,
 } from '@/contracts';
 import type { PortaAutenticacao } from '@/services/auth';
-import { buscarPerfilAdmin } from '@/services/perfil-admin';
+import { buscarPerfilAdmin, vincularLoginAdmin } from '@/services/perfil-admin';
 import { pode as podePeloPapel, type Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -53,6 +53,9 @@ export interface ValorSessao {
 
   pode: (acao: Acao) => boolean;
   entrar: (email: string, senha: string) => Promise<void>;
+  /** Leva ao Google da Mind. Só existe quando a porta oferece Google. */
+  entrarComGoogle: () => Promise<void>;
+  podeEntrarComGoogle: boolean;
   sair: () => Promise<void>;
   recarregarPerfil: () => void;
   /** Só tem efeito no modo simulado. */
@@ -72,6 +75,7 @@ export function ProvedorDeSessao({
   children,
   porta,
   baseUrlApi,
+  baseUrlAcesso,
   chavePublicavel,
   fetchImpl,
   papelInicial = 'administrador',
@@ -81,6 +85,8 @@ export function ProvedorDeSessao({
   /** Ausente = modo simulado. */
   porta?: PortaAutenticacao | null;
   baseUrlApi?: string;
+  /** `mindagent-acesso`: liga a conta Google à pessoa no primeiro login. Ausente = não tenta. */
+  baseUrlAcesso?: string | null;
   chavePublicavel?: string | null;
   fetchImpl?: typeof fetch;
   papelInicial?: Papel;
@@ -165,13 +171,30 @@ export function ProvedorDeSessao({
     setEstado('carregando_perfil');
     setErro(null);
 
-    void buscarPerfilAdmin({
-      baseUrl: baseUrlApi,
-      token,
-      chavePublicavel,
-      fetchImpl,
-      sinal: controlador.signal,
-    })
+    const buscarPerfil = () =>
+      buscarPerfilAdmin({
+        baseUrl: baseUrlApi,
+        token,
+        chavePublicavel,
+        fetchImpl,
+        sinal: controlador.signal,
+      });
+
+    void buscarPerfil()
+      .catch(async (e: unknown) => {
+        /* Primeiro login com o Google da Mind: a pessoa já está na lista
+           pelo Mind ID, mas a conta ainda não foi ligada a ela. Uma
+           tentativa só — se o banco recusar, a recusa dele é o erro. */
+        if (codigoDoErro(e) !== 'sem_permissao' || !baseUrlAcesso) throw e;
+        await vincularLoginAdmin({
+          baseUrl: baseUrlAcesso,
+          token,
+          chavePublicavel,
+          fetchImpl,
+          sinal: controlador.signal,
+        });
+        return buscarPerfil();
+      })
       .then((encontrado) => {
         if (controlador.signal.aborted) return;
         setPerfil(encontrado);
@@ -194,7 +217,7 @@ export function ProvedorDeSessao({
       });
 
     return () => controlador.abort();
-  }, [porta, sessao?.accessToken, baseUrlApi, chavePublicavel, fetchImpl, tentativaPerfil]);
+  }, [porta, sessao?.accessToken, baseUrlApi, baseUrlAcesso, chavePublicavel, fetchImpl, tentativaPerfil]);
 
   const entrar = useCallback(
     async (email: string, senha: string) => {
@@ -215,6 +238,25 @@ export function ProvedorDeSessao({
     },
     [],
   );
+
+  const entrarComGoogle = useCallback(async () => {
+    const atual = portaRef.current;
+    if (!atual?.entrarComGoogle) return;
+    setCarregandoLogin(true);
+    setErro(null);
+    setExpirou(false);
+    try {
+      /* Em produção o navegador sai para o Google aqui; a sessão chega
+         na volta, pelo `aoMudarSessao`. */
+      await atual.entrarComGoogle();
+    } catch (e) {
+      setErro(e);
+      setEstado('anonimo');
+      throw e;
+    } finally {
+      setCarregandoLogin(false);
+    }
+  }, []);
 
   const sair = useCallback(async () => {
     if (!portaRef.current) return;
@@ -288,6 +330,8 @@ export function ProvedorDeSessao({
       carregandoLogin,
       pode,
       entrar,
+      entrarComGoogle,
+      podeEntrarComGoogle: Boolean(porta?.entrarComGoogle),
       sair,
       recarregarPerfil,
       definirPapel: setPapelSimulado,
@@ -306,6 +350,8 @@ export function ProvedorDeSessao({
       carregandoLogin,
       pode,
       entrar,
+      entrarComGoogle,
+      porta,
       sair,
       recarregarPerfil,
       obterToken,

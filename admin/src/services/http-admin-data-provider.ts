@@ -22,8 +22,6 @@ import {
   type MapaRecursos,
   type NomeRecurso,
   type OpcoesEscrita,
-  type ReciboReindexacao,
-  type ResumoPainel,
 } from '@/contracts';
 import type { AdminDataProvider } from './admin-data-provider';
 import { erroDaResposta, erroDeRede } from './http-erros';
@@ -232,14 +230,4 @@ export class HttpAdminDataProvider implements AdminDataProvider {
   /* ---------------------------------------------------------------- */
   /* POST /admin/documents/:id/reindex · GET /admin/dashboard          */
   /* ---------------------------------------------------------------- */
-
-  requestReindex(documentId: string): Promise<ReciboReindexacao> {
-    return this.pedir<ReciboReindexacao>(this.caminho(['documents', documentId, 'reindex']), {
-      method: 'POST',
-    });
-  }
-
-  getDashboard(): Promise<ResumoPainel> {
-    return this.pedir<ResumoPainel>(this.caminho(['dashboard']));
-  }
 }

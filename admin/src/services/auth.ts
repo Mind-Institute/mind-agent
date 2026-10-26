@@ -27,6 +27,13 @@ export interface PortaAutenticacao {
 
   entrar(email: string, senha: string): Promise<SessaoAuth>;
 
+  /**
+   * Leva ao Google da Mind e volta para o painel com a sessão. Não
+   * devolve sessão: o navegador sai da página, e a sessão chega depois
+   * pelo `aoMudarSessao`. Ausente = a porta não oferece Google.
+   */
+  entrarComGoogle?(): Promise<void>;
+
   sair(): Promise<void>;
 
   /** Solta timers e conexões. Chamado quando o provedor desmonta. */

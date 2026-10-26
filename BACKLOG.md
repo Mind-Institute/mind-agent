@@ -666,10 +666,32 @@ Fluxo futuro aprovado:
 
 `AUTO-DISCOVERY → pending → proposta de classificação → aprovação humana → Source Registry → Kit Loader`.
 
-**Não construir agora** o frontend nem o cron/autodiscovery completo. O futuro frontend deve ser
-uma **Inbox da Intelligence**, não uma tela técnica: mostrar o que apareceu, o conceito provável,
+~~**Não construir agora** o frontend nem o cron/autodiscovery completo.~~ **Revogado em
+21/09/2026 pela Adriana** — ver nota abaixo. O frontend deve ser uma **Inbox da
+Intelligence**, não uma tela técnica: mostrar o que apareceu, o conceito provável,
 produto/scope, natureza (SOURCE/MIRROR/LOCAL_AUTHORITATIVE/DERIVED), autoridade e permitir
 `APROVAR / AJUSTAR / IGNORAR`.
+
+> **Revogação de 21/09/2026 — a razão expirou.**
+>
+> O "não construir agora" existia para que a Inbox não atrasasse o go-live do Vendedor e
+> do Concierge para o Summit — é por isso que ele aparecia sob *"o que não sequestra o
+> caminho crítico"* em `PROJECT_STATE.md` e sob *"NÃO reabrir agora"* em
+> `CHECKPOINT_ATUAL.md`. **O Summit 2026 já aconteceu.** A interdição protegia um prazo
+> que passou, e mantê-la escrita faria a próxima pessoa a ler achar que a decisão ainda
+> tem base.
+>
+> Entra pela válvula que `GO_LIVE_VENDEDOR_CONCIERGE_20260830.md:689` já previa: *"Se
+> algum desses itens virar bloqueio real, ele volta pelo ritual normal e entra pela menor
+> mudança necessária."*
+>
+> Uma advertência que a revogação **não** apaga, e que o desenho tem de responder: este
+> padrão de fila com decisão humana já foi construído três vezes aqui e **nenhuma das três
+> tem tela** — `engagement.identidade_fusoes` com 1.604 pendências, `intelligence.recovery_inbox`
+> com 520 acionáveis e nada enviado, e `engagement.recovery_dispatch_queue`, cujo estado
+> `approved` está no CHECK e nunca foi escrito por linha nenhuma de código. Construir mais
+> backend de fila sem a superfície onde alguém decide é repetir o erro. **A tela não é a
+> fase 2; é a entrega.**
 
 O `Source Registry + Kit Loader mínimo` que destrava o vendedor é **trabalho corrente do roadmap,
 não item adiado deste backlog**. O que fica aqui é a automação/UX posterior.
@@ -951,3 +973,154 @@ Contexto e evidência: `CHECKPOINT_ATUAL.md` §5D e issue #42.
    classificador escolhe só um deles, a conversa não gera análise nenhuma.
 4. Dedupe de memória é por slug do texto: "montar um plano de cultura para 2027" e "montar plano de
    cultura para 2027" viram dois objetivos. Sem consumidor reclamando ainda.
+
+## 19. Espelho literal do HubSpot com histórico de status — IDEIA registrada (23/09/2026, Adriana)
+
+Nas palavras dela: *"em vez de mudar como o HubSpot muda (deletar, adicionar), a gente coloca uma
+coluna de status e diz: o HubSpot adicionou, ou deletou na data X. Eventualmente vamos atingir o
+limite do HubSpot e precisar deletar pessoas lá, mantendo listas aqui para, de quando em quando,
+subir de novo. Um espelho literal, a ponto de que, se eu deletar lá, depois eu consiga subir."*
+
+**Não fazer nada ainda** — é uma ideia para desenhar juntos e depois executar. O que já existe e
+o desenho deve reutilizar: `crm.contato_espelho` (espelho do contato, com `propriedades` jsonb
+inteiro), a migration `hubspot_arquivados_por_objeto` (03/09, já marca objetos arquivados no
+HubSpot), o `mind_sync_estado` e o cron diário de 06:17. O que falta no desenho: (1) o espelho
+deixar de apagar/sobrescrever e passar a **anexar estado** (`ativo`, `arquivado_em`,
+`deletado_em`, `reenviado_em`); (2) a lista de reenvio (quem sobe de volta, quando) e o gate de
+outbound/write-back D1 antes de qualquer upload; (3) com D5, a pessoa continua existindo em
+`pessoas.pessoas` mesmo se o contato sumir do HubSpot — o `pessoa_id` é o elo para ressubir.
+
+## 20. Descobertas laterais do rename D6 (`mind_id`) — 23/09/2026
+
+Registradas durante a reescrita das 63 funções; nenhuma foi corrigida além do necessário para o
+rename passar.
+
+1. **`credenciamento_summit_2026.v_participantes` ainda resolve `pessoa_id` por junção lateral**
+   em `engagement.identidades` (e-mail, depois telefone) — desenho anterior a D5. A coluna real
+   `participantes.mind_id` (preenchida pelo trigger da Regra #1) existe e é a fonte certa. Recriar a
+   view lendo `mind_id` e com saída `mind_id` (hoje a saída chama `pessoa_id`; `mind_credenciamento_fatos`
+   lê `v.pessoa_id` e precisaria acompanhar). Sem consumidor quebrado hoje.
+2. **`api.me` estava quebrada antes do rename**: lia `summit.registrations`, schema que não existe
+   (só `summit_2026`); com `check_function_bodies=on` o `create or replace` literal falharia, então
+   a reescrita D6 corrige o schema para `summit_2026.registrations` junto com `person_id → mind_id`.
+   Conferir se o app ainda chama `api.me` ou se é função morta.
+3. **Colunas `pessoa_id` vazias e sem FK** em `crm.empenho_summit_2026` (25 linhas) e
+   `crm.pipeline_leads_inbound` (3.428 linhas) — nunca preenchidas. D6 renomeia para `mind_id` e
+   cria a FK; preencher é a varredura das 160 tabelas (leads inbound ligam pelo contato HubSpot).
+4. **`credenciamento_summit_2026.yazo_envio_fila.participant_id`** aponta para `participantes.id`
+   (11.404/11.404), não para pessoa: não é o ID universal e não foi renomeada. Se um dia a fila
+   precisar da pessoa, entra pela Regra #1 com `credenciamento_id`.
+5. **`mind_espelho_ligar` mantém blocos legados** que gravam `mind_id` em `pipeline_de_vendas_summit`
+   e `vendas_historicas_mind_summit` a partir de `contato_espelho` (§ CORE_UNIVERSAL 13). Continua
+   legado conhecido; só o nome da coluna mudou.
+6. **`mind_checkout_click_registrar` e `mind_checkout_event_purchase_status` dependem de
+   `engagement.checkout_clicks`**, tabela que saiu do banco entre 21 e 23/09 (a migration de
+   comentários já anotou). A primeira declara `checkout_clicks%rowtype` e por isso só pode ser
+   recriada com `check_function_bodies` desligado (é o que a migration D6 faz); as duas falham em
+   runtime até a tabela voltar. Se voltar pela migration de 03/09, nasce com `participant_id`:
+   decidir se entra na Regra #1 com `mind_id`. Na mesma situação: `mind_checkout_abandonment_refresh`
+   lê `intelligence.v_checkout_abandonment`, view que também não existe mais no banco (o ledger
+   registra as migrations de 03/09 como aplicadas, mas os objetos saíram); `mindagent-recovery` a
+   chama por RPC e recebe erro hoje.
+7. **Funções já mortas antes do rename** (schema `summit` não existe): `concierge.resumo_do_dia`
+   (`summit.sessions`, `motivos_ausencia`) e `mind.esquecer_participante` (`nps_summit`,
+   `participantes` fora do search_path). D6 as recria só com o rename (a primeira com
+   `check_function_bodies` desligado, por ser LANGUAGE sql). Consertar ou dropar é decisão à parte.
+8. **25 pessoas ligadas a um contato do HubSpot sem a identidade `hubspot` em `engagement.identidades`**
+   (achado da varredura #34, 23/09): `crm.contato_espelho.mind_id` aponta para a pessoa, mas
+   `identidades` não tem o `hubspot_id` dela, então a porta única não encontra a pessoa por esse id.
+   `mind_pessoa_enriquecer` rodou nas 25 e não acrescentou (2 conflitos: o id já está em outra
+   pessoa). Conferir uma a uma na fila de fusões; até lá, quem chegar só com esse id HubSpot cria
+   pessoa nova. Linhas afetadas hoje: 10 em `crm.pipeline_leads_inbound`, 61 em `treble.status_hs_contatos`
+   (ligadas pelo `mind_id` do espelho).
+
+## 21. Perfil ICP/JTBD e HubSpot — o que ficou para depois (23/09/2026, atualizado à tarde)
+
+Feito em 23/09 à tarde (ver `docs/PERFIL_ICP_JTBD.md` §3 e §6): guarda de última escrita, `memoria_regex`,
+revisão da regra (pesos, veto, rebaixamento, cargo), resumo no HubSpot, automático (cron + gatilhos),
+alinhamento das propriedades (rótulo "Fundadot" corrigido), escritor × regra; no fim da tarde,
+`pessoas.pessoas.relacionamento_mind` e a regra do não-lead (`20260923143941`, Edge Function v5 — ver
+`docs/PERFIL_ICP_JTBD.md` §2 e §3). Ficou:
+
+1. **Tradução de evidência por família (B1, gate de semântica — Adriana).** Hoje, para `especialista`
+   (psicólogo, consultor), ir a uma sessão de programas/ROI/NR-1 gera o job de *comprador* (vetado a
+   hipótese) e o job de *fornecedor* (`vender_para_rh`/`autoridade_escala`) só por contexto (0,5–0,6).
+   O certo é a mesma evidência sustentar o job de fornecedor com o mesmo peso; para RH decisor,
+   liderança → `treinar_liderancas` com o peso da evidência. Implementar como `sinais.traducao_por_familia`.
+2. **Valores internos novos no HubSpot (B2).** `diretor_vp_nao_rh`, `gestor_nao_rh` e `analista_nao_rh`
+   reaproveitam os valores internos antigos `Gestor / Middle Manager`, `People Leader / Business Partner`
+   e `Executivo Sênior / Alto Performer` (decisão dela na tela): listas/workflows antigos mudaram de
+   significado; 5 contatos marcados à mão antes de 23/09 são lidos pelo *fallback* do CRM com o rótulo
+   novo. Criar valores novos, migrar os ≤ 13 legados à mão, reescrever os contatos (a guarda permite).
+3. **Empresa como sinal (B3).** ~110 fornecedores (CEO de consultoria, dono de clínica, Wellhub, Einstein…)
+   estão como compradores porque a regra só olha o cargo. Linhas novas em `intelligence.icp`
+   (`fornecedor_bem_estar`, `mind_interno`) por `regex_empresa`, e `summit_2026.exhibitors` (vazia) como fonte.
+4. **Peso de reserva por sessão (B4).** Hoje reserva vale 0,50 fixo. Alternativa: coluna `peso` em
+   `summit_2026.sessions` (plenária 0,5, trilha 1,0) marcada pela Adriana, ou ignorar reserva em sessão
+   reservada por > 40% das pessoas.
+5. **Conversa (B5, gate de custo).** Prompt novo do `analisar-conversa` (13 ICPs, 13 jobs mind, resumo);
+   memória JT em `proposta` entrando com `least(conf, 0.65)`; JT10 → `engajar_reter` em vez de
+   `escolher_programas`; reprocessar as 4.921 análises.
+6. **Rótulo "Cuidar da minha saúde mental e performance" no CRM (B7, decisão de produto).** 1.122 contatos
+   levam ao HubSpot um rótulo sobre saúde mental inferido de presença em palestra; alternativa:
+   "Performance sustentável e energia (eu)".
+7. **Limpezas no HubSpot que a função não faz** (ela nunca apaga valor de lead): `icp = Outros` em ~120
+   contatos; o valor interno `Fundadot / Sócio / Empreendedor` (só o rótulo foi corrigido).
+   ~~`icp`/`jtbd` gravados em 41 staff/palestrantes~~ — feito em 23/09 pela regra do não-lead (v5: 86
+   limpezas em 41 contatos).
+8. **18 pares de pessoas → mesmo contato do HubSpot** (`contato_repetido_no_recorte`): duplicatas que a
+   fase B (`engagement.identidade_fusoes`) ainda não cobriu. Levantar os pares e propor à Adriana.
+9. **Cargo: casos que a regra ainda erra** — typos ("Doretoria de Gente", "Funder", "Chairmam" já entra),
+   "HRD" (diretor de RH, hoje analista), "Executiva de RH", "Diretor Médico" (hoje saúde). Correção
+   cirúrgica em `icp_por_cargo` + caso no contrato.
+10. **Semente da última escrita** (08:52 UTC) sem `antes` e com contagens ≠ do que foi de fato escrito na
+    primeira rodada (`company` 1.465 registrados / 1.283 escritos): as escritas de 23/09 de manhã não são
+    revertíveis pelo banco, só pelo histórico de propriedade do HubSpot. As da tarde têm `antes`.
+11. **`mind_hubspot_perfil_plano` recalcula `perfil_resumo` por linha** (~1,3 s para 2,6 mil; cresce linear).
+    Se a base crescer, materializar o resumo em memória (`tipo = 'resumo'`) na projeção.
+12. **Parceiro de venda:** ~~sem fonte~~ — desde `20260923150946`, domínio de e-mail em
+    `intelligence.config.parceiro_venda_dominios` (Mais Diversidade → 13 pessoas); o resto à mão. Marcados à
+    mão em 23/09: **Igor Gomes Menezes** (o "Igor" da Adriana: deu o workshop "Bem-estar começa na agenda" com
+    Esabela Cruz e Clarissa Daroit, da Mais Diversidade — se for outro Igor, corrige-se na coluna) e o registro
+    de palestrante da **Esabela Cruz** (Gmail; o @maisdiversidade dela já vinha pelo domínio).
+13. ~~**Pessoas duplicadas entre palestrantes, professores e staff**~~ — fundidas em 23/09 por decisão dela (8
+    fusões; Thiago Barros e Thiago Araújo são duas pessoas; a Mayra "Hnk" não é duplicata: é convidada
+    Heineken). Ficaram, sem decisão: "Thiago dos Santos Barros" (barros.thiago@gmail.com, mesmo telefone do
+    Thiago Barros, pendência `mesmo_telefone_emails_diferentes`); Amanda Aragão e Clarissa Daroit (Mais
+    Diversidade, cada uma com um registro Gmail e um @maisdiversidade); Esabela Cruz (palestrante Gmail ×
+    @maisdiversidade); "Teste Teste" (teste@teste.com.br) ligado aos telefones/e-mails de teste da Adriana.
+    Registro original:
+    Adriana Drulla (`307826c1` perfil público + Institute; `24e2874d` adriana@joinmind; talvez `9a506a61`
+    "Adriana Campos", adrulla@berkeley.edu), Tamara Myles (`a9388699` × `e2c1a9d0`), Elaine Lizeo
+    (`ab6e1fd8` × `de56f363`), Ivana Moreira (`3ad0f45c` × `6d167300` × `ccf822d3` ivana@joinmind),
+    Juliana Elorza (`0125988e` × `f798c3ab`), Thiago (`fe1d6390` thiago@ × `a7164a76` taraujo@ ×
+    `cd9319e4` gmail), Mayra Andrade (`d3ba2886` mayra@ × `81021d9e` "Hnk" com `contato@joinmind.com.br`).
+    (Todas já eram não-lead; a fusão juntou a professora e a palestrante que apareciam como duas pessoas.)
+14. **Especialistas do ecossistema sem pessoa:** 59 dos 66 `ecossistema.palestrantes_especialistas` não têm
+    `perfis_publicos`/`mind_id` — se forem palestrantes do Summit, já entram pelo credenciamento; os demais
+    só viram não-lead quando ganharem vínculo determinístico (nunca por nome).
+15. **O Agent ainda não recebe o tipo de relacionamento.** `mind_customer_intelligence` esconde ICP e jobs de
+    quem não é lead, mas não diz ao Agent "é palestrante/staff" — o concierge ainda pode oferecer produto a
+    um palestrante. Expor `relacionamento` no contexto do Agent é mudança de contrato/prompt (produto — dela).
+16. **Fusão e marca manual:** `mind_pessoa_fundir` não junta `relacionamento_mind`; os tipos derivados voltam
+    na hora seguinte (as fontes são repontadas para a sobrevivente), mas `parceiro_venda` marcado à mão só
+    na absorvida se perde. Juntar os arrays na fusão quando o primeiro parceiro for marcado.
+17. **Contas de teste e nomes com encoding quebrado:** ~~três "ZZ TESTE — apagar"~~ — apagadas em 23/09 (os
+    contatos continuam no HubSpot com esse nome; o espelho é incremental e não as traz de volta enquanto
+    ninguém as editar lá); "LÃ¯Â¿Â½dia Ferrari Correa", "VinÃ¯Â¿Â½cius Muniz" e "Amanda AragÃ¯Â¿Â½o" com
+    mojibake no nome.
+18. **Espelho diário de contatos do HubSpot travado** (`crm.sync_estado.hubspot_contatos`: status `erro`,
+    `hubspot 400 em /crm/v3/objects/contacts/search`; marca d'água em 09/09, `incremental_cursor` = 10000,
+    última linha espelhada em 20/09). Causa provável: a busca incremental desde 09/09 passa de 10.000
+    resultados — teto da busca do HubSpot — e o 400 vem ao pedir a página depois do 10.000º (o write-back de
+    perfil de 23/09 editou ~2,3 mil contatos, o que só aumenta a janela). Correção no `hubspot-sync` (não
+    versionado aqui): avançar a marca d'água pelo `lastmodifieddate` do último lote em vez de paginar além de
+    10 mil. Até lá, contato novo/editado no HubSpot não chega a `crm.contato_espelho`. Lane de CRM (#42).
+19. **Histórico de IA de quem não é lead:** 84 análises (`intelligence.analise_conversa`, 16 pessoas) e 73
+    memórias de conversa ativas/propostas (interesse, objetivo…) ficaram gravadas de antes da trava; ICP/JTBD
+    já foram limpos. Apagar o resto é decisão dela.
+20. **Credenciamento de patrocinador com CPF repetido:** o ingresso da "Mayra Andrade Jacó Hnk" (camarote
+    Heineken, e-mail contato@) tem o mesmo CPF que a Tamara Myles; o registro do camarote usou dados
+    genéricos (empresa Heineken também no ingresso da Ivana). Conferir na Yazo/Eduzz antes de usar CPF desses
+    ingressos para identidade.
+

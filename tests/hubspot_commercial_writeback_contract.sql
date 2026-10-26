@@ -25,7 +25,7 @@ insert into pessoas.pessoas (
   '30000000-0000-4000-8000-000000000001', 'Contract', 'Participant', 'bot'
 );
 
-insert into engagement.conversas (id, participante_id, canal, agente)
+insert into engagement.conversas (id, mind_id, canal, agente)
 values
   (
     '10000000-0000-4000-8000-000000000002',
@@ -41,7 +41,7 @@ values
   );
 
 insert into intelligence.analise_conversa (
-  id, conversa_id, participante_id, analisador, funcao,
+  id, conversa_id, mind_id, analisador, funcao,
   dados, prompt_versao, analisado_em
 ) values
   (

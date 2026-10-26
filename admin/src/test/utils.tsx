@@ -43,10 +43,11 @@ export interface OpcoesRender {
   rota?: string;
   papel?: Papel;
   provedor?: AdminDataProvider | FabricaProvedor;
-  agora?: number;
   /** Ausente = modo simulado, sem login. */
   porta?: PortaAutenticacao | null;
   baseUrlApi?: string;
+  /** `mindagent-acesso`. Ausente = o painel não tenta ligar conta Google. */
+  baseUrlAcesso?: string | null;
   chavePublicavel?: string | null;
   fetchImpl?: typeof fetch;
   /** Prefixo do roteador, como em produção (`/admin`). */
@@ -66,14 +67,14 @@ export function renderizarPainel({
   rota = '/',
   papel = 'administrador',
   provedor,
-  agora,
   porta,
   baseUrlApi,
+  baseUrlAcesso = null,
   chavePublicavel = null,
   fetchImpl,
   basename,
 }: OpcoesRender = {}): ResultadoRender {
-  const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0, agora });
+  const usado = provedor ?? new MockAdminDataProvider({ latenciaMs: 0 });
   const instancia = typeof usado === 'function' ? null : usado;
   const roteador = createMemoryRouter(rotasAdmin, { initialEntries: [rota], basename });
   const cliente = criarClienteDeConsulta();
@@ -86,6 +87,7 @@ export function renderizarPainel({
       queryClient={cliente}
       porta={porta}
       baseUrlApi={baseUrlApi}
+      baseUrlAcesso={baseUrlAcesso}
       chavePublicavel={chavePublicavel}
       fetchImpl={fetchImpl}
     >
@@ -117,7 +119,7 @@ export const SESSAO_DE_TESTE: SessaoAuth = {
 export interface PortaFalsa extends PortaAutenticacao {
   /** Empurra uma sessão (ou `null`) como se o Supabase tivesse avisado. */
   emitir: (sessao: SessaoAuth | null) => void;
-  chamadas: { entrar: number; sair: number; encerrar: number };
+  chamadas: { entrar: number; sair: number; encerrar: number; google: number };
   ouvintes: number;
 }
 
@@ -126,11 +128,13 @@ export function criarPortaFalsa(
     sessaoInicial?: SessaoAuth | null;
     aoEntrar?: (email: string, senha: string) => Promise<SessaoAuth>;
     aoSair?: () => Promise<void>;
+    /** Liga o "Entrar com Google". A função faz as vezes da ida e volta ao Google. */
+    aoEntrarComGoogle?: () => Promise<void>;
   } = {},
 ): PortaFalsa {
   let sessao = opcoes.sessaoInicial ?? null;
   const ouvintes = new Set<(s: SessaoAuth | null) => void>();
-  const chamadas = { entrar: 0, sair: 0, encerrar: 0 };
+  const chamadas = { entrar: 0, sair: 0, encerrar: 0, google: 0 };
 
   const porta: PortaFalsa = {
     chamadas,
@@ -152,6 +156,14 @@ export function criarPortaFalsa(
       sessao = nova;
       return nova;
     },
+    ...(opcoes.aoEntrarComGoogle
+      ? {
+          async entrarComGoogle() {
+            chamadas.google += 1;
+            await opcoes.aoEntrarComGoogle?.();
+          },
+        }
+      : {}),
     async sair() {
       chamadas.sair += 1;
       await opcoes.aoSair?.();
@@ -184,6 +196,8 @@ export interface ChamadaHttp {
   url: string;
   metodo: string;
   cabecalhos: Record<string, string>;
+  /** O corpo JSON enviado, já lido. `undefined` quando não houve corpo. */
+  corpo?: unknown;
 }
 
 export interface FetchFalso {
@@ -197,6 +211,8 @@ export interface RotaFalsa {
   status?: number;
   corpo?: unknown;
   erroDeRede?: boolean;
+  /** Respostas em ordem, uma por chamada; a última se repete. Ignora os campos acima. */
+  sequencia?: Omit<RotaFalsa, 'sequencia'>[];
 }
 
 /**
@@ -210,6 +226,8 @@ export interface RotaFalsa {
  */
 export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
   const chamadas: ChamadaHttp[] = [];
+  /* Quantas vezes cada rota com `sequencia` já respondeu. */
+  const usos = new Map<RotaFalsa, number>();
 
   const definicoes = Object.entries(rotas).map(([chave, rota]) => {
     const partes = chave.trim().split(' ');
@@ -243,14 +261,21 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
       if (brutos instanceof Headers) brutos.forEach((v, k) => (cabecalhos[k] = v));
       else Object.assign(cabecalhos, brutos as Record<string, string>);
     }
-    chamadas.push({ url, metodo, cabecalhos });
+    const corpo = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
+    chamadas.push({ url, metodo, cabecalhos, corpo });
 
-    const rota = escolher(url, metodo);
-    if (!rota) {
+    const escolhida = escolher(url, metodo);
+    if (!escolhida) {
       return new Response(JSON.stringify({ codigo: 'nao_encontrado', mensagem: 'sem rota falsa' }), {
         status: 404,
         headers: { 'content-type': 'application/json' },
       });
+    }
+    let rota: Omit<RotaFalsa, 'sequencia'> = escolhida;
+    if (escolhida.sequencia?.length) {
+      const vez = usos.get(escolhida) ?? 0;
+      usos.set(escolhida, vez + 1);
+      rota = escolhida.sequencia[Math.min(vez, escolhida.sequencia.length - 1)];
     }
     if (rota.erroDeRede) throw new TypeError('Failed to fetch');
 
@@ -276,6 +301,9 @@ export function criarFetchFalso(rotas: Record<string, RotaFalsa>): FetchFalso {
    método, URL e cabeçalhos. */
 
 export const API_FALSA = 'https://api.exemplo.invalido/mindagent-admin';
+export const CATALOGO_FALSO = 'https://api.exemplo.invalido/mindagent-catalogo';
+export const ACESSO_FALSO = 'https://api.exemplo.invalido/mindagent-acesso';
+export const SUMMIT_FALSO = 'https://api.exemplo.invalido/mindagent-summit';
 
 /** Publicável de mentira. A real nunca entra em teste nem em commit. */
 export const CHAVE_FALSA = 'sb_publishable_de_teste';
@@ -308,17 +336,24 @@ export function renderizarHibrido({ rota = '/', rotas = {}, perfil }: OpcoesHibr
     baseUrlApi: API_FALSA,
     chavePublicavel: CHAVE_FALSA,
     fetchImpl: falso.fetch,
-    provedor: (o) =>
-      new HybridAdminDataProvider(
+    provedor: (o) => {
+      const conectar = (baseUrl: string) =>
         new HttpAdminDataProvider({
-          baseUrl: API_FALSA,
+          baseUrl,
           fetchImpl: falso.fetch,
           chavePublicavel: CHAVE_FALSA,
           obterToken: o.obterToken,
           aoNaoAutorizado: o.aoNaoAutorizado,
-        }),
+        });
+      /* Como em produção: o catálogo (a tela inicial), os admins do
+         sistema e as tabelas do Summit, cada um na sua função. */
+      return new HybridAdminDataProvider(
         mock,
-      ),
+        conectar(CATALOGO_FALSO),
+        conectar(ACESSO_FALSO),
+        conectar(SUMMIT_FALSO),
+      );
+    },
   });
 
   return { ...tela, falso, porta, mock };

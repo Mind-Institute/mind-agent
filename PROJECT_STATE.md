@@ -1,20 +1,10 @@
-# Mind Agent — estado do projeto, arquitetura congelada e ordem de execução
+# Mind Agent — documentação do projeto e estado da implementação
 
-> **Documento canônico de arquitetura e decisões congeladas.**
-> Para o ponto exato de retomada operacional, leia primeiro **[`CHECKPOINT_ATUAL.md`](CHECKPOINT_ATUAL.md)**.
->
-> **Versão do checkpoint arquitetural: v8 — 04/09/2026.**
->
-> v8 congela o atalho comercial estreito do Treble, criado por causa da latência medida do
-> Router: B2C é padrão; B2B de ingressos exige destino corporativo e mais de uma pessoa;
-> suporte, outra solução e empresa sem quantidade seguem para o Router. O código e o
-> `router_universal` devem carregar exatamente o mesmo contrato.
->
-> v7 congela a correção de produto pedida pela Adriana: o App continua entrando como Concierge e usando momento do evento + contexto da pessoa, mas também pode vender quando houver intenção explícita de compra ou upgrade. O mesmo contrato de checkout atribuído vale no App e no WhatsApp e já nasce extensível para Institute e pré-venda do Summit seguinte quando essas ofertas oficiais entrarem nos Kits.
->
-> v6 substitui duas partes desatualizadas de v5: (1) o modelo operacional vigente volta a refletir o workflow realmente usado — **ChatGPT arquiteto/supervisor + Claude Code executor + GitHub como memória/barramento**; (2) `Passo 12B` deixou de ser “passo atual”: Kit/Gate/Core já estão integrados e o go-live está em lanes B/C/D/E. v6 também explicita a diferença entre merge de migrations/app e publicação manual das Edge Functions neste repo sem `supabase/config.toml`.
->
-> As decisões arquiteturais anteriores que não conflitam com v6 continuam vigentes.
+> **Antes de tocar no sistema, leia `AGENTS.md` e estude o schema `arquitetura` no Supabase.**
+> As decisões aprovadas vivem somente em `arquitetura.decisoes`, no projeto `mind-agent`
+> (`ymnmotgglsrxmjmonwjz`). Este documento não mantém uma lista ou exportação das decisões.
+> Para o estado operacional, leia `CHECKPOINT_ATUAL.md`. As seções técnicas abaixo descrevem
+> componentes e contexto de implementação; não substituem nem alteram as decisões no banco.
 
 ---
 
@@ -41,7 +31,7 @@ Cada arquivo tem um papel. Não misturar:
 ```text
 INVESTIGAR
 → ENTENDER O QUE JÁ EXISTE
-→ DECIDIR A MENOR MUDANÇA
+→ PROPOR E OBTER APROVAÇÃO DA ARQUITETURA
 → IMPLEMENTAR
 → TESTAR SÓ O AFETADO
 → REGISTRAR O ESTADO FINAL/CHECKPOINT
@@ -63,12 +53,15 @@ Mudança pequena não vira revalidação ampla. Testar o que mudou e regressões
 
 ---
 
-## 3. Modo operacional vigente — v6
+## 3. Modo operacional vigente — v9
 
-- **Adriana** = dona de produto/negócio e dos gates sensíveis.
+- **Adriana** = dona de produto/negócio e dos gates sensíveis. Por **D2**, é também a **única aprovadora** de mudança estrutural de banco: fonte nova, casa nova, mudança de proveniência e o gate do §8 de `AGENTS.md`. Dentro de casa existente e comentada, a mudança de banco segue sem passar pela aprovação dela; o que muda estrutura — tabela nova, schema novo, troca de quem manda no fato — vai a ela antes.
+- Por **D7** (07/10/2026), **nenhuma função é criada, alterada ou apagada sem aprovação explícita da Adriana** — Edge Function ou função de banco, em qualquer projeto Supabase do Mind, inclusive dentro de casa existente. Diferente de D2, aqui não há exceção por "casa existente": a proposta vai a ela antes, sempre, dizendo qual função existente foi avaliada primeiro.
 - **ChatGPT arquiteto/supervisor** = mantém o modelo mental, verifica GitHub/Supabase, fecha a menor mudança, coordena lanes, revisa PRs/testes, decide ordem de integração, mergeia quando permitido e registra checkpoints.
 - **Claude Code** = investigador/executor escopado em branch `claude/...`; implementa o chunk fechado, testa o afetado, reporta evidência; não amplia escopo e não mergeia sozinho.
 - **GitHub** = memória compartilhada e barramento entre lanes. Coordenação deve ir direto às issues/PRs, evitando Adriana como transporte humano.
+
+> **Por que D2 é sustentável.** Descontada a carga histórica de agosto (120 tabelas em 3 migrations, o stub que criou o banco), setembro/2026 teve **9 tabelas novas em 7 migrations** — menos de uma por semana. A fila de aprovação da Adriana recebe de um a três itens por semana. Se esse volume subir de forma persistente, a decisão de aprovador único é que precisa ser revista — não a régua.
 
 Workflow:
 
@@ -182,12 +175,16 @@ Regras:
 
 ### Pessoa
 
-`pessoas.pessoas.id` é a `pessoa_id` canônica. HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
+`pessoas.pessoas.id` é o **Mind ID** canônico; em toda outra tabela a coluna chama-se `mind_id` (D6). HubSpot/e-mail/WhatsApp/auth são identificadores/evidências, não IDs alternativos.
+
+Os detalhes operacionais de identidade estão em `READ_ME_FIRST.md`. As decisões D5/D6
+são consultadas no Supabase, não copiadas nesta seção.
 
 Conflito de identidade:
 
 ```text
-detecta → persiste evidência → pendência idempotente → NÃO auto-merge → resolução humana
+detecta → persiste evidência → pendência idempotente com PROPOSTA (padrão, quem sobrevive)
+→ NÃO auto-merge → decisão da Adriana em mind_fusao_decidir (bloco só para confiança alta)
 ```
 
 ### Intelligence
@@ -228,7 +225,86 @@ Proveniência canônica:
 
 Antes de declarar lacuna, procurar fontes acessíveis relevantes. “Não está no mind-agent” não significa “não existe no ecossistema Mind”.
 
+### Quem manda em cada fato — D1, 21/09/2026
+
+A regra acima não muda: **o fato bruto continua pertencendo a quem o observou.** O que D1
+decide é o andar de cima — quem responde pela **síntese**, a leitura consolidada do cliente
+que atravessa várias origens. Essa é do Mind.
+
+| fato | autoridade | onde mora aqui | nota |
+|---|---|---|---|
+| transação, fatura, refund, cupom | `eduzz` | espelho `eduzz.*` | quem processa o pagamento é quem sabe se ele aconteceu |
+| presença física no Summit | **`mind`** | `credenciamento_summit_2026.*` | **quem manda é o credenciamento, não a Yazo** — ver a regra abaixo. 2026 ainda entra por planilha; virar carga é obra, não decisão |
+| progresso e acesso no LMS | `learnworlds` | `learnworlds.produtos` / `acessos` | o LMS sabe o que a pessoa assistiu; nós sabemos a que ela tem direito |
+| propriedade de contato e estágio de pipeline | `hubspot` | `crm.contato_espelho`, `crm.sync_estado` | continua origem **do que o time comercial edita lá** |
+| **histórico consolidado do cliente com o Mind** | **`mind`** | `crm.pessoa_produtos` — **vazia** | **é isto que D1 inverte**; ver abaixo |
+| conversa, identidade, memória, estado do agente | `mind` | `engagement.*`, `pessoas.*` | sempre foi nosso |
+| vocabulário de produto, preço e oferta | `mind` | `catalogo.produtos` | §6 de `docs/CORE_UNIVERSAL.md` |
+| NPS do evento | `mind` | `engagement.nps` — **vazia** | por participante; `CHECK (nota 0–10)` já existe |
+| NPS por produto | `mind` | `crm.pessoa_nps` — **vazia** | por `(pessoa, produto)`; `CHECK (nota 0–10)` já existe |
+
+**Como ler esta tabela.** Autoridade não é sobre onde o dado está guardado — é sobre quem
+ganha quando duas casas discordam. Um espelho pode ser a cópia mais completa e ainda assim
+não mandar no fato.
+
+> **A regra que decide as linhas duvidosas — correção da Adriana, 21/09/2026.**
+> **Autoridade segue o processo, não o fornecedor.**
+>
+> A pergunta certa não é *"em que sistema esse dado está?"*, é *"quem observou o fato?"*.
+>
+> - A Eduzz **observa um fato que nós não conseguimos observar**: se o pagamento liquidou.
+>   Mesma coisa para o LearnWorlds e o progresso no vídeo. Nesses casos a autoridade é deles
+>   de verdade — trocar de fornecedor muda quem observa.
+> - A Yazo **não observa nada nosso**: o credenciamento acontece na nossa porta, no nosso
+>   evento, pela nossa equipe. A Yazo é a ferramenta que usamos para operá-lo — daria para
+>   ter feito no papel. **Quem manda na presença é o credenciamento, e o credenciamento é
+>   nosso.** Trocar a Yazo por outro sistema no ano que vem não move a autoridade.
+>
+> O erro que esta regra corrige era meu, e é o erro fácil: confundir *onde o arquivo está*
+> com *de quem é o fato*. A planilha da Yazo é o canal de entrada de 2026, não o dono.
+>
+> **A mesma régua aponta para o HubSpot, e vale dizer em voz alta:** o time comercial edita
+> lá, mas o processo comercial é nosso — nenhum fato nasce no HubSpot por observação dele.
+> Isso **reforça D1** em vez de contrariá-la: o HubSpot está na tabela acima como origem do
+> que o time edita hoje, que é o estado transitório honesto, não uma autoridade de direito.
+> Quando a inversão de D1 for ligada, essa linha cai sozinha.
+
+> **A casa que D1 pede já existe — e está vazia.** `crm.pessoa_produtos` (`pessoa_id`,
+> `produto_codigo`, `categoria`, `tipo_entrada`, `papel`, `quantidade`, `sincronizado_em`),
+> com FK para `pessoas.pessoas` e `catalogo.produtos`, UNIQUE `(pessoa, produto)` e RLS
+> ligada, foi criada em 29/08/2026 e **nunca recebeu uma linha**. O comentário original dela
+> já dizia a que veio: *"O que cada pessoa já adquiriu… Conversável: a pessoa pode perguntar
+> sobre a própria compra."*
+>
+> Mais: **`crm.contexto_comercial` já lê essa tabela** — e também `crm.pessoa_nps`. A função
+> que entrega contexto comercial ao agente foi escrita contra o consolidado local, não contra
+> o espelho do HubSpot. **A arquitetura de D1 já estava no banco; o que nunca houve foi
+> escritor.**
+>
+> Isso muda o tamanho de D1: não é redesenho, é **carga**. E confirma a regra de
+> `CLAUDE.md` — antes de criar tabela, prove que falta uma casa. Aqui não falta.
+>
+> **Mas há um conflito aberto, e ele não se resolve por dedução.** `docs/CORE_UNIVERSAL.md`
+> §13 lista `crm.pessoa_produtos` como legado — *"não é fonte independente da verdade
+> comercial"*. A linha estava certa no mundo em que o HubSpot era a origem; D1 derruba essa
+> premissa, não a linha. Que essa passe a ser a casa do consolidado é **proposta**, e
+> proposta não decide: vai à Adriana como pendência (**D2**), e é o primeiro caso real do
+> `registry`. Enquanto não houver decisão, valem as duas coisas — a tabela não é lida como
+> fonte, e ninguém cria outra para o mesmo fim.
+
+**Esta tabela é o resumo, não o registro.** A classificação viva, fonte por fonte, mora em
+`registry.fontes` (§12.11 do `BACKLOG.md`). Quando as duas divergirem, o banco está certo e
+este documento está velho. Mudar autoridade de uma fonte é decisão da Adriana (**D2**),
+registrada como pendência — não patch de quem consome.
+
 ---
+
+## 8A. Onde consultar as decisões
+
+Consulte `arquitetura.decisoes` no Supabase; leia o texto, o significado e a vigência.
+O mapa de implementação mora separadamente em `arquitetura.implementacao_decisoes` e
+informa a data da aferição. O painel consulta esses registros pela porta autenticada
+`mindagent-home/admin/decisoes`; não tem uma lista local nem fallback com decisões antigas.
 
 ## 9. Retrieval / Kit / RAG
 
@@ -425,7 +501,8 @@ Trabalho independente pode ocorrer em paralelo. Integração respeita dependênc
 Não abrir agora sem bloqueio real:
 
 - completar toda a Intelligence;
-- Intelligence Inbox/autodiscovery completo;
+- ~~Intelligence Inbox/autodiscovery completo~~ — **liberado em 21/09/2026**: esta linha
+  protegia o prazo do Summit, que já aconteceu. Ver a revogação em `BACKLOG.md` §12.11;
 - taxonomia de conceitos sem consumidor;
 - RAG/vector por elegância;
 - limpeza ampla de legado;

@@ -1,15 +1,22 @@
 # Mind — regras para Claude Code / agentes de execução
 
+**Primeiro: leia [`AGENTS.md`](AGENTS.md), começando pelo primeiro passo obrigatório,
+e estude as decisões e o schema `arquitetura` no Supabase antes de tocar no sistema.
+A fonte oficial está no Supabase; este arquivo contém instruções de uso, não outra
+lista de decisões.**
+
 ## Antes de trabalhar
 
 Leia, nesta ordem:
 
-1. **`CHECKPOINT_ATUAL.md`** — onde estamos exatamente agora.
-2. **`PROJECT_STATE.md`** — arquitetura, gates e decisões congeladas.
-3. **`GO_LIVE_PARALLEL_20260830.md`** — ownership da sua lane e ordem de integração.
-4. **`BACKLOG.md`** — somente o trecho relevante para não repetir investigação.
-5. **`docs/CORE_UNIVERSAL.md`** — o que já está vivo.
-6. Depois, **investigue o sistema real** diretamente relacionado ao seu chunk.
+0. **`AGENTS.md` e o schema `arquitetura` no Supabase** — entrada obrigatória e decisões oficiais.
+1. **`READ_ME_FIRST.md`** — instruções operacionais de identidade, após a arquitetura.
+2. **`CHECKPOINT_ATUAL.md`** — onde estamos exatamente agora.
+3. **`PROJECT_STATE.md`** — documentação do projeto; decisões somente no Supabase.
+4. **`GO_LIVE_PARALLEL_20260830.md`** — ownership da sua lane e ordem de integração.
+5. **`BACKLOG.md`** — somente o trecho relevante para não repetir investigação.
+6. **`docs/CORE_UNIVERSAL.md`** — o que está implementado.
+7. Depois, **investigue o sistema real** diretamente relacionado ao seu chunk.
 
 Uma IA nova deve conseguir retomar o projeto sem conversa anterior lendo esses arquivos e conferindo os HEADs das PRs citadas no checkpoint.
 
@@ -18,7 +25,7 @@ Uma IA nova deve conseguir retomar o projeto sem conversa anterior lendo esses a
 ```text
 INVESTIGAR
 → ENTENDER O QUE JÁ EXISTE
-→ DECIDIR A MENOR MUDANÇA
+→ PROPOR E OBTER APROVAÇÃO DA ARQUITETURA
 → IMPLEMENTAR
 → TESTAR SÓ O AFETADO
 → REGISTRAR CHECKPOINT NA ISSUE/PR
@@ -29,8 +36,8 @@ Não transformar espera de CI, preview ou review em motivo para encerrar a lane.
 
 ## Papéis vigentes
 
-- **Adriana**: produto/negócio e gates sensíveis.
-- **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, fecha a menor mudança, coordena lanes, revisa PRs, decide integração e registra o checkpoint.
+- **Adriana**: produto/negócio e gates sensíveis. Por **D2**, também a **única aprovadora** de mudança estrutural de banco: tabela nova, schema novo ou troca de autoridade vão a ela antes; dentro de casa existente, a mudança segue sem passar por ela.
+- **ChatGPT arquiteto/supervisor**: mantém o modelo mental, verifica sistema real, propõe mudanças e implementa a arquitetura aprovada, coordena lanes e revisa PRs e registra o checkpoint.
 - **Claude Code**: investiga e implementa o escopo delegado em branch `claude/...`; traz evidência independente; não amplia escopo e não mergeia por conta própria.
 - **GitHub**: memória compartilhada e barramento entre lanes.
 
@@ -46,7 +53,7 @@ Se houver outro supervisor técnico no repositório, ele deve reconstruir o mesm
 
 Por isso revisão/teste vêm antes do merge.
 
-Gate explícito da Adriana antes de execução perigosa quando houver: dado destrutivo/irreversível, identidade, auth/RLS/security/secrets, preço/desconto/regra comercial, source of truth, outbound/disparo, write-back operacional material ou mudança de produto não congelada.
+Gate explícito da Adriana antes de execução perigosa quando houver: dado destrutivo/irreversível, identidade, auth/RLS/security/secrets, preço/desconto/regra comercial, source of truth, outbound/disparo, write-back operacional material, **mudança estrutural de banco (tabela nova, schema novo, mudança de proveniência — D2)** ou mudança de produto não congelada.
 
 ## Arquitetura — uma linguagem só
 
@@ -81,16 +88,23 @@ CANAL/ENTRADA
 
 ## Regras de implementação
 
+- Para decisões arquiteturais e aprovação, cumpra o primeiro passo de `AGENTS.md`
+  e consulte `arquitetura.decisoes`; não mantenha outra lista neste arquivo.
+
 - menor mudança correta; sem redesign lateral;
 - não invente requisito, prompt, playbook ou conteúdo de negócio;
 - use casas/taxonomias existentes;
 - antes de criar tabela, prove que falta uma casa;
+- **Regra #1 (D5):** toda tabela que fala de pessoa tem `mind_id` (D6: é o nome da coluna do ID universal em toda tabela), resolvido ou criado pela porta única `mind_identidade_resolver` **antes** da escrita (`mind_pessoa_ligar_tabela` põe uma tabela nova na regra); nunca grave pessoa ou identificador fora dela; nunca funda pessoas fora de `mind_fusao_decidir` — a fusão é decisão da Adriana;
+- **função nasce fechada** (desde 25/09): o banco não dá mais EXECUTE a PUBLIC em função nova; a migration faz `revoke all ... from public, anon, authenticated` e concede só a quem chama — RPC interna é `service_role`, porta do app ou do site é `grant ... to anon`/`authenticated` de propósito (contrato: `tests/permissoes_funcoes_contract.sql`);
 - não transforme hipótese futura em hardening atual;
 - não exponha memória ao Agent sem o contrato de sensibilidade aprovado;
 - não ligue outbound sem gate;
 - não crie backend/identidade/session lifecycle paralelo para Play/Concierge;
 - structured authoritative first; RAG só para long-tail;
 - preço/checkout/desconto/horário/disponibilidade nunca dependem de vector como fonte da verdade;
+- **preço, oferta, order bump e cupom moram no schema `catalogo`** (em tabelas separadas), e o painel `admin/` é o controle dele: o que importa ali aparece e se edita lá (Adriana, 26/09);
+- **agente nunca tem preço, oferta, cupom ou prazo escrito** no playbook ou no prompt: sempre aponta para onde estão os preços e as ofertas atuais (o `catalogo`, pelos blocos do Kit) (Adriana, 26/09);
 - descoberta lateral: registre e volte ao caminho crítico.
 
 ## Ownership atual

@@ -11,7 +11,7 @@ declare
 begin
   select id into v_c
   from engagement.conversas
-  where participante_id is not null
+  where mind_id is not null
   order by iniciada_em desc
   limit 1;
   if v_c is null then raise exception 'sem conversa com participante'; end if;

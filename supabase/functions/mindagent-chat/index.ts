@@ -48,6 +48,11 @@ type ChatRequest = {
   // da sessão para que a próxima recomendação já os enxergue.
   journey_signal?: { field?: string; values?: unknown };
   journey_signals?: unknown;
+  // PLAYGROUND (Adriana, 22/10/2026). Só na abertura: pede uma conversa DE TESTE com
+  // um agente escolhido. O banco só abre para administrador e marca a conversa com
+  // `agente = 'mindagent-playground'`, que é o que a deixa fora da análise, da memória
+  // e do HubSpot. Nos turnos seguintes, quem diz que é teste é a conversa, não o cliente.
+  playground?: { rota?: string };
 };
 
 type Interest = {
@@ -57,7 +62,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.14.0";
+const VERSION = "1.16.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -106,12 +111,11 @@ function journeySignals(value: unknown) {
 // não há o que decidir aqui.
 //
 // Isto é orquestração, não política de canal: `agentes.canal_competencia` continua
-// dizendo o que o canal PODE servir, e o Gate continua confirmando se executa. Esta
-// tabela responde outra pergunta — "esta entrada já vem com a competência definida?".
-// Uma entrada só; se um dia houver outra, ela nasce aqui.
-const ROTA_POR_ORIGEM: Record<string, string> = {
-  mind_summit_app: "concierge_summit",
-};
+// dizendo o que o canal PODE servir, e o Gate continua confirmando se executa. A
+// pergunta "esta entrada já vem com a competência definida?" tinha resposta fixa
+// aqui (`mind_summit_app → concierge_summit`); desde 22/10/2026 ela mora em
+// `agentes.canal_competencia.entradas_diretas`, lida por `mind_origem_rota`, e o
+// painel (Canais e Roteador) é quem liga e desliga (Adriana).
 
 // Código de origem é identificador, não texto livre — mesmo formato que o banco valida.
 const ORIGEM_CODIGO_RE = /^[a-z][a-z0-9_]{1,59}$/;
@@ -390,6 +394,30 @@ function extractOutputText(payload: Record<string, unknown>) {
   return "";
 }
 
+// RASTRO DA FERRAMENTA. Até 24/09 a resposta gravava só o nome da ferramenta e se deu
+// certo; o que o agente procurou e o que voltou morria no log de 24 h. Sem isso não dá
+// para auditar um "não encontrei" (ex.: a busca pela mala devolvia sessões, não a
+// Chapelaria). Guarda o pedido e até 6 títulos devolvidos — curto, sem o conteúdo.
+function rastroDaChamada(argumentos: string, saida: string): { pediu?: string; achou?: string[] } {
+  const rastro: { pediu?: string; achou?: string[] } = {};
+  try {
+    const a = JSON.parse(argumentos) as Record<string, unknown>;
+    const pedido = [a.necessidade, a.tipo, a.id].filter((v) => typeof v === "string" && v).join(" · ");
+    if (pedido) rastro.pediu = pedido.slice(0, 200);
+  } catch { /* argumento inválido: a falha já é registrada pela própria ferramenta */ }
+  try {
+    const s = JSON.parse(saida) as Record<string, unknown>;
+    if (Array.isArray(s.candidatos)) {
+      rastro.achou = (s.candidatos as Array<Record<string, unknown>>)
+        .slice(0, 6)
+        .map((c) => `${String(c.tipo ?? "")}: ${String(c.titulo ?? c.id ?? "")}`.slice(0, 120));
+    } else if (typeof s.titulo === "string" || typeof s.nome === "string") {
+      rastro.achou = [String(s.titulo ?? s.nome).slice(0, 120)];
+    }
+  } catch { /* saída não-JSON: nada a resumir */ }
+  return rastro;
+}
+
 // As fontes agora vêm do Kit, não do retorno cru do retrieval. O formato
 // gravado em `blocks.sources` continua `{type, count}` — só a origem muda.
 function sourceSummary(structured: Record<string, unknown>) {
@@ -601,6 +629,10 @@ Deno.serve(async (req: Request) => {
     && ORIGEM_CODIGO_RE.test(payload.origem_codigo.trim())
     ? payload.origem_codigo.trim()
     : null;
+  const rotaDeTeste = typeof payload.playground?.rota === "string"
+    && ORIGEM_CODIGO_RE.test(payload.playground.rota.trim())
+    ? payload.playground.rota.trim()
+    : null;
   if (!validSlug(eventSlug) || (!modoAcao && !modoJornada && (message.length < 1 || message.length > 1200))) {
     return json(req, 422, {
       ok: false,
@@ -677,14 +709,21 @@ Deno.serve(async (req: Request) => {
   const startNewSession = async () => {
     const token = randomToken();
     const tokenHash = await sha256(token);
-    const { data, error } = await admin.rpc("mindagent_chat_start", {
-      p_auth_user_id: authUserId,
-      p_device_key: deviceId,
-      p_user_agent: req.headers.get("User-Agent") ?? "",
-      p_token_hash: tokenHash,
-      p_origem_codigo: origemInformada,
-    });
-    if (error || !data) throw new Error("session_start_failed");
+    const { data, error } = rotaDeTeste
+      ? await admin.rpc("mindagent_playground_start", {
+        p_auth_user_id: authUserId,
+        p_token_hash: tokenHash,
+        p_rota: rotaDeTeste,
+        p_user_agent: req.headers.get("User-Agent") ?? "",
+      })
+      : await admin.rpc("mindagent_chat_start", {
+        p_auth_user_id: authUserId,
+        p_device_key: deviceId,
+        p_user_agent: req.headers.get("User-Agent") ?? "",
+        p_token_hash: tokenHash,
+        p_origem_codigo: origemInformada,
+      });
+    if (error || !data) throw new Error(rotaDeTeste ? "playground_start_failed" : "session_start_failed");
     return {
       sessionId: String(data.session_id),
       conversationId: String(data.conversation_id),
@@ -1078,7 +1117,12 @@ Deno.serve(async (req: Request) => {
     const origemDaConversa = typeof sessionContext.origem_codigo === "string"
       ? sessionContext.origem_codigo.trim()
       : "";
-    const rotaAutoritativa = ROTA_POR_ORIGEM[origemDaConversa] ?? null;
+    // A porta direta desta entrada neste canal, ou nada. Falha na leitura é "nada":
+    // o Router decide, como em qualquer entrada sem porta.
+    const { data: portaDireta } = origemDaConversa
+      ? await admin.rpc("mind_origem_rota", { p_origem: origemDaConversa, p_canal: CANAL })
+      : { data: null };
+    const rotaAutoritativa = typeof portaDireta === "string" && portaDireta ? portaDireta : null;
 
     // O UNIVERSO DE COMPETÊNCIAS DESTE CANAL, vindo do banco. Serve para duas coisas:
     // montar o enum de `next_route` e conferir uma `rota_ativa` persistida. Uma lista
@@ -1094,7 +1138,12 @@ Deno.serve(async (req: Request) => {
     const rotaAtivaBruta = typeof sessionContext.rota_ativa === "string"
       ? sessionContext.rota_ativa.trim()
       : "";
-    const rotaAtiva = rotaAtivaBruta && rotasDoCanal.includes(rotaAtivaBruta)
+    // CONVERSA DE TESTE (Playground). Quem diz é a conversa, gravada pelo banco só para
+    // administrador — nunca o corpo da requisição. Em teste, a rota pedida vale mesmo com
+    // o canal desligado para ela: é para isso que o Playground existe. Playbook e dados
+    // oficiais continuam obrigatórios, e nada sobre a pessoa é gravado.
+    const modoTeste = sessionContext.agente === "mindagent-playground";
+    const rotaAtiva = rotaAtivaBruta && (rotasDoCanal.includes(rotaAtivaBruta) || modoTeste)
       ? rotaAtivaBruta
       : null;
 
@@ -1163,7 +1212,11 @@ Deno.serve(async (req: Request) => {
       p_rota: rotaDecidida,
       p_canal: CANAL,
     });
-    if (gateError || gate?.ok !== true || gate?.pode_executar !== true) {
+    // Em teste, "canal_incompativel" não fecha o Gate: o agente pode estar desligado no
+    // canal de propósito. Falta de playbook ou de dados oficiais continua fechando.
+    const gateAberto = gate?.ok === true &&
+      (gate?.pode_executar === true || (modoTeste && gate?.reason === "canal_incompativel"));
+    if (gateError || !gateAberto) {
       console.error(JSON.stringify({
         request_id: requestId, event: "gate_fechado",
         rota: rotaDecidida, rota_origem: rotaOrigem, router_falha: rotaFalha,
@@ -1174,6 +1227,9 @@ Deno.serve(async (req: Request) => {
         error: { code: "rota_indisponivel", message: "Não consegui consultar os dados oficiais agora." },
       }, requestId);
     }
+
+    // Em teste a rota pode não estar no canal; o contrato de saída precisa conhecê-la.
+    if (modoTeste && !rotasDoCanal.includes(rotaDecidida)) rotasDoCanal.push(rotaDecidida);
 
     // -------------------------------------------------------------- KIT
     // NECESSIDADE ATUAL e MEMÓRIA entram por campos separados: `pergunta` é a
@@ -1354,7 +1410,7 @@ Deno.serve(async (req: Request) => {
     let rodadasTool = 0;
     let recuperacaoForcada = false;
     let forcarBuscaNaProximaVolta = false;
-    const chamadasFeitas: Array<{ nome: string; ok: boolean }> = [];
+    const chamadasFeitas: Array<{ nome: string; ok: boolean; pediu?: string; achou?: string[] }> = [];
 
     for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
       tentativasModelo++;
@@ -1450,12 +1506,17 @@ Deno.serve(async (req: Request) => {
         ) {
           /* `tool_choice:auto` é proposital para não buscar em toda pergunta,
              mas o modelo não pode desistir sem investigar quando o recorte do
-             Kit veio insuficiente. A primeira abstinência vira contexto e a
-             próxima volta força apenas a lupa de leitura. */
-          entradaDoModelo.push({ role: "assistant", content: outputText });
+             Kit veio insuficiente. A próxima volta força apenas a lupa de leitura.
+             A cobrança é do runtime, não da pessoa. Até 24/09 ela entrava como fala
+             `user` depois do rascunho `assistant`, e o modelo lia uma reclamação que
+             ninguém fez: 40 respostas abriam com "Você tem razão — fui checar melhor".
+             Agora o rascunho não vira fala e a cobrança vai como `developer`. */
           entradaDoModelo.push({
-            role: "user",
-            content: "Antes de concluir que não há fonte, investigue a necessidade atual com buscar_intelligence.",
+            role: "developer",
+            content: "Seu rascunho concluía que não há fonte e NÃO foi enviado à pessoa. " +
+              "Antes de concluir isso, investigue a necessidade atual com buscar_intelligence. " +
+              "A pessoa não pediu nova verificação: responda à pergunta original, sem dizer que " +
+              "ela tem razão, sem agradecer a checagem e sem mencionar esta investigação.",
           });
           forcarBuscaNaProximaVolta = true;
           recuperacaoForcada = true;
@@ -1502,7 +1563,8 @@ Deno.serve(async (req: Request) => {
       for (const r of resultados) {
         toolResultChars += r.output.length;
         entradaDoModelo.push({ type: "function_call_output", call_id: r.call_id, output: r.output });
-        chamadasFeitas.push({ nome: r.nome, ok: r.ok });
+        const args = chamadas.find((c) => c.call_id === r.call_id)?.arguments ?? "";
+        chamadasFeitas.push({ nome: r.nome, ok: r.ok, ...rastroDaChamada(args, r.output) });
       }
       rodadasTool++;
       Object.assign(telemetry, {
@@ -1601,11 +1663,13 @@ Deno.serve(async (req: Request) => {
     const empresaDita = String(structured.empresa_informada ?? "").trim() || null;
     const cargoDito = String(structured.cargo_informado ?? "").trim() || null;
 
-    if (emailDito) {
+    // Conversa de teste não grava nada sobre a pessoa: nem identidade, nem perfil.
+    const gravaPessoa = !modoTeste;
+    if (emailDito && gravaPessoa) {
       const binding = await bindIdentity(emailDito, nomeDito);
       if (binding?.conflict === true) throw new Error("contact_identity_conflict");
       if (typeof binding?.pessoa_id === "string") pessoaId = binding.pessoa_id;
-    } else if (pessoaId && nomeDito) {
+    } else if (gravaPessoa && pessoaId && nomeDito) {
       const { error } = await admin.rpc("mind_identidade_resolver", {
         p_identificadores: { auth_user_id: authUserId },
         p_nome: nomeDito,
@@ -1614,7 +1678,7 @@ Deno.serve(async (req: Request) => {
       });
       if (error) console.warn(JSON.stringify({ request_id: requestId, event: "contact_name_save_failed" }));
     }
-    if (pessoaId && whatsappDito) {
+    if (gravaPessoa && pessoaId && whatsappDito) {
       const { error } = await admin.rpc("mind_identificador_declarado_registrar", {
         p_pessoa_id: pessoaId,
         p_canal: "whatsapp",
@@ -1622,7 +1686,7 @@ Deno.serve(async (req: Request) => {
       });
       if (error) console.warn(JSON.stringify({ request_id: requestId, event: "contact_whatsapp_save_failed" }));
     }
-    if (pessoaId && (nomeDito || empresaDita || cargoDito)) {
+    if (gravaPessoa && pessoaId && (nomeDito || empresaDita || cargoDito)) {
       const sobrenome = nomeDito?.includes(" ")
         ? nomeDito.slice(nomeDito.indexOf(" ") + 1).trim() || null
         : null;
@@ -1781,7 +1845,7 @@ Deno.serve(async (req: Request) => {
     });
     if (assistantMessageError || !assistantMessage) throw new Error("assistant_message_save_failed");
 
-    if (checkoutEventoId && checkoutOficial) {
+    if (checkoutEventoId && checkoutOficial && !modoTeste) {
       const { error: eventoError } = await admin.rpc("mind_checkout_envio_registrar", {
         p_evento_id: checkoutEventoId,
         p_conversa_id: conversationId,
@@ -1795,7 +1859,7 @@ Deno.serve(async (req: Request) => {
       if (eventoError) throw new Error("checkout_event_save_failed");
     }
 
-    if (interests.length > 0) {
+    if (interests.length > 0 && !modoTeste) {
       const { error: interestError } = await admin.rpc("mindagent_chat_save_interests", {
         p_auth_user_id: authUserId,
         p_session_id: sessionId,
@@ -1848,6 +1912,10 @@ Deno.serve(async (req: Request) => {
       },
       profile_loaded: profileLoaded,
       rota: rotaDecidida,
+      rota_origem: rotaOrigem,
+      teste: modoTeste,
+      // O que o agente fez neste turno, para o Playground mostrar.
+      ferramentas: chamadasFeitas.map((c) => ({ nome: c.nome, ok: c.ok })),
       checkout_sent: checkoutEventoId !== null,
       interests,
       sources,
