@@ -79,6 +79,111 @@ Detalhe por arquivo no corpo da PR.
   `core.autocrlf=true` sem `.gitattributes`: os testes que leem o fonte usam `\n` em
   regex e o CR sobra. Não é defeito de produto, mas esconde falha real.
 
+### MIA Summit 2026 e Agent Intelligence — 22/10/2026
+
+- PR: `Mind-Institute/mind-agent#165`, branch `claude/mind-summit-agent-nc7ztx`. Desenho e estado em
+  `SUMMIT_2026_AGENTE_CONTEUDO_PROPOSTA.md` (§8). Aprovações da Adriana na conversa de 22/10 (D7, D10, D2).
+- Aplicado no banco vivo, com migrations versionadas: `20261022120036`, `20261022120512`,
+  `20261022121737`, `20261022122040`, `20261022122433`.
+- **Conserto em produção:** `mind_intelligence_buscar_contextual` e `_ler_contextual` falhavam em toda
+  chamada desde 27–29/09 (UNION com `d.*` depois de `sessao_id/transcrito/slides`). Concierge, suporte,
+  Institute e Dash estavam sem `buscar_intelligence`/`ler_intelligence`. Agora com colunas explícitas.
+- **Painel:** as 9 funções de Knowledge/Agent Intelligence davam 503 (SECURITY INVOKER sem USAGE do
+  service_role); agora SECURITY DEFINER. Agent Intelligence ganhou visão por agente (conhecimento, kit,
+  canais, prompts com `agentes.prompts_historico`); só administrador edita. `mindagent-knowledge` v8
+  (hoje v10).
+  O frontend dessa visão sai com o merge da PR (Workers Builds).
+- **Agente:** rota `mia_summit_2026` (MIA Summit 2026), **desligada**: playbook rascunho `ativo=false`,
+  canais `ativo=false`. 55 transcrições e 37 slides ligados atrás do interruptor `business/summit_content`
+  (só a MIA tem). 1.140 trechos por minuto, **sem embedding ainda** (ver o botão abaixo).
+- **Embeddings:** botão "Gerar embeddings do Summit" na aba Conhecimento (`POST /admin/knowledge_embeddings`
+  na `mindagent-knowledge`, que chama o indexador com a chave secreta). Sai com o merge.
+- **Fase 1 da ficha do agente** (aprovada pela Adriana, 22/10; migration `20261022131251`,
+  `mindagent-knowledge` v10 / 1.3.0):
+  - `public.mind_agent_instrucoes(rota)` é a montagem única das instruções: `base` → playbook →
+    `kit_blocos` seção `instrucoes` (por `ordem`, liga/desliga por agente) → `decisioning`. O
+    `mind_agent_kit` passou a usá-la; a migration conferiu que o texto de todas as rotas saiu idêntico.
+    Bloco `instrucoes` obrigatório e ligado sem texto: a montagem devolve nada e o agente não responde.
+  - O protocolo de crise da MIA saiu do playbook (v2, a v1 está no histórico) e virou o bloco
+    obrigatório `protocolo_crise_mia_summit_2026`. Desligar pede confirmação na tela.
+  - **`tom_de_voz` não chegava a nenhum agente** (removido do caminho em `20260903110000`). Agora aparece
+    desligado em todos os agentes, com "criar versão própria" (copia o texto para `<bloco>_<rota>`).
+  - Skills: descrição de `concierge.ferramentas` editável, versão anterior em `prompts_historico` com
+    chave `ferramenta:<nome>`.
+  - Tela: abas Instruções (ordem real, texto completo, editor), Conhecimento, Skills, Dados oficiais,
+    Canais. Sai com o merge.
+- **Achados para as próximas fases (não mexidos):**
+  - o `router` só escolhe entre 6 rotas fixas no código (`ROTAS`): a MIA não pode ser escolhida por ele;
+  - a porta direta `ROTA_POR_ORIGEM` (`mind_summit_app → concierge_summit`) está no código da `mindagent-chat`;
+  - a análise pós-conversa (`analisar-conversa` v16, não versionada no repo) não olha a rota:
+    `analise_pendentes` filtra por `agente` (runtime). Não há interruptor por agente. Analisador
+    desligado deixa a conversa na fila e o classificador roda de novo a cada 15 min (BACKLOG §18.1).
+    O cron `silence_reavaliar` está desligado;
+  - `intelligence.config` guarda segredos em texto legível por qualquer leitor SQL.
+- **Fase 2 — Canais e Roteador** (aprovada pela Adriana, 22/10; migration `20261022133526`,
+  `mindagent-knowledge` v11 / 1.4.0):
+  - `agentes.rotas` (D2): cadastro dos agentes — nome, "o que faz" (editável na ficha do agente) e
+    `analisa_conversas` (ainda sem efeito; é para o menu da Análise). `canal_competencia.rota` referencia.
+  - `agentes.canal_competencia` ganha `roteavel` (o roteador pode escolher este agente neste canal) e
+    `entradas_diretas` (entradas que abrem direto nele). Semeado igual ao código de antes: as 6 rotas da
+    lista fixa do `router` roteáveis onde já estavam; `mind_summit_app → concierge_summit` no app.
+  - `mind_canal_rotas` devolve `roteaveis`; `mind_origem_rota(origem, canal)` é a porta direta.
+    `mind_admin_update_agent_channel` ganhou assinatura de 7 parâmetros; a de 5 ficou e só repassa.
+  - Tela `/canais` (Canais e Roteador): por canal, por onde a pessoa chega (entradas do WhatsApp em
+    `engagement.origens`, só leitura; portas diretas do app), quem atende primeiro, "roteador pode
+    escolher", entradas diretas por agente e o prompt `router_universal` editável.
+  - **Publicado em 22/10 (aprovação explícita da Adriana para o deploy controlado):** `router` 1.3.0
+    (v12) lê `roteaveis` e não tem mais lista própria (`tests/router_politica.test.mjs`);
+    `mindagent-chat` 1.16.0 (v49) lê a porta direta por `mind_origem_rota` e tem o modo teste do
+    Playground. Antes de publicar, conferido que o que estava no ar (router v11, chat v48) era
+    idêntico ao repositório em `cabce79`. O chat passou a ser empacotado como o
+    `treble-inbound-agent`: entrypoint `mindagent-chat/index.ts` + `_shared/*.ts` ao lado (manter
+    esse layout em deploys futuros). Ponta a ponta com sessão anônima do app: entrada
+    `mind_summit_app` → `concierge_summit` (`rota_origem=origem_autoritativa`, lida do banco); sem
+    entrada → roteador → `institute`.
+- **Fase 3 — Playground por agente** (aprovado pela Adriana, 22/10; migration `20261022135030`):
+  - `mindagent_playground_start(auth_user, token_hash, rota)`: só administrador ativo; abre uma conversa
+    nova (dispositivo próprio `playground:<uuid>`) com `agente = 'mindagent-playground'` e
+    `variables = {teste, rota_ativa}`. Esse `agente` é o que a deixa fora de `analise_pendentes` e,
+    por consequência, da memória, da continuidade e do HubSpot. `mindagent_chat_get_context` devolve
+    também `agente` (chave a mais, o chat v48 no ar ignora).
+  - `mindagent-chat` 1.16.0 (publicado, v49): `playground.rota` na abertura chama a porta
+    de teste; nos turnos, `modoTeste = contexto.agente === 'mindagent-playground'` (nunca o corpo).
+    Em teste: a `rota_ativa` vale mesmo fora do canal, o Gate tolera só `canal_incompativel` (playbook
+    e dados oficiais continuam obrigatórios), nada sobre a pessoa é gravado (identidade, perfil,
+    interesses, checkout); as mensagens da conversa de teste são gravadas. Resposta ganha `teste`,
+    `rota_origem` e `ferramentas`. Testes: `tests/playground_modo_teste.test.mjs`.
+  - Painel: aba **Playground** na ficha do agente (`components/admin/playground.tsx`), chamando a
+    `mindagent-chat` com o token do admin. CORS conferido: o chat aceita as origens do worker, do
+    preview da branch e de admin.minddash.pro. Falta o teste real do Playground por um administrador
+    (eu não tenho sessão de admin): no preview da branch, Agent Intelligence → MIA → Playground,
+    depois de ligar o playbook dela na aba Instruções.
+  - Para testar a MIA hoje: ligar o playbook dela na aba Instruções (os canais podem ficar desligados).
+- **Fase 4 — Conversas reais por agente** (aprovada pela Adriana, 22/10: só administrador, sem
+  telefone/e-mail; migrations `20261022140302` e `20261022140901`; `mindagent-knowledge` 1.5.0):
+  `mind_admin_read_agent_conversations(p_id)` lista as conversas dos últimos 90 dias atendidas por
+  agente nosso (`mindagent-chat`, `treble-inbound-agent`, `mindagent-playground`), com quem respondeu
+  cada fala (`blocos.rota_aplicada`/`rota`), skills, modelo, tempo e as análises. Nunca seleciona
+  telefone/e-mail e mascara o que aparecer nos textos e nos JSONs das análises
+  (`mind_admin_mascarar_contato`: e-mail e 10+ dígitos; `mind_admin_mascarar_jsonb` só em strings —
+  número JSON cru não é mascarado). Aba Conversas na ficha do agente. Conversas dos fluxos da Treble
+  (sem agente nosso) ficam de fora.
+- **Fase 5 — Análise pós-conversa** (aprovada pela Adriana, 22/10; migration `20261022141316`;
+  `mindagent-knowledge` 1.6.0; `analisar-conversa` v17 versionada em `supabase/functions/analisar-conversa/`):
+  - `analise_pendentes` honra `agentes.rotas.analisa_conversas` pelo último agente que respondeu
+    (fluxos da Treble, sem agente, continuam entrando). A fila tinha 2 conversas sem agente no
+    momento, então o interruptor foi conferido pela lógica, não por conversa real.
+  - `analisar-conversa` v17: conversa sem nenhum analisador ativo recebe a marca `sem_analisador`
+    (`analise_gravar` com dados vazios) e sai da fila até mensagem nova — conserto do BACKLOG §18.1.
+  - `mind_admin_read_analysis_runs` (só administrador, mascarado): últimas execuções, conclusão e as
+    memórias que cada uma gravou. `mind_admin_update_agent` ganhou `p_analisa_conversas`.
+  - Tela `/analise`: prompts da análise (editáveis, com histórico), liga/desliga por agente, últimas
+    execuções e o que gravaram.
+  - Não mexido: o cron `analise_conversas` sem `timeout_milliseconds` (pg_net responde timeout em 5 s
+    e registra como erro, embora a função termine); `silence_reavaliar` continua desligado.
+- Gates abertos: revisão do playbook e do protocolo de crise; porta do LearnWorlds (P2), modelo forte
+  (P6), identidade (P7) e teste com perguntas reais (P8).
+
 ### Arquitetura no Supabase — 07/10/2026
 
 - Fonte oficial: `arquitetura.decisoes`, projeto mind-agent (`ymnmotgglsrxmjmonwjz`).

@@ -35,6 +35,17 @@
 // quais sao possiveis. Dentro delas, a decisao e do modelo, com o mesmo contrato
 // de clarify de antes.
 //
+// v1.3.0 — O UNIVERSO DE ESCOLHA VEM INTEIRO DO BANCO (Adriana, 22/10/2026).
+//
+// Ate a v1.2.0 havia aqui uma lista fixa de seis rotas, `ROTAS`, e o canal so
+// RECORTAVA dela: um agente novo (a MIA Summit 2026) nao podia ser escolhido
+// nem com o canal ligado, porque o codigo nao o conhecia. Agora
+// `mind_canal_rotas` devolve `roteaveis` — as rotas ligadas no canal E marcadas
+// como "o roteador pode escolher" em `agentes.canal_competencia.roteavel` — e
+// este servico nao tem mais lista propria. O painel (Canais e Roteador) e quem
+// liga e desliga. A garantia continua sendo o enum do schema estrito, montado
+// a partir dessa lista.
+//
 // NAO PERSISTE NADA. Nao escreve rota, nao toca engagement.conversas.
 //
 //   POST /router?token=<intelligence.config.analise_token>
@@ -43,20 +54,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const TIMEOUT_MS = 15_000;
 
-// Taxonomia canonica. Fechada. `ja_comprou` e `desconhecido` NAO sao rotas.
-// Continua sendo o vocabulario do servico; o que o canal faz e RECORTAR dela.
-const ROTAS = [
-  "summit_b2c",
-  "summit_b2b",
-  "institute",
-  "dash",
-  "cliente_suporte",
-  "concierge_summit",
-] as const;
-type Rota = typeof ROTAS[number];
+// Uma rota e um identificador, nunca texto livre: o mesmo formato que o banco
+// valida em `agentes.rotas`. `ja_comprou` e `desconhecido` NAO sao rotas e nao
+// estao em `agentes.canal_competencia`, entao nunca chegam aqui.
+const ROTA_RE = /^[a-z][a-z0-9_]{1,59}$/;
+type Rota = string;
 
 // O schema deixa de ser constante: o enum sai das rotas permitidas NESTE canal.
 // E aqui que a politica vira garantia — o modelo nao tem como devolver uma rota
@@ -183,11 +188,14 @@ Deno.serve(async (req: Request) => {
     return json(200, politica);
   }
 
-  const permitidas: Rota[] = Array.isArray(politica.rotas)
-    ? politica.rotas.filter((r: unknown): r is Rota => ROTAS.includes(r as Rota))
+  // O que o roteador pode escolher neste canal: `roteaveis`, decidido no painel.
+  // `rotas` (tudo que o canal atende) nao serve aqui — um agente pode atender
+  // por porta direta ou handoff sem que o roteador possa escolhe-lo.
+  const permitidas: Rota[] = Array.isArray(politica.roteaveis)
+    ? [...new Set(politica.roteaveis.filter((r: unknown): r is Rota => typeof r === "string" && ROTA_RE.test(r)))]
     : [];
-  // Canal valido sem nenhuma competencia ativa nao tem o que rotear. Nao e erro
-  // do turno — e a politica dizendo que este canal nao atende nada agora.
+  // Canal valido sem nenhuma competencia roteavel nao tem o que rotear. Nao e
+  // erro do turno — e a politica dizendo que este canal nao roteia nada agora.
   if (permitidas.length === 0) {
     console.warn(JSON.stringify({ request_id: requestId, event: "canal_sem_competencia", canal }));
     return json(200, { ok: false, motivo: "canal_sem_competencia" });
@@ -279,8 +287,8 @@ Deno.serve(async (req: Request) => {
 
   // ------------------------------------------------------------- INVARIANTES
   // O schema estrito ja fecha a taxonomia NO UNIVERSO DO CANAL; aqui a coerencia
-  // do contrato e garantida deste lado, contra `permitidas` e nao contra ROTAS.
-  // Cinto e suspensorio: se um dia o schema afrouxar, a rota proibida ainda cai.
+  // do contrato e garantida deste lado, contra `permitidas`. Cinto e
+  // suspensorio: se um dia o schema afrouxar, a rota proibida ainda cai.
   const rota: Rota | null = permitidas.includes(saida.rota as Rota) ? saida.rota as Rota : null;
   const candidatas = rota === null && Array.isArray(saida.candidatas)
     ? [...new Set(saida.candidatas.filter((c): c is Rota => permitidas.includes(c as Rota)))]
