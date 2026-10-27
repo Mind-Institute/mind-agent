@@ -485,7 +485,12 @@ function sourceSummary(structured: Record<string, unknown>) {
 // É FUNÇÃO, e não constante, por causa do `next_route`: o universo de competências vem de
 // `mind_canal_rotas(canal)`, no banco. Uma lista literal aqui seria a segunda autoridade
 // sobre a política do canal — exatamente o que a política existe para evitar.
-function montarResponseSchema(rotasDoCanal: string[]) {
+// `portaRetem` fecha a troca de competência na origem: numa porta de produto fechado
+// o enum fica só com `null`, e pedir passagem deixa de ser uma saída que existe. Antes
+// isso era só pedido no playbook — e pedir não garante. O agente dessas portas resolve
+// dentro do próprio escopo ou diz quem cuida e onde procurar; não entrega a pessoa.
+function montarResponseSchema(rotasDoCanal: string[], portaRetem = false) {
+  const rotasQuePodeTrocar = portaRetem ? [] : rotasDoCanal;
   return {
     type: "object",
     additionalProperties: false,
@@ -566,15 +571,18 @@ function montarResponseSchema(rotasDoCanal: string[]) {
     // poder executar agora.
     next_route: {
       type: ["string", "null"],
-      enum: [...rotasDoCanal, null],
-      description:
-        "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
-        "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
-        "passou a ser de outra competência; nunca por simples falta de informação. " +
-        "No app do Summit, permaneça no concierge para programação, acesso e experiência. " +
-        "Peça summit_b2c quando houver intenção explícita de compra ou upgrade; faça uma " +
-        "pergunta curta que permita ao próximo turno continuar sem a pessoa repetir tudo. " +
-        "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
+      enum: [...rotasQuePodeTrocar, null],
+      description: portaRetem
+        ? "Sempre null nesta porta: a conversa é sua e não passa para outra competência. " +
+          "Assunto que não é seu se resolve dizendo quem cuida dele e onde a pessoa " +
+          "encontra, com o que estiver nos dados oficiais — nunca entregando a conversa."
+        : "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
+          "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
+          "passou a ser de outra competência; nunca por simples falta de informação. " +
+          "No app do Summit, permaneça no concierge para programação, acesso e experiência. " +
+          "Peça summit_b2c quando houver intenção explícita de compra ou upgrade; faça uma " +
+          "pergunta curta que permita ao próximo turno continuar sem a pessoa repetir tudo. " +
+          "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
     },
   },
   required: [
@@ -1384,7 +1392,7 @@ Deno.serve(async (req: Request) => {
       ...historico,
       { role: "user", content: `Responda usando este JSON:\n${JSON.stringify(aiContext)}` },
     ];
-    const responseSchema = montarResponseSchema(rotasDoCanal);
+    const responseSchema = montarResponseSchema(rotasDoCanal, portaRetemAConversa);
     // As instruções do turno são as da COMPETÊNCIA, e só. O Kit já entrega o playbook
     // da rota com a camada transversal `base` na frente.
     const instrucoes = kit.playbook as string;

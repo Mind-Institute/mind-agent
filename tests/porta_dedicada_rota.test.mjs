@@ -115,6 +115,43 @@ test('handoff a partir da porta de produto fechado NÃO vira estado da conversa'
   assert.match(String(r.corpo.answer), /página de ingressos/);
 });
 
+test('na porta de produto fechado, trocar de competência deixa de ser uma saída que existe', async () => {
+  // Pedir no playbook não garante; fechar o enum garante. Com a porta retendo, o
+  // contrato de saída só aceita `next_route: null`.
+  const r = await chamar({
+    corpo: { message: 'Quais cursos do Institute vocês têm?' },
+    rpc: {
+      mindagent_chat_get_context: contexto({ origem: 'institute_learnworlds' }),
+      mind_canal_rotas: CANAL_WEB,
+      mind_origem_rota: PORTAS,
+      mind_agent_kit: kitDa('mia_summit_2026'),
+    },
+  });
+
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const pedido = r.openai.find((c) => c.url.endsWith('/v1/responses'));
+  const enumDaTroca = pedido.corpo.text.format.schema.properties.next_route.enum;
+  assert.deepEqual(enumDaTroca, [null],
+    `na porta de produto fechado o enum tem de ser só null: ${JSON.stringify(enumDaTroca)}`);
+});
+
+test('fora dela, o enum continua trazendo as competências do canal', async () => {
+  const r = await chamar({
+    corpo: { message: 'quero falar de ingresso' },
+    rpc: {
+      mindagent_chat_get_context: contexto({ origem: 'mind_summit_app' }),
+      mind_canal_rotas: CANAL_WEB,
+      mind_origem_rota: PORTAS,
+      mind_agent_kit: kitDa('concierge_summit'),
+    },
+  });
+
+  assert.equal(r.status, 200, JSON.stringify(r.corpo));
+  const pedido = r.openai.find((c) => c.url.endsWith('/v1/responses'));
+  const enumDaTroca = pedido.corpo.text.format.schema.properties.next_route.enum;
+  assert.deepEqual(enumDaTroca, [...CANAL_WEB.rotas, null]);
+});
+
 test('a porta do App continua sendo recepção: a lane de venda segura a conversa', async () => {
   // Regressão que a correção NÃO pode causar. O concierge existe para despachar, e
   // uma compra iniciada precisa continuar na venda — senão o upgrade volta para a
