@@ -22,7 +22,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  INDICE_PAINEL, PAGINA_DA_PESQUISA,
+  INDICE_PAINEL, PAGINA_DA_PESQUISA, POLITICA_DE_ENQUADRAMENTO,
   decidirAntes, decidirApos404, decidirNaPesquisa, ehDaPesquisa, ehDoPainel,
 } from '../cloudflare/roteamento.js';
 
@@ -74,6 +74,10 @@ function responder(res, status, corpo, tipo) {
   res.writeHead(status, {
     'content-type': tipo ?? TIPOS['.html'],
     'content-length': Buffer.byteLength(corpo),
+    /* Mesma política do Worker, e pelo mesmo motivo de as regras morarem
+       num arquivo só: enquadramento que não se testa aqui só aparece
+       quebrado dentro do curso, depois do deploy. */
+    'content-security-policy': POLITICA_DE_ENQUADRAMENTO,
   });
   res.end(corpo);
 }
