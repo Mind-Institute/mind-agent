@@ -62,7 +62,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.16.0";
+const VERSION = "1.17.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -76,6 +76,25 @@ const MAX_TENTATIVAS_MODELO = MAX_RODADAS_TOOL + 3;
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
 // quais competências podem ser escolhidas neste turno.
 const CANAL = "mindagent-web";
+
+// PORTA DE PRODUTO FECHADO (27/10/2026). Nem toda porta é igual.
+//
+// A porta do App é uma RECEPÇÃO: o concierge existe para despachar, e uma compra
+// iniciada tem de continuar na lane de venda — por isso lá o handoff persiste em
+// `rota_ativa` e vence a porta, como sempre venceu.
+//
+// O embed do LearnWorlds é o contrário: é o produto da MIA, dentro da página do
+// curso, e não existe outro balcão para onde mandar o aluno. Medido em produção:
+// das 4 conversas dessa porta que receberam handoff, 4 saíram da MIA e NENHUMA
+// voltou — nada limpa `rota_ativa`. Uma pergunta de preço mandava o aluno para
+// `cliente_suporte`, que não tem ferramenta nem acesso ao acervo do Summit, e ele
+// seguia perguntando de sessão e ouvindo "não encontro isso aqui", sem saber por
+// quê. Declinar um assunto é estado do TURNO; dono da CONVERSA é a porta.
+//
+// A casa definitiva desta política é uma coluna em `agentes.canal_competencia` —
+// é lá que a política das portas já mora. Enquanto a estrutura do banco está
+// congelada, o conjunto fica aqui: nomeado, com o porquê, e lido num lugar só.
+const PORTAS_QUE_RETEM_A_CONVERSA = new Set(["institute_learnworlds"]);
 
 const JOURNEY_FIELDS = new Set([
   "objetivos", "temas", "disponibilidade", "ritmo",
@@ -1132,9 +1151,8 @@ Deno.serve(async (req: Request) => {
       ? (canalRotas.rotas as unknown[]).filter((r): r is string => typeof r === "string")
       : [];
 
-    // COMPETÊNCIA ATIVA DA CONVERSA. Persistida por um handoff anterior; vence a origem
-    // porque a origem é a PORTA DE ENTRADA, não uma prisão. Se ela deixou de ser permitida
-    // no canal, é ignorada — nunca se cai para uma rota proibida.
+    // COMPETÊNCIA ATIVA DA CONVERSA. Persistida por um handoff anterior. Se ela deixou de
+    // ser permitida no canal, é ignorada — nunca se cai para uma rota proibida.
     const rotaAtivaBruta = typeof sessionContext.rota_ativa === "string"
       ? sessionContext.rota_ativa.trim()
       : "";
@@ -1153,13 +1171,22 @@ Deno.serve(async (req: Request) => {
     let routerToken = "";
     const antesDoRouter = Date.now();
 
-    if (rotaAtiva) {
+    // A PORTA DE PRODUTO FECHADO NÃO PERDE A CONVERSA (ver `PORTAS_QUE_RETEM_A_CONVERSA`).
+    // Fora dessas portas, a precedência continua a de sempre: a origem é entrada, não
+    // prisão, e uma compra iniciada pelo concierge segue na lane de venda.
+    const portaRetemAConversa = rotaAutoritativa !== null &&
+      PORTAS_QUE_RETEM_A_CONVERSA.has(origemDaConversa);
+
+    if (portaRetemAConversa) {
+      // PRECEDÊNCIA AQUI: porta > rota ativa > Router. O Gate continua obrigatório
+      // logo abaixo: a origem diz QUAL competência foi acionada, nunca se ela executa.
+      rotaDecidida = rotaAutoritativa as string;
+      rotaOrigem = "origem_autoritativa";
+    } else if (rotaAtiva) {
       // PRECEDÊNCIA: rota ativa > origem autoritativa > Router.
       rotaDecidida = rotaAtiva;
       rotaOrigem = "rota_ativa";
     } else if (rotaAutoritativa) {
-      // O Gate continua obrigatório logo abaixo: a origem diz QUAL competência foi
-      // acionada, nunca se ela executa.
       rotaDecidida = rotaAutoritativa;
       rotaOrigem = "origem_autoritativa";
     } else {
@@ -1787,8 +1814,21 @@ Deno.serve(async (req: Request) => {
       ? nextRouteBruto
       : null;
 
+    // PORTA DE PRODUTO FECHADO NÃO ENTREGA A CONVERSA (mesma decisão da precedência,
+    // acima). Nessas portas a leitura do próximo turno ignora `rota_ativa`; gravar
+    // assim mesmo deixaria estado morto no banco — e voltaria a prender a pessoa no
+    // dia em que a porta saísse da lista. O turno já respondeu e já apontou para onde
+    // o assunto mora: é disso que a pessoa precisa, e acaba aqui.
+    const portaSeguraAConversa = portaRetemAConversa && nextRoute !== null &&
+      nextRoute !== rotaAutoritativa;
+
     let rotaAtivaPersistir: string | null = null;
-    if (nextRoute) {
+    if (portaSeguraAConversa) {
+      console.info(JSON.stringify({
+        request_id: requestId, event: "handoff_nao_persistido_porta_dedicada",
+        de: rotaDecidida, para: nextRoute, porta: origemDaConversa,
+      }));
+    } else if (nextRoute) {
       const { data: gateDestino } = await admin.rpc("mind_rota_capacidade", {
         p_rota: nextRoute,
         p_canal: CANAL,

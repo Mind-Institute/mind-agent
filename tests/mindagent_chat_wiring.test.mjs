@@ -59,6 +59,21 @@ test('Router escolhe dentro do canal e o Gate valida a rota escolhida', () => {
   assert.match(src, /p_canal: CANAL/);
 });
 
+test('a porta de produto fechado é lida ANTES da rota ativa', () => {
+  // A ordem dos ramos é a decisão: na porta que é o próprio produto, quem manda é
+  // a porta. Invertida, um handoff grava `rota_ativa` e, como nada limpa esse
+  // campo, a pessoa nunca mais volta — foi assim que a MIA perdia o aluno.
+  assert.match(src, /PORTAS_QUE_RETEM_A_CONVERSA/);
+  assert.ok(
+    pos('if (portaRetemAConversa)') < pos('} else if (rotaAtiva) {'),
+    'a retenção pela porta precisa ser avaliada antes de rota_ativa',
+  );
+  assert.ok(
+    pos('const portaSeguraAConversa') < pos('rotaAtivaPersistir = nextRoute'),
+    'a retenção pela porta precisa ser decidida antes de persistir a troca',
+  );
+});
+
 test('o Kit falha fechado antes de chamar o modelo', () => {
   const kitOk = pos('const kitOk');
   const openai = pos('https://api.openai.com/v1/responses');
