@@ -119,14 +119,23 @@
      CSS ele não controla e não pode ler. E não vaza: tudo está preso a
      `#mia-lw`.
 
-     A pilha é a do sistema — San Francisco no Mac, Segoe UI no Windows,
-     Roboto no Android. Nenhuma requisição e nenhum salto de fonte ao
-     carregar. Para a Satoshi da marca, o nome dela entra na frente junto com
-     a importação da fonte; isso traria um servidor de terceiro para um bloco
-     que hoje não depende de nenhum. */
+     A PILHA COMEÇA NA SATOSHI, que é a tipografia da marca (está no
+     `admin/README.md` e é a que o app e o painel carregam). Ela entra aqui
+     SEM `@font-face`: se a escola já a carrega — e carrega, era ela que o
+     `inherit` pegava onde funcionava —, o navegador a usa sem uma
+     requisição a mais. Se um dia não carregar, a linha não quebra nada:
+     cai na pilha do sistema logo abaixo, que é San Francisco no Mac, Segoe
+     UI no Windows e Roboto no Android.
+
+     Nomear a fonte em vez de herdá-la tem uma vantagem que a herança não
+     dava: o bloco fica com a MESMA cara na atividade do curso e na página,
+     independente do que o LearnWorlds puser em volta dele.
+
+     Se a escola trocar a tipografia um dia, é esta primeira palavra que
+     muda — e só ela. */
   #mia-lw, #mia-lw * {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
+    font-family: Satoshi, "Satoshi Variable", -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
   }
   /* O cabeçalho é a faixa da marca, e não uma linha fina sobre o fundo. */
   .mia-lw .mia-topo {
