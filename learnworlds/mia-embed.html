@@ -93,7 +93,20 @@
     height: 680px; max-height: 90vh; width: 100%; max-width: 860px; margin: 0 auto;
     background: var(--mia-bg); color: var(--mia-texto);
     border-radius: 16px; overflow: hidden;
-    font-family: inherit; text-align: left;
+    /* FONTE DECLARADA, e não `inherit`. O `inherit` estava aqui para o bloco
+       pegar a fonte da escola e não parecer colado de outro site. Não pega: o
+       LearnWorlds põe o código num contêiner que não declara fonte, e o
+       `inherit` sobe até o padrão do navegador — que é SERIFADO. Conferido na
+       página real em 27/10: a conversa inteira saiu em Times, ao lado de um
+       menu sem serifa.
+       A pilha abaixo é a do sistema: San Francisco no Mac, Segoe UI no
+       Windows, Roboto no Android. Nenhuma requisição e nenhum salto de fonte
+       ao carregar. Para a Satoshi da marca, o nome dela entra antes de
+       `-apple-system` junto com a importação — mas isso traz um servidor de
+       terceiro para um bloco que hoje não depende de nenhum. */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    text-align: left;
   }
   .mia-lw *, .mia-lw *::before, .mia-lw *::after { box-sizing: border-box; }
   /* O cabeçalho é a faixa da marca, e não uma linha fina sobre o fundo. */
