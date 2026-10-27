@@ -2004,11 +2004,20 @@ Deno.serve(async (req: Request) => {
       ...telemetry,
       duration_ms: Date.now() - startedAt,
     }));
+    // A FRASE DO ESTOURO É FALA DE AGENTE, NÃO TELA DE ERRO. "A resposta demorou
+    // demais. Tente novamente." lia como queda de rede, e a pessoa não tinha o que
+    // fazer com isso. Medido em 27/10 na MIA: uma pergunta pessoal e ampla gastou
+    // 38,6s só de modelo em três chamadas e estourou o orçamento de 45s — do outro
+    // lado, quem perguntou achou que o sistema caiu. Aqui o turno assume a demora e
+    // diz o que muda o resultado: estreitar o pedido. Serve a qualquer rota, por
+    // isso não cita acervo nem produto.
     return json(req, isTimeout ? 504 : 500, {
       ok: false,
       error: {
         code: isTimeout ? "ai_timeout" : "internal_error",
-        message: isTimeout ? "A resposta demorou demais. Tente novamente." : "Não consegui concluir a conversa agora.",
+        message: isTimeout
+          ? "Demorei demais para montar esta resposta e parei para não te deixar esperando. Pode me mandar de novo? Se disser em uma frase o ponto exato que você quer, eu chego mais rápido."
+          : "Não consegui concluir a conversa agora.",
       },
     }, requestId);
   }
