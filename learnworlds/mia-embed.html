@@ -93,9 +93,41 @@
     height: 680px; max-height: 90vh; width: 100%; max-width: 860px; margin: 0 auto;
     background: var(--mia-bg); color: var(--mia-texto);
     border-radius: 16px; overflow: hidden;
-    font-family: inherit; text-align: left;
+    text-align: left;
   }
   .mia-lw *, .mia-lw *::before, .mia-lw *::after { box-sizing: border-box; }
+
+  /* ============================================================
+     A FONTE — e por que esta regra é tão insistente
+     ============================================================
+     O bloco pedia `font-family: inherit`, para pegar a fonte da escola e não
+     parecer colado de outro site. Saiu SERIFADO na página real: o contêiner
+     onde o LearnWorlds põe o código não declara fonte, e o `inherit` sobe até
+     o padrão do navegador, que é Times.
+
+     Declarar a pilha no `.mia-lw` e contar com a herança foi a segunda
+     tentativa, e também não pegou — por um motivo que não é de
+     especificidade: o LearnWorlds declara fonte nos PRÓPRIOS elementos
+     (parágrafo, botão, campo), e regra que casa no filho sempre vence a
+     herança do pai, por mais específico que o pai seja. Por isso os chips e o
+     campo continuaram em Times mesmo com a pilha no contêiner.
+
+     Daí a regra nomear todos os descendentes, pelo `id` — que vence qualquer
+     seletor de classe da escola — e levar `!important`, para o caso de a
+     folha deles também usar. `!important` aqui não é atalho: é a única forma
+     de um bloco colado garantir a própria aparência dentro de uma página cujo
+     CSS ele não controla e não pode ler. E não vaza: tudo está preso a
+     `#mia-lw`.
+
+     A pilha é a do sistema — San Francisco no Mac, Segoe UI no Windows,
+     Roboto no Android. Nenhuma requisição e nenhum salto de fonte ao
+     carregar. Para a Satoshi da marca, o nome dela entra na frente junto com
+     a importação da fonte; isso traria um servidor de terceiro para um bloco
+     que hoje não depende de nenhum. */
+  #mia-lw, #mia-lw * {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
+  }
   /* O cabeçalho é a faixa da marca, e não uma linha fina sobre o fundo. */
   .mia-lw .mia-topo {
     flex: none; display: flex; align-items: center; gap: 11px;
@@ -269,17 +301,13 @@
     border-top: 1px solid var(--mia-linha);
     border-bottom: 1px solid var(--mia-linha);
   }
-  /* O cabeçalho deixa de ser faixa roxa: a página já tem a do LearnWorlds em
-     cima, e duas faixas coloridas empilhadas brigam. O roxo fica no selo do
-     símbolo, nos balões e no botão — onde ele identifica em vez de pesar. */
-  .mia-lw[data-modo="pagina"] .mia-topo {
-    background: var(--mia-bg);
-    border-bottom: 1px solid var(--mia-linha);
-    padding: 14px var(--mia-respiro);
-  }
-  .mia-lw[data-modo="pagina"] .mia-avatar { background: var(--mia-roxo); }
-  .mia-lw[data-modo="pagina"] .mia-topo strong { color: var(--mia-texto); }
-  .mia-lw[data-modo="pagina"] .mia-topo small { color: var(--mia-mudo); }
+  /* A FAIXA ROXA FICA, igual à da caixa. Houve uma versão em que ela virava
+     branca aqui, com o argumento de que a página já tem a faixa do
+     LearnWorlds em cima e duas empilhadas brigariam. Vista no ar, a tirada
+     some: sem a faixa, a MIA deixa de se apresentar e vira um pedaço da
+     página da escola. O Vinícius pediu o mesmo desenho da caixa em 27/10, e
+     é o que está aqui. Só o recuo muda, para acompanhar a coluna. */
+  .mia-lw[data-modo="pagina"] .mia-topo { padding: 15px var(--mia-respiro); }
   .mia-lw[data-modo="pagina"] .mia-mensagens { padding: 26px var(--mia-respiro); gap: 18px; }
   .mia-lw[data-modo="pagina"] .mia-sugestoes { padding: 0 var(--mia-respiro) 10px; }
   .mia-lw[data-modo="pagina"] .mia-form { padding: 12px var(--mia-respiro) 0; }
@@ -669,8 +697,9 @@
         });
         /* O servidor diz qual agente respondeu (`p.rota`), e houve uma versão
            que avisava a pessoa quando não era a MIA. Saiu a pedido do Vinícius
-           em 27/10: quem está no curso não precisa saber de rota de agente. A
-           saída continua existindo no botão “Nova conversa”, sem explicação. */
+           em 27/10: quem está no curso não precisa saber de rota de agente. O
+           que fazer quando não é ela está dito lá embaixo, onde ficava o botão
+           “Nova conversa”. */
         /* A resposta longa abre pelo COMEÇO, como já era. A medida tem de ser
            tirada com o texto inteiro montado — por isso vai no gancho, e não
            depois, quando os nós de texto já foram esvaziados. */
