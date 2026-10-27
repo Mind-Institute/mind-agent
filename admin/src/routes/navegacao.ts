@@ -1,4 +1,4 @@
-import { Bot, BrainCircuit, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, type LucideIcon } from 'lucide-react';
+import { Bot, BrainCircuit, GraduationCap, Radio, ScanSearch, Landmark, BriefcaseBusiness, CalendarDays, ListOrdered, Package, Tag, TicketPercent, UserCog, UsersRound, Database, Upload, Workflow, type LucideIcon } from 'lucide-react';
 import type { Acao } from '@/lib/permissions';
 
 /* ============================================================
@@ -111,6 +111,36 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         descricao: 'O que roda depois de cada conversa: prompts, liga/desliga por agente, últimas execuções e o que gravou.',
       },
     ],
+    submenus: [
+      {
+        id: 'business-consulting',
+        rotulo: 'Business Consulting Knowledge',
+        icone: GraduationCap,
+        itens: [
+          {
+            id: 'business-consulting-overview',
+            rotulo: 'Visão consultiva',
+            caminho: '/business-consulting',
+            icone: BriefcaseBusiness,
+            descricao: 'Problemas, jobs, conhecimentos, relações e fontes do consultor interno.',
+          },
+          {
+            id: 'business-consulting-ingestion',
+            rotulo: 'Ingestão',
+            caminho: '/business-consulting/ingestion',
+            icone: Upload,
+            descricao: 'Upload de PDFs, processamento por etapas, runs e QA da ingestão.',
+          },
+          {
+            id: 'business-consulting-agents',
+            rotulo: 'Agentes & Prompts',
+            caminho: '/business-consulting/agents',
+            icone: Workflow,
+            descricao: 'Fluxo dos agentes, prompts, modelos, versões e histórico de execução.',
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'summit',
@@ -148,6 +178,13 @@ export const NAVEGACAO: GrupoNavegacao[] = [
         icone: Landmark,
         descricao: 'As decisões oficiais no Supabase e o mapa de implementação.',
       },
+      {
+        id: 'arquitetura-schemas',
+        rotulo: 'Mapa de schemas',
+        caminho: '/arquitetura/schemas',
+        icone: Database,
+        descricao: 'Função, fronteira e inventário auditado de cada schema do sistema.',
+      },
     ],
   },
   {
@@ -172,7 +209,7 @@ export const ITENS_NAVEGACAO: ItemNavegacao[] = NAVEGACAO.flatMap((grupo) => [
 ]);
 
 export function itemPorCaminho(caminho: string): ItemNavegacao | undefined {
-  return ITENS_NAVEGACAO.find((item) =>
-    item.caminho === '/' ? caminho === '/' : caminho.startsWith(item.caminho),
-  );
+  return [...ITENS_NAVEGACAO]
+    .filter((item) => item.caminho === '/' ? caminho === '/' : caminho.startsWith(item.caminho))
+    .sort((a, b) => b.caminho.length - a.caminho.length)[0];
 }

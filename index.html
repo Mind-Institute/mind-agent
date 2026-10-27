@@ -73,12 +73,16 @@
 
   <!-- ============ CHAT ============ -->
   <section class="vista" id="vista-chat">
+    <!-- O nome e o papel do agente são escritos aqui porque o app do Summit
+         é o caso comum. Quem entra por uma porta com cara própria (o embed
+         do Institute, em `PORTAS` no config.js) tem estes dois trocados por
+         `vestirDaPorta()`, e o "‹" escondido: lá não há home atrás. -->
     <div class="c-topo">
-      <button class="c-voltar" data-volta aria-label="Voltar">‹</button>
+      <button class="c-voltar" id="chat-voltar" data-volta aria-label="Voltar">‹</button>
       <span class="avatar"><img src="./assets/simbolo-mind-verde.png" alt="" /></span>
       <div>
-        <strong>Mind Agent</strong>
-        <small>Responde na hora</small>
+        <strong id="chat-agente">Mind Agent</strong>
+        <small id="chat-papel">Responde na hora</small>
       </div>
     </div>
 

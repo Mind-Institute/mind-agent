@@ -142,10 +142,24 @@ test('abstinência sem lupa força uma busca antes da resposta final', async () 
   const respostas = r.openai.filter((chamada) => chamada.url.endsWith('/v1/responses'));
   assert.equal(respostas.length, 3);
   assert.deepEqual(respostas[1].corpo.tool_choice, { type: 'function', name: 'buscar_intelligence' });
+  // A cobrança é do runtime: vai como `developer`, e o rascunho de abstenção não vira
+  // fala. Como `user` depois do rascunho, o modelo respondia "Você tem razão".
+  const entradaRecuperacao = respostas[1].corpo.input;
+  const cobranca = entradaRecuperacao.at(-1);
+  assert.equal(cobranca.role, 'developer');
+  assert.match(cobranca.content, /buscar_intelligence/);
+  assert.ok(!entradaRecuperacao.some((m) => m.role === 'assistant' && /não consigo confirmar/.test(String(m.content))),
+    'o rascunho de abstenção não pode entrar como fala do assistente');
+  assert.ok(!entradaRecuperacao.some((m) => m.role === 'user' && /Antes de concluir/.test(String(m.content))),
+    'a cobrança não pode parecer fala da pessoa');
   assert.ok(r.rpcs.includes('mind_intelligence_buscar_contextual'));
   const salva = r.chamadasDe('mindagent_chat_save_message').at(-1);
   assert.equal(salva.args.p_blocks.recuperacao_forcada, true);
   assert.equal(salva.args.p_blocks.rodadas_tool, 1);
+  // O rastro fica na resposta: o que foi procurado e o que voltou.
+  assert.deepEqual(salva.args.p_blocks.ferramentas, [{
+    nome: 'buscar_intelligence', ok: true, pediu: 'tema e horário', achou: ['sessao: Sessão oficial'],
+  }]);
 });
 
 test('fallback rápido preserva duas tools e uma tentativa final de resposta', async () => {
