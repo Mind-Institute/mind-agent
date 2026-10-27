@@ -463,6 +463,23 @@ function sourceSummary(structured: Record<string, unknown>) {
 // ~970 caracteres, e "liste todos" virava lista truncada apresentada como completa.
 // Brevidade é conduta, e conduta está no playbook.
 //
+// O TETO PRECISA SER DITO AQUI, e isso não contradiz o parágrafo acima. Como conversar
+// continua sendo do playbook; o que esta linha acrescenta é o contrato DESTE campo —
+// ele tem fim, e o que entra nele precisa caber inteiro. Sem isso o modelo escreve até
+// bater no limite e a geração é ceifada no meio da palavra: aconteceu com a MIA em
+// 27/10/2026, numa resposta gravada com 1.978 caracteres terminando em "6. **A". O
+// playbook dela JÁ mandava partir em partes acima de 2.000 — e não adiantou, porque o
+// playbook é lido ao planejar a conversa e isto é lido ao preencher o campo.
+//
+// É o mesmo conserto que o `treble-inbound-agent` já tem em produção ("corte o escopo
+// do que você diz, não a frase"). Lá a lição ficou registrada como "brevidade virou
+// CONDUTA, não tesoura", em `tests/vendedor_resposta_nao_truncada.mjs`.
+//
+// Medido antes da mudança, nas 34 respostas da MIA: mediana de 923 caracteres e 5
+// coladas no teto. Não falta espaço — faltava a ordem de pousar antes dele. Se depois
+// disto alguma rota continuar batendo no teto com material legitimamente longo, o
+// próximo passo é teto por rota, e esta função já recebe a lista de rotas.
+//
 // É FUNÇÃO, e não constante, por causa do `next_route`: o universo de competências vem de
 // `mind_canal_rotas(canal)`, no banco. Uma lista literal aqui seria a segunda autoridade
 // sobre a política do canal — exatamente o que a política existe para evitar.
@@ -473,7 +490,12 @@ function montarResponseSchema(rotasDoCanal: string[]) {
     properties: {
     answer: {
       type: "string", minLength: 1, maxLength: 2000,
-      description: "A resposta para a pessoa, escrita conforme o playbook desta competência.",
+      description:
+        "A resposta para a pessoa, escrita conforme o playbook desta competência. " +
+        "Este campo tem fim: escreva sempre frases inteiras e TERMINE a resposta — " +
+        "nunca pare no meio de uma palavra, de uma frase ou de um item de lista. " +
+        "Se o assunto não couber, corte o ESCOPO e não a frase: diga menos coisas, " +
+        "inteiras, feche o raciocínio e ofereça continuar na próxima mensagem.",
     },
     interests: {
       type: "array",
