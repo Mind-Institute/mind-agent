@@ -1,0 +1,786 @@
+<!--
+  ============================================================
+  MIA SUMMIT 2026 — bloco para colar no LearnWorlds
+  ============================================================
+  Cole este arquivo inteiro num bloco de código do LearnWorlds (código
+  embutido numa página da escola ou atividade de embed no curso). Não depende
+  de site nenhum da Mind: fala direto com o Supabase.
+
+  - A conversa abre pela porta `institute_learnworlds`, que o banco liga à MIA
+    (`agentes.canal_competencia.entradas_diretas`, canal `mindagent-web`).
+    Com o canal da MIA desligado, a porta não vale e o roteador decide.
+  - A chave abaixo é a publishable key do Supabase, pública por construção.
+    Nenhum segredo aqui.
+  - Quem está logado: o LearnWorlds troca as variáveis pelos dados da pessoa ao abrir.
+    Na atividade de embed do curso o formato é USER_EMAIL, USER_NAME, USER_ID, mais
+    COURSE_ID e UNIT_ID, entre chaves duplas (conferido no curso MIA Summit 2026 em
+    24/10/2026); numa página da escola é USER.EMAIL, USER.NAME, USER.ID. O bloco traz os
+    dois e usa o que vier trocado. Aqui no comentário vão sem chaves, para o LearnWorlds
+    não trocar o texto do comentário. O chat liga a conversa à pessoa pela porta única de identidade.
+    Não é assinado; confiar no LearnWorlds foi decisão da Adriana (22/10/2026). Fora do
+    LearnWorlds as variáveis não são trocadas e a conversa fica anônima.
+  - Curso e aula seguem junto (`contexto`). A mindagent-chat ainda não usa; vão no envio
+    para a MIA poder saber onde a pessoa está sem precisar colar o bloco de novo.
+  - Tudo tem prefixo `mia-`, para não mexer no visual da página do LearnWorlds.
+  - A identidade é a da MIA, não a do app do Summit: roxo `#9843ff` (o `--roxo` da
+    marca), fundo claro, e "MIA — Mind Intelligence Agent", como o Institute já a
+    apresenta no playbook de vendas. O bloco nasceu herdando a casca escura e verde
+    do app do evento, que é outro produto. Nenhuma cor sai de `.mia-lw`: são todas
+    variáveis escopadas aqui dentro.
+-->
+<div id="mia-lw" class="mia-lw">
+  <!-- Quem está logado: o LearnWorlds troca as variáveis ao abrir a página. Ficam em
+       elementos escondidos, e não no script, para um nome com apóstrofo não quebrar o código. -->
+  <span hidden data-mia="email">{{USER_EMAIL}}</span>
+  <span hidden data-mia="nome">{{USER_NAME}}</span>
+  <span hidden data-mia="id">{{USER_ID}}</span>
+  <span hidden data-mia="curso">{{COURSE_ID}}</span>
+  <span hidden data-mia="aula">{{UNIT_ID}}</span>
+  <!-- Numa página da escola (fora do curso) o formato é com ponto. -->
+  <span hidden data-mia="email">{{USER.EMAIL}}</span>
+  <span hidden data-mia="nome">{{USER.NAME}}</span>
+  <span hidden data-mia="id">{{USER.ID}}</span>
+  <div class="mia-topo">
+    <!-- O símbolo da Mind, desenhado aqui dentro. Imagem viria de um servidor, e a
+         promessa deste bloco é não depender de site nenhum da Mind. -->
+    <span class="mia-avatar" aria-hidden="true">
+      <svg viewBox="698.13 264.35 522.24 522.24"><path fill="currentColor" d="M1143.23,448.33c-21.02,0-40.08,8.41-53.99,22.05-32.36,27.8-75.06,45.12-121.83,46.93,1.81-46.77,19.14-89.47,46.93-121.83,13.64-13.91,22.05-32.97,22.05-53.99,0-42.6-34.54-77.14-77.14-77.14s-77.14,34.54-77.14,77.14c0,21.02,8.41,40.08,22.05,53.99,27.79,32.36,45.12,75.06,46.93,121.83-46.77-1.81-89.47-19.14-121.83-46.93-13.91-13.64-32.97-22.05-53.99-22.05-42.6,0-77.14,34.54-77.14,77.14s34.54,77.14,77.14,77.14c21.02,0,40.08-8.41,53.99-22.05,32.36-27.79,75.06-45.12,121.83-46.93-1.81,46.77-19.14,89.47-46.93,121.83-13.64,13.91-22.05,32.97-22.05,53.99,0,42.6,34.54,77.14,77.14,77.14s77.14-34.54,77.14-77.14c0-21.02-8.41-40.08-22.05-53.99-27.8-32.36-45.12-75.06-46.93-121.83,46.77,1.81,89.47,19.14,121.83,46.93,13.91,13.64,32.97,22.05,53.99,22.05,42.6,0,77.14-34.54,77.14-77.14s-34.54-77.14-77.14-77.14Z"/></svg>
+    </span>
+    <div>
+      <strong>MIA Summit</strong>
+      <small>Mind Intelligence Agent</small>
+    </div>
+    <!-- A SAÍDA DE UMA CONVERSA QUE TROCOU DE AGENTE. Quando a MIA passa a
+         conversa adiante (ingresso, gravação, certificado), a rota fica gravada
+         na conversa e tem precedência sobre esta porta: ela não volta sozinha, e
+         como a conversa é guardada no navegador, recarregar a página devolve a
+         pessoa ao outro agente. Sem este botão, a única saída é limpar o
+         armazenamento do navegador — que ninguém vai fazer. -->
+    <button type="button" class="mia-nova">Nova conversa</button>
+  </div>
+  <div class="mia-mensagens" aria-live="polite"></div>
+  <div class="mia-sugestoes"></div>
+  <div class="mia-form">
+    <textarea rows="1" maxlength="1200" placeholder="Pergunte à MIA…"
+      enterkeyhint="send" aria-label="Sua mensagem para a MIA"></textarea>
+    <button type="button" aria-label="Enviar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+    </button>
+  </div>
+  <p class="mia-aviso">A MIA responde a partir das sessões do Mind Summit 2026 e pode errar.
+    Não substitui acompanhamento profissional. Precisa de ajuda agora? CVV&nbsp;188.</p>
+</div>
+
+<style>
+  .mia-lw {
+    /* A PALETA DELA. `--mia-roxo` é o `--roxo` da marca, o mesmo token que o app
+       usa na pílula de ingresso. O resto é o claro que o roxo pede. Valores
+       literais e não `color-mix`: este bloco roda dentro do LearnWorlds, inclusive
+       no webview do app do Institute no celular, e aqui não dá para conferir
+       navegador por navegador. */
+    --mia-roxo: #9843ff;
+    --mia-bg: #ffffff; --mia-surface: #f3f2f8; --mia-dela: #f5eeff;
+    --mia-texto: #1b1b24; --mia-suave: #35353f; --mia-mudo: #70708a;
+    --mia-linha: rgba(27,27,36,.11);
+    /* 5,85:1 sobre `--mia-surface`, medido: o convite do campo precisa ser lido. */
+    --mia-placeholder: #5c5c72;
+    box-sizing: border-box;
+    display: flex; flex-direction: column;
+    height: 680px; max-height: 90vh; width: 100%; max-width: 860px; margin: 0 auto;
+    background: var(--mia-bg); color: var(--mia-texto);
+    border-radius: 16px; overflow: hidden;
+    font-family: inherit; text-align: left;
+  }
+  .mia-lw *, .mia-lw *::before, .mia-lw *::after { box-sizing: border-box; }
+  /* O cabeçalho é a faixa da marca, e não uma linha fina sobre o fundo. */
+  .mia-lw .mia-topo {
+    flex: none; display: flex; align-items: center; gap: 11px;
+    padding: 15px 20px; background: var(--mia-roxo);
+  }
+  .mia-lw .mia-avatar {
+    width: 36px; height: 36px; border-radius: 11px; flex: none;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,.19); color: #fff;
+  }
+  .mia-lw .mia-avatar svg { width: 19px; height: 19px; display: block; }
+  .mia-lw .mia-topo strong { display: block; font-size: 15px; font-weight: 900; color: #fff; }
+  .mia-lw .mia-topo small { display: block; margin-top: 1px; font-size: 12px; color: rgba(255,255,255,.78); }
+  /* Discreto de propósito: é uma saída, não um convite. */
+  .mia-lw .mia-nova {
+    appearance: none; cursor: pointer; margin: 0 0 0 auto; flex: none;
+    font: inherit; font-size: 12px; font-weight: 700; color: #fff;
+    background: rgba(255,255,255,.16); border: 0; border-radius: 100px; padding: 7px 13px;
+  }
+  .mia-lw .mia-nova:hover { background: rgba(255,255,255,.26); }
+  .mia-lw .mia-nova:disabled { opacity: .5; cursor: wait; }
+  .mia-lw .mia-mensagens {
+    flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    display: flex; flex-direction: column; gap: 14px; padding: 18px 20px;
+  }
+  .mia-lw .mia-bolha {
+    max-width: 84%; padding: 12px 16px; margin: 0;
+    font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap;
+    border-radius: 18px;
+  }
+  .mia-lw .mia-bolha.mia-ela {
+    align-self: flex-start; background: var(--mia-dela); color: var(--mia-texto);
+  }
+  .mia-lw .mia-bolha.mia-eu {
+    align-self: flex-end; background: var(--mia-roxo); color: #fff; font-weight: 500;
+  }
+  /* O nome em cima da fala dela. O cabeçalho sai de vista quando a resposta é
+     longa, e a partir daí o balão diz de que lado veio, não de quem é. */
+  .mia-lw .mia-quem {
+    display: block; margin-bottom: 7px; white-space: normal;
+    font-size: 11px; font-weight: 800; letter-spacing: .07em; color: var(--mia-mudo);
+  }
+  .mia-lw .mia-bolha strong { color: var(--mia-texto); font-weight: 700; }
+  .mia-lw .mia-bolha a { color: var(--mia-roxo); text-decoration: underline; }
+  @keyframes mia-pulsa { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
+
+  /* ============================================================
+     O RACIOCÍNIO — o que ela fez para chegar ali
+     ============================================================
+     Enquanto espera: um contador de segundos de verdade e passos
+     provisórios. Quando a resposta chega, os provisórios SÃO TROCADOS pelos
+     que o servidor relata (`ferramentas` e `sources`) — o que fica na tela,
+     e o que a pessoa pode reabrir depois, é sempre o que aconteceu. */
+  .mia-lw .mia-pensou {
+    appearance: none; cursor: default; margin: 0 0 2px; padding: 0;
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    background: none; border: 0; border-radius: 100px;
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--mia-mudo);
+    text-align: left;
+  }
+  .mia-lw .mia-pensou[aria-expanded] { cursor: pointer; }
+  .mia-lw .mia-pensou svg { width: 14px; height: 14px; flex: none; }
+  /* A PÉTALA GIRA ENQUANTO ELA PENSA. É o símbolo da marca, o mesmo do
+     cabeçalho — não uma estrela genérica de ferramenta de IA. Gira devagar:
+     num bloco dentro de uma aula, giro rápido vira cata-vento e puxa o olho
+     para longe do que a pessoa está lendo. Quando a resposta chega, o
+     cabeçalho ganha `mia-pronto` e a pétala para: parada, ela é assinatura;
+     girando, é estado. */
+  .mia-lw .mia-pensou .mia-petala { animation: mia-gira 2.6s linear infinite; }
+  .mia-lw .mia-pensou.mia-pronto .mia-petala { animation: none; }
+  @keyframes mia-gira { to { transform: rotate(360deg); } }
+  .mia-lw .mia-seg { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .mia-lw .mia-chevron { margin-left: auto; transition: transform .15s ease; }
+  .mia-lw .mia-pensou[aria-expanded="true"] .mia-chevron { transform: rotate(90deg); }
+  /* O brilho que atravessa a palavra enquanto ela pensa. Degradê sobre o
+     texto; sem `prefers-reduced-motion` fica a cor sólida. */
+  .mia-lw .mia-brilho {
+    background: linear-gradient(90deg, var(--mia-mudo) 0%, var(--mia-mudo) 42%,
+      var(--mia-roxo) 50%, var(--mia-mudo) 58%, var(--mia-mudo) 100%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: mia-brilha 1.8s linear infinite;
+  }
+  @keyframes mia-brilha { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .mia-lw .mia-brilho { animation: none; background: none; color: var(--mia-mudo); }
+    .mia-lw .mia-pensou .mia-petala { animation: none; }
+  }
+  .mia-lw .mia-passos {
+    list-style: none; margin: 8px 0 0; padding: 0 0 0 18px;
+    border-left: 1px solid rgba(152,67,255,.22);
+  }
+  .mia-lw .mia-passos[hidden] { display: none; }
+  .mia-lw .mia-passo {
+    position: relative; display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; font-size: 12.5px; line-height: 1.45; color: var(--mia-mudo);
+    animation: mia-entra .35s ease backwards;
+  }
+  @keyframes mia-entra { from { opacity: 0; transform: translateY(7px); } }
+  .mia-lw .mia-passo::before {
+    content: ''; position: absolute; left: -22px;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--mia-roxo);
+  }
+  .mia-lw .mia-passo.mia-andando::before { animation: mia-pulsa 1.1s infinite ease-in-out; }
+  .mia-lw .mia-passo.mia-feito { color: var(--mia-suave); }
+  .mia-lw .mia-resposta { margin-top: 10px; }
+  .mia-lw .mia-resposta:empty { margin-top: 0; }
+  /* O cursor da máquina de escrever. */
+  .mia-lw .mia-cursor {
+    display: inline-block; width: 3px; height: 1em; border-radius: 2px;
+    margin-left: 2px; vertical-align: -.14em; background: var(--mia-roxo);
+    animation: mia-pulsa 1.1s infinite ease-in-out;
+  }
+  .mia-lw .mia-sugestoes { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 8px; }
+  .mia-lw .mia-sugestoes[hidden] { display: none; }
+  .mia-lw .mia-sugestoes button {
+    appearance: none; cursor: pointer; margin: 0;
+    font: inherit; font-size: 14px; font-weight: 700; color: var(--mia-roxo);
+    background: var(--mia-bg); border: 1px solid rgba(152,67,255,.38);
+    border-radius: 100px; padding: 8px 14px;
+  }
+  .mia-lw .mia-sugestoes button:hover { border-color: var(--mia-roxo); }
+  .mia-lw .mia-form {
+    flex: none; position: relative; display: flex; margin: 0;
+    padding: 10px 20px 0; border-top: 1px solid var(--mia-linha);
+  }
+  /* O creme existia para o campo ser o ponto mais claro de uma tela escura. Em
+     tela clara ele vira mancha: aqui quem chama é o botão, no roxo da marca. */
+  .mia-lw .mia-form textarea {
+    flex: 1; min-width: 0; display: block; resize: none; margin: 0;
+    min-height: 54px; max-height: 160px; padding: 14px 62px 14px 20px;
+    background: var(--mia-surface); color: var(--mia-texto);
+    border: 1px solid transparent; border-radius: 27px; outline: none;
+    font: inherit; font-size: 16px; line-height: 1.5;
+  }
+  .mia-lw .mia-form textarea::placeholder { color: var(--mia-placeholder); }
+  .mia-lw .mia-form textarea:focus { border-color: var(--mia-roxo); }
+  .mia-lw .mia-form button {
+    appearance: none; cursor: pointer; position: absolute; right: 27px; bottom: 7px;
+    width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0;
+    display: grid; place-items: center; background: var(--mia-roxo); color: #fff;
+  }
+  .mia-lw .mia-form button:disabled { opacity: .55; cursor: wait; }
+  .mia-lw .mia-form svg { width: 19px; height: 19px; }
+  .mia-lw .mia-aviso {
+    flex: none; margin: 0; padding: 8px 20px 14px; text-align: center;
+    font-size: 11px; line-height: 1.4; color: var(--mia-mudo);
+  }
+</style>
+
+<script>
+(function () {
+  var SUPABASE = 'https://ymnmotgglsrxmjmonwjz.supabase.co';
+  var CHAVE_PUBLICA = 'sb_publishable__wYRbYyBgK_MBfqmLpiZNg_Z8iJNxvc';
+  var PORTA = 'institute_learnworlds';
+  var EVENTO = 'mind-summit-2026';
+  var PREFIXO = 'mia-lw:';
+
+  /* Quem está logado no LearnWorlds. Vale o primeiro formato que veio trocado;
+     sem troca (fora da escola), as variáveis chegam como estão e não passam na
+     conferência: a conversa fica anônima. */
+  function variavel(nome) {
+    var els = document.querySelectorAll('#mia-lw [data-mia="' + nome + '"]');
+    for (var i = 0; i < els.length; i++) {
+      var v = String(els[i].textContent || '').trim();
+      if (v && v.indexOf('{{') < 0) return v;
+    }
+    return '';
+  }
+  var LW = { email: variavel('email'), nome: variavel('nome'), id: variavel('id') };
+  var emailOk = /^[^\s@{}]+@[^\s@{}]+\.[^\s@{}]{2,}$/.test(LW.email.trim());
+  var nomeOk = LW.nome.trim() !== '' && LW.nome.indexOf('{{') < 0;
+  var idOk = /^[A-Za-z0-9_-]{6,64}$/.test(LW.id.trim());
+  var IDENTIDADE = emailOk ? {
+    email: LW.email.trim().toLowerCase(),
+    name: nomeOk ? LW.nome.trim().slice(0, 80) : undefined,
+    source: 'learnworlds',
+    learnworlds_user_id: idOk ? LW.id.trim() : undefined,
+  } : undefined;
+  var PRIMEIRO_NOME = nomeOk ? LW.nome.trim().split(/\s+/)[0] : '';
+  var codigoOk = function (v) { return /^[A-Za-z0-9_-]{1,80}$/.test(v); };
+  var CURSO = variavel('curso'), AULA = variavel('aula');
+  var CONTEXTO = codigoOk(CURSO) ? {
+    plataforma: 'learnworlds',
+    curso: CURSO,
+    aula: codigoOk(AULA) ? AULA : undefined,
+  } : undefined;
+
+  var raiz = document.getElementById('mia-lw');
+  if (!raiz || raiz.dataset.ligada) return;
+  raiz.dataset.ligada = '1';
+  var mensagens = raiz.querySelector('.mia-mensagens');
+  var sugestoes = raiz.querySelector('.mia-sugestoes');
+  var nova = raiz.querySelector('.mia-nova');
+  var form = raiz.querySelector('.mia-form');
+  var campo = form.querySelector('textarea');
+  var enviar = form.querySelector('button');
+
+  /* Sem localStorage (bloqueado pelo navegador ou pelo LearnWorlds), a
+     conversa segue na memória da página até recarregar. */
+  var armazem = (function () {
+    try {
+      localStorage.setItem(PREFIXO + 'teste', '1');
+      localStorage.removeItem(PREFIXO + 'teste');
+      return localStorage;
+    } catch (e) {
+      var memoria = {};
+      return {
+        getItem: function (k) { return Object.prototype.hasOwnProperty.call(memoria, k) ? memoria[k] : null; },
+        setItem: function (k, v) { memoria[k] = String(v); },
+        removeItem: function (k) { delete memoria[k]; },
+      };
+    }
+  })();
+  function ler(k) { try { return JSON.parse(armazem.getItem(PREFIXO + k)); } catch (e) { return null; } }
+  function salvar(k, v) { armazem.setItem(PREFIXO + k, JSON.stringify(v)); }
+  function remover(k) { armazem.removeItem(PREFIXO + k); }
+
+  /* Computador compartilhado: outra pessoa logada não continua a conversa da
+     anterior. */
+  var quem = IDENTIDADE ? IDENTIDADE.email : '';
+  if (ler('quem') !== quem) { remover('conversa'); remover('acesso'); salvar('quem', quem); }
+
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+    });
+  }
+  function dispositivo() {
+    var atual = ler('aparelho');
+    if (!atual) { atual = uuid(); salvar('aparelho', atual); }
+    return atual;
+  }
+
+  /* ---------- Sessão anônima (Supabase Auth), como no app ---------- */
+  function pedirAcesso(caminho, corpo) {
+    return fetch(SUPABASE + caminho, {
+      method: 'POST',
+      headers: { apikey: CHAVE_PUBLICA, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+      cache: 'no-store',
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (p) {
+        if (!r.ok || !p.access_token) throw new Error('Não foi possível iniciar a sessão segura.');
+        var acesso = {
+          access_token: p.access_token,
+          refresh_token: p.refresh_token,
+          expires_at: p.expires_at || Math.floor(Date.now() / 1000) + (p.expires_in || 3600),
+        };
+        salvar('acesso', acesso);
+        return acesso;
+      });
+    });
+  }
+  function autenticar(forcarNova) {
+    if (forcarNova) remover('acesso');
+    var atual = ler('acesso');
+    var agora = Math.floor(Date.now() / 1000);
+    if (atual && atual.access_token && Number(atual.expires_at) > agora + 60) return Promise.resolve(atual);
+    if (atual && atual.refresh_token) {
+      return pedirAcesso('/auth/v1/token?grant_type=refresh_token', { refresh_token: atual.refresh_token })
+        .catch(function () { remover('acesso'); remover('conversa'); return pedirAcesso('/auth/v1/signup', {}); });
+    }
+    return pedirAcesso('/auth/v1/signup', {});
+  }
+
+  function chamar(texto, idMensagem) {
+    return autenticar(false).then(function (acesso) {
+      var controle = new AbortController();
+      var limite = setTimeout(function () { controle.abort(); }, 50000);
+      return fetch(SUPABASE + '/functions/v1/mindagent-chat', {
+        method: 'POST',
+        headers: {
+          apikey: CHAVE_PUBLICA,
+          Authorization: 'Bearer ' + acesso.access_token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: texto,
+          event_slug: EVENTO,
+          device_id: dispositivo(),
+          client_message_id: idMensagem,
+          session: ler('conversa') || undefined,
+          origem_codigo: PORTA,
+          identity: IDENTIDADE,
+          contexto: CONTEXTO,
+        }),
+        cache: 'no-store',
+        signal: controle.signal,
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (p) { return { r: r, p: p }; });
+      }).finally(function () { clearTimeout(limite); });
+    });
+  }
+
+  /* Uma segunda chance, nunca uma terceira: token vencido renova o acesso;
+     conversa expirada abre outra. */
+  function perguntarAoAgente(texto) {
+    var idMensagem = uuid();
+    return chamar(texto, idMensagem).then(function (res) {
+      var codigo = res.p && res.p.error && res.p.error.code;
+      if (codigo === 'session_expired') { remover('conversa'); return chamar(texto, idMensagem); }
+      if (res.r.status === 401) {
+        remover('conversa');
+        return autenticar(true).then(function () { return chamar(texto, idMensagem); });
+      }
+      return res;
+    }).then(function (res) {
+      if (!res.r.ok || !res.p || !res.p.ok) {
+        throw new Error((res.p && res.p.error && res.p.error.message) || 'Não consegui responder agora. Tente novamente.');
+      }
+      if (res.p.session) salvar('conversa', res.p.session);
+      /* Devolve o corpo inteiro, e não só `answer`: `ferramentas`, `sources` e
+         `rota` são o que o painel de raciocínio mostra, e vinham sendo jogados
+         fora aqui. */
+      return res.p;
+    });
+  }
+
+  /* ---------- Texto da resposta ----------
+     Tudo é escapado; só voltam negrito e link https. */
+  function escapar(t) {
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function formatar(texto) {
+    return escapar(String(texto == null ? '' : texto))
+      .split('\n')
+      .map(function (linha) {
+        var titulo = linha.match(/^\s{0,3}#{1,4}\s+(.+)$/);
+        if (titulo) return '<strong>' + titulo[1].replace(/\*\*/g, '') + '</strong>';
+        return linha.replace(/^(\s*)[-*]\s+/, '$1• ');
+      })
+      .join('\n')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/https:\/\/[^\s<]+[^\s<.,;:!?)\]]/g, function (url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+      });
+  }
+
+  /* O nome dela em cima da fala. `formatar()` já escapa tudo o que vem do
+     servidor; este rótulo é texto fixo daqui, e por isso pode ser concatenado. */
+  var ROTULO = '<span class="mia-quem">MIA</span>';
+
+  /* Fala longa abre pelo começo, e sem rolar a página do LearnWorlds junto. */
+
+  function bolha(texto, quem) {
+    var el = document.createElement('div');
+    el.className = 'mia-bolha ' + (quem === 'eu' ? 'mia-eu' : 'mia-ela');
+    if (quem === 'eu') el.textContent = texto; else el.innerHTML = ROTULO + formatar(texto);
+    mensagens.appendChild(el);
+    if (quem === 'eu') mensagens.scrollTop = mensagens.scrollHeight;
+    else mensagens.scrollTop += el.getBoundingClientRect().top - mensagens.getBoundingClientRect().top - 12;
+    return el;
+  }
+  /* ============================================================
+     O TURNO DELA — pensando, depois o que ela fez, depois a resposta
+     ============================================================
+     Uma bolha só, que muda de estado, em vez de uma bolha de "digitando" que
+     é apagada e trocada por outra.
+
+     DUAS CLASSES DE PASSO, e a diferença importa:
+
+     - Os da ESPERA são provisórios. A `mindagent-chat` devolve tudo de uma vez:
+       enquanto ela não responde, ninguém aqui sabe o que está acontecendo. São
+       uma expectativa do caminho normal dela (procurar no acervo, ler o que
+       achou), e não um relato.
+     - Os do FIM são relato. Vêm de `ferramentas` e `sources`, que o servidor
+       manda no corpo da resposta. Eles SUBSTITUEM os provisórios, inclusive
+       quando contradizem — se ela respondeu sem consultar o acervo, é isso que
+       fica escrito. O que a pessoa reabre depois é sempre o que aconteceu. */
+  var SETA = '<span class="mia-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>';
+
+  /* A pétala do cabeçalho de raciocínio é O MESMO desenho do avatar, clonado.
+     Colar o caminho do símbolo de novo aqui seria a terceira cópia dele no
+     repositório, e três cópias de um desenho é onde uma delas envelhece
+     sozinha. O `fill="currentColor"` do original faz a cor vir de quem o
+     hospeda — no avatar, branco sobre o roxo; aqui, o cinza do cabeçalho. */
+  function petala() {
+    var modelo = raiz.querySelector('.mia-avatar svg');
+    if (!modelo) return document.createComment('sem símbolo');
+    var copia = modelo.cloneNode(true);
+    copia.setAttribute('class', 'mia-petala');
+    copia.setAttribute('aria-hidden', 'true');
+    return copia;
+  }
+
+  var PASSOS_DA_ESPERA = [
+    [0, 'Lendo sua pergunta'],
+    [2200, 'Procurando no acervo do Summit'],
+    [6000, 'Lendo o que encontrou'],
+  ];
+
+  /* Os nomes das ferramentas dela, em português de gente. Ferramenta que não
+     estiver aqui aparece com o nome cru: melhor um nome técnico na tela do que
+     uma frase bonita que não corresponde ao que rodou. */
+  var NOME_DA_FERRAMENTA = {
+    buscar_intelligence: 'Procurou no acervo do Summit',
+    ler_intelligence: 'Leu o conteúdo encontrado',
+  };
+  var NOME_DA_FONTE = { event: 'evento', sessions: 'sessões', speakers: 'palestrantes' };
+
+  function relatoDoTurno(p) {
+    var lista = [];
+    var usadas = Array.isArray(p && p.ferramentas) ? p.ferramentas : [];
+    var contagem = {}, ordem = [];
+    usadas.forEach(function (f) {
+      var nome = f && f.nome ? String(f.nome) : 'ferramenta';
+      if (!contagem[nome]) { contagem[nome] = 0; ordem.push(nome); }
+      contagem[nome]++;
+    });
+    ordem.forEach(function (nome) {
+      var rotulo = NOME_DA_FERRAMENTA[nome] || nome;
+      lista.push(contagem[nome] > 1 ? rotulo + ' (' + contagem[nome] + '×)' : rotulo);
+    });
+    if (!lista.length) lista.push('Respondeu sem consultar o acervo');
+    var fontes = Array.isArray(p && p.sources) ? p.sources : [];
+    if (fontes.length) {
+      lista.push('Contexto: ' + fontes.map(function (f) {
+        return (NOME_DA_FONTE[f.type] || f.type) + ' (' + f.count + ')';
+      }).join(', '));
+    }
+    return lista;
+  }
+
+  function abrirTurno() {
+    var el = document.createElement('div');
+    el.className = 'mia-bolha mia-ela';
+    el.innerHTML = ROTULO +
+      '<button type="button" class="mia-pensou">' +
+        '<span class="mia-pensou-rotulo mia-brilho">Pensando</span>' +
+        '<span class="mia-seg">0s</span>' +
+      '</button>' +
+      '<ol class="mia-passos"></ol>' +
+      '<div class="mia-resposta"></div>';
+    mensagens.appendChild(el);
+    mensagens.scrollTop = mensagens.scrollHeight;
+
+    var cabecalho = el.querySelector('.mia-pensou');
+    cabecalho.insertBefore(petala(), cabecalho.firstChild);
+    var rotulo = el.querySelector('.mia-pensou-rotulo');
+    var contador = el.querySelector('.mia-seg');
+    var passos = el.querySelector('.mia-passos');
+    var resposta = el.querySelector('.mia-resposta');
+    var inicio = Date.now();
+    var segundos = 0;
+    var tempos = [];
+
+    function escrever(textos, feitos) {
+      passos.innerHTML = '';
+      textos.forEach(function (t, i) {
+        var li = document.createElement('li');
+        li.className = 'mia-passo' + (feitos || i < textos.length - 1 ? ' mia-feito' : ' mia-andando');
+        li.style.animationDelay = (i * 45) + 'ms';
+        li.textContent = t;
+        passos.appendChild(li);
+      });
+      mensagens.scrollTop = mensagens.scrollHeight;
+    }
+
+    var relogio = setInterval(function () {
+      segundos = Math.round((Date.now() - inicio) / 1000);
+      contador.textContent = segundos + 's';
+    }, 1000);
+
+    var vistos = [];
+    PASSOS_DA_ESPERA.forEach(function (p) {
+      tempos.push(setTimeout(function () { vistos.push(p[1]); escrever(vistos); }, p[0]));
+    });
+
+    function pararEspera() {
+      clearInterval(relogio);
+      tempos.forEach(clearTimeout);
+      segundos = Math.max(1, Math.round((Date.now() - inicio) / 1000));
+    }
+
+    return {
+      /* A resposta chegou: o cabeçalho vira resumo clicável, os passos viram
+         relato e a fala dela aparece. */
+      concluir: function (p) {
+        pararEspera();
+        rotulo.classList.remove('mia-brilho');
+        cabecalho.classList.add('mia-pronto');
+        rotulo.textContent = 'Pensou por ' + segundos + 's';
+        contador.remove();
+        cabecalho.insertAdjacentHTML('beforeend', SETA);
+        cabecalho.setAttribute('aria-expanded', 'false');
+        escrever(relatoDoTurno(p), true);
+        passos.hidden = true;
+        cabecalho.addEventListener('click', function () {
+          passos.hidden = !passos.hidden;
+          cabecalho.setAttribute('aria-expanded', passos.hidden ? 'false' : 'true');
+        });
+        /* O servidor diz qual agente respondeu (`p.rota`), e houve uma versão
+           que avisava a pessoa quando não era a MIA. Saiu a pedido do Vinícius
+           em 27/10: quem está no curso não precisa saber de rota de agente. A
+           saída continua existindo no botão “Nova conversa”, sem explicação. */
+        /* A resposta longa abre pelo COMEÇO, como já era. A medida tem de ser
+           tirada com o texto inteiro montado — por isso vai no gancho, e não
+           depois, quando os nós de texto já foram esvaziados. */
+        return maquinaDeEscrever(resposta, formatar(p && p.answer), function () {
+          mensagens.scrollTop += el.getBoundingClientRect().top
+            - mensagens.getBoundingClientRect().top - 12;
+        });
+      },
+      falhar: function (texto) {
+        pararEspera();
+        cabecalho.remove();
+        passos.remove();
+        resposta.textContent = texto;
+        mensagens.scrollTop = mensagens.scrollHeight;
+      },
+    };
+  }
+
+  /* A MÁQUINA DE ESCREVER, SEM QUEBRAR O HTML.
+     A resposta já chegou inteira; isto é ritmo de leitura, não streaming —
+     nada aqui espera o servidor. Cortar a string do HTML em pedaços partiria
+     uma tag no meio, então o caminho é outro: monta-se o HTML de verdade,
+     esvaziam-se os nós de TEXTO e eles são repostos aos poucos. Negrito e link
+     ficam inteiros desde o primeiro quadro; o que aparece aos poucos é a letra.
+
+     A duração tem teto: as respostas dela passam de mil caracteres, e prender
+     a leitura de um texto que já está na mão seria cobrar da pessoa o preço de
+     um efeito. Até 1,8s, aconteça o que acontecer. */
+  function maquinaDeEscrever(destino, html, aoMontar) {
+    destino.innerHTML = html;
+    if (aoMontar) aoMontar();
+    var nos = [];
+    var total = 0;
+    (function varrer(no) {
+      for (var i = 0; i < no.childNodes.length; i++) {
+        var filho = no.childNodes[i];
+        if (filho.nodeType === 3) {
+          nos.push({ no: filho, texto: filho.nodeValue });
+          total += filho.nodeValue.length;
+          filho.nodeValue = '';
+        } else if (filho.nodeType === 1) varrer(filho);
+      }
+    })(destino);
+    if (!total) return { pular: function () {} };
+
+    var cursor = document.createElement('span');
+    cursor.className = 'mia-cursor';
+    cursor.setAttribute('aria-hidden', 'true');
+    destino.appendChild(cursor);
+
+    var duracao = Math.max(350, Math.min(1800, total * 5));
+    var inicio = Date.now();
+    var vivo = true;
+
+    /* NÃO É `requestAnimationFrame`, e isso não é preferência: o navegador não
+       chama rAF em aba que não está na frente. Com o efeito preso nele, quem
+       trocasse de aba enquanto a MIA responde voltava para uma resposta VAZIA —
+       o HTML montado, os nós de texto zerados e nada para completá-los. Foi o
+       que aconteceu aqui no teste, e aconteceria com o aluno que abre o vídeo
+       da aula numa aba ao lado.
+
+       `setInterval` é estrangulado em segundo plano, mas continua disparando, e
+       a conta é por tempo decorrido: a primeira batida depois da volta já
+       completa o texto. O `setTimeout` é a garantia final — passe o que passar,
+       a resposta aparece inteira. */
+    var relogio = 0;
+    var garantia = 0;
+
+    function tudo() {
+      clearInterval(relogio);
+      clearTimeout(garantia);
+      nos.forEach(function (n) { n.no.nodeValue = n.texto; });
+      if (cursor.parentNode) cursor.remove();
+      vivo = false;
+    }
+    function passo() {
+      if (!vivo) return;
+      var fracao = Math.min(1, (Date.now() - inicio) / duracao);
+      var ate = Math.round(total * fracao);
+      var restante = ate;
+      for (var i = 0; i < nos.length; i++) {
+        var n = nos[i];
+        if (restante <= 0) { n.no.nodeValue = ''; continue; }
+        n.no.nodeValue = n.texto.slice(0, restante);
+        restante -= n.texto.length;
+      }
+      if (fracao >= 1) tudo();
+    }
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      tudo();
+    } else {
+      relogio = setInterval(passo, 16);
+      garantia = setTimeout(tudo, duracao + 600);
+    }
+
+    return { pular: tudo };
+  }
+
+  var emAndamento = false;
+  var maquinaAtual = null;
+  function perguntar(texto) {
+    var limpo = String(texto || '').trim();
+    if (!limpo || emAndamento) return;
+    emAndamento = true;
+    sugestoes.hidden = true;
+    bolha(limpo, 'eu');
+    var turno = abrirTurno();
+    enviar.disabled = true;
+    perguntarAoAgente(limpo).then(function (corpo) {
+      maquinaAtual = turno.concluir(corpo);
+    }).catch(function (erro) {
+      turno.falhar(erro && erro.name === 'AbortError' ? 'A resposta demorou demais. Tente novamente.'
+        : erro instanceof TypeError ? 'Não consegui responder agora. Tente novamente.'
+        : (erro && erro.message) || 'Não consegui responder agora. Tente novamente.');
+    }).then(function () {
+      emAndamento = false;
+      enviar.disabled = false;
+    });
+  }
+
+  function ajustarAltura() {
+    campo.style.height = 'auto';
+    campo.style.height = Math.min(campo.scrollHeight, 160) + 'px';
+  }
+  /* Sem <form>: se o LearnWorlds rodar o bloco numa caixa isolada sem
+     permissão de formulário, o envio por submit é bloqueado. */
+  function enviarCampo() {
+    var texto = campo.value;
+    if (!texto.trim() || emAndamento) return;
+    campo.value = '';
+    ajustarAltura();
+    perguntar(texto);
+  }
+  enviar.addEventListener('click', enviarCampo);
+  campo.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    enviarCampo();
+  });
+  campo.addEventListener('input', ajustarAltura);
+
+  [
+    ['Resumir uma sessão', 'Me resuma a sessão sobre '],
+    ['O que disseram sobre um tema', 'O que os palestrantes disseram sobre '],
+    ['Uma situação do meu trabalho', 'Tenho uma situação no meu trabalho: '],
+  ].forEach(function (s) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = s[0];
+    b.addEventListener('click', function () {
+      campo.value = s[1];
+      ajustarAltura();
+      campo.focus({ preventScroll: true });
+      campo.setSelectionRange(campo.value.length, campo.value.length);
+    });
+    sugestoes.appendChild(b);
+  });
+
+  /* O coração verde saiu com a casca escura: na tela roxa ele era a única coisa
+     verde, e verde é a cor do app do Summit — o produto de onde ela se distingue.
+     A frase é a mesma. */
+  function saudar() {
+    bolha((PRIMEIRO_NOME ? 'Oi, ' + PRIMEIRO_NOME + '!' : 'Oi!') + ' Eu sou a MIA. Conheço por dentro as palestras, painéis, workshops e ' +
+      'masterclasses do Mind Summit 2026.\n\n' +
+      'Me pergunte o que um palestrante disse sobre um tema, peça o resumo de uma sessão ' +
+      'ou me conte uma situação do seu trabalho — eu trago as ideias que ajudam e onde ' +
+      'elas aparecem, para você assistir.', 'ela');
+  }
+
+  /* ESQUECER A CONVERSA É O QUE TRAZ A MIA DE VOLTA. Sem `session` no envio, o
+     servidor abre uma conversa nova, e conversa nova entra pela porta
+     `institute_learnworlds`, que o banco liga à MIA. Enquanto a conversa antiga
+     for mandada junto, vale a rota gravada nela — mesmo que seja a de outro
+     agente, para onde a MIA tenha passado a conversa.
+     Só a conversa é esquecida: o acesso, o aparelho e quem está logado ficam. */
+  /* Guardado: se o LearnWorlds limpar o botão do HTML colado, a saudação ainda
+     precisa aparecer — o `addEventListener` num nulo pararia o bloco inteiro. */
+  if (nova) nova.addEventListener('click', function () {
+    if (emAndamento) return;
+    /* A última resposta pode ainda estar sendo revelada: encerra o efeito antes
+       de limpar, para o quadro seguinte não desenhar em nós já descartados. */
+    if (maquinaAtual) { maquinaAtual.pular(); maquinaAtual = null; }
+    remover('conversa');
+    mensagens.innerHTML = '';
+    sugestoes.hidden = false;
+    campo.value = '';
+    ajustarAltura();
+    saudar();
+  });
+
+  saudar();
+})();
+</script>
