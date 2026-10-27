@@ -14,7 +14,7 @@
 - Retrieval: identidade do agente → collections habilitadas → acesso → hybrid search → reranking → contexto.
 - Autorização é pré-retrieval.
 - Livro inteiro = `mind_only`.
-- Livro com licença restrita = `derived_only`: texto bruto não entra no corpus; processar capítulo por capítulo.
+- A regra “livro com licença restrita = `derived_only`” foi removida por decisão da Adriana em 29/09/2026. Direitos e modo de ingestão continuam registrados fonte a fonte (`direitos_uso`, `modo_ingestao`, `provenance_notes`).
 - Referência citada por livro nasce como `reference_lead`; só vira evidência primária depois de ingerida/verificada.
 - Conteúdo do Summit não vira evidência científica automaticamente; preservar `expert_statement`/proveniência.
 - Decisões que exigem Adriana ficam em uma única coluna `pendencia_decisao`; execução continua com default conservador.
@@ -171,6 +171,16 @@ O playground chama `POST /admin/knowledge_search` na Edge Function `mindagent-kn
 A rota valida sessão/admin, resolve retrieval server-side e tenta busca híbrida quando há embedding da query, com fallback lexical.
 
 Existe a persona técnica `knowledge_admin`, invisível na matriz normal, com acesso interno às 22 collections para teste administrativo. Ela não representa agente público.
+
+## Piloto de livro em texto integral (30/09/2026)
+
+Relatório completo: `docs/KNOWLEDGE_PILOTO_LIVRO.md`.
+
+- Fonte `6b61c548-70c9-4d23-ba5e-ec12a6bfa147` (Henrich, *The Secret of Our Success*): `full_text`, `direitos_uso = unknown`, `mind_only`, `status_ingestao = processing`.
+- No banco: 18 locais (PDF mestre + 17 arquivos de parte), 22 itens de inventário (4 cópias idênticas excluídas), 138 seções hierárquicas, `page_map` de 456 páginas. O texto canônico está parcial (308.000 de 1.140.013 caracteres) e há 0 chunks.
+- A carga foi interrompida pela camada de segurança do Claude Code por causa da procedência da cópia. A decisão está pendente com a Adriana e registrada em `pendencia_decisao`.
+- Proposta ainda não aplicada: `docs/sql/knowledge-livro/proposta_busca_global_com_chunks.sql` (põe chunks de fontes `full_text` na fila de embeddings e na busca global, sem criar objetos novos).
+- Pipeline reaproveitável: `scripts/infra/knowledge-livro/`.
 
 ## Próxima ordem
 

@@ -1,0 +1,12 @@
+{
+  "bookTitle": "The Secret of Our Success",
+  "bookPageOffset": 18,
+  "preface": {"pdf": 9, "end": 15},
+  "chapters": [
+    {"n": 1, "pdf": 19}, {"n": 2, "pdf": 26}, {"n": 3, "pdf": 40}, {"n": 4, "pdf": 52}, {"n": 5, "pdf": 72},
+    {"n": 6, "pdf": 101}, {"n": 7, "pdf": 115}, {"n": 8, "pdf": 135}, {"n": 9, "pdf": 158}, {"n": 10, "pdf": 184},
+    {"n": 11, "pdf": 203}, {"n": 12, "pdf": 229}, {"n": 13, "pdf": 249}, {"n": 14, "pdf": 278}, {"n": 15, "pdf": 298},
+    {"n": 16, "pdf": 314}, {"n": 17, "pdf": 332}
+  ],
+  "backmatter": {"notes": 351, "references": 391, "credits": 447, "index": 449}
+}
