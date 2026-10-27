@@ -2041,3 +2041,126 @@ html[data-teclado="aberto"] .doca {
   font-size: 13px; line-height: 1.55; color: var(--texto-mudo);
 }
 .erro-dados b { color: var(--coral); display: block; margin-bottom: 6px; }
+
+/* ============================================================
+   A PELE DA MIA — a identidade dela dentro do curso
+   ============================================================
+   O embed do Institute abria com a casca do app do Summit: fundo quase
+   preto, verde de interface, bolha escura para a resposta. A MIA é um
+   produto do Institute, e o Institute já a apresenta em roxo, com o nome
+   "MIA — Mind Intelligence Agent". Vestir o embed com a casca do evento
+   fazia a agente do curso parecer um recanto do app de outro produto.
+
+   O ROXO NÃO É NOVO: `--roxo` é token da marca desde a primeira versão
+   desta folha. O que muda aqui é só quem o usa.
+
+   TUDO ABAIXO É ESCOPADO EM `html[data-pele="mia"]`, posto por
+   `vestirDaPorta()` a partir de `PORTAS` no `config.js`. O app do Summit
+   não tem o atributo e não lê uma linha disto. Atributo no `html` e não
+   no `body` porque é o `html` que pinta o que sobra fora da caixa do app
+   — marcar o `body` deixava moldura escura em volta de conversa clara.
+
+   Os tokens são redefinidos em vez de cada regra ser reescrita: o que a
+   pele troca é a paleta, e componente que já lê token (chips, painel,
+   aviso, indicador de digitação) acompanha sem saber que existe pele. */
+html[data-pele="mia"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f3f2f8;
+  --surface-deep: #ffffff;
+  --texto: #1b1b24;
+  --texto-suave: #35353f;
+  --texto-mudo: #70708a;
+  --hairline: rgba(27, 27, 36, .11);
+  /* O placeholder tem cor própria, e não `--texto-mudo`, por dois motivos.
+     O primeiro é contraste: `--texto-mudo` dá 4,80:1 sobre o branco, onde
+     ficam o rótulo e o aviso, mas o campo é cinza (`--surface`) e ali o
+     mesmo cinza cairia. Este dá 5,85:1 sobre `--surface` — medido, como o
+     resto desta folha faz. O segundo é que o contrato do campo creme da
+     home proíbe `--texto-mudo` em `.doca input::placeholder`, e com razão:
+     lá ele apaga o convite. A pele não é exceção a esse contrato; ela tem
+     outro campo, e por isso declara a própria cor. */
+  --mia-placeholder: #5c5c72;
+}
+
+html[data-pele="mia"] body { background: var(--bg); color: var(--texto); }
+
+/* ---- O cabeçalho: a faixa é a marca ---- */
+html[data-pele="mia"] .c-topo {
+  background: var(--roxo);
+  border-bottom: 0;
+  padding: 15px var(--pad);
+}
+html[data-pele="mia"] .c-topo strong { color: #fff; }
+html[data-pele="mia"] .c-topo small { color: rgba(255, 255, 255, .78); }
+/* O ponto verde dizia "responde na hora", que é promessa do Concierge no
+   dia do evento. Aqui ele seria um sinal de status sem nada atrás. */
+html[data-pele="mia"] .c-topo small::before { display: none; }
+html[data-pele="mia"] .avatar {
+  width: 36px; height: 36px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .19);
+  border: 0;
+}
+html[data-pele="mia"] .avatar img { width: 19px; height: 19px; }
+
+/* ---- Os dois lados da conversa, cada um no seu balão ----
+   O balão dela é o roxo rebaixado a fundo: mesma família da bolha de quem
+   pergunta, sem competir com ela. Derivado de `--roxo` por `color-mix`,
+   como o resto da folha faz com cor de estado — trocar o token move os
+   dois juntos, e não deixa um balão lilás ao lado de um botão de outra cor.
+
+   Os quatro cantos iguais nos dois lados: a conversa aqui é de duas vozes
+   alternadas, e o canto quadrado do app do Summit existe para apontar o
+   lado de quem fala numa tela onde as bolhas se empilham coladas. */
+html[data-pele="mia"] .mensagens { gap: 14px; padding-top: 22px; }
+html[data-pele="mia"] .bolha.mind {
+  background: color-mix(in srgb, var(--roxo) 8%, #fff);
+  color: var(--texto);
+  border-radius: 18px;
+}
+/* O nome em cima da fala, com o símbolo da marca num selo roxo. O PNG é o
+   símbolo branco com alfa: por cima da cor, recorta-se sozinho — nada de
+   terceira cópia do desenho do símbolo dentro do CSS. */
+html[data-pele="mia"] .bolha.mind .quem {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 9px;
+  font-size: 11px; font-weight: 800; letter-spacing: .07em;
+  color: var(--texto-mudo);
+  white-space: normal;
+}
+html[data-pele="mia"] .bolha.mind .quem::before {
+  content: ''; flex: none;
+  width: 19px; height: 19px; border-radius: 6px;
+  background: url('./assets/simbolo-mind-branco.png') center / 12px 12px no-repeat,
+              var(--roxo);
+}
+html[data-pele="mia"] .bolha.eu {
+  background: var(--roxo);
+  color: #fff;
+  border-radius: 18px;
+}
+
+/* ---- As cinco sugestões ---- */
+html[data-pele="mia"] .chips button {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--roxo) 38%, transparent);
+  color: var(--roxo);
+}
+
+/* ---- O campo ----
+   O creme da doca existe para o campo ser o ponto mais claro de uma tela
+   escura. Numa tela clara ele perde a função e vira uma mancha: aqui o
+   contraste vem do botão, que é o roxo da marca. */
+html[data-pele="mia"] .doca {
+  background: var(--bg);
+  border-top: 1px solid var(--hairline);
+}
+html[data-pele="mia"] .doca input {
+  background: var(--surface);
+  border-color: transparent;
+  color: var(--texto);
+}
+html[data-pele="mia"] .doca input::placeholder { color: var(--mia-placeholder); }
+html[data-pele="mia"] .doca input:focus { border-color: var(--roxo); }
+html[data-pele="mia"] .doca .enviar { background: var(--roxo); color: #fff; }
