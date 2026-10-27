@@ -286,6 +286,93 @@ function definirOrigemCodigo(valor) {
   return ORIGEM_CODIGO;
 }
 
+/* ============================================================
+   A CARA DE CADA PORTA
+   ============================================================
+   `origem_codigo` já dizia por qual porta a pessoa entrou, e o banco já
+   usava isso para escolher a competência: `agentes.canal_competencia`
+   tem `entradas_diretas = {institute_learnworlds}` na rota
+   `mia_summit_2026`, e por isso quem abre o embed fala com a MIA desde o
+   primeiro turno, sem passar pelo Router.
+
+   Faltava a outra metade: a TELA. Quem abria o embed do Mind Institute no
+   LearnWorlds caía na central do participante do Summit — marca do evento,
+   cards de plano pós-Summit, a doca dizendo "Pergunte qualquer coisa ao
+   Concierge" — e a primeira bolha do chat se apresentava como concierge de
+   um evento que já terminou. A competência era a MIA; a moldura, não.
+
+   Esta tabela é SÓ APRESENTAÇÃO. Ela não escolhe agente, não autentica e
+   não troca rota: quem decide isso continua sendo o banco, pela entrada
+   direta. Porta sem linha aqui abre o app de sempre, sem nenhuma mudança.
+
+   O TEXTO VEM DO PLAYBOOK DELA, não foi escrito aqui: `agente`, `papel` e
+   as cinco sugestões saem da seção 1 de `playbook_mia_summit_2026`
+   ("Você é a MIA Summit, a inteligência de conhecimento do Mind Summit
+   2026… Você ajuda a pessoa a: encontrar…, entender…, conectar…,
+   aplicar…, criar…"). O playbook ainda é rascunho para revisão da
+   Adriana; quando ela revisar a abertura, é esta tabela que muda — um
+   lugar só, e nenhuma outra tela sente. */
+const PORTAS = {
+  institute_learnworlds: {
+    agente: 'MIA Summit',
+    /* "MIA — MIND INTELLIGENCE AGENT" é como o Institute já a apresenta no
+       playbook de vendas (`20260917200000_playbook_vendas_institute.sql`).
+       A linha longa do playbook dela descrevia o acervo; esta nomeia o
+       produto, que é o que o cabeçalho pede. */
+    papel: 'Mind Intelligence Agent',
+    /* A pele e o rótulo das falas: a identidade roxa da MIA, no lugar da
+       casca escura do app do Summit. O CSS mora em `html[data-pele]`. */
+    pele: 'mia',
+    rotulo: 'MIA',
+    /* A barra do navegador acompanha o cabeçalho. Mesmo valor de `--roxo`,
+       escrito aqui porque `meta[name=theme-color]` não lê variável de CSS. */
+    barra: '#9843ff',
+    /* Sobre o roxo, o símbolo verde não é a marca — é o verde de interface
+       do Summit. O branco é o mesmo símbolo, e já está nos assets. */
+    avatar: './assets/simbolo-mind-branco.png',
+    placeholder: 'Pergunte à MIA…',
+    abertura: 'Sou a MIA, a inteligência de conhecimento do Mind Summit 2026. '
+      + 'Posso encontrar palestras, workshops e especialistas, explicar conceitos '
+      + 'apresentados, conectar ideias de sessões diferentes, aplicar o conteúdo a um '
+      + 'desafio do seu trabalho e criar materiais a partir do que foi dito no Summit.',
+    /* Chat vazio é o que fez a jornada do Concierge existir: apresentação e
+       mais nada, esperando que a pessoa soubesse o que pedir. Aqui o lugar
+       da jornada é ocupado pelos cinco tipos de pedido que ela atende — na
+       voz de quem pergunta, porque é isso que o toque envia. */
+    sugestoes: [
+      'Encontrar palestras e especialistas sobre um tema',
+      'Entender um conceito apresentado no Summit',
+      'Conectar ideias de sessões diferentes',
+      'Aplicar o conteúdo a um desafio do meu trabalho',
+      'Criar um material a partir do conteúdo',
+    ],
+    /* Dentro do curso não existe central do Summit atrás: sem splash, sem
+       home e sem o "‹", que levaria a pessoa a uma tela que não é dela. */
+    soOChat: true,
+  },
+};
+
+/* A MOLDURA É DESTA CARGA DA PÁGINA; A COMPETÊNCIA É DA ABA.
+   `origem_codigo` gruda na aba de propósito: quem entrou pelo app oficial e
+   navegou até o chat continua tendo entrado por lá, e é isso que o runtime
+   persiste na abertura da conversa. A TELA não pode herdar isso. Abrindo o
+   app do Summit na mesma aba em que o embed já rodou, a origem guardada
+   entregava o chat da MIA sem home e sem volta — conferido no simulador,
+   com `/` limpo, depois de uma visita com o parâmetro.
+
+   Então a cara vem do que ESTE endereço diz, e some na carga seguinte sem
+   ele. `limparUrl()` preserva `origem_codigo` na barra justamente por isso:
+   dentro do iframe o parâmetro sobrevive a recarga e a `replaceState`. */
+let PORTA_DESTA_CARGA = null;
+
+/**
+ * A apresentação da porta por onde ESTA carga da página entrou, ou `null`
+ * para o app de sempre.
+ */
+export function faceDaPorta() {
+  return PORTA_DESTA_CARGA;
+}
+
 /**
  * Lê a identidade de quem abriu a página: Yazo, depois aba, depois
  * anônimo. Chamada de propósito pelo `app.js`, nunca no import.
@@ -299,7 +386,14 @@ export function capturarIdentidade() {
      identidade: quem abre o app oficial sem e-mail na URL continua tendo
      entrado pelo app oficial. */
   if (params && params.has('origem_codigo')) {
-    definirOrigemCodigo(params.get('origem_codigo'));
+    const bruto = String(params.get('origem_codigo') || '').trim().toLowerCase();
+    definirOrigemCodigo(bruto);
+    /* `hasOwnProperty.call` e não `PORTAS[bruto]` direto: `?origem_codigo=
+       constructor` numa URL hostil devolveria o construtor de Object, que é
+       objeto e passaria por porta válida. */
+    PORTA_DESTA_CARGA = Object.prototype.hasOwnProperty.call(PORTAS, bruto)
+      ? PORTAS[bruto]
+      : null;
   }
 
   const daYazo = params && (params.has('email') || params.has('nome'));
