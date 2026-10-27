@@ -71,6 +71,9 @@ export function toolsDeIntelligence(kitTools: unknown) {
 
   return {
     semExecutor: declaradas.length - ativas.length,
+    // Skills que o Kit marcou como obrigatórias (`agentes.kit_blocos.obrigatorio`): o runtime
+    // força a chamada no primeiro turno de conteúdo em vez de deixar o modelo decidir.
+    obrigatorias: ativas.filter((tool) => tool.obrigatorio === true).map((tool) => String(tool.nome)),
     tools: ativas.map((tool) => ({
       type: "function",
       name: String(tool.nome),
@@ -79,6 +82,17 @@ export function toolsDeIntelligence(kitTools: unknown) {
       strict: true,
     })),
   };
+}
+
+// BUSCA OBRIGATÓRIA NO PRIMEIRO TURNO DE CONTEÚDO. Medido na MIA Summit (23/10/2026): com o
+// contexto pronto na mão, o modelo respondia "o que aconteceu no Summit" de memória, sem
+// nunca abrir o acervo, apesar do playbook mandar. Pedir não garante; forçar garante. Só a
+// skill de busca é forçável (a leitura depende de um id que vem da busca), só na primeira
+// rodada, e só quando a mensagem tem tamanho de pergunta: um "oi" não paga uma busca.
+export function buscaObrigatoria(obrigatorias: string[], mensagem: string, rodadasTool: number) {
+  if (rodadasTool > 0) return null;
+  if (!obrigatorias.includes("buscar_intelligence")) return null;
+  return mensagem.trim().length >= 20 ? "buscar_intelligence" : null;
 }
 
 export function extrairChamadas(payload: Record<string, unknown>) {
@@ -98,10 +112,13 @@ export function extrairChamadas(payload: Record<string, unknown>) {
   return calls;
 }
 
-export function esforcoDeRaciocinio(mensagem: string, ferramentas: number) {
+export function esforcoDeRaciocinio(mensagem: string, ferramentas: number, buscaForcada = false) {
   if (ferramentas === 0) return "none" as const;
+  // Quem é obrigado a buscar está ali para trabalhar o conteúdo: decidir o que buscar e
+  // como combinar o que leu é raciocínio, não pergunta factual.
+  if (buscaForcada) return "medium" as const;
 
-  const texto = mensagem.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const texto = mensagem.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const complexa = mensagem.length > 220 ||
     /\b(compar\w*|por que|porque|justific\w*|aprov\w*|proposta\w*|delegac\w*|equipe\w*|empresa\w*|objec\w*|estrateg\w*|recomend\w*|qual.*melhor|vale a pena|nr.?1|pgr)\b/.test(texto);
 
@@ -119,7 +136,7 @@ export function respostaExigeBuscaAntesDeDesistir(outputText: string) {
 
   const texto = resposta
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
   /* Uma resposta de abstinência sem nenhuma tentativa de lupa reproduz o
