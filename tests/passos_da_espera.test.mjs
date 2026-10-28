@@ -178,6 +178,55 @@ test('casa por palavra inteira, não por pedaço de palavra', () => {
 });
 
 /* ============================================================
+   O PASSO NOVO ENTRA EMBAIXO, E SÓ ELE
+   ============================================================
+   Cada passo redesenhava a lista inteira: os de cima eram destruídos e
+   recriados, a animação de entrada (`mia-entra`) recomeçava em todos, e
+   a lista piscava e pulava a cada linha nova. Quem está lendo a terceira
+   linha não pode ter a primeira arrancada debaixo do olho.
+
+   A única troca completa legítima é no fim do turno, quando a lista
+   deixa de ser expectativa e vira relato — ali é outro conteúdo, não
+   mais um passo. */
+
+const corpoDoTurno = bloco.slice(bloco.indexOf('function abrirTurno(tema) {'),
+                                 bloco.indexOf('function maquinaDeEscrever'));
+
+test('durante a espera, cada passo é acrescentado — a lista não é refeita', () => {
+  const espera = corpoDoTurno.slice(corpoDoTurno.indexOf('passosDaEspera(tema).forEach'),
+                                    corpoDoTurno.indexOf('function pararEspera'));
+  assert.match(espera, /acrescentar\(/,
+    'o laço da espera voltou a redesenhar a lista inteira a cada passo');
+  assert.doesNotMatch(espera, /escrever\(/,
+    '`escrever` apaga e refaz tudo: na espera ela reinicia a animação de '
+    + 'entrada dos passos que já estão na tela');
+});
+
+test('acrescentar só encosta no passo que sai e no que entra', () => {
+  const fn = corpoDoTurno.slice(corpoDoTurno.indexOf('function acrescentar('),
+                                corpoDoTurno.indexOf('function escrever('));
+  assert.doesNotMatch(fn, /innerHTML/,
+    'acrescentar mexeu no innerHTML da lista: isso recria os passos de cima');
+  assert.match(fn, /passos\.appendChild/,
+    'o passo novo precisa entrar no fim da lista, embaixo dos que já estão lá');
+  assert.match(fn, /classList\.remove\('mia-andando'\)/,
+    'o passo anterior continuaria com o ponto pulsando: dois passos "em '
+    + 'andamento" ao mesmo tempo');
+  assert.match(fn, /mia-brilho/,
+    'o brilho ficaria no passo que já passou');
+});
+
+test('a lista inteira só é trocada quando vira relato', () => {
+  const vezes = (corpoDoTurno.match(/passos\.innerHTML\s*=/g) || []).length;
+  assert.equal(vezes, 1,
+    'apareceu outro lugar apagando a lista toda; a troca completa é só a do '
+    + 'fim do turno');
+  const escrever = corpoDoTurno.slice(corpoDoTurno.indexOf('function escrever('));
+  assert.match(escrever.slice(0, 200), /passos\.innerHTML\s*=\s*''/,
+    'a troca completa saiu de dentro de `escrever`');
+});
+
+/* ============================================================
    O RELATO REAL NÃO FALA EM NOME DE VARIÁVEL
    ============================================================
    Quando a resposta chega, os passos provisórios somem e entra o que o

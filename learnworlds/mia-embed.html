@@ -770,38 +770,61 @@
     var tempos = [];
 
     /* O último passo da lista é o que está acontecendo: ponto pulsando e o
-       brilho no texto. Os de cima já passaram — texto firme, ponto parado.
-       Com `feitos`, no fim do turno, todos ficam firmes. */
-    function escrever(textos, feitos) {
+       brilho no texto. Os de cima já passaram — texto firme, ponto parado. */
+    function montarPasso(t, andando) {
+      var li = document.createElement('li');
+      li.className = 'mia-passo' + (andando ? ' mia-andando' : ' mia-feito');
+      var texto = document.createElement('span');
+      texto.className = 'mia-passo-texto' + (andando ? ' mia-brilho' : '');
+      /* O tema vem destacado: é um pedaço separado, montado com
+         `textContent`, e não marcação dentro de um texto. Nada que venha da
+         pergunta de alguém ou da resposta do servidor vira HTML aqui. */
+      if (t && typeof t === 'object') {
+        texto.appendChild(document.createTextNode(t.antes));
+        var forte = document.createElement('b');
+        forte.textContent = t.destaque;
+        texto.appendChild(forte);
+        if (t.depois) texto.appendChild(document.createTextNode(t.depois));
+      } else {
+        texto.textContent = t;
+      }
+      li.appendChild(texto);
+      return li;
+    }
+
+    /* ---------- O PASSO NOVO ENTRA EMBAIXO, E SÓ ELE ----------
+       Antes cada passo redesenhava a lista inteira: os de cima eram
+       destruídos e recriados, então a animação de entrada recomeçava em
+       todos e a lista piscava e pulava a cada linha nova. O que já está na
+       tela não muda — só perde o brilho, porque aquele passo acabou de
+       passar. O que é novo entra. */
+    function acrescentar(t) {
+      var atual = passos.lastElementChild;
+      if (atual) {
+        atual.classList.remove('mia-andando');
+        atual.classList.add('mia-feito');
+        var brilhando = atual.querySelector('.mia-brilho');
+        if (brilhando) brilhando.classList.remove('mia-brilho');
+      }
+      passos.appendChild(montarPasso(t, true));
+      mensagens.scrollTop = mensagens.scrollHeight;
+    }
+
+    /* Troca a lista inteira. Só o fim do turno faz isso, e por um motivo: ali
+       a lista deixa de ser expectativa e vira o relato do que ela fez — é
+       outro conteúdo, não mais um passo. */
+    function escrever(textos) {
       passos.innerHTML = '';
       textos.forEach(function (t, i) {
-        var andando = !feitos && i === textos.length - 1;
-        var li = document.createElement('li');
-        li.className = 'mia-passo' + (andando ? ' mia-andando' : ' mia-feito');
+        var li = montarPasso(t, false);
         li.style.animationDelay = (i * 45) + 'ms';
-        var texto = document.createElement('span');
-        texto.className = 'mia-passo-texto' + (andando ? ' mia-brilho' : '');
-        /* O tema vem destacado: é um pedaço separado, montado com
-           `textContent`, e não marcação dentro de um texto. Nada que venha da
-           pergunta de alguém ou da resposta do servidor vira HTML aqui. */
-        if (t && typeof t === 'object') {
-          texto.appendChild(document.createTextNode(t.antes));
-          var forte = document.createElement('b');
-          forte.textContent = t.destaque;
-          texto.appendChild(forte);
-          if (t.depois) texto.appendChild(document.createTextNode(t.depois));
-        } else {
-          texto.textContent = t;
-        }
-        li.appendChild(texto);
         passos.appendChild(li);
       });
       mensagens.scrollTop = mensagens.scrollHeight;
     }
 
-    var vistos = [];
     passosDaEspera(tema).forEach(function (p) {
-      tempos.push(setTimeout(function () { vistos.push(p[1]); escrever(vistos); }, p[0]));
+      tempos.push(setTimeout(function () { acrescentar(p[1]); }, p[0]));
     });
 
     /* O tempo não é mais mostrado enquanto ela pensa — era um número correndo
@@ -822,7 +845,7 @@
         rotulo.textContent = 'Pensou por ' + segundos + 's';
         cabecalho.insertAdjacentHTML('beforeend', SETA);
         cabecalho.setAttribute('aria-expanded', 'false');
-        escrever(relatoDoTurno(p), true);
+        escrever(relatoDoTurno(p));
         passos.hidden = true;
         cabecalho.addEventListener('click', function () {
           passos.hidden = !passos.hidden;
