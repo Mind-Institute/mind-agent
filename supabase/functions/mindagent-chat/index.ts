@@ -63,7 +63,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.21.0";
+const VERSION = "1.21.1";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -1724,7 +1724,16 @@ Deno.serve(async (req: Request) => {
       throw new Error("invalid_ai_output");
     }
 
-    let answer = normalizeAnswerLayout(String(structured.answer ?? "")).slice(0, 2000).trim();
+    // SEM TESOURA NA LEITURA. Aqui havia `.slice(0, 2000)` — o TERCEIRO teto, e o que
+    // de fato cortava. Em 28/10 a resposta chegou com 2000 caracteres cravados, partida
+    // em "conversa com lid", DEPOIS de o schema já ter subido para 3500: subir o teto do
+    // contrato não adianta enquanto o runtime corta de novo na leitura.
+    //
+    // O mesmo empilhamento já tinha sido desfeito no `treble-inbound-agent`, que lê
+    // `String(turn.answer ?? "").trim()` e nada mais. Quem limita o tamanho é o
+    // `maxLength` do schema, uma vez só, com o modelo sabendo do limite enquanto
+    // escreve. Cortar depois é garantir que a frase termine no meio.
+    let answer = normalizeAnswerLayout(String(structured.answer ?? "")).trim();
     if (!answer) throw new Error("empty_ai_answer");
 
     const nomeDito = String(structured.nome_informado ?? "").trim() || null;

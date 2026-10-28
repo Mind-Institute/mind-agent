@@ -93,6 +93,16 @@ test('a resposta pronta não é cortada por caractere', () => {
   // `max_output_tokens` volta VAZIO, que é pior que volta partido.
   const tokens = Number(src.match(/max_output_tokens:\s*toolsParaModelo\.length > 0 \? (\d+)/)?.[1]);
   assert.ok(tokens >= teto / 3 + 1500, `max_output_tokens (${tokens}) precisa caber ${teto} caracteres mais o raciocínio`);
+
+  // O TERCEIRO TETO, que é o que de fato cortava: a leitura de `structured.answer`.
+  // Em 28/10 a resposta veio com 2000 cravados DEPOIS de o schema já estar em 3500,
+  // porque o runtime cortava de novo aqui. Esta asserção faltou na primeira correção
+  // e por isso o defeito sobreviveu a um deploy — o teste do Treble já dizia que eram
+  // três tetos empilhados (tests/vendedor_resposta_nao_truncada.mjs).
+  const linhaAnswer = src.split("\n").find((l) => /\b(?:const|let)\s+answer\s*=/.test(l) && /structured\.answer/.test(l));
+  assert.ok(linhaAnswer, "não achei a linha que lê structured.answer");
+  assert.doesNotMatch(linhaAnswer, /\.slice\s*\(/, `a leitura da resposta não pode cortar: ${linhaAnswer.trim()}`);
+  assert.doesNotMatch(linhaAnswer, /\.substring\s*\(|\.substr\s*\(/, `a leitura da resposta não pode cortar: ${linhaAnswer.trim()}`);
 });
 
 test('o Kit falha fechado antes de chamar o modelo', () => {
