@@ -2164,3 +2164,113 @@ html[data-pele="mia"] .doca input {
 html[data-pele="mia"] .doca input::placeholder { color: var(--mia-placeholder); }
 html[data-pele="mia"] .doca input:focus { border-color: var(--roxo); }
 html[data-pele="mia"] .doca .enviar { background: var(--roxo); color: #fff; }
+
+/* ============================================================
+   O TURNO DA MIA — o raciocínio e a resposta surgindo
+   ============================================================
+   A pele acima dá a cara: faixa roxa, balão claro, rótulo da fala. Isto aqui
+   é a outra metade do desenho dela, que é comportamento: o painel de
+   raciocínio enquanto pensa e a resposta saindo do desfoque. O JavaScript
+   mora em `mia-turno.js`, e o desenho nasceu em `learnworlds/mia-embed.html`
+   — as regras são as mesmas, com os seletores da casa.
+
+   Tudo continua escopado em `html[data-pele="mia"]`: o Concierge do Summit
+   não ganha nada disto, porque ele não é um produto à parte, é o app. */
+
+/* ---- O que ela fez para chegar ali ---- */
+html[data-pele="mia"] .mia-pensou {
+  appearance: none; cursor: default; margin: 0 0 2px; padding: 0;
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  background: none; border: 0;
+  font: inherit; font-size: 12px; font-weight: 700; color: var(--texto-mudo);
+  text-align: left;
+}
+html[data-pele="mia"] .mia-pensou[aria-expanded] { cursor: pointer; }
+html[data-pele="mia"] .mia-pensou svg { width: 14px; height: 14px; flex: none; }
+/* A PÉTALA GIRA ENQUANTO ELA PENSA. É o símbolo da marca, o mesmo do
+   cabeçalho — não uma estrela genérica de ferramenta de IA. Gira devagar:
+   giro rápido vira cata-vento e puxa o olho para longe do que se está lendo.
+   Quando a resposta chega ela para: parada, é assinatura; girando, é estado. */
+html[data-pele="mia"] .mia-pensou .mia-petala { animation: mia-gira 2.6s linear infinite; }
+html[data-pele="mia"] .mia-pensou.mia-pronto .mia-petala { animation: none; }
+@keyframes mia-gira { to { transform: rotate(360deg); } }
+html[data-pele="mia"] .mia-chevron { margin-left: auto; transition: transform .15s ease; }
+html[data-pele="mia"] .mia-pensou[aria-expanded="true"] .mia-chevron { transform: rotate(90deg); }
+
+/* O brilho que atravessa a palavra do passo em andamento. */
+html[data-pele="mia"] .mia-brilho {
+  background: linear-gradient(90deg,
+    var(--texto-mudo) 0%, var(--texto-mudo) 40%,
+    var(--texto) 50%, var(--texto-mudo) 60%, var(--texto-mudo) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: mia-brilha 1.8s linear infinite;
+}
+@keyframes mia-brilha { from { background-position: 140% 0; } to { background-position: -40% 0; } }
+
+html[data-pele="mia"] .mia-passos {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 13px; line-height: 1.45;
+}
+html[data-pele="mia"] .mia-passos[hidden] { display: none; }
+html[data-pele="mia"] .mia-passo {
+  display: flex; align-items: baseline; gap: 8px;
+  color: var(--texto-mudo);
+  animation: mia-entra .35s ease backwards;
+}
+@keyframes mia-entra { from { opacity: 0; transform: translateY(7px); } }
+html[data-pele="mia"] .mia-passo::before {
+  content: ''; flex: none; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--roxo); transform: translateY(-2px);
+}
+html[data-pele="mia"] .mia-passo.mia-andando::before { animation: mia-pulsa 1.1s infinite ease-in-out; }
+html[data-pele="mia"] .mia-passo.mia-feito { color: var(--texto-suave); }
+@keyframes mia-pulsa { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
+/* O `span` por dentro porque `background-clip: text` recorta o fundo pelo
+   texto do ELEMENTO: no `li`, que tem o ponto no `::before`, o recorte
+   pegaria a linha inteira. */
+html[data-pele="mia"] .mia-passo-texto { display: inline-block; }
+/* O tema herda a cor do passo de propósito: no passo em andamento o texto é
+   transparente para o gradiente aparecer, e uma cor própria aqui furaria o
+   recorte no meio da frase. */
+html[data-pele="mia"] .mia-passo-texto b { font-weight: 700; color: inherit; }
+html[data-pele="mia"] .mia-resposta { margin-top: 10px; }
+html[data-pele="mia"] .mia-resposta:empty { margin-top: 0; }
+
+/* ---- A resposta surgindo, palavra a palavra, saindo do desfoque ---- */
+/* `inline-block` para a palavra poder ser transformada: `transform` e
+   `filter` não valem em caixa `inline`. A quebra de linha continua
+   acontecendo nos espaços, que ficam intactos como texto entre os spans.
+
+   A regra está PRESA à classe `mia-escrevendo`, e a classe sai quando o
+   efeito acaba: `filter`, mesmo em `blur(0)`, mantém uma camada de
+   composição por palavra enquanto estiver aplicado.
+
+   Os números vieram do `TextReveal` que o Vinícius mandou em 28/10. */
+html[data-pele="mia"] .mia-palavra { display: inline-block; }
+html[data-pele="mia"] .mia-escrevendo .mia-palavra {
+  opacity: 0; filter: blur(8px); transform: translateY(10px);
+  animation: mia-surge .6s cubic-bezier(.23, 1, .32, 1) both;
+}
+@keyframes mia-surge { to { opacity: 1; filter: blur(0); transform: none; } }
+
+/* O balão da MIA tem estrutura por dentro: o `pre-wrap` que o app usa na fala
+   do Concierge quebraria as linhas do painel de raciocínio. */
+html[data-pele="mia"] .bolha.mia-turno { white-space: normal; }
+html[data-pele="mia"] .bolha.mia-turno .mia-resposta { white-space: pre-wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-pele="mia"] .mia-brilho {
+    animation: none; background: none; color: var(--texto-mudo);
+    -webkit-text-fill-color: currentColor;
+  }
+  html[data-pele="mia"] .mia-pensou .mia-petala { animation: none; }
+  /* O JavaScript já nem põe a classe. Esta regra é o segundo cinto: se um dia
+     ela entrar por outro caminho, o texto continua legível em vez de ficar
+     borrado na tela de quem pediu para nada se mexer. */
+  html[data-pele="mia"] .mia-escrevendo .mia-palavra {
+    animation: none; opacity: 1; filter: none; transform: none;
+  }
+}

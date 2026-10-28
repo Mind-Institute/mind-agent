@@ -49,6 +49,9 @@ const DO_CHAT = [
   'config.js',
   'data-service.js',
   'chat-service.js',
+  /* O turno da MIA: painel de raciocínio e a resposta surgindo. Importado por
+     `app.js`; sem ele o módulo inteiro não executa e a tela fica na abertura. */
+  'mia-turno.js',
   /* Os componentes da home V3 */
   'home',
   /* As duas pesquisas — a do dia e a do evento inteiro: telas, as peças

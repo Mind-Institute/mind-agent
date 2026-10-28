@@ -12,6 +12,7 @@ import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
 import { listaDeAvisos, leituraDeAviso, marcarLido, naoLidos } from './home/avisos.js';
 import { enviarMensagem, enviarSinalJornada } from './chat-service.js';
+import { abrirTurnoDaMia } from './mia-turno.js';
 import { ligarTeclado, tecladoAberto } from './teclado.js';
 /* As duas pesquisas: módulos à parte, isolados. Nada do app depende
    deles, e eles não dependem de nada do app além da identidade e da
@@ -1894,7 +1895,46 @@ addEventListener('message', (e) => {
 
 let respostaEmAndamento = false;
 
+/* A MIA tem turno próprio, e não é enfeite: o painel de raciocínio, a resposta
+   surgindo do desfoque e o markdown virando texto formatado são o desenho dela,
+   o mesmo de `learnworlds/mia-embed.html`. O Concierge do Summit segue com os
+   três pontinhos — ele é o app, e o app não se apresenta como produto à parte.
+   A pele diz qual é qual; o resto do fluxo (identidade, sessão, erro) é o mesmo
+   para os dois. */
+const TURNO_DA_MIA = PORTA?.pele === 'mia';
+
+async function responderComoMia(pergunta) {
+  /* O espaço que `subirBalao` abriu embaixo da resposta anterior sai agora: se
+     ficasse, a pergunta nova apareceria com um vão embaixo dela. */
+  mensagens.style.paddingBottom = '';
+  const turno = abrirTurnoDaMia(mensagens, pergunta, PORTA.rotulo);
+  respostaEmAndamento = true;
+  formChat.querySelector('.enviar').disabled = true;
+  try {
+    turno.concluir(await enviarMensagem(pergunta));
+  } catch (erro) {
+    turno.falhar(mensagemDeErro(erro));
+  } finally {
+    respostaEmAndamento = false;
+    formChat.querySelector('.enviar').disabled = false;
+    if (document.activeElement !== campoChat && !tecladoAberto()) campoChat.focus();
+  }
+}
+
+/* Erro de rede (fetch rejeitado antes de qualquer resposta) chega como
+   TypeError com a mensagem que o navegador quiser — "Load failed" no Safari,
+   "Failed to fetch" no Chrome. Isso nunca pode aparecer para a pessoa: vira a
+   mesma fala genérica. Mensagens que este arquivo ou `chat-service.js` lançam
+   de propósito (validação, erro que o backend já devolveu em português)
+   continuam passando. */
+function mensagemDeErro(erro) {
+  if (erro?.name === 'AbortError') return 'A resposta demorou demais. Tente novamente.';
+  if (erro instanceof TypeError) return 'Não consegui responder agora. Tente novamente.';
+  return erro?.message || 'Não consegui responder agora. Tente novamente.';
+}
+
 async function responder(pergunta) {
+  if (TURNO_DA_MIA) return responderComoMia(pergunta);
   const digitando = document.createElement('div');
   digitando.className = 'bolha mind';
   digitando.innerHTML = '<span class="digitando"><i></i><i></i><i></i></span>';
@@ -1920,19 +1960,7 @@ async function responder(pergunta) {
     bolha(resposta.answer, 'mind', passo);
   } catch (erro) {
     digitando.remove();
-    /* Erro de rede (fetch rejeitado antes de qualquer resposta) chega como
-       TypeError com a mensagem que o navegador quiser — "Load failed" no
-       Safari, "Failed to fetch" no Chrome. Isso nunca pode aparecer para a
-       pessoa: vira a mesma fala genérica dos outros erros sem detalhe
-       técnico. Mensagens que ESTE arquivo/`chat-service.js` lança de
-       propósito (validação, erro que o backend já devolveu em português)
-       continuam passando — só o erro de baixo nível é trocado. */
-    const mensagem = erro?.name === 'AbortError'
-      ? 'A resposta demorou demais. Tente novamente.'
-      : erro instanceof TypeError
-      ? 'Não consegui responder agora. Tente novamente.'
-      : (erro?.message || 'Não consegui responder agora. Tente novamente.');
-    bolha(mensagem, 'mind');
+    bolha(mensagemDeErro(erro), 'mind');
   } finally {
     respostaEmAndamento = false;
     formChat.querySelector('.enviar').disabled = false;
