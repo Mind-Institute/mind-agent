@@ -881,9 +881,20 @@
      esvaziam-se os nós de TEXTO e eles são repostos aos poucos. Negrito e link
      ficam inteiros desde o primeiro quadro; o que aparece aos poucos é a letra.
 
-     A duração tem teto: as respostas dela passam de mil caracteres, e prender
-     a leitura de um texto que já está na mão seria cobrar da pessoa o preço de
-     um efeito. Até 1,8s, aconteça o que acontecer. */
+     O RITMO. Eram 5ms por letra com teto de 1,8s: uma resposta de mil
+     caracteres passava inteira em menos de dois segundos, cerca de treze
+     letras por quadro. Não se lia aquilo — borrava e estava escrito.
+
+     Agora são 16ms por letra, que a 60 quadros por segundo dá UMA LETRA POR
+     QUADRO. Esse número não é gosto: é o reveal mais suave que a tela permite,
+     porque abaixo dele o quadro precisa cuspir letra em bloco.
+
+     A duração continua tendo teto, pelo motivo de sempre: as respostas dela
+     passam de mil caracteres, e prender a leitura de um texto que já está na
+     mão seria cobrar da pessoa o preço de um efeito. O teto subiu para 6,5s —
+     e, para o teto não virar prisão, agora existe saída: um toque na resposta
+     completa o texto na hora. Era o que faltava, porque `pular` já era
+     devolvido aqui desde sempre e nunca tinha sido ligado em lugar nenhum. */
   function maquinaDeEscrever(destino, html, aoMontar) {
     destino.innerHTML = html;
     if (aoMontar) aoMontar();
@@ -906,7 +917,7 @@
     cursor.setAttribute('aria-hidden', 'true');
     destino.appendChild(cursor);
 
-    var duracao = Math.max(350, Math.min(1800, total * 5));
+    var duracao = Math.max(700, Math.min(6500, total * 16));
     var inicio = Date.now();
     var vivo = true;
 
@@ -927,10 +938,18 @@
     function tudo() {
       clearInterval(relogio);
       clearTimeout(garantia);
+      destino.removeEventListener('click', aoTocar);
       nos.forEach(function (n) { n.no.nodeValue = n.texto; });
       if (cursor.parentNode) cursor.remove();
       vivo = false;
     }
+
+    /* Quem já leu, ou só quer o texto, não fica esperando a letra. O toque não
+       cancela nada do que o link faz: sem `preventDefault`, clicar num link
+       dentro da resposta continua abrindo o link. */
+    function aoTocar() { if (vivo) tudo(); }
+    destino.addEventListener('click', aoTocar);
+
     function passo() {
       if (!vivo) return;
       var fracao = Math.min(1, (Date.now() - inicio) / duracao);
