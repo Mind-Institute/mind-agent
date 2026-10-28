@@ -242,6 +242,10 @@
      elemento — no `li`, que é flex e tem o ponto no `::before`, o recorte
      pegaria a linha inteira. */
   .mia-lw .mia-passo-texto { display: inline-block; }
+  /* O tema herda a cor do passo de propósito: no passo em andamento o texto é
+     transparente para o gradiente do brilho aparecer, e uma cor própria aqui
+     furaria o recorte justo no meio da frase. */
+  .mia-lw .mia-passo-texto b { font-weight: 700; color: inherit; }
   .mia-lw .mia-resposta { margin-top: 10px; }
   .mia-lw .mia-resposta:empty { margin-top: 0; }
   /* O cursor da máquina de escrever. */
@@ -598,11 +602,112 @@
     return copia;
   }
 
-  var PASSOS_DA_ESPERA = [
-    [0, 'Lendo sua pergunta'],
-    [2200, 'Procurando no acervo do Summit'],
-    [6000, 'Lendo o que encontrou'],
+  /* ---------- O QUE A TELA MOSTRA ENQUANTO ELA PENSA ----------
+     Antes eram três passos em 0s, 2,2s e 6s, e o turno dura de 20 a 45
+     segundos: a lista congelava aos seis e a pessoa passava mais de vinte
+     olhando para algo parado. A demora não vinha do tempo, vinha do silêncio
+     depois do sexto segundo. Agora o roteiro cobre a espera inteira, e o
+     último passo chega antes do teto de 45s do servidor, assumindo a espera
+     em vez de deixar a tela muda.
+
+     Continua valendo o que vale desde o começo: isto é EXPECTATIVA do caminho
+     normal dela, não relato. Quando a resposta chega, tudo aqui é substituído
+     pelo que o servidor diz ter feito. */
+  function passosDaEspera(tema) {
+    return [
+      [0, 'Lendo sua pergunta'],
+      [1500, tema
+        ? { antes: 'Procurando sobre ', destaque: tema, depois: ' no acervo do Summit' }
+        : 'Procurando no acervo do Summit'],
+      [5000, 'Abrindo as fichas das sessões'],
+      [11000, 'Vendo o que cada palestrante disse'],
+      [18000, 'Conferindo em que minuto aparece'],
+      [27000, 'Escrevendo a resposta'],
+      [38000, 'Ainda escrevendo — perguntas que cruzam várias sessões levam mais'],
+    ];
+  }
+
+  /* ---------- O TEMA SAI DA PERGUNTA, E EXISTE NO ACERVO ----------
+     Duas fontes honestas sustentam o destaque: a palavra é de quem perguntou,
+     e o tema é um dos 31 mapas temáticos que o acervo realmente tem. Nada é
+     inventado; quando nada casa, o passo fica genérico e o resto segue igual.
+
+     A lista é de PALAVRA → TEMA, e não dos nomes dos mapas, porque ninguém
+     escreve "dados, mensuração e roi" numa pergunta. É a palavra que a pessoa
+     digita que precisa casar.
+
+     A ORDEM IMPORTA: a primeira que casar vence, então o específico vem antes
+     do geral — "liderança feminina" antes de "liderança", "segurança
+     psicológica" antes de "psicológico". */
+  var TEMA_POR_PALAVRA = [
+    ['lideranca feminina', 'liderança feminina'], ['mulheres na lideranca', 'liderança feminina'],
+    ['seguranca psicologica', 'segurança psicológica'], ['psicologicamente seguro', 'segurança psicológica'],
+    ['conversas dificeis', 'conversas difíceis'], ['conversa dificil', 'conversas difíceis'],
+    ['futuro do trabalho', 'futuro do trabalho e IA'], ['inteligencia artificial', 'futuro do trabalho e IA'],
+    ['riscos psicossociais', 'NR-1 e riscos psicossociais'], ['psicossocial', 'NR-1 e riscos psicossociais'],
+    ['psicossociais', 'NR-1 e riscos psicossociais'], ['nr-1', 'NR-1 e riscos psicossociais'],
+    ['nr1', 'NR-1 e riscos psicossociais'], ['nr 1', 'NR-1 e riscos psicossociais'],
+    /* "Como medir o ROI de um programa de bem-estar" tem os dois assuntos
+       dentro. Medida é o que a pessoa pediu; bem-estar é onde ela mede. */
+    ['roi', 'dados, mensuração e ROI'], ['mensuracao', 'dados, mensuração e ROI'],
+    ['metricas', 'dados, mensuração e ROI'], ['metrica', 'dados, mensuração e ROI'],
+    ['burnout', 'burnout'], ['esgotamento', 'burnout'], ['esgotado', 'burnout'],
+    ['esgotada', 'burnout'], ['exausto', 'burnout'], ['exausta', 'burnout'],
+    ['exaustao', 'burnout'], ['nao aguento', 'burnout'],
+    ['saude mental', 'saúde mental'], ['adoecimento', 'saúde mental'],
+    ['bem-estar', 'programas de bem-estar'], ['bem estar', 'programas de bem-estar'],
+    ['wellness', 'programas de bem-estar'],
+    ['alegria', 'emoções positivas e felicidade'], ['felicidade', 'emoções positivas e felicidade'],
+    ['feliz', 'emoções positivas e felicidade'],
+    ['sobrecarga', 'desenho do trabalho'], ['carga de trabalho', 'desenho do trabalho'],
+    ['desenho do trabalho', 'desenho do trabalho'],
+    ['produtividade', 'produtividade sustentável'], ['performance', 'produtividade sustentável'],
+    ['distracao', 'tecnologia e distração'], ['notificacoes', 'tecnologia e distração'],
+    ['celular', 'tecnologia e distração'],
+    ['foco', 'foco e atenção'], ['atencao', 'foco e atenção'], ['concentracao', 'foco e atenção'],
+    ['feedback', 'feedback e reconhecimento'], ['reconhecimento', 'feedback e reconhecimento'],
+    ['elogio', 'feedback e reconhecimento'],
+    ['hibrido', 'trabalho híbrido'], ['home office', 'trabalho híbrido'],
+    ['remoto', 'trabalho híbrido'], ['presencial', 'trabalho híbrido'],
+    ['lideranca', 'liderança'], ['lider', 'liderança'], ['lideres', 'liderança'],
+    ['chefe', 'liderança'], ['gestor', 'liderança'], ['gestora', 'liderança'], ['gerente', 'liderança'],
+    ['cultura', 'cultura organizacional'],
+    ['fracasso', 'aprendizagem e erro'], ['errar', 'aprendizagem e erro'],
+    ['erros', 'aprendizagem e erro'], ['erro', 'aprendizagem e erro'],
+    ['aprendizagem', 'aprendizagem e erro'],
+    ['engajamento', 'engajamento e propósito'], ['proposito', 'engajamento e propósito'],
+    ['diversidade', 'diversidade e inclusão'], ['inclusao', 'diversidade e inclusão'],
+    ['carreira', 'carreira'], ['promocao', 'carreira'],
+    ['parentalidade', 'parentalidade'], ['maternidade', 'parentalidade'],
+    ['paternidade', 'parentalidade'], ['filhos', 'parentalidade'],
+    ['longevidade', 'longevidade e corpo'], ['sono', 'longevidade e corpo'],
+    ['exercicio', 'longevidade e corpo'],
+    ['finitude', 'finitude e sentido'], ['sentido da vida', 'finitude e sentido'],
+    ['gratidao', 'gratidão'], ['autocompaixao', 'autocompaixão'],
+    ['resiliencia', 'resiliência'], ['resiliente', 'resiliência'],
+    ['solidao', 'relações e vínculos'], ['vinculos', 'relações e vínculos'],
+    ['relacoes', 'relações e vínculos'],
+    ['governanca', 'governança e compliance'], ['compliance', 'governança e compliance'],
+    ['investidor', 'investidores e negócio'], ['investidores', 'investidores e negócio'],
   ];
+
+  function semAcento(s) {
+    return String(s == null ? '' : s).normalize('NFD')
+      .replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+
+  /* Casa por palavra inteira, e não por pedaço: sem isto, "ia" acharia
+     "financeira" e "erro" acharia "guerra". */
+  function temaDaPergunta(texto) {
+    var t = semAcento(texto);
+    for (var i = 0; i < TEMA_POR_PALAVRA.length; i++) {
+      var chave = TEMA_POR_PALAVRA[i][0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp('(^|[^a-z0-9])' + chave + '([^a-z0-9]|$)').test(t)) {
+        return TEMA_POR_PALAVRA[i][1];
+      }
+    }
+    return null;
+  }
 
   /* Os nomes das ferramentas dela, em português de gente. Ferramenta que não
      estiver aqui aparece com o nome cru: melhor um nome técnico na tela do que
@@ -611,7 +716,15 @@
     buscar_intelligence: 'Procurou no acervo do Summit',
     ler_intelligence: 'Leu o conteúdo encontrado',
   };
-  var NOME_DA_FONTE = { event: 'evento', sessions: 'sessões', speakers: 'palestrantes' };
+  /* Os cinco tipos que o servidor devolve em `sources` (`sourceSummary`, em
+     `supabase/functions/mindagent-chat/index.ts`). Faltavam dois aqui, e o
+     que não está traduzido aparece cru: a tela escreveu "Contexto: knowledge
+     (4)" para uma pergunta sobre burnout. Nome de variável nossa não é texto
+     de interface. */
+  var NOME_DA_FONTE = {
+    event: 'evento', sessions: 'sessões', speakers: 'palestrantes',
+    locations: 'locais', knowledge: 'acervo do Summit',
+  };
 
   function relatoDoTurno(p) {
     var lista = [];
@@ -636,7 +749,7 @@
     return lista;
   }
 
-  function abrirTurno() {
+  function abrirTurno(tema) {
     var el = document.createElement('div');
     el.className = 'mia-bolha mia-ela';
     el.innerHTML = ROTULO +
@@ -668,7 +781,18 @@
         li.style.animationDelay = (i * 45) + 'ms';
         var texto = document.createElement('span');
         texto.className = 'mia-passo-texto' + (andando ? ' mia-brilho' : '');
-        texto.textContent = t;
+        /* O tema vem destacado: é um pedaço separado, montado com
+           `textContent`, e não marcação dentro de um texto. Nada que venha da
+           pergunta de alguém ou da resposta do servidor vira HTML aqui. */
+        if (t && typeof t === 'object') {
+          texto.appendChild(document.createTextNode(t.antes));
+          var forte = document.createElement('b');
+          forte.textContent = t.destaque;
+          texto.appendChild(forte);
+          if (t.depois) texto.appendChild(document.createTextNode(t.depois));
+        } else {
+          texto.textContent = t;
+        }
         li.appendChild(texto);
         passos.appendChild(li);
       });
@@ -676,7 +800,7 @@
     }
 
     var vistos = [];
-    PASSOS_DA_ESPERA.forEach(function (p) {
+    passosDaEspera(tema).forEach(function (p) {
       tempos.push(setTimeout(function () { vistos.push(p[1]); escrever(vistos); }, p[0]));
     });
 
@@ -814,7 +938,7 @@
     emAndamento = true;
     sugestoes.hidden = true;
     bolha(limpo, 'eu');
-    var turno = abrirTurno();
+    var turno = abrirTurno(temaDaPergunta(limpo));
     enviar.disabled = true;
     perguntarAoAgente(limpo).then(function (corpo) {
       turno.concluir(corpo);
