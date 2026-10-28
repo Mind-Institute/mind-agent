@@ -74,6 +74,27 @@ test('a porta de produto fechado é lida ANTES da rota ativa', () => {
   );
 });
 
+test('a resposta pronta não é cortada por caractere', () => {
+  // Medido em 28/10 na MIA: um plano de 30 dias chegou com EXATAMENTE 2000
+  // caracteres, partido em "mais percepção de utili". `maxLength` é decodificação
+  // restrita — a aspas fecha na parede, no meio da palavra. Mesmo defeito que o
+  // Treble teve com 700 (tests/vendedor_resposta_nao_truncada.mjs).
+  //
+  // O teto é sanidade; quem segura o tamanho é a conduta. Por isso o contrato aqui
+  // são as DUAS coisas juntas: folga no teto e a regra de terminar a frase.
+  const campo = src.slice(pos('    answer: {'), pos('    interests: {'));
+  const teto = Number(campo.match(/maxLength:\s*(\d+)/)?.[1]);
+  assert.ok(teto >= 3000, `o teto da resposta não pode voltar a apertar: ${teto}`);
+  for (const regra of ['TERMINE a resposta', 'nunca pare no meio', 'corte o ESCOPO']) {
+    assert.ok(campo.includes(regra), `a conduta de não truncar precisa estar na description: ${regra}`);
+  }
+
+  // O orçamento de tokens não pode virar a parede seguinte: texto incompleto por
+  // `max_output_tokens` volta VAZIO, que é pior que volta partido.
+  const tokens = Number(src.match(/max_output_tokens:\s*toolsParaModelo\.length > 0 \? (\d+)/)?.[1]);
+  assert.ok(tokens >= teto / 3 + 1500, `max_output_tokens (${tokens}) precisa caber ${teto} caracteres mais o raciocínio`);
+});
+
 test('o Kit falha fechado antes de chamar o modelo', () => {
   const kitOk = pos('const kitOk');
   const openai = pos('https://api.openai.com/v1/responses');

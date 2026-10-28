@@ -63,7 +63,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.20.0";
+const VERSION = "1.21.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -498,8 +498,21 @@ function montarResponseSchema(rotasDoCanal: string[], portaRetem = false) {
     additionalProperties: false,
     properties: {
     answer: {
-      type: "string", minLength: 1, maxLength: 2000,
-      description: "A resposta para a pessoa, escrita conforme o playbook desta competência.",
+      type: "string", minLength: 1, maxLength: 3500,
+      // O TETO É SANIDADE, NÃO TESOURA. `maxLength` em structured outputs é decodificação
+      // restrita: o modelo escreve até a parede e a aspas fecha onde der. Medido em 28/10
+      // na MIA — um plano de 30 dias chegou com EXATAMENTE 2000 caracteres, partido em
+      // "mais percepção de utili". O mesmo defeito já tinha acontecido no Treble com 700
+      // (ver tests/vendedor_resposta_nao_truncada.mjs), e a lição foi a mesma: subir o teto
+      // não resolve sozinho, porque a parede continua existindo um pouco mais longe. Quem
+      // segura o tamanho é a conduta, aqui e no playbook; o teto só impede o absurdo. A
+      // folga é de propósito: resposta completa e um pouco mais longa é melhor que resposta
+      // curta partida no meio de uma palavra.
+      description: "A resposta para a pessoa, escrita conforme o playbook desta competência. " +
+        "Escreva sempre frases inteiras e TERMINE a resposta: nunca pare no meio de uma " +
+        "palavra, de uma frase ou de um item de lista. Antes de escrever, veja se o que " +
+        "você quer dizer cabe; se não couber, corte o ESCOPO — entregue menos itens, ou a " +
+        "primeira parte inteira dizendo o que vem na próxima —, nunca a frase.",
     },
     interests: {
       type: "array",
@@ -1503,9 +1516,13 @@ Deno.serve(async (req: Request) => {
               : {}),
             // Com ferramenta o teto sobe: `max_output_tokens` inclui os tokens de
             // raciocínio, e estourar o teto devolve resposta `incomplete` — texto
-            // vazio, turno perdido. A resposta em si continua limitada pelo schema
-            // (`maxLength`); a folga aqui é para o modelo pensar.
-            max_output_tokens: toolsParaModelo.length > 0 ? 3000 : 1500,
+            // vazio, turno perdido. A folga aqui é para o modelo pensar.
+            //
+            // SUBIU JUNTO COM O `maxLength` DA RESPOSTA (28/10). 3.500 caracteres são
+            // ~1.100 tokens só de texto; com o raciocínio de um turno de conteúdo, 3.000
+            // viraria o novo corte — trocaria uma parede pela outra, e esta devolve texto
+            // vazio em vez de texto partido. Teto, não alvo: turno que não precisa, não gasta.
+            max_output_tokens: toolsParaModelo.length > 0 ? 4000 : 2000,
             safety_identifier: authUserId,
             store: false,
           }),
