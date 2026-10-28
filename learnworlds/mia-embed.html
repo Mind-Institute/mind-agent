@@ -90,7 +90,11 @@
     --mia-placeholder: #5c5c72;
     box-sizing: border-box;
     display: flex; flex-direction: column;
-    height: 680px; max-height: 90vh; width: 100%; max-width: 860px; margin: 0 auto;
+    /* 680px é só o valor de partida, para o bloco não nascer achatado antes de
+       o script medir. Quem manda na altura é `medirAltura`, que ocupa o espaço
+       que existe de verdade — por isso não há `max-height` aqui: ele cortava a
+       medida já tomada e devolvia a tira branca que ele deveria evitar. */
+    height: 680px; width: 100%; max-width: 860px; margin: 0 auto;
     background: var(--mia-bg); color: var(--mia-texto);
     border-radius: 16px; overflow: hidden;
     text-align: left;
@@ -216,6 +220,13 @@
   @media (prefers-reduced-motion: reduce) {
     .mia-lw .mia-brilho { animation: none; background: none; color: var(--mia-mudo); }
     .mia-lw .mia-pensou .mia-petala { animation: none; }
+    /* O JavaScript já nem põe a classe quando a pessoa pediu menos movimento.
+       Esta regra é o segundo cinto: se um dia a classe entrar por outro
+       caminho, o texto continua legível em vez de ficar borrado na tela de
+       quem justamente pediu para nada se mexer. */
+    .mia-lw .mia-escrevendo .mia-palavra {
+      animation: none; opacity: 1; filter: none; transform: none;
+    }
   }
   .mia-lw .mia-passos {
     list-style: none; margin: 8px 0 0; padding: 0 0 0 18px;
@@ -248,11 +259,35 @@
   .mia-lw .mia-passo-texto b { font-weight: 700; color: inherit; }
   .mia-lw .mia-resposta { margin-top: 10px; }
   .mia-lw .mia-resposta:empty { margin-top: 0; }
-  /* O cursor da máquina de escrever. */
-  .mia-lw .mia-cursor {
-    display: inline-block; width: 3px; height: 1em; border-radius: 2px;
-    margin-left: 2px; vertical-align: -.14em; background: var(--mia-roxo);
-    animation: mia-pulsa 1.1s infinite ease-in-out;
+  /* ============================================================
+     A RESPOSTA SURGINDO — palavra a palavra, saindo do desfoque
+     ============================================================
+     Saiu daqui o cursor piscando: ele era o resto de um efeito de máquina de
+     escrever, e ao lado de uma palavra que se revela do desfoque ele vira
+     outro ponto a disputar o olho. O que diz "ainda estou escrevendo" agora é
+     a própria palavra chegando.
+
+     `inline-block` para a palavra poder ser transformada: `transform` e
+     `filter` não valem em caixa `inline`. A quebra de linha continua
+     acontecendo nos espaços, que ficaram intactos como texto entre os spans.
+
+     A regra do desfoque está PRESA à classe `mia-escrevendo` no balão, e a
+     classe sai quando o efeito acaba. Não é arrumação: `filter`, mesmo em
+     `blur(0)`, mantém uma camada de composição por palavra enquanto estiver
+     aplicado — numa resposta longa são centenas delas, num celular dentro do
+     webview do app. O estado final vive em `forwards` enquanto a animação
+     existe, e em NADA depois que a classe sai. */
+     OS NÚMEROS VIERAM DO `TextReveal` que o Vinícius mandou em 28/10 (React +
+     `motion`, que não dá para usar aqui — bloco colado não tem build): desfoque
+     de 8px, 10px de subida, 0,6s e a curva [.23, 1, .32, 1]. São de um
+     componente já rodado, e valem mais do que os meus chutados. */
+  .mia-lw .mia-palavra { display: inline-block; }
+  .mia-lw .mia-escrevendo .mia-palavra {
+    opacity: 0; filter: blur(8px); transform: translateY(10px);
+    animation: mia-surge .6s cubic-bezier(.23,1,.32,1) both;
+  }
+  @keyframes mia-surge {
+    to { opacity: 1; filter: blur(0); transform: none; }
   }
   .mia-lw .mia-sugestoes { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 8px; }
   .mia-lw .mia-sugestoes[hidden] { display: none; }
@@ -325,6 +360,58 @@
   .mia-lw[data-modo="pagina"] .mia-sugestoes { padding: 0 var(--mia-respiro) 10px; }
   .mia-lw[data-modo="pagina"] .mia-form { padding: 12px var(--mia-respiro) 0; }
   .mia-lw[data-modo="pagina"] .mia-aviso { padding: 9px var(--mia-respiro) 14px; }
+
+  /* ============================================================
+     TELA ESTREITA — o mesmo bloco, com menos moldura
+     ============================================================
+     Até aqui o bloco tinha UMA medida: 20px de recuo dos dois lados, balão com
+     84% da largura, chips de sugestão com folga de desktop. Num celular isso
+     é um terço da linha gasto em margem, e a frase dela quebra em quatro
+     palavras por linha.
+
+     O que encolhe é a MOLDURA — recuo, raio, folga —, não o texto da conversa:
+     quem está lendo a resposta não tem que ler menor por estar no celular. O
+     balão vai a 94% porque, com pouca largura, a tira vazia ao lado deixa de
+     indicar "de quem é a fala" e vira só desperdício.
+
+     O CAMPO DE DIGITAR FICA EM 16px, e isso não é estética: abaixo de 16px o
+     Safari do iPhone dá zoom na página sozinha quando a pessoa toca no campo,
+     e a tela inteira salta de lugar no meio da conversa.
+
+     A medida é a da JANELA, não a do bloco: `@container` resolveria melhor o
+     caso do bloco estreito dentro de tela larga, mas isto roda no webview do
+     app do Institute, onde não dá para conferir. Na prática o bloco ocupa a
+     largura do conteúdo da aula, e as duas medidas coincidem. */
+  @media (max-width: 600px) {
+    .mia-lw { border-radius: 12px; }
+    .mia-lw .mia-topo { padding: 12px 14px; gap: 9px; }
+    .mia-lw .mia-avatar { width: 32px; height: 32px; border-radius: 10px; }
+    .mia-lw .mia-mensagens { padding: 14px; gap: 12px; }
+    .mia-lw .mia-bolha { max-width: 94%; padding: 11px 14px; border-radius: 16px; }
+    .mia-lw .mia-sugestoes { padding: 0 14px 8px; gap: 6px; }
+    .mia-lw .mia-sugestoes button { padding: 8px 13px; font-size: 13px; }
+    .mia-lw .mia-form { padding: 10px 14px 0; }
+    .mia-lw .mia-form textarea { padding: 13px 58px 13px 17px; min-height: 50px; }
+    .mia-lw .mia-form button { width: 37px; height: 37px; right: 6px; bottom: 6px; }
+    .mia-lw .mia-aviso { padding: 8px 14px 12px; }
+    .mia-lw[data-modo="pagina"] { --mia-respiro: 14px; }
+  }
+
+  /* Tela muito estreita (iPhone SE e os webviews apertados do app). Aqui a
+     linha tem menos de 40 caracteres: o balão passa a ocupar quase tudo, e os
+     chips viram uma coluna, porque dois por linha já não cabem sem cortar a
+     palavra no meio. */
+  @media (max-width: 380px) {
+    .mia-lw .mia-topo { padding: 11px 12px; }
+    .mia-lw .mia-topo small { font-size: 11px; }
+    .mia-lw .mia-mensagens { padding: 12px; }
+    .mia-lw .mia-bolha { max-width: 97%; padding: 10px 13px; }
+    .mia-lw .mia-sugestoes { padding: 0 12px 8px; }
+    .mia-lw .mia-sugestoes button { width: 100%; text-align: left; }
+    .mia-lw .mia-form { padding: 9px 12px 0; }
+    .mia-lw .mia-aviso { padding: 7px 12px 11px; }
+    .mia-lw[data-modo="pagina"] { --mia-respiro: 12px; }
+  }
 </style>
 
 <script>
@@ -388,23 +475,37 @@
      conta estoura, e sem ele o bloco ficaria mais alto que a tela. */
   var MODO = raiz.getAttribute('data-modo') === 'pagina' ? 'pagina' : 'caixa';
 
+  /* ============================================================
+     A ALTURA É MEDIDA, NOS DOIS MODOS
+     ============================================================
+     A caixa tinha 680px fixos. Numa tela mais alta do que isso sobrava branco
+     embaixo dela até o fim do viewport — a conversa parava no meio da tela sem
+     motivo, e era o que aparecia no print do Vinícius. Numa tela mais baixa, o
+     `max-height: 90vh` cortava e deixava uma tira branca de 10%.
+
+     Agora os dois modos medem o espaço REAL que existe abaixo do topo do
+     bloco e ocupam ele. `visualViewport` em vez de `innerHeight` porque é a
+     única medida que desconta o teclado do celular: com o teclado aberto,
+     `innerHeight` continua contando a tela inteira e o campo de digitar sai
+     por baixo dele.
+
+     O piso de 420px é para o caso de o bloco estar perto do fim de uma página
+     rolada — ali o espaço "abaixo do topo" é quase zero, e obedecer a medida
+     deixaria uma fita de conversa. */
   function medirAltura() {
-    if (MODO !== 'pagina') return;
     var tela = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    var sobra = tela - raiz.getBoundingClientRect().top - 16;
+    var sobra = tela - raiz.getBoundingClientRect().top - (MODO === 'pagina' ? 16 : 24);
     raiz.style.height = Math.round(Math.max(420, Math.min(tela, sobra))) + 'px';
   }
 
-  if (MODO === 'pagina') {
-    medirAltura();
-    window.addEventListener('resize', medirAltura);
-    window.addEventListener('orientationchange', medirAltura);
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', medirAltura);
-    /* A primeira medida sai antes de a fonte da escola carregar, e fonte nova
-       mexe na altura do cabeçalho acima de nós. Uma segunda passada depois do
-       `load` acerta sem precisar ficar observando a página inteira. */
-    window.addEventListener('load', medirAltura);
-  }
+  medirAltura();
+  window.addEventListener('resize', medirAltura);
+  window.addEventListener('orientationchange', medirAltura);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', medirAltura);
+  /* A primeira medida sai antes de a fonte da escola carregar, e fonte nova
+     mexe na altura do cabeçalho acima de nós. Uma segunda passada depois do
+     `load` acerta sem precisar ficar observando a página inteira. */
+  window.addEventListener('load', medirAltura);
   var mensagens = raiz.querySelector('.mia-mensagens');
   var sugestoes = raiz.querySelector('.mia-sugestoes');
   var form = raiz.querySelector('.mia-form');
@@ -560,6 +661,70 @@
   var ROTULO = '<span class="mia-quem">MIA</span>';
 
   /* Fala longa abre pelo começo, e sem rolar a página do LearnWorlds junto. */
+
+  /* ============================================================
+     O BALÃO SOBE PARA O TOPO ANTES DE A RESPOSTA SURGIR
+     ============================================================
+     A tentativa anterior era só `scrollTop +=`, e na maior parte das vezes não
+     fazia nada: a resposta é o ÚLTIMO elemento da conversa, então não há
+     conteúdo abaixo dela para onde rolar. Pedir para subir não basta; é
+     preciso haver para onde.
+
+     Daí o espaço embaixo — é o que todo app de chat faz, e é a razão de a
+     última resposta poder encostar no topo da tela. Ele é calculado, não
+     chutado: exatamente o que falta para o topo do balão alcançar o topo da
+     área, e zero quando a resposta já é mais alta do que a tela. */
+  function subirBalao(el) {
+    mensagens.style.paddingBottom = '';
+    var topoDaArea = mensagens.getBoundingClientRect().top;
+    var caixa = el.getBoundingClientRect();
+    var topo = caixa.top - topoDaArea + mensagens.scrollTop;
+    var fundo = caixa.bottom - topoDaArea + mensagens.scrollTop;
+    var alvo = Math.max(0, topo - 10);
+    var base = parseFloat(getComputedStyle(mensagens).paddingBottom) || 0;
+    /* A conta é contra o FUNDO DO BALÃO, não contra `scrollHeight`. Esta foi a
+       primeira versão e estava errada: `scrollHeight` nunca devolve menos que
+       `clientHeight`, então numa conversa mais curta que a tela ele mente — diz
+       o tamanho da janela, não o do conteúdo — e o espaço calculado saía pela
+       metade. O balão pedia para subir e ficava onde estava. Visto rodando, com
+       `scrollTop` parado em 0 e 286px faltando. O balão é o último elemento da
+       conversa, então o fundo dele É o fim do conteúdo, e isso não mente. */
+    var falta = alvo + mensagens.clientHeight - (fundo + base);
+    if (falta > 0) {
+      mensagens.style.paddingBottom = Math.round(base + falta) + 'px';
+      /* Esta leitura não é sobra: ela OBRIGA o navegador a refazer a conta do
+         layout agora. Sem ela, o pedido de rolagem logo abaixo acontece com a
+         medida velha — a de antes do espaço existir — e é limitado ao que
+         cabia antes, que numa conversa curta é zero. Foi o que aconteceu aqui
+         rodando: o espaço de 434px aberto, certo, e o `scrollTop` parado em 0.
+         Ler `scrollHeight` é o jeito barato de forçar isso sem depender de
+         `requestAnimationFrame`, que aba escondida não chama. */
+      if (mensagens.scrollHeight < 0) return;
+    }
+    /* A SUBIDA É ANIMADA NA MÃO, e não por `scrollTo({behavior:'smooth'})`.
+       A primeira versão usava a API: ela não deu erro, não caiu em `catch`, e
+       simplesmente NÃO ROLOU — `scrollTop` parado em 0 com 276px de espaço
+       disponível ao lado, medido. A atribuição direta movia na mesma hora.
+       Num bloco colado, que roda no webview do app do Institute e em navegador
+       de escola que eu não tenho como abrir, depender de uma API que falha
+       calada é apostar; doze linhas de conta própria funcionam em todo lugar.
+
+       Para quem pediu menos movimento, o salto direto. */
+    var partida = mensagens.scrollTop;
+    var curso = alvo - partida;
+    var parado = !(window.matchMedia
+      && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (!parado || !curso) { mensagens.scrollTop = alvo; return; }
+
+    var comeco = Date.now();
+    var subida = setInterval(function () {
+      var f = Math.min(1, (Date.now() - comeco) / 320);
+      /* A mesma curva da palavra surgindo, para a tela e o texto não andarem
+         em ritmos diferentes. */
+      mensagens.scrollTop = partida + curso * (1 - Math.pow(1 - f, 3));
+      if (f >= 1) { clearInterval(subida); mensagens.scrollTop = alvo; }
+    }, 16);
+  }
 
   function bolha(texto, quem) {
     var el = document.createElement('div');
@@ -856,12 +1021,12 @@
            em 27/10: quem está no curso não precisa saber de rota de agente. O
            que fazer quando não é ela está dito lá embaixo, onde ficava o botão
            “Nova conversa”. */
-        /* A resposta longa abre pelo COMEÇO, como já era. A medida tem de ser
-           tirada com o texto inteiro montado — por isso vai no gancho, e não
-           depois, quando os nós de texto já foram esvaziados. */
+        /* A resposta abre pelo COMEÇO: o balão sobe para o topo e a primeira
+           palavra surge ali, não no pé da tela. A medida tem de ser tirada com
+           o texto inteiro montado — por isso vai no gancho, que a máquina
+           chama depois de montar e antes de começar a revelar. */
         return maquinaDeEscrever(resposta, formatar(p && p.answer), function () {
-          mensagens.scrollTop += el.getBoundingClientRect().top
-            - mensagens.getBoundingClientRect().top - 12;
+          subirBalao(el);
         });
       },
       falhar: function (texto) {
@@ -874,101 +1039,132 @@
     };
   }
 
-  /* A MÁQUINA DE ESCREVER, SEM QUEBRAR O HTML.
+  /* A RESPOSTA SURGE PALAVRA A PALAVRA, SAINDO DO DESFOQUE.
      A resposta já chegou inteira; isto é ritmo de leitura, não streaming —
-     nada aqui espera o servidor. Cortar a string do HTML em pedaços partiria
-     uma tag no meio, então o caminho é outro: monta-se o HTML de verdade,
-     esvaziam-se os nós de TEXTO e eles são repostos aos poucos. Negrito e link
-     ficam inteiros desde o primeiro quadro; o que aparece aos poucos é a letra.
+     nada aqui espera o servidor.
 
-     O RITMO. Eram 5ms por letra com teto de 1,8s: uma resposta de mil
-     caracteres passava inteira em menos de dois segundos, cerca de treze
-     letras por quadro. Não se lia aquilo — borrava e estava escrito.
+     COMO ERA: os nós de texto eram esvaziados e repostos letra a letra por um
+     `setInterval`. Funcionava, mas letra não aceita desfoque: para borrar uma
+     letra é preciso um elemento para ela, e um elemento por letra numa
+     resposta de mil e quatrocentos caracteres é mil e quatrocentas camadas de
+     composição na tela de um celular.
 
-     Agora são 16ms por letra, que a 60 quadros por segundo dá UMA LETRA POR
-     QUADRO. Esse número não é gosto: é o reveal mais suave que a tela permite,
-     porque abaixo dele o quadro precisa cuspir letra em bloco.
+     COMO É: a palavra é a unidade. Cada palavra vira um `span`, montado com
+     `textContent` — nada vindo do servidor vira marcação aqui —, e a entrada é
+     uma animação de CSS com `animation-delay` escalonado. Quem conta o tempo é
+     o navegador, não um relógio nosso.
 
-     A duração continua tendo teto, pelo motivo de sempre: as respostas dela
-     passam de mil caracteres, e prender a leitura de um texto que já está na
-     mão seria cobrar da pessoa o preço de um efeito. O teto subiu para 6,5s —
-     e, para o teto não virar prisão, agora existe saída: um toque na resposta
-     completa o texto na hora. Era o que faltava, porque `pular` já era
-     devolvido aqui desde sempre e nunca tinha sido ligado em lugar nenhum. */
+     ISSO RESOLVEU UM PROBLEMA ANTIGO DE GRAÇA. O efeito antigo morava num
+     `setInterval`, que o navegador estrangula em aba que não está na frente —
+     antes dele era `requestAnimationFrame`, que a aba escondida simplesmente
+     não chama, e quem trocava de aba enquanto a MIA respondia voltava para uma
+     resposta VAZIA. Agora o estado final é do CSS (`forwards`): mesmo que a
+     animação nunca rode, a palavra está lá, no DOM, desde o primeiro quadro —
+     é a OPACIDADE que entra, não o texto. Nenhuma aba esconde resposta.
+
+     O RITMO. Eram 5ms por letra com teto de 1,8s: mil caracteres passavam em
+     menos de dois segundos. Não se lia aquilo — borrava e estava escrito.
+     Agora são 24ms por letra.
+
+     QUEM MANDA NA RESPOSTA LONGA É O TETO, não a taxa: com teto de 6,5s, uma
+     resposta de 1.433 letras saía a 220 letras por segundo por aritmética,
+     fosse qual fosse o ms por letra. Por isso o teto é que subiu de verdade,
+     1,8s → 6,5s → 12s. É ele que a pessoa sente.
+
+     O teto existe pelo motivo de sempre: prender a leitura de um texto que já
+     está na mão é cobrar da pessoa o preço de um efeito. Ele só pode ser deste
+     tamanho porque existe saída — um toque na resposta completa tudo na hora.
+     Sem essa porta, 12s seria prisão, e o número certo seria outro. */
+  var SURGIR_MS = 600;
+  /* Teto do intervalo entre uma palavra e a seguinte. Sem ele, a resposta de
+     três palavras que cai no piso de 900ms espalha 450ms entre uma e outra e
+     parece travada. A ideia é do `TextReveal` que o Vinícius mandou, onde o
+     escalonamento é `min(stagger, span / (total - 1))`. O valor é alto de
+     propósito: ele só precisa pegar o caso curto. Na resposta típica dela o
+     intervalo dá uns 76ms e o teto nem encosta — e tem de ser assim, porque
+     um teto baixo aqui ACELERARIA a resposta longa, que é justo o contrário
+     do que foi pedido. */
+  var PASSO_MAX_MS = 140;
+
   function maquinaDeEscrever(destino, html, aoMontar) {
     destino.innerHTML = html;
-    if (aoMontar) aoMontar();
-    var nos = [];
-    var total = 0;
+
+    /* Cada palavra num `span`, o espaço entre elas intacto como texto — é o
+       espaço que faz a linha quebrar no lugar certo e o `pre-wrap` preservar
+       os parágrafos dela. Os filhos são copiados para uma lista antes de
+       mexer: trocar nó enquanto se percorre `childNodes` pula metade deles. */
+    var palavras = [];
+    var letras = 0;
     (function varrer(no) {
-      for (var i = 0; i < no.childNodes.length; i++) {
-        var filho = no.childNodes[i];
+      var filhos = [];
+      for (var i = 0; i < no.childNodes.length; i++) filhos.push(no.childNodes[i]);
+      filhos.forEach(function (filho) {
         if (filho.nodeType === 3) {
-          nos.push({ no: filho, texto: filho.nodeValue });
-          total += filho.nodeValue.length;
-          filho.nodeValue = '';
+          var partes = filho.nodeValue.split(/(\s+)/);
+          var pedaco = document.createDocumentFragment();
+          partes.forEach(function (parte) {
+            if (!parte) return;
+            if (/^\s+$/.test(parte)) {
+              pedaco.appendChild(document.createTextNode(parte));
+              return;
+            }
+            var sp = document.createElement('span');
+            sp.className = 'mia-palavra';
+            sp.textContent = parte;
+            pedaco.appendChild(sp);
+            palavras.push(sp);
+            letras += parte.length;
+          });
+          no.replaceChild(pedaco, filho);
         } else if (filho.nodeType === 1) varrer(filho);
-      }
+      });
     })(destino);
-    if (!total) return { pular: function () {} };
 
-    var cursor = document.createElement('span');
-    cursor.className = 'mia-cursor';
-    cursor.setAttribute('aria-hidden', 'true');
-    destino.appendChild(cursor);
+    /* O balão só sobe depois que o texto está montado: a altura dele é a do
+       texto inteiro, e medir antes daria a altura errada. */
+    if (aoMontar) aoMontar();
+    if (!palavras.length) return { pular: function () {} };
 
-    var duracao = Math.max(700, Math.min(6500, total * 16));
-    var inicio = Date.now();
     var vivo = true;
 
-    /* NÃO É `requestAnimationFrame`, e isso não é preferência: o navegador não
-       chama rAF em aba que não está na frente. Com o efeito preso nele, quem
-       trocasse de aba enquanto a MIA responde voltava para uma resposta VAZIA —
-       o HTML montado, os nós de texto zerados e nada para completá-los. Foi o
-       que aconteceu aqui no teste, e aconteceria com o aluno que abre o vídeo
-       da aula numa aba ao lado.
-
-       `setInterval` é estrangulado em segundo plano, mas continua disparando, e
-       a conta é por tempo decorrido: a primeira batida depois da volta já
-       completa o texto. O `setTimeout` é a garantia final — passe o que passar,
-       a resposta aparece inteira. */
-    var relogio = 0;
-    var garantia = 0;
-
+    /* Tira a máquina do caminho: sem a classe, a regra do desfoque não casa
+       mais com nada e as palavras ficam palavras. Tirar a classe também apaga
+       o `filter` de todas elas — e `filter`, mesmo em `blur(0)`, mantém uma
+       camada de composição por palavra enquanto estiver lá. */
     function tudo() {
-      clearInterval(relogio);
+      if (!vivo) return;
+      vivo = false;
       clearTimeout(garantia);
       destino.removeEventListener('click', aoTocar);
-      nos.forEach(function (n) { n.no.nodeValue = n.texto; });
-      if (cursor.parentNode) cursor.remove();
-      vivo = false;
+      destino.classList.remove('mia-escrevendo');
+      palavras.forEach(function (sp) { sp.style.animationDelay = ''; });
     }
 
-    /* Quem já leu, ou só quer o texto, não fica esperando a letra. O toque não
-       cancela nada do que o link faz: sem `preventDefault`, clicar num link
-       dentro da resposta continua abrindo o link. */
-    function aoTocar() { if (vivo) tudo(); }
+    /* Quem já leu, ou só quer o texto, não fica esperando. O toque não cancela
+       nada do que o link faz: sem `preventDefault`, clicar num link dentro da
+       resposta continua abrindo o link. */
+    function aoTocar() { tudo(); }
     destino.addEventListener('click', aoTocar);
 
-    function passo() {
-      if (!vivo) return;
-      var fracao = Math.min(1, (Date.now() - inicio) / duracao);
-      var ate = Math.round(total * fracao);
-      var restante = ate;
-      for (var i = 0; i < nos.length; i++) {
-        var n = nos[i];
-        if (restante <= 0) { n.no.nodeValue = ''; continue; }
-        n.no.nodeValue = n.texto.slice(0, restante);
-        restante -= n.texto.length;
-      }
-      if (fracao >= 1) tudo();
-    }
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      tudo();
-    } else {
-      relogio = setInterval(passo, 16);
-      garantia = setTimeout(tudo, duracao + 600);
+      destino.removeEventListener('click', aoTocar);
+      return { pular: function () {} };
     }
+
+    var duracao = Math.max(900, Math.min(12000, letras * 24));
+    /* A última palavra precisa CABER dentro da duração, não começar nela. */
+    var corrida = Math.max(0, duracao - SURGIR_MS);
+    var passo = palavras.length > 1
+      ? Math.min(PASSO_MAX_MS, corrida / (palavras.length - 1)) : 0;
+    palavras.forEach(function (sp, i) {
+      sp.style.animationDelay = Math.round(i * passo) + 'ms';
+    });
+    destino.classList.add('mia-escrevendo');
+
+    /* A rede de segurança. O estado final já é do CSS, então isto não existe
+       para a resposta aparecer — existe para a classe e as camadas de
+       composição saírem da tela quando o efeito acaba. */
+    var garantia = setTimeout(tudo, duracao + SURGIR_MS + 400);
 
     return { pular: tudo };
   }
@@ -979,6 +1175,9 @@
     if (!limpo || emAndamento) return;
     emAndamento = true;
     sugestoes.hidden = true;
+    /* O espaço que `subirBalao` abriu embaixo da resposta anterior sai agora:
+       se ficasse, a pergunta nova apareceria com um vão embaixo dela. */
+    mensagens.style.paddingBottom = '';
     bolha(limpo, 'eu');
     var turno = abrirTurno(temaDaPergunta(limpo));
     enviar.disabled = true;
