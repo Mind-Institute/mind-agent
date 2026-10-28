@@ -1086,6 +1086,71 @@
      do que foi pedido. */
   var PASSO_MAX_MS = 140;
 
+  /* ============================================================
+     A FRENTE DE ONDA — texto grande não surge em fila indiana
+     ============================================================
+     Em fila, o atraso de uma palavra vem da ORDEM dela. Isso é certo numa
+     frase: uma palavra, a seguinte, a seguinte. Num bloco de dez linhas vira
+     um ponto correndo sozinho pela página enquanto o resto espera, e o olho
+     persegue o ponto em vez de ler.
+
+     Aqui o atraso vem da POSIÇÃO da palavra na página, não da ordem:
+
+         onda = linha + (quanto ela está à direita) × ABERTURA
+
+     Palavras com onda parecida entram juntas. Como a posição horizontal vale
+     ABERTURA linhas, a frente num instante qualquer toca ABERTURA + 1 linhas
+     ao mesmo tempo, descendo da direita de uma linha para a esquerda da linha
+     de baixo — a diagonal do olho de quem lê, e não uma régua horizontal
+     descendo. Com ABERTURA = 2, são três linhas em movimento de cada vez.
+
+     A ordem ESTRITA de leitura cede um pouco, e tem de ceder: o começo da
+     linha de baixo entra antes do fim da linha de cima. É exatamente isso que
+     desenha a diagonal — sem essa troca a frente seria uma régua horizontal.
+     O que não cede é o sentido geral: o bloco se revela do alto à esquerda
+     para o fim, e ninguém vê o último parágrafo antes do primeiro.
+
+     SÓ VALE PARA TEXTO GRANDE. Com menos de quatro linhas não há diagonal que
+     se perceba — há uma frase —, e a fila é o certo. É o `null` lá embaixo. */
+  var ABERTURA_DIAGONAL = 2;
+  var LINHAS_PARA_DIAGONAL = 4;
+
+  function atrasosEmDiagonal(palavras, destino, corrida) {
+    var caixa = destino.getBoundingClientRect();
+    var largura = Math.max(1, caixa.width);
+    /* As medidas saem todas de uma vez, antes de qualquer escrita, para o
+       navegador refazer o layout uma vez só e não uma por palavra. */
+    var medidas = palavras.map(function (sp) {
+      var r = sp.getBoundingClientRect();
+      return {
+        /* Arredondado em degraus de 4px: palavras da mesma linha não têm o
+           topo exatamente igual quando há negrito ou link no meio, e sem o
+           degrau cada uma dessas viraria uma "linha" só dela. */
+        topo: Math.round((r.top - caixa.top) / 4) * 4,
+        fx: Math.min(1, Math.max(0, (r.left - caixa.left) / largura)),
+      };
+    });
+
+    var linhas = [];
+    medidas.forEach(function (m) {
+      if (linhas.indexOf(m.topo) < 0) linhas.push(m.topo);
+    });
+    linhas.sort(function (a, b) { return a - b; });
+    if (linhas.length < LINHAS_PARA_DIAGONAL) return null;
+
+    var ondas = medidas.map(function (m) {
+      return linhas.indexOf(m.topo) + m.fx * ABERTURA_DIAGONAL;
+    });
+    var menor = Math.min.apply(null, ondas);
+    var maior = Math.max.apply(null, ondas);
+    var vao = Math.max(0.001, maior - menor);
+    /* Esticado para a última palavra da onda cair exatamente no fim da
+       corrida: o texto grande leva o mesmo tempo que levava em fila. */
+    return ondas.map(function (o) {
+      return Math.round(corrida * (o - menor) / vao);
+    });
+  }
+
   function maquinaDeEscrever(destino, html, aoMontar) {
     destino.innerHTML = html;
 
@@ -1154,10 +1219,14 @@
     var duracao = Math.max(900, Math.min(12000, letras * 24));
     /* A última palavra precisa CABER dentro da duração, não começar nela. */
     var corrida = Math.max(0, duracao - SURGIR_MS);
+    /* A medida da diagonal tem de sair ANTES da classe entrar: a classe põe
+       `translateY` nas palavras, e `getBoundingClientRect` devolve a posição
+       já transformada — mediria o lugar de onde elas vêm, não onde estão. */
+    var diagonal = atrasosEmDiagonal(palavras, destino, corrida);
     var passo = palavras.length > 1
       ? Math.min(PASSO_MAX_MS, corrida / (palavras.length - 1)) : 0;
     palavras.forEach(function (sp, i) {
-      sp.style.animationDelay = Math.round(i * passo) + 'ms';
+      sp.style.animationDelay = (diagonal ? diagonal[i] : Math.round(i * passo)) + 'ms';
     });
     destino.classList.add('mia-escrevendo');
 

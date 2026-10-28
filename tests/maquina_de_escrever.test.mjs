@@ -191,6 +191,142 @@ test('quem pediu menos movimento não recebe efeito nenhum', () => {
 });
 
 /* ============================================================
+   A FRENTE DE ONDA — texto grande não surge em fila indiana
+   ============================================================
+   Em fila, o atraso vem da ORDEM da palavra. Numa frase isso é certo;
+   num bloco de dez linhas vira um ponto correndo sozinho pela página
+   enquanto o resto espera, e o olho persegue o ponto em vez de ler.
+
+   Na diagonal o atraso vem da POSIÇÃO: `linha + direita × ABERTURA`.
+   Como a posição horizontal vale ABERTURA linhas, a frente toca
+   ABERTURA + 1 linhas ao mesmo tempo.
+
+   A função é medida pura — recebe retângulos e devolve milissegundos —,
+   então o teste roda o CÓDIGO DO BLOCO com retângulos de mentira. Se
+   alguém mexer na conta lá, é a conta mexida que responde aqui.
+*/
+
+const diagonalFonte = bloco.slice(bloco.indexOf('var ABERTURA_DIAGONAL'),
+                                  bloco.indexOf('function maquinaDeEscrever('));
+const { atrasosEmDiagonal, ABERTURA_DIAGONAL, LINHAS_PARA_DIAGONAL } = new Function(
+  diagonalFonte + 'return { atrasosEmDiagonal: atrasosEmDiagonal,'
+  + ' ABERTURA_DIAGONAL: ABERTURA_DIAGONAL,'
+  + ' LINHAS_PARA_DIAGONAL: LINHAS_PARA_DIAGONAL };')();
+
+/* Um parágrafo de mentira: `linhas` linhas de 5 palavras, numa caixa de
+   400px de largura e linha de 24px. */
+function paragrafo(linhas) {
+  /* As palavras chegam perto da borda direita, como numa linha de texto de
+     verdade. A primeira versão deste parágrafo parava em 70% da largura, e
+     isso sozinho estreitava a frente de onda em uma linha inteira: a conta da
+     diagonal é sobre ONDE a palavra está, então um parágrafo de mentira com
+     margem que não existe mede outra coisa. */
+  const LARGURA = 400, ALTURA_LINHA = 24, X = [0, 90, 180, 270, 360];
+  const destino = { getBoundingClientRect: () => ({ top: 0, left: 0, width: LARGURA }) };
+  const palavras = [];
+  for (let l = 0; l < linhas; l++) {
+    for (const x of X) {
+      palavras.push({
+        linha: l, x,
+        getBoundingClientRect: () => ({ top: l * ALTURA_LINHA, left: x }),
+      });
+    }
+  }
+  return { destino, palavras };
+}
+
+test('texto curto continua em fila — não há diagonal numa frase', () => {
+  const { destino, palavras } = paragrafo(LINHAS_PARA_DIAGONAL - 1);
+  assert.equal(atrasosEmDiagonal(palavras, destino, 10000), null,
+    'a diagonal entrou num texto de poucas linhas, onde ela não se percebe e '
+    + 'só embaralha a ordem de leitura à toa');
+});
+
+test('texto grande ganha a diagonal', () => {
+  const { destino, palavras } = paragrafo(LINHAS_PARA_DIAGONAL);
+  assert.notEqual(atrasosEmDiagonal(palavras, destino, 10000), null);
+});
+
+test('mais de uma linha está surgindo ao mesmo tempo', () => {
+  /* O pedido, na letra: mais de uma palavra, de mais de uma linha, por vez.
+     Numa fila, duas palavras com atraso parecido são sempre vizinhas na
+     mesma linha. */
+  const { destino, palavras } = paragrafo(10);
+  const atrasos = atrasosEmDiagonal(palavras, destino, 10000);
+  /* "Ao mesmo tempo" é a duração da animação de uma palavra: enquanto ela
+     dura, aquela palavra está visivelmente surgindo. Duas palavras com
+     atrasos dentro dessa janela estão em movimento na mesma hora. */
+  const JUNTAS_MS = 600;
+  let maiorFrente = 0;
+  atrasos.forEach((a) => {
+    const linhasNaFrente = new Set(
+      atrasos.map((b, i) => (Math.abs(b - a) <= JUNTAS_MS ? palavras[i].linha : null))
+             .filter((l) => l !== null));
+    maiorFrente = Math.max(maiorFrente, linhasNaFrente.size);
+  });
+  assert.ok(maiorFrente >= 3,
+    `a frente mais larga toca ${maiorFrente} linha(s) de cada vez: com `
+    + `ABERTURA = ${ABERTURA_DIAGONAL} ela devia tocar ${ABERTURA_DIAGONAL + 1}`);
+});
+
+test('a frente desce da direita de uma linha para a esquerda da de baixo', () => {
+  /* É isto que faz a diagonal, e é uma troca consciente: a ordem ESTRITA de
+     leitura cede. Sem a troca, a frente seria uma régua horizontal. */
+  const { destino, palavras } = paragrafo(10);
+  const atrasos = atrasosEmDiagonal(palavras, destino, 10000);
+  const fimDaPrimeira = atrasos[4];
+  const comecoDaSegunda = atrasos[5];
+  assert.ok(comecoDaSegunda < fimDaPrimeira,
+    'o começo da segunda linha só entra depois do fim da primeira: a frente '
+    + 'virou régua horizontal e a diagonal sumiu');
+});
+
+test('o sentido geral é respeitado — o fim não vem antes do começo', () => {
+  const { destino, palavras } = paragrafo(10);
+  const atrasos = atrasosEmDiagonal(palavras, destino, 10000);
+  assert.equal(atrasos[0], 0, 'a primeira palavra do bloco não abre o surgir');
+  const ultimaLinha = atrasos.slice(-5);
+  const primeiraLinha = atrasos.slice(0, 5);
+  assert.ok(Math.min(...ultimaLinha) > Math.max(...primeiraLinha),
+    'alguma palavra da última linha surge antes de alguma da primeira');
+});
+
+test('o texto grande leva o mesmo tempo que levava em fila', () => {
+  const { destino, palavras } = paragrafo(10);
+  const atrasos = atrasosEmDiagonal(palavras, destino, 10000);
+  assert.equal(Math.max(...atrasos), 10000,
+    'a onda não foi esticada até o fim da corrida: o texto grande passou a '
+    + 'levar um tempo diferente do que a duração promete');
+  assert.ok(Math.min(...atrasos) === 0);
+});
+
+test('a diagonal é medida antes de a classe entrar', () => {
+  /* A classe põe `translateY` nas palavras, e `getBoundingClientRect`
+     devolve a posição JÁ transformada: mediria o lugar de onde elas vêm. */
+  assert.ok(codigo.indexOf('atrasosEmDiagonal(palavras, destino, corrida)')
+            < codigo.indexOf("classList.add('mia-escrevendo')"),
+    'a medida sai depois da classe: a diagonal é calculada sobre a posição '
+    + 'deslocada das palavras');
+});
+
+test('negrito e link no meio da frase não viram linhas só deles', () => {
+  /* Palavras da mesma linha não têm o topo exatamente igual quando há
+     `<strong>` ou `<a>` no meio; sem o degrau de arredondamento, cada uma
+     dessas viraria uma linha de uma palavra só e a diagonal se desmancharia. */
+  const destino = { getBoundingClientRect: () => ({ top: 0, left: 0, width: 400 }) };
+  const palavras = [];
+  for (let l = 0; l < 6; l++) {
+    for (let i = 0; i < 5; i++) {
+      /* meio pixel de diferença, como o navegador devolve de verdade */
+      const top = l * 24 + (i === 2 ? 0.5 : 0);
+      palavras.push({ getBoundingClientRect: () => ({ top, left: i * 70 }) });
+    }
+  }
+  assert.notEqual(atrasosEmDiagonal(palavras, destino, 10000), null,
+    'as linhas se multiplicaram com a diferença de meio pixel');
+});
+
+/* ============================================================
    O BALÃO SOBE ANTES DE A RESPOSTA SURGIR
    ============================================================ */
 
