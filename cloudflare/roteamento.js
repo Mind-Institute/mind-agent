@@ -18,6 +18,50 @@
    o erro que aparece no console não tem relação com a causa. Arquivo que
    não existe é 404, sempre. */
 
+/* ============================================================
+   QUEM PODE ENQUADRAR ESTE APP
+   ============================================================
+   Até aqui o Worker não dizia nada sobre enquadramento: sem
+   `frame-ancestors` e sem `X-Frame-Options`, QUALQUER site podia pôr o app
+   num iframe e montar uma tela em volta dele. Era o item que sobrou aberto
+   do P2 em `SUMMIT_2026_AGENTE_CONTEUDO_PROPOSTA.md`.
+
+   O QUE ISTO **NÃO** PROTEGE, e a proposta dizia errado: a MIA no
+   LearnWorlds não é um iframe deste app. É um bloco de HTML+CSS+JS colado
+   dentro do curso (`learnworlds/mia-embed.html`) que fala direto com o
+   Supabase e nunca carrega nada daqui — decisão de 22/10, a MIA não fica no
+   site do app do Summit. Então esta política não tem efeito nenhum sobre o
+   embed do curso, nem para proteger, nem para quebrar.
+
+   O que ela protege é o APP em si. Proteção modesta, e vale dizer por quê:
+   um site que enquadra não lê o conteúdo do iframe — a origem diferente
+   impede. O que ele faz é desenhar por cima, e é disso que isto fecha a
+   porta.
+
+   LISTA DE PERMISSÃO, pelo mesmo motivo do domínio da pesquisa: lista de
+   bloqueio esquece o site que aparecer amanhã, e o vazamento é calado.
+
+   `X-Frame-Options` NÃO entra junto. Ele só sabe dizer "ninguém" ou "a
+   mesma origem" — não sabe abrir para um terceiro. Acrescentá-lo "por
+   segurança" fecharia a porta que esta lista abre de propósito.
+
+   O QUE VIGIAR DEPOIS DE SUBIR: o app declara em
+   `docs/MIND_AGENT_FRONTEND.md` que aceita ser embedado — responde a
+   `?tutorial=` e manda `mindagent:tour-concluido` para quem o hospeda.
+   Nenhuma página que o enquadre hoje foi encontrada no repositório, mas o
+   contrato existe. Se alguma existir fora dele, a tela fica BRANCA lá e a
+   correção é uma linha nesta lista. Os dois endereços do Institute ficam
+   porque é de lá que um enquadramento nosso viria; o endereço está
+   registrado em `SUMMIT_2026_CANON_AGENTES.md`. */
+export const ENQUADRADORES = [
+  "'self'",
+  'https://my.mindinstitute.com.br',
+  'https://*.learnworlds.com',
+];
+
+export const POLITICA_DE_ENQUADRAMENTO =
+  'frame-ancestors ' + ENQUADRADORES.join(' ') + ';';
+
 export const PREFIXO_PAINEL = '/admin';
 export const DIRETORIO_ASSETS = '/admin/assets/';
 export const INDICE_PAINEL = '/admin/index.html';

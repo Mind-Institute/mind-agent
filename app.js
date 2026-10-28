@@ -6,7 +6,7 @@
    só desenha e reage.
 */
 
-import { CONFIG, PARTICIPANTE, capturarIdentidade, primeiroNome } from './config.js';
+import { CONFIG, PARTICIPANTE, capturarIdentidade, faceDaPorta, primeiroNome } from './config.js';
 import { carregarDadosSummit, carregarHomeDoEvento, carregarIngressoDoParticipante } from './data-service.js';
 import { montarHome } from './home/home.js';
 import { definirMomento, definirAvisos, definirMomentoDoServidor, momentoDoServidor } from './home/estado.js';
@@ -23,6 +23,14 @@ ligarTeclado();
    `nome` na URL, e a saudação depende disso. Chamada explícita de
    propósito — importar `config.js` não captura nada. */
 capturarIdentidade();
+
+/* POR QUAL PORTA ESTA ABA ENTROU — e, por causa dela, que cara o app tem.
+   Lida depois de `capturarIdentidade()`, que é quem tira `origem_codigo` da
+   URL. `null` é o app do Summit de sempre; nada abaixo muda. */
+const PORTA = faceDaPorta();
+/* Dentro de um curso do LearnWorlds não existe central do Summit atrás do
+   chat: a pessoa está numa aula, e o quadro é a conversa. */
+const SO_CHAT = Boolean(PORTA && PORTA.soOChat);
 
 /* ---------- Splash ---------- */
 const splash = document.getElementById('splash');
@@ -56,6 +64,12 @@ const FALA = [
   [' e estou aqui para responder qualquer dúvida sobre o evento.', false],
 ];
 (function digitar() {
+  /* O EMBED NÃO TEM ABERTURA. Ali o app não é a marca se apresentando a quem
+     chega: é uma atividade dentro de uma aula, num quadro de poucas centenas
+     de pixels. A fala ainda diz "o agente do Mind… sobre o evento", que é o
+     Concierge, e não a MIA — e mesmo curta, segundos de símbolo parado dentro
+     de um iframe são lidos como aula que não carregou. */
+  if (SO_CHAT) { splash.remove(); return; }
   /* Já viu nesta sessão: sai sem fade e sem animação. Nada de meio segundo de
      cortesia para quem só recarregou a página. */
   if (jaViuAbertura) { splash.remove(); return; }
@@ -1695,6 +1709,17 @@ function bolha(texto, quem, passo) {
   const el = document.createElement('div');
   el.className = 'bolha ' + quem;
   el.textContent = texto;
+  /* QUEM ESTÁ FALANDO, ESCRITO NA FALA. No app do Summit o nome do agente
+     vive só no cabeçalho, e basta: ali o agente é o app. A MIA é um produto
+     com nome — e, rolando a conversa, o cabeçalho sai de vista enquanto as
+     respostas longas dela continuam. O balão diz de que lado veio a fala;
+     o rótulo diz de quem ela é. */
+  if (quem === 'mind' && PORTA && PORTA.rotulo) {
+    const r = document.createElement('span');
+    r.className = 'quem';
+    r.textContent = PORTA.rotulo;
+    el.prepend(r);
+  }
   if (passo) {
     const cartao = cartaoOndeFica(passo);
     if (cartao) el.appendChild(cartao);
@@ -1799,6 +1824,12 @@ function citouPalestrante() {
 }
 
 function oferecerPalestrantes() {
+  /* O CONVITE É DO CONCIERGE, e cair nele pela porta do Institute seria
+     trocar o acervo pela grade. A MIA cita palestrante em quase toda
+     resposta — é o desenho dela, atribuir a fala a quem a disse —, então
+     este convite dispararia o tempo todo e levaria para um fluxo que fala
+     de agenda e reserva de um evento que já terminou. */
+  if (PORTA) return;
   if (jaOfereceuPalestrantes || respostaEmAndamento || !citouPalestrante()) return;
   jaOfereceuPalestrantes = true;
   bolha('Quer saber mais sobre os palestrantes mencionados acima?', 'mind');
@@ -1829,9 +1860,14 @@ let jaPerguntou = false;
    pelo nome sem que mais nada mude. */
 /* Mesmo nome que a home usa: quem é "Ana" no título não pode virar
    "Ana Paula Rodrigues Silva" duas telas depois. */
+/* O CORAÇÃO VERDE É ASSINATURA DO CONCIERGE, não da marca inteira. Na pele
+   roxa da MIA ele é a única coisa verde da tela, e verde ali é a cor do app
+   do Summit — justamente o produto de onde ela precisa se distinguir. Quem
+   tem pele própria cumprimenta sem ele; o app do Summit não muda. */
 function saudacao() {
   const nome = primeiroNome();
-  return nome ? 'Oi, ' + nome + '! 💚 ' : 'Oi! 💚 ';
+  const fim = PORTA && PORTA.pele ? '! ' : '! 💚 ';
+  return (nome ? 'Oi, ' + nome : 'Oi') + fim;
 }
 
 /* DEPOIS DE SE APRESENTAR, ELE PERGUNTA.
@@ -1845,9 +1881,82 @@ function saudacao() {
    soubesse o que pedir. É aí que a agenda passa a ser montada, e por isso
    a jornada entra DIRETA, sem o "Começar →": quem não escolheu começar
    não precisa de um botão para confirmar que quer. */
+/* O cabeçalho, o campo e o "‹" do chat vêm da porta quando ela tem cara
+   própria. Uma função só, chamada na partida: nenhuma outra parte do app
+   precisa saber que existe mais de uma porta. */
+function vestirDaPorta() {
+  if (!PORTA) return;
+  document.getElementById('chat-agente').textContent = PORTA.agente;
+  document.getElementById('chat-papel').textContent = PORTA.papel;
+  if (PORTA.placeholder) campoChat.placeholder = PORTA.placeholder;
+  /* A PELE VAI NO `html`, e não no `body`. O fundo e o `color-scheme` são
+     declarados lá — é o elemento que pinta o que sobra fora da caixa do app
+     e a área sob o teclado. Marcar só o `body` deixava a moldura escura em
+     volta de uma conversa clara. Atributo, e não classe, para o CSS da pele
+     poder ganhar de `:root` sem `!important`. */
+  if (PORTA.pele) {
+    document.documentElement.dataset.pele = PORTA.pele;
+    /* `theme-color` existe porque sem ele o Safari pinta a própria barra de
+       claro e ela encosta num app escuro como se fosse um vão nosso. Com a
+       pele clara o problema inverte: a barra escura é que vira a borda
+       estranha. Dentro do iframe isto não aparece — vale para quem abrir o
+       endereço do embed direto no celular. */
+    const barra = document.querySelector('meta[name="theme-color"]');
+    if (barra && PORTA.barra) barra.content = PORTA.barra;
+  }
+  if (PORTA.avatar) {
+    const img = document.querySelector('#vista-chat .avatar img');
+    if (img) img.src = PORTA.avatar;
+  }
+  /* Sem home atrás, o "‹" levaria a pessoa à central de um evento que não é
+     o curso dela — e que pede identidade que o embed não tem. Esconder, e
+     não desabilitar: botão morto no canto é pior que botão nenhum. */
+  if (SO_CHAT) document.getElementById('chat-voltar').hidden = true;
+}
+
+/* AS CINCO COISAS QUE ELA FAZ, EM BOTÃO — o lugar que a jornada ocupa no
+   Concierge. Chat vazio foi o que fez a jornada existir: apresentação e mais
+   nada, esperando que a pessoa soubesse o que pedir. Aqui o toque envia o
+   texto como pergunta, porque ele está na voz de quem pergunta; quem conduz
+   a partir daí é a agente, não um fluxo escrito neste arquivo. */
+function sugestoesDaPorta() {
+  const lista = (PORTA && PORTA.sugestoes) || [];
+  if (!lista.length) return;
+  const alvo = painel('');
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  lista.forEach((texto) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = texto;
+    b.addEventListener('click', () => {
+      /* Some inteiro ao primeiro toque: manter os outros quatro na tela
+         enquanto a resposta vem convida a empilhar pedidos por cima de uma
+         conversa que já começou. */
+      alvo.remove();
+      perguntar(texto);
+    });
+    chips.appendChild(b);
+  });
+  alvo.appendChild(chips);
+  mensagens.scrollTop = mensagens.scrollHeight;
+}
+
 function iniciarChat(opcoes) {
   if (chatIniciado) return;
   chatIniciado = true;
+
+  /* PORTA COM CARA PRÓPRIA ABRE COM A APRESENTAÇÃO DELA, e nunca com a
+     jornada: as seis intenções do Concierge montam agenda, escolhem palestras
+     e marcam encontros de um evento que já aconteceu. Quem chega pelo embed
+     já está matriculado no on-demand — o que falta a ele é o conteúdo das
+     sessões, não a grade delas. */
+  if (PORTA) {
+    bolha(saudacao() + PORTA.abertura, 'mind');
+    if (!opcoes || !opcoes.comAssunto) setTimeout(sugestoesDaPorta, 400);
+    return;
+  }
+
   /* A ABERTURA É DA ADRIANA, palavra por palavra. O segundo parágrafo do
      que ela mandou já existe, em `FLUXOS.jornada` — é ele que anuncia as
      perguntas, logo antes do "Começar →". Repetido aqui, viraria promessa
@@ -1905,6 +2014,13 @@ const INTENCOES = [
    arquivo. */
 async function carregarDados() {
   DADOS = await carregarDadosSummit();
+
+  /* DAQUI PARA BAIXO É TUDO DA HOME, e no embed não existe home. Avisos e
+     momento do evento só alimentam cards da central do participante — uma
+     ida ao servidor por carga, dentro de uma aula do Institute, sem efeito
+     nenhum na tela. A grade acima fica: a conversa cita sessão e
+     palestrante, e `citouPalestrante()` lê dela. */
+  if (SO_CHAT) return;
 
   /* Avisos e composição da home vêm de porta própria — o painel publica
      ali, não no bootstrap. Se ela não responder, valem os avisos
@@ -2865,6 +2981,26 @@ function desenharSummit() {
     '<h3>' + t + '</h3><p>' + txt + (sub ? '<em>' + sub + '</em>' : '') + '</p>').join('');
 }
 
+if (SO_CHAT) {
+
+/* ---------- Partida pelo embed ----------
+   A entrada direta: quem chega por ela veio para uma coisa só.
+
+   A central do participante NÃO sobe atrás: o app atrás é de outro
+   produto — o Summit — e a pessoa está dentro de uma aula do Institute. Subir
+   a home seria carregar avisos e momento de um evento encerrado para uma tela
+   que ninguém vai ver.
+
+   A grade continua sendo carregada: a conversa pode citar sessão e
+   palestrante, e `citouPalestrante()` lê dela. Falhar aqui não tem aviso na
+   tela de propósito — sem home não há onde pendurar o aviso, e a MIA responde
+   pelo acervo, que vem do servidor e não deste arquivo. */
+vestirDaPorta();
+abrirVista('chat');
+carregarDados().catch(() => { /* a conversa não depende da grade para existir */ });
+
+} else {
+
 /* ---------- Partida ---------- */
 /* A home V3 não depende da programação para existir: ela sobe primeiro,
    e os dados chegam para quem precisa deles (o chat, o tour). */
@@ -2878,3 +3014,5 @@ carregarDados().then(montarHomeV3).catch((e) => {
     'e a leitura falhou (' + e.message + '). Recarregue em um instante.';
   document.getElementById('home-v3').prepend(aviso);
 });
+
+}

@@ -26,7 +26,7 @@
    `OPENAI_API_KEY`) ficam nas Edge Functions do Supabase. */
 
 import {
-  INDICE_PAINEL,
+  INDICE_PAINEL, POLITICA_DE_ENQUADRAMENTO,
   decidirAntes, decidirApos404, decidirNoHostDoPainel,
   destinoDoPainelForaDoDominio, ehDaPesquisa, ehDoHostDoPainel, ehDoPainel,
 } from './roteamento.js';
@@ -37,88 +37,106 @@ export interface Env {
   CHECKOUT_REDIRECT_ORIGIN?: string;
 }
 
+/* A POLÍTICA DE ENQUADRAMENTO VALE PARA TUDO QUE SAI DAQUI, e por isso mora
+   numa saída só. Pendurá-la em cada `return` deixaria de valer no dia em que
+   alguém acrescentasse o oitavo — e seria justamente o caminho novo, o menos
+   testado, a ficar sem ela.
+
+   A resposta dos assets vem com cabeçalhos imutáveis: é preciso copiar para
+   escrever. Quem já declarou a própria política não é tocado. */
+function comEnquadramento(resposta: Response): Response {
+  if (resposta.headers.get('Content-Security-Policy')) return resposta;
+  const copia = new Response(resposta.body, resposta);
+  copia.headers.set('Content-Security-Policy', POLITICA_DE_ENQUADRAMENTO);
+  return copia;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+    return comEnquadramento(await atender(request, env));
+  },
+};
 
-    /* ============================================================
-       O DOMÍNIO DA PESQUISA, DESLIGADO
-       ============================================================
-       Vem ANTES de tudo, inclusive do painel: a pesquisa avulsa foi
-       apagada, e enquanto `avaliacao.mindsummit.com.br` apontar para cá
-       nada pode ser servido nele — nem a home, nem /admin/. */
-    if (ehDaPesquisa(url.hostname)) {
+async function atender(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+
+  /* ============================================================
+     O DOMÍNIO DA PESQUISA, DESLIGADO
+     ============================================================
+     Vem ANTES de tudo, inclusive do painel: a pesquisa avulsa foi
+     apagada, e enquanto `avaliacao.mindsummit.com.br` apontar para cá
+     nada pode ser servido nele — nem a home, nem /admin/. */
+  if (ehDaPesquisa(url.hostname)) {
+    return new Response('Não encontrado.', {
+      status: 404,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+
+  /* ============================================================
+     O DOMÍNIO DO PAINEL
+     ============================================================
+     Em `admin.minddash.pro` só existe o painel: a raiz e qualquer
+     navegação fora de `/admin` levam para `/admin/`, e arquivo que não
+     é do painel é 404. O que é do painel segue o fluxo de sempre, logo
+     abaixo. Em qualquer outro endereço deste worker — o do app, o
+     `workers.dev`, um domínio ligado amanhã —, o painel manda para cá e o
+     app fica onde está; só os endereços de teste (previews e máquina local)
+     seguem com o painel no próprio endereço. Redirecionamento temporário
+     (302) enquanto o domínio novo se firma — trocar para 301 é uma linha. */
+  if (ehDoHostDoPainel(url.hostname)) {
+    const decisao = decidirNoHostDoPainel(url.pathname);
+    if (decisao.tipo === 'recusado') {
       return new Response('Não encontrado.', {
         status: 404,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       });
     }
-
-    /* ============================================================
-       O DOMÍNIO DO PAINEL
-       ============================================================
-       Em `admin.minddash.pro` só existe o painel: a raiz e qualquer
-       navegação fora de `/admin` levam para `/admin/`, e arquivo que não
-       é do painel é 404. O que é do painel segue o fluxo de sempre, logo
-       abaixo. Em qualquer outro endereço deste worker — o do app, o
-       `workers.dev`, um domínio ligado amanhã —, o painel manda para cá e o
-       app fica onde está; só os endereços de teste (previews e máquina local)
-       seguem com o painel no próprio endereço. Redirecionamento temporário
-       (302) enquanto o domínio novo se firma — trocar para 301 é uma linha. */
-    if (ehDoHostDoPainel(url.hostname)) {
-      const decisao = decidirNoHostDoPainel(url.pathname);
-      if (decisao.tipo === 'recusado') {
-        return new Response('Não encontrado.', {
-          status: 404,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-        });
-      }
-      if (decisao.tipo === 'redirecionar') {
-        url.pathname = decisao.para;
-        return Response.redirect(url.toString(), 302);
-      }
-    } else {
-      const destino = destinoDoPainelForaDoDominio(url.hostname, url.pathname);
-      if (destino) {
-        const alvo = new URL(destino);
-        alvo.search = url.search;
-        return Response.redirect(alvo.toString(), 302);
-      }
+    if (decisao.tipo === 'redirecionar') {
+      url.pathname = decisao.para;
+      return Response.redirect(url.toString(), 302);
     }
-
-    if (request.method === 'GET' && /^\/c\/[0-9a-f-]{36}$/i.test(url.pathname)) {
-      const eventId = url.pathname.slice(3);
-      const origin = (env.CHECKOUT_REDIRECT_ORIGIN ||
-        'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-checkout').replace(/\/+$/, '');
-      return Response.redirect(origin + '/' + eventId, 307);
+  } else {
+    const destino = destinoDoPainelForaDoDominio(url.hostname, url.pathname);
+    if (destino) {
+      const alvo = new URL(destino);
+      alvo.search = url.search;
+      return Response.redirect(alvo.toString(), 302);
     }
+  }
 
-    const antes = decidirAntes(request.method, url.pathname);
-    if (antes.tipo === 'redirecionar') {
-      /* Só o caminho muda: `?tutorial=agenda` e afins sobrevivem. */
-      url.pathname = antes.para;
-      return Response.redirect(url.toString(), 301);
-    }
+  if (request.method === 'GET' && /^\/c\/[0-9a-f-]{36}$/i.test(url.pathname)) {
+    const eventId = url.pathname.slice(3);
+    const origin = (env.CHECKOUT_REDIRECT_ORIGIN ||
+      'https://ymnmotgglsrxmjmonwjz.supabase.co/functions/v1/mindagent-checkout').replace(/\/+$/, '');
+    return Response.redirect(origin + '/' + eventId, 307);
+  }
 
-    const resposta = await env.ASSETS.fetch(request);
-    if (resposta.status !== 404) return resposta;
+  const antes = decidirAntes(request.method, url.pathname);
+  if (antes.tipo === 'redirecionar') {
+    /* Só o caminho muda: `?tutorial=agenda` e afins sobrevivem. */
+    url.pathname = antes.para;
+    return Response.redirect(url.toString(), 301);
+  }
 
-    /* O FALLBACK DE SPA É SÓ DO PAINEL, e agora isso precisa estar
-       ESCRITO. Antes quem garantia era o `run_worker_first`, que só
-       chamava o Worker em `/admin`; para o domínio da pesquisa ser travado,
-       o Worker passou a ser a porta de tudo — e sem esta linha
-       `/qualquer-coisa` no chat passaria a devolver o painel em vez de
-       404, que é exatamente o que o comentário do wrangler prometia
-       que não aconteceria. */
-    if (!ehDoPainel(url.pathname)) return resposta;
+  const resposta = await env.ASSETS.fetch(request);
+  if (resposta.status !== 404) return resposta;
 
-    const depois = decidirApos404(request.method, url.pathname);
-    if (depois.tipo !== 'indice') return resposta;
+  /* O FALLBACK DE SPA É SÓ DO PAINEL, e agora isso precisa estar
+     ESCRITO. Antes quem garantia era o `run_worker_first`, que só
+     chamava o Worker em `/admin`; para o domínio da pesquisa ser travado,
+     o Worker passou a ser a porta de tudo — e sem esta linha
+     `/qualquer-coisa` no chat passaria a devolver o painel em vez de
+     404, que é exatamente o que o comentário do wrangler prometia
+     que não aconteceria. */
+  if (!ehDoPainel(url.pathname)) return resposta;
 
-    /* Navegação do painel: devolve o index dele com 200. A URL do
-       navegador não muda, então a SPA continua vendo o caminho e a
-       query originais. */
-    const indice = new URL(INDICE_PAINEL, url.origin);
-    return env.ASSETS.fetch(new Request(indice.toString(), { headers: request.headers }));
-  },
-};
+  const depois = decidirApos404(request.method, url.pathname);
+  if (depois.tipo !== 'indice') return resposta;
+
+  /* Navegação do painel: devolve o index dele com 200. A URL do
+     navegador não muda, então a SPA continua vendo o caminho e a
+     query originais. */
+  const indice = new URL(INDICE_PAINEL, url.origin);
+  return env.ASSETS.fetch(new Request(indice.toString(), { headers: request.headers }));
+}
