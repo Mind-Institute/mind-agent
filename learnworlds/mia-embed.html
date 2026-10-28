@@ -312,10 +312,35 @@
     border: 1px solid transparent; border-radius: 27px; outline: none;
     font: inherit; font-size: 16px; line-height: 1.5;
   }
+  /* ============================================================
+     A BARRA DE ROLAGEM DO CAMPO NÃO PODE BATER NO BOTÃO
+     ============================================================
+     O campo rola quando a pergunta passa de três linhas. A barra nativa do
+     Windows tem 17px e nasce colada na borda direita; o botão de enviar mora a
+     6px dessa borda. Resultado medido: a barra entrava 11px por baixo do
+     botão, com as setas do sistema aparecendo ao lado dele.
+
+     Barra de 6px, sem as setas: cabe inteira nessa folga.
+
+     NÃO PONHA `scrollbar-width: thin` AQUI. Foi a primeira tentativa e ela
+     piorou a própria correção: quando essa propriedade está declarada, o
+     Chromium passa a obedecer a ELA e ignora a largura do
+     `::-webkit-scrollbar`. A barra saiu de 17px para 12px em vez de 6px, e
+     continuou batendo no botão — medido. `thin` não é um tamanho, é "o fino
+     que o sistema quiser".
+
+     O Firefox, que só entende a propriedade descartada, fica com a barra
+     larga dele. Por isso o `z-index: 1` no botão continua lá: ele não
+     resolve a colisão, resolve quem fica por cima quando ela acontece. */
+  .mia-lw .mia-form textarea::-webkit-scrollbar { width: 6px; }
+  .mia-lw .mia-form textarea::-webkit-scrollbar-track { background: transparent; }
+  .mia-lw .mia-form textarea::-webkit-scrollbar-thumb {
+    background: rgba(27,27,36,.26); border-radius: 3px;
+  }
   .mia-lw .mia-form textarea::placeholder { color: var(--mia-placeholder); }
   .mia-lw .mia-form textarea:focus { border-color: var(--mia-roxo); }
   .mia-lw .mia-form button {
-    appearance: none; cursor: pointer; position: absolute; right: 7px; bottom: 7px;
+    appearance: none; cursor: pointer; position: absolute; right: 7px; bottom: 7px; z-index: 1;
     width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0;
     display: grid; place-items: center; background: var(--mia-roxo); color: #fff;
   }
