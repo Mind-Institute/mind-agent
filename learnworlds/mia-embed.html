@@ -803,18 +803,122 @@
      Continua valendo o que vale desde o começo: isto é EXPECTATIVA do caminho
      normal dela, não relato. Quando a resposta chega, tudo aqui é substituído
      pelo que o servidor diz ter feito. */
-  function passosDaEspera(tema) {
+  /* ---------- O QUE ELA FAZ DE VERDADE, MEDIDO ----------
+     A primeira versão tinha UM roteiro só, com sete passos iguais em todo
+     turno: "Abrindo as fichas das sessões", "Vendo o que cada palestrante
+     disse", "Conferindo em que minuto aparece". Três problemas, e o Vinícius
+     viu os três rodando:
+
+     1. O servidor não relata nada disso. As ferramentas são duas —
+        `buscar_intelligence` e `ler_intelligence` — e o relato real do turno
+        diz PROCUROU e LEU. Ficha, palestrante e minuto eram detalhe que eu
+        inventei para a lista ficar comprida.
+     2. Na segunda pergunta sobre o mesmo assunto, a tela repetia as mesmas
+        cinco frases, como se ela estivesse começando do zero.
+     3. "Conferindo em que minuto aparece" nunca correspondeu a um ato. As
+        transcrições têm marca de tempo (55 de 55, conferido no banco), mas
+        ela lê o documento — não vai conferir minuto nenhum.
+
+     TRÊS TURNOS MEDIDOS contra o servidor real, em 29/10/2026:
+
+         turno              procurou  leu   contexto                  tempo
+         abre o assunto        1×     1×    acervo (4)                 29s
+         aprofunda o mesmo     1×     3×    palestrantes (2), acervo   36s
+         muda de assunto       1×     3×    palestrantes (1)           34s
+
+     A medição derruba a suposição mais natural, que era a minha e a do
+     Vinícius: ela NÃO responde do contexto quando a pessoa se aprofunda. Ela
+     volta ao acervo toda vez. O que muda é quanto ela lê — uma vez na
+     primeira pergunta, três nas seguintes — e que o turno chega com a
+     conversa inteira junto.
+
+     Então o roteiro não pode pular a busca; ele tem é de parar de fingir
+     cinco atos quando são três (procura, lê, escreve) e de falar como se
+     cada pergunta fosse a primeira. Daí três roteiros, escolhidos pela
+     situação do turno, e nenhum passo que o servidor não faça. */
+  function passosDaEspera(s) {
+    var tema = s && s.tema;
+    var fim = [
+      [26000, 'Ainda escrevendo — a resposta está ficando longa'],
+      [37000, 'Ainda escrevendo — respostas que cruzam sessões levam mais'],
+    ];
+
+    /* APROFUNDANDO o mesmo assunto. A pessoa não trouxe assunto novo: ela
+       está olhando o mesmo de outro ângulo. A tela não repete a abertura;
+       diz que ela está VOLTANDO — que é o que a medição mostra. */
+    if (s && s.modo === 'aprofunda') {
+      return [
+        [0, 'Relendo sua pergunta'],
+        [1500, 'Voltando ao acervo com a sua nova pergunta'],
+        /* Quando o turno anterior trouxe palestrante no contexto, dizer isso
+           não é chute: veio do relato do servidor daquele turno. */
+        [6000, s.palestrantes
+          ? 'Abrindo de novo as sessões e os palestrantes que citei'
+          : (tema
+            ? { antes: 'Abrindo mais material sobre ', destaque: tema, depois: '' }
+            : 'Abrindo mais material sobre o mesmo assunto')],
+        [14000, 'Juntando com o que já te respondi'],
+        [23000, 'Escrevendo a resposta'],
+        [33000, 'Ainda escrevendo — ligar as duas coisas leva mais'],
+      ];
+    }
+
+    /* MUDOU DE ASSUNTO. A conversa continua, o assunto não: a tela precisa
+       dizer que ela saiu de onde estava, senão parece que ignorou. */
+    if (s && s.modo === 'muda') {
+      return [
+        [0, 'Lendo sua pergunta'],
+        [1500, tema
+          ? { antes: 'Assunto novo: procurando sobre ', destaque: tema, depois: ' no acervo' }
+          : 'Assunto novo: procurando no acervo do Summit'],
+        [6000, 'Lendo o que encontrou'],
+        [15000, 'Escrevendo a resposta'],
+      ].concat(fim);
+    }
+
+    /* PRIMEIRA PERGUNTA da conversa. */
     return [
       [0, 'Lendo sua pergunta'],
       [1500, tema
         ? { antes: 'Procurando sobre ', destaque: tema, depois: ' no acervo do Summit' }
         : 'Procurando no acervo do Summit'],
-      [5000, 'Abrindo as fichas das sessões'],
-      [11000, 'Vendo o que cada palestrante disse'],
-      [18000, 'Conferindo em que minuto aparece'],
-      [27000, 'Escrevendo a resposta'],
-      [38000, 'Ainda escrevendo — perguntas que cruzam várias sessões levam mais'],
-    ];
+      [6000, 'Lendo o que encontrou'],
+      [15000, 'Escrevendo a resposta'],
+    ].concat(fim);
+  }
+
+  /* ---------- A SITUAÇÃO DO TURNO ----------
+     Três coisas o cliente sabe antes de a resposta chegar, e as três são
+     reais: se já houve turno nesta conversa, se o assunto reconhecido mudou,
+     e o que o turno ANTERIOR relatou ter feito. É só disso que os roteiros
+     precisam — nada aqui adivinha o que o servidor vai fazer.
+
+     Pergunta sem assunto reconhecido depois de um turno ("me aprofunda
+     nisso", "e daí?", "me dá um exemplo") é aprofundamento, não assunto
+     novo: é exatamente o caso que fazia a tela repetir a abertura. */
+  var ultimoTurno = null;
+
+  function situacaoDoTurno(pergunta) {
+    var tema = temaDaPergunta(pergunta);
+    if (!ultimoTurno) return { modo: 'abre', tema: tema };
+    if (!tema || tema === ultimoTurno.tema) {
+      return {
+        modo: 'aprofunda',
+        tema: ultimoTurno.tema,
+        palestrantes: ultimoTurno.palestrantes,
+      };
+    }
+    return { modo: 'muda', tema: tema };
+  }
+
+  /* Guardado no fim do turno, do relato REAL: o assunto que valeu e se o
+     servidor trouxe palestrante no contexto. */
+  function lembrarDoTurno(s, p) {
+    var fontes = Array.isArray(p && p.sources) ? p.sources : [];
+    ultimoTurno = {
+      tema: (s && s.tema) || (ultimoTurno && ultimoTurno.tema) || null,
+      palestrantes: fontes.some(function (f) { return f && f.type === 'speakers'; }),
+    };
   }
 
   /* ---------- O TEMA SAI DA PERGUNTA, E EXISTE NO ACERVO ----------
@@ -939,7 +1043,7 @@
     return lista;
   }
 
-  function abrirTurno(tema) {
+  function abrirTurno(situacao) {
     var el = document.createElement('div');
     el.className = 'mia-bolha mia-ela';
     el.innerHTML = ROTULO +
@@ -1013,7 +1117,7 @@
       mensagens.scrollTop = mensagens.scrollHeight;
     }
 
-    passosDaEspera(tema).forEach(function (p) {
+    passosDaEspera(situacao).forEach(function (p) {
       tempos.push(setTimeout(function () { acrescentar(p[1]); }, p[0]));
     });
 
@@ -1273,9 +1377,14 @@
        se ficasse, a pergunta nova apareceria com um vão embaixo dela. */
     mensagens.style.paddingBottom = '';
     bolha(limpo, 'eu');
-    var turno = abrirTurno(temaDaPergunta(limpo));
+    var situacao = situacaoDoTurno(limpo);
+    var turno = abrirTurno(situacao);
     enviar.disabled = true;
     perguntarAoAgente(limpo).then(function (corpo) {
+      /* A memória da conversa é atualizada com o relato REAL, e só depois de
+         ele chegar: o próximo turno escolhe o roteiro a partir do que de fato
+         aconteceu neste, não do que a tela chutou enquanto esperava. */
+      lembrarDoTurno(situacao, corpo);
       turno.concluir(corpo);
     }).catch(function (erro) {
       turno.falhar(erro && erro.name === 'AbortError' ? 'A resposta demorou demais. Tente novamente.'

@@ -35,16 +35,31 @@ const bloco = lerFonte(new URL('../learnworlds/mia-embed.html', import.meta.url)
 /* O teste roda o CÓDIGO do bloco, não uma cópia dele: recorta o trecho
    do arquivo e o executa. Se alguém mexer no matcher lá, é o matcher
    mexido que responde aqui. */
-const inicio = bloco.indexOf('function passosDaEspera(tema) {');
+const inicio = bloco.indexOf('function passosDaEspera(');
 const fim = bloco.indexOf('var NOME_DA_FERRAMENTA');
 assert.ok(inicio > 0 && fim > inicio,
   'não achei o trecho dos passos no bloco: `passosDaEspera` ou '
   + '`NOME_DA_FERRAMENTA` mudaram de nome e este teste ficou cego');
 
-const { passosDaEspera, temaDaPergunta, TEMA_POR_PALAVRA } = new Function(
+const { passosDaEspera, temaDaPergunta, TEMA_POR_PALAVRA,
+        situacaoDoTurno, lembrarDoTurno } = new Function(
   bloco.slice(inicio, fim)
   + 'return { passosDaEspera: passosDaEspera, temaDaPergunta: temaDaPergunta,'
-  + ' TEMA_POR_PALAVRA: TEMA_POR_PALAVRA };')();
+  + ' TEMA_POR_PALAVRA: TEMA_POR_PALAVRA, situacaoDoTurno: situacaoDoTurno,'
+  + ' lembrarDoTurno: lembrarDoTurno };')();
+
+/* Os três roteiros, para os testes de cadência não precisarem repetir isto. */
+const ROTEIROS = {
+  abre: passosDaEspera({ modo: 'abre', tema: null }),
+  aprofunda: passosDaEspera({ modo: 'aprofunda', tema: 'burnout' }),
+  muda: passosDaEspera({ modo: 'muda', tema: 'liderança' }),
+};
+
+/* O texto de um passo, seja ele string ou o pedaço com tema destacado. */
+function frase(p) {
+  const t = p[1];
+  return typeof t === 'string' ? t : t.antes + t.destaque + (t.depois || '');
+}
 
 /* Os 31 mapas temáticos vivos, como o banco os nomeia (consultado em
    28/10/2026). O banco escreve tudo em caixa baixa; a tela escreve
@@ -69,33 +84,158 @@ const MAPAS_DO_ACERVO = [
    O ROTEIRO COBRE A ESPERA INTEIRA
    ============================================================ */
 
-test('o roteiro vai até perto do teto do turno, não morre aos 6 segundos', () => {
-  const passos = passosDaEspera(null);
-  const ultimo = passos[passos.length - 1][0];
-  assert.ok(ultimo >= 30000,
-    `o último passo entra aos ${ultimo / 1000}s e o turno complexo vai até 45s: `
-    + 'a lista volta a congelar no meio da espera');
-  assert.ok(ultimo < 45000,
-    'o último passo entra depois do teto de 45s do servidor — nunca seria visto');
+test('os três roteiros vão até perto do teto do turno', () => {
+  for (const [modo, passos] of Object.entries(ROTEIROS)) {
+    const ultimo = passos[passos.length - 1][0];
+    assert.ok(ultimo >= 30000,
+      `no roteiro "${modo}" o último passo entra aos ${ultimo / 1000}s e o turno `
+      + 'complexo vai até 45s: a lista congela no meio da espera');
+    assert.ok(ultimo < 45000,
+      `no roteiro "${modo}" o último passo entra depois do teto de 45s do `
+      + 'servidor — nunca seria visto');
+  }
 });
 
 test('nenhum trecho da espera fica mudo por muito tempo', () => {
-  const quandos = passosDaEspera(null).map((p) => p[0]);
-  for (let i = 1; i < quandos.length; i++) {
-    const silencio = quandos[i] - quandos[i - 1];
-    assert.ok(silencio <= 12000,
-      `${silencio / 1000}s parados entre "${passosDaEspera(null)[i - 1][1]}" e o `
-      + 'passo seguinte: é esse silêncio que vira sensação de travado');
+  for (const [modo, passos] of Object.entries(ROTEIROS)) {
+    for (let i = 1; i < passos.length; i++) {
+      const silencio = passos[i][0] - passos[i - 1][0];
+      assert.ok(silencio <= 12000,
+        `no roteiro "${modo}", ${silencio / 1000}s parados depois de `
+        + `"${frase(passos[i - 1])}": é esse silêncio que vira sensação de travado`);
+    }
   }
 });
 
 test('os passos entram em ordem crescente e o primeiro é imediato', () => {
-  const quandos = passosDaEspera(null).map((p) => p[0]);
-  assert.equal(quandos[0], 0, 'a primeira linha precisa aparecer junto com a pergunta');
-  for (let i = 1; i < quandos.length; i++) {
-    assert.ok(quandos[i] > quandos[i - 1],
-      'dois passos no mesmo instante: um deles nunca é lido');
+  for (const [modo, passos] of Object.entries(ROTEIROS)) {
+    assert.equal(passos[0][0], 0,
+      `no roteiro "${modo}" a primeira linha não aparece junto com a pergunta`);
+    for (let i = 1; i < passos.length; i++) {
+      assert.ok(passos[i][0] > passos[i - 1][0],
+        `no roteiro "${modo}" dois passos caem no mesmo instante`);
+    }
   }
+});
+
+/* ============================================================
+   A TELA SÓ DIZ O QUE O SERVIDOR FAZ
+   ============================================================
+   As ferramentas da MIA são duas — `buscar_intelligence` e
+   `ler_intelligence` — e o relato real do turno diz PROCUROU e LEU. A
+   primeira versão destes passos narrava três atos que não existem:
+   "Abrindo as fichas das sessões", "Vendo o que cada palestrante disse" e
+   "Conferindo em que minuto aparece". Detalhe inventado para a lista ficar
+   comprida, e o Vinícius viu rodando.
+
+   As transcrições até têm marca de tempo (55 de 55, conferido no banco em
+   29/10/2026), mas ela LÊ o documento — não vai conferir minuto nenhum. */
+
+test('nenhum passo narra um ato que o servidor não relata', () => {
+  const proibidas = [/ficha/i, /minuto/i, /palestrante disse/i];
+  for (const [modo, passos] of Object.entries(ROTEIROS)) {
+    for (const p of passos) {
+      for (const proibida of proibidas) {
+        assert.doesNotMatch(frase(p), proibida,
+          `o roteiro "${modo}" voltou a afirmar um ato que o servidor não faz: `
+          + `"${frase(p)}"`);
+      }
+    }
+  }
+});
+
+test('os três atos reais aparecem, e nessa ordem', () => {
+  for (const [modo, passos] of Object.entries(ROTEIROS)) {
+    const frases = passos.map(frase).join(' | ');
+    assert.match(frases, /acervo/i,
+      `o roteiro "${modo}" não diz que ela foi ao acervo, e ela sempre vai`);
+    assert.match(frases, /Escrevendo a resposta/,
+      `o roteiro "${modo}" não chega a escrever`);
+    const procura = passos.findIndex((p) => /acervo/i.test(frase(p)));
+    const escreve = passos.findIndex((p) => /Escrevendo a resposta/.test(frase(p)));
+    assert.ok(procura < escreve,
+      `no roteiro "${modo}" ela escreve antes de procurar`);
+  }
+});
+
+/* ============================================================
+   A SITUAÇÃO DO TURNO
+   ============================================================
+   Três turnos medidos contra o servidor real em 29/10/2026:
+
+       turno              procurou  leu   contexto                  tempo
+       abre o assunto        1×     1×    acervo (4)                 29s
+       aprofunda o mesmo     1×     3×    palestrantes (2), acervo   36s
+       muda de assunto       1×     3×    palestrantes (1)           34s
+
+   A medição derruba a suposição natural: ela NÃO responde do contexto
+   quando a pessoa se aprofunda — volta ao acervo toda vez. Por isso o
+   roteiro de aprofundamento continua indo ao acervo; o que ele não pode é
+   falar como se fosse a primeira pergunta. */
+
+test('a primeira pergunta da conversa abre o assunto', () => {
+  assert.equal(situacaoDoTurno('o que falaram sobre burnout?').modo, 'abre');
+});
+
+test('aprofundar sem nomear assunto não é assunto novo', () => {
+  /* O caso que fazia a tela repetir a abertura: "me aprofunda nisso" não
+     traz tema nenhum, e antes caía no roteiro de primeira pergunta. */
+  lembrarDoTurno({ tema: 'segurança psicológica' }, { sources: [] });
+  for (const seguida of ['me aprofunda nisso', 'e daí?', 'me dá um exemplo concreto']) {
+    const s = situacaoDoTurno(seguida);
+    assert.equal(s.modo, 'aprofunda', `"${seguida}" devia ser aprofundamento`);
+    assert.equal(s.tema, 'segurança psicológica',
+      'o aprofundamento perdeu o assunto que estava em jogo');
+  }
+});
+
+test('repetir o mesmo assunto também é aprofundar', () => {
+  lembrarDoTurno({ tema: 'burnout' }, { sources: [] });
+  assert.equal(situacaoDoTurno('mais sobre burnout, por favor').modo, 'aprofunda');
+});
+
+test('trazer outro assunto muda de assunto', () => {
+  lembrarDoTurno({ tema: 'burnout' }, { sources: [] });
+  const s = situacaoDoTurno('e sobre NR-1, o que disseram?');
+  assert.equal(s.modo, 'muda');
+  assert.equal(s.tema, 'NR-1 e riscos psicossociais');
+});
+
+test('o roteiro de aprofundamento não repete a abertura', () => {
+  const abre = ROTEIROS.abre.map(frase);
+  const aprofunda = ROTEIROS.aprofunda.map(frase);
+  const repetidas = aprofunda.filter((f) => abre.includes(f)
+    && !/Escrevendo a resposta/.test(f));
+  assert.deepEqual(repetidas, [],
+    'o aprofundamento repete frases da abertura: é isso que faz a tela parecer '
+    + 'que ela começou do zero de novo');
+});
+
+test('o aprofundamento diz que está voltando, e cita a conversa', () => {
+  const frases = ROTEIROS.aprofunda.map(frase).join(' | ');
+  assert.match(frases, /Voltando ao acervo/,
+    'a medição mostra que ela volta ao acervo: a tela precisa dizer isso');
+  assert.match(frases, /já te respondi/,
+    'o turno chega com a conversa junto, e é isso que distingue o '
+    + 'aprofundamento de uma pergunta nova');
+});
+
+test('mudar de assunto é anunciado, para não parecer que ela ignorou', () => {
+  assert.match(ROTEIROS.muda.map(frase).join(' | '), /Assunto novo/);
+});
+
+test('palestrante no passo só entra quando o turno anterior trouxe um', () => {
+  /* Não é chute: `sources` do turno anterior é relato do servidor. */
+  lembrarDoTurno({ tema: 'liderança' }, { sources: [{ type: 'speakers', count: 2 }] });
+  const com = passosDaEspera(situacaoDoTurno('e como isso aparece na prática?'))
+    .map(frase).join(' | ');
+  assert.match(com, /sessões e os palestrantes que citei/);
+
+  lembrarDoTurno({ tema: 'liderança' }, { sources: [{ type: 'knowledge', count: 3 }] });
+  const sem = passosDaEspera(situacaoDoTurno('e como isso aparece na prática?'))
+    .map(frase).join(' | ');
+  assert.doesNotMatch(sem, /palestrantes que citei/,
+    'a tela afirmou palestrante sem o servidor ter trazido nenhum');
 });
 
 /* ============================================================
@@ -112,7 +252,7 @@ test('todo tema que a tela pode exibir existe como mapa temático', () => {
 });
 
 test('o segundo passo nomeia o tema quando a pergunta traz um', () => {
-  const passo = passosDaEspera('burnout')[1][1];
+  const passo = passosDaEspera({ modo: 'abre', tema: 'burnout' })[1][1];
   assert.equal(typeof passo, 'object',
     'o tema precisa vir em pedaço próprio, para ser destacado sem virar HTML');
   assert.equal(passo.destaque, 'burnout');
@@ -121,7 +261,7 @@ test('o segundo passo nomeia o tema quando a pergunta traz um', () => {
 });
 
 test('sem tema reconhecido, o passo fica genérico em vez de chutar', () => {
-  const passo = passosDaEspera(null)[1][1];
+  const passo = passosDaEspera({ modo: 'abre', tema: null })[1][1];
   assert.equal(typeof passo, 'string',
     'sem tema não existe destaque: nada a emoldurar');
   assert.equal(passo, 'Procurando no acervo do Summit');
@@ -189,11 +329,11 @@ test('casa por palavra inteira, não por pedaço de palavra', () => {
    deixa de ser expectativa e vira relato — ali é outro conteúdo, não
    mais um passo. */
 
-const corpoDoTurno = bloco.slice(bloco.indexOf('function abrirTurno(tema) {'),
+const corpoDoTurno = bloco.slice(bloco.indexOf('function abrirTurno(situacao) {'),
                                  bloco.indexOf('function maquinaDeEscrever'));
 
 test('durante a espera, cada passo é acrescentado — a lista não é refeita', () => {
-  const espera = corpoDoTurno.slice(corpoDoTurno.indexOf('passosDaEspera(tema).forEach'),
+  const espera = corpoDoTurno.slice(corpoDoTurno.indexOf('passosDaEspera(situacao).forEach'),
                                     corpoDoTurno.indexOf('function pararEspera'));
   assert.match(espera, /acrescentar\(/,
     'o laço da espera voltou a redesenhar a lista inteira a cada passo');
