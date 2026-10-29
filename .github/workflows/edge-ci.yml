@@ -1,0 +1,64 @@
+# Suíte Edge e contratos do vendedor.
+#
+# Por que este workflow nasceu: até 20/10/2026 o único CI do repositório era
+# `admin-ci.yml`, que faz `npm run build` do `admin/`. A suíte Edge (`test:edge`) e
+# todos os contratos do vendedor — guardrail de preço, runtime B2B, falha sem
+# silêncio, resposta não truncada — só rodavam quando alguém lembrava de rodar à mão.
+# Dois efeitos: um contrato de regressão ficou cego por semanas sem ninguém notar, e
+# onze testes ficaram vermelhos no Windows sem aparecer em lugar nenhum.
+#
+# Ele NÃO substitui o `admin-ci.yml` e não mexe nele: aquele cuida do painel, este
+# cuida das Edge Functions. Os dois rodam em paralelo.
+#
+# NADA AQUI TOCA SERVIÇO EXTERNO. Os testes são offline por construção: leem o fonte
+# versionado, rodam o handler em `node:vm` com dublês, e não têm segredo disponível.
+# A bateria de homologação com modelo real (`homologacao:conversas`) fica de fora de
+# propósito — ela chama a OpenAI, custa dinheiro e é leitura humana, não gate de CI.
+# O que entra dela é o ENSAIO, que monta tudo sem chamar ninguém e falha se a fixture
+# ou o schema do runtime quebrarem.
+
+name: Edge CI
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'tests/**'
+      - 'package.json'
+      - '.github/workflows/edge-ci.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  testes-edge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      # Finais de linha: vários contratos leem o próprio fonte e afirmam sobre ele
+      # com regex que usa `\n`. O `.gitattributes` garante LF no checkout; esta
+      # verificação existe para que, se alguém remover aquilo, a causa apareça aqui
+      # em vez de virar uma falha de sintaxe inexplicável.
+      - name: Nenhum CR no fonte versionado
+        run: |
+          if git grep -I --quiet $'\r' -- '*.ts' '*.mjs' '*.js' '*.sql'; then
+            echo "Há CR em arquivos de fonte. Confira .gitattributes:"
+            git grep -I --files-with-matches $'\r' -- '*.ts' '*.mjs' '*.js' '*.sql'
+            exit 1
+          fi
+
+      - name: Suíte Edge
+        run: npm run test:edge
+
+      - name: Contratos do vendedor
+        run: npm run test:contratos
+
+      # Monta a bateria de homologação sem chamar a OpenAI: prova que a fixture do
+      # Kit carrega, que o schema continua extraível do runtime e que o payload de
+      # cada cenário se monta.
+      - name: Ensaio da bateria de homologação
+        run: npm run homologacao:ensaio

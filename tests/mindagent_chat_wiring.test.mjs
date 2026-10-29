@@ -59,6 +59,52 @@ test('Router escolhe dentro do canal e o Gate valida a rota escolhida', () => {
   assert.match(src, /p_canal: CANAL/);
 });
 
+test('a porta de produto fechado é lida ANTES da rota ativa', () => {
+  // A ordem dos ramos é a decisão: na porta que é o próprio produto, quem manda é
+  // a porta. Invertida, um handoff grava `rota_ativa` e, como nada limpa esse
+  // campo, a pessoa nunca mais volta — foi assim que a MIA perdia o aluno.
+  assert.match(src, /PORTAS_QUE_RETEM_A_CONVERSA/);
+  assert.ok(
+    pos('if (portaRetemAConversa)') < pos('} else if (rotaAtiva) {'),
+    'a retenção pela porta precisa ser avaliada antes de rota_ativa',
+  );
+  assert.ok(
+    pos('const portaSeguraAConversa') < pos('rotaAtivaPersistir = nextRoute'),
+    'a retenção pela porta precisa ser decidida antes de persistir a troca',
+  );
+});
+
+test('a resposta pronta não é cortada por caractere', () => {
+  // Medido em 28/10 na MIA: um plano de 30 dias chegou com EXATAMENTE 2000
+  // caracteres, partido em "mais percepção de utili". `maxLength` é decodificação
+  // restrita — a aspas fecha na parede, no meio da palavra. Mesmo defeito que o
+  // Treble teve com 700 (tests/vendedor_resposta_nao_truncada.mjs).
+  //
+  // O teto é sanidade; quem segura o tamanho é a conduta. Por isso o contrato aqui
+  // são as DUAS coisas juntas: folga no teto e a regra de terminar a frase.
+  const campo = src.slice(pos('    answer: {'), pos('    interests: {'));
+  const teto = Number(campo.match(/maxLength:\s*(\d+)/)?.[1]);
+  assert.ok(teto >= 3000, `o teto da resposta não pode voltar a apertar: ${teto}`);
+  for (const regra of ['TERMINE a resposta', 'nunca pare no meio', 'corte o ESCOPO']) {
+    assert.ok(campo.includes(regra), `a conduta de não truncar precisa estar na description: ${regra}`);
+  }
+
+  // O orçamento de tokens não pode virar a parede seguinte: texto incompleto por
+  // `max_output_tokens` volta VAZIO, que é pior que volta partido.
+  const tokens = Number(src.match(/max_output_tokens:\s*toolsParaModelo\.length > 0 \? (\d+)/)?.[1]);
+  assert.ok(tokens >= teto / 3 + 1500, `max_output_tokens (${tokens}) precisa caber ${teto} caracteres mais o raciocínio`);
+
+  // O TERCEIRO TETO, que é o que de fato cortava: a leitura de `structured.answer`.
+  // Em 28/10 a resposta veio com 2000 cravados DEPOIS de o schema já estar em 3500,
+  // porque o runtime cortava de novo aqui. Esta asserção faltou na primeira correção
+  // e por isso o defeito sobreviveu a um deploy — o teste do Treble já dizia que eram
+  // três tetos empilhados (tests/vendedor_resposta_nao_truncada.mjs).
+  const linhaAnswer = src.split("\n").find((l) => /\b(?:const|let)\s+answer\s*=/.test(l) && /structured\.answer/.test(l));
+  assert.ok(linhaAnswer, "não achei a linha que lê structured.answer");
+  assert.doesNotMatch(linhaAnswer, /\.slice\s*\(/, `a leitura da resposta não pode cortar: ${linhaAnswer.trim()}`);
+  assert.doesNotMatch(linhaAnswer, /\.substring\s*\(|\.substr\s*\(/, `a leitura da resposta não pode cortar: ${linhaAnswer.trim()}`);
+});
+
 test('o Kit falha fechado antes de chamar o modelo', () => {
   const kitOk = pos('const kitOk');
   const openai = pos('https://api.openai.com/v1/responses');
@@ -104,6 +150,45 @@ test('o runtime limita a lupa por orçamento e número de rodadas', () => {
   assert.match(src, /podeTentarModelo\(tentativaModelo, MAX_TENTATIVAS_MODELO\)/);
   assert.match(src, /forcarBuscaNaProximaVolta/,
     'uma abstinência inicial precisa poder forçar a lupa antes da resposta final');
+});
+
+test('o fecho do turno tem tempo reservado, e a lupa não o consome', () => {
+  // O orçamento era de quem chegasse primeiro: cada chamada recebia TODO o tempo
+  // restante, a rodada de ferramenta levava o relógio e a resposta final era abortada
+  // no meio — 504, nada na tela. Medido em 29/10: openai_ms 42.019 em três chamadas,
+  // tool_ms 2.083, duration_ms 45.002.
+  assert.match(src, /RESERVA_FECHO_MS/, 'a reserva do fecho precisa existir');
+  assert.match(src, /const fechandoPorTempo = fecharAgora \|\| restante <= RESERVA_FECHO_MS/);
+
+  // O prazo da chamada devolve a reserva enquanto ainda houver ferramenta na mesa.
+  assert.match(src, /const prazoDestaChamada = fechandoPorTempo \? restante : restante - RESERVA_FECHO_MS/);
+  assert.match(src, /setTimeout\(\(\) => controller\.abort\(\), prazoDestaChamada\)/,
+    'o abort precisa usar o prazo repartido, não o restante inteiro');
+
+  // RESERVA É GATILHO, NÃO PAREDE. Este é o contrato que faltava em 29/10 e por isso
+  // a reserva derrubou turnos que antes passavam: o abort de uma rodada tem de virar
+  // fecho, e só o fim do orçamento inteiro encerra o turno.
+  assert.match(src, /let fecharAgora = false/, 'precisa existir o estado que leva ao fecho');
+  const trechoCatch = src.slice(pos('} catch (erroDaChamada) {'), pos('      } finally {'));
+  assert.match(trechoCatch, /fecharAgora = true/, 'abort de rodada precisa ligar o fecho');
+  assert.match(trechoCatch, /continue;/, 'depois do abort, a volta seguinte é o fecho');
+  assert.match(trechoCatch, /throw erroDaChamada/, 'o que não for abort recuperável ainda sobe');
+  assert.match(trechoCatch, /!fechandoPorTempo/, 'abort DO fecho não pode virar outro fecho');
+
+  // No fecho, o modelo só escreve: sem ferramenta no payload e sem raciocínio.
+  assert.match(src, /toolsParaModelo\.length > 0 && !fechandoPorTempo/,
+    'a ferramenta não pode viajar na chamada de fecho');
+  assert.match(src, /effort: fechandoPorTempo\s*\?\s*"none"/,
+    'o fecho não paga raciocínio — já leu o que tinha de ler');
+
+  // E vai no modelo rápido: medido em 29/10, o fecho no modelo completo não coube nem
+  // com 20s inteiros de reserva. Escrever a partir do que já está no contexto é
+  // trabalho do modelo rápido; raciocinar continua sendo do modelo da rota.
+  assert.match(src, /const modeloDestaChamada = fechandoPorTempo && modelFast && modelFast !== model/);
+  assert.match(src, /model: modeloDestaChamada,/,
+    'o corpo da requisição precisa usar o modelo da chamada, não o do turno');
+  assert.match(src, /fecho_rapido_indisponivel/,
+    'recusa do modelo rápido no fecho precisa refazer o fecho, não perder o turno');
 });
 
 test('o playbook manda buscar antes de abster e proíbe expor o encanamento', () => {

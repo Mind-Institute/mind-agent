@@ -38,8 +38,27 @@ const check = (nome, cond, detalhe = "") => {
 // Sem regex frouxa: cada teto é procurado onde ele de fato morava.
 
 // 1.1 — a leitura de `turn.answer` não pode terminar em corte.
-const linhaAnswer = src.split("\n").find((l) => /const answer\s*=/.test(l));
-check("existe a linha que lê turn.answer", Boolean(linhaAnswer));
+//
+// A âncora é `turn.answer`, não a palavra `const`. Até 20/10/2026 esta linha
+// procurava `/const answer\s*=/`, e o runtime passou a declarar `let answer` para
+// poder reatribuir a resposta depois do guardrail. A busca deixou de achar a linha
+// e as TRÊS asserções caíram juntas — inclusive as duas que existem para impedir o
+// retorno do corte em 700 caracteres (o defeito da v1.5.1, que entregou uma
+// mensagem partida no meio de "Mind").
+//
+// O efeito é pior que uma falha: o teste ficou vermelho por um motivo que não é o
+// dele, e parou de vigiar o que lhe cabe. Uma trava que falha sempre não trava nada
+// — ninguém distingue "quebrou de novo" de "já estava vermelho".
+//
+// Agora a âncora é o que de fato importa: a linha que LÊ `turn.answer`. Declará-la
+// com `let` ou `const` é escolha do runtime e não deve derrubar contrato nenhum.
+const linhaAnswer = src.split("\n").find((l) => /\b(?:const|let|var)\s+answer\s*=/.test(l));
+check("existe a linha que lê turn.answer", Boolean(linhaAnswer), linhaAnswer?.trim());
+check(
+  "a linha encontrada é mesmo a que lê turn.answer",
+  Boolean(linhaAnswer) && /turn\.answer/.test(linhaAnswer),
+  linhaAnswer?.trim(),
+);
 check(
   "turn.answer é lido sem .slice()",
   Boolean(linhaAnswer) && !/\.slice\s*\(/.test(linhaAnswer),

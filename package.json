@@ -20,6 +20,10 @@
     "test:admin": "npm run test --prefix admin",
     "test:guardrail": "node tests/vendedor_guardrail_preco.mjs",
     "test:vendedor": "node tests/vendedor_summit_smoke.mjs",
+    "test:contratos": "node tests/vendedor_guardrail_preco.mjs && node tests/vendedor_b2b_runtime_contract.mjs && node tests/vendedor_falha_sem_silencio.mjs && node tests/vendedor_resposta_nao_truncada.mjs && node tests/vendedor_institute_dash_e2e.mjs",
+    "test:tudo": "npm run test:edge && npm run test:contratos",
+    "homologacao:ensaio": "node tests/homologacao_conversas.mjs --ensaio",
+    "homologacao:conversas": "node tests/homologacao_conversas.mjs",
     "deploy": "wrangler deploy",
     "relatorio:avaliacao": "node scripts/relatorio-avaliacao.mjs"
   },

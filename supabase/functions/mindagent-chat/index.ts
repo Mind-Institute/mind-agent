@@ -7,12 +7,14 @@ import {
   inserirCheckoutNaResposta,
 } from "../_shared/checkout-attribution.ts";
 import {
+  buscaObrigatoria,
   executarChamadas,
   esforcoDeRaciocinio,
   extrairChamadas,
   MAX_RODADAS_TOOL,
   ORCAMENTO_TURNO_MS,
   ORCAMENTO_TURNO_COMPLEXO_MS,
+  RESERVA_FECHO_MS,
   produtoDoContexto,
   respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
@@ -33,6 +35,11 @@ type ChatRequest = {
   client_message_id?: string;
   session?: { id?: string; conversation_id?: string; token?: string };
   identity?: { email?: string; name?: string; source?: string; learnworlds_user_id?: string };
+  // HISTÓRICO DE CONVERSAS. Mesmo endpoint, mesma sessão, mesma identidade; sem
+  // pergunta e sem modelo, como o modo ação. "listar" devolve as conversas da
+  // PESSOA; um uuid abre aquela conversa, traz as mensagens e a adota para este
+  // aparelho — é a adoção que deixa o caminho do turno intocado.
+  historico?: string;
   // Porta de entrada da conversa. NÃO é identidade: diz de onde a pessoa veio, não
   // quem ela é. Persistido em `engagement.conversas.origem_codigo`, a mesma casa que
   // o WhatsApp já usa (`summit_info_evento`, `summit_garantir_ingresso`, …).
@@ -62,7 +69,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.18.0";
+const VERSION = "1.25.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -76,6 +83,26 @@ const MAX_TENTATIVAS_MODELO = MAX_RODADAS_TOOL + 3;
 // onde está. É ele que o Router usa para recortar, em `agentes.canal_competencia`,
 // quais competências podem ser escolhidas neste turno.
 const CANAL = "mindagent-web";
+
+// PORTA DE PRODUTO FECHADO (27/10/2026). Nem toda porta é igual.
+//
+// A porta do App é uma RECEPÇÃO: o concierge existe para despachar, e uma compra
+// iniciada tem de continuar na lane de venda — por isso lá o handoff persiste em
+// `rota_ativa` e vence a porta, como sempre venceu.
+//
+// O embed do LearnWorlds é o contrário: é o produto da MIA, dentro da página do
+// curso, e não existe outro balcão para onde mandar o aluno. Medido em produção:
+// das 4 conversas dessa porta que receberam handoff, 4 saíram da MIA e NENHUMA
+// voltou — nada limpa `rota_ativa`. Uma pergunta de preço mandava o aluno para
+// `cliente_suporte`, que não tem ferramenta nem acesso ao acervo do Summit, e ele
+// seguia perguntando de sessão e ouvindo "não encontro isso aqui", sem saber por
+// quê. Declinar um assunto é estado do TURNO; dono da CONVERSA é a porta.
+//
+// A casa definitiva desta política é uma coluna em `agentes.canal_competencia` —
+// é lá que a política das portas já mora. Enquanto a estrutura do banco está
+// congelada, o conjunto fica aqui: nomeado, com o porquê, e lido num lugar só.
+const PORTAS_QUE_RETEM_A_CONVERSA = new Set(["institute_learnworlds"]);
+
 
 const JOURNEY_FIELDS = new Set([
   "objetivos", "temas", "disponibilidade", "ritmo",
@@ -241,7 +268,7 @@ function validEmail(value: unknown): value is string {
 }
 
 function normalizeInterestKey(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
 }
 
@@ -321,7 +348,7 @@ function buildPersonalizationProfile(
   const interesses: string[] = [];
   for (const r of rotulos) {
     if (!r) continue;
-    const chave = r.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const chave = r.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
     if (!chave || vistos.has(chave)) continue;
     vistos.add(chave);
     interesses.push(r);
@@ -466,14 +493,37 @@ function sourceSummary(structured: Record<string, unknown>) {
 // É FUNÇÃO, e não constante, por causa do `next_route`: o universo de competências vem de
 // `mind_canal_rotas(canal)`, no banco. Uma lista literal aqui seria a segunda autoridade
 // sobre a política do canal — exatamente o que a política existe para evitar.
-function montarResponseSchema(rotasDoCanal: string[]) {
+// `portaRetem` fecha a troca de competência na origem: numa porta de produto fechado
+// o enum fica só com `null`, e pedir passagem deixa de ser uma saída que existe. Antes
+// isso era só pedido no playbook — e pedir não garante. O agente dessas portas resolve
+// dentro do próprio escopo ou diz quem cuida e onde procurar; não entrega a pessoa.
+// `pedirTitulo` só é verdadeiro no PRIMEIRO turno da conversa, e o campo nem
+// existe no contrato depois disso. Nomear a conversa é trabalho de uma vez: o
+// modelo já está lendo a pergunta para responder, então o título sai de carona,
+// sem uma segunda chamada e sem um segundo de latência. Pedir sempre custaria
+// tokens em todo turno para reescrever um nome que não deve mudar.
+function montarResponseSchema(rotasDoCanal: string[], portaRetem = false, pedirTitulo = false) {
+  const rotasQuePodeTrocar = portaRetem ? [] : rotasDoCanal;
   return {
     type: "object",
     additionalProperties: false,
     properties: {
     answer: {
-      type: "string", minLength: 1, maxLength: 2000,
-      description: "A resposta para a pessoa, escrita conforme o playbook desta competência.",
+      type: "string", minLength: 1, maxLength: 3500,
+      // O TETO É SANIDADE, NÃO TESOURA. `maxLength` em structured outputs é decodificação
+      // restrita: o modelo escreve até a parede e a aspas fecha onde der. Medido em 28/10
+      // na MIA — um plano de 30 dias chegou com EXATAMENTE 2000 caracteres, partido em
+      // "mais percepção de utili". O mesmo defeito já tinha acontecido no Treble com 700
+      // (ver tests/vendedor_resposta_nao_truncada.mjs), e a lição foi a mesma: subir o teto
+      // não resolve sozinho, porque a parede continua existindo um pouco mais longe. Quem
+      // segura o tamanho é a conduta, aqui e no playbook; o teto só impede o absurdo. A
+      // folga é de propósito: resposta completa e um pouco mais longa é melhor que resposta
+      // curta partida no meio de uma palavra.
+      description: "A resposta para a pessoa, escrita conforme o playbook desta competência. " +
+        "Escreva sempre frases inteiras e TERMINE a resposta: nunca pare no meio de uma " +
+        "palavra, de uma frase ou de um item de lista. Antes de escrever, veja se o que " +
+        "você quer dizer cabe; se não couber, corte o ESCOPO — entregue menos itens, ou a " +
+        "primeira parte inteira dizendo o que vem na próxima —, nunca a frase.",
     },
     interests: {
       type: "array",
@@ -547,21 +597,42 @@ function montarResponseSchema(rotasDoCanal: string[]) {
     // poder executar agora.
     next_route: {
       type: ["string", "null"],
-      enum: [...rotasDoCanal, null],
-      description:
-        "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
-        "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
-        "passou a ser de outra competência; nunca por simples falta de informação. " +
-        "No app do Summit, permaneça no concierge para programação, acesso e experiência. " +
-        "Peça summit_b2c quando houver intenção explícita de compra ou upgrade; faça uma " +
-        "pergunta curta que permita ao próximo turno continuar sem a pessoa repetir tudo. " +
-        "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
+      enum: [...rotasQuePodeTrocar, null],
+      description: portaRetem
+        ? "Sempre null nesta porta: a conversa é sua e não passa para outra competência. " +
+          "Assunto que não é seu se resolve dizendo quem cuida dele e onde a pessoa " +
+          "encontra, com o que estiver nos dados oficiais — nunca entregando a conversa."
+        : "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
+          "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
+          "passou a ser de outra competência; nunca por simples falta de informação. " +
+          "No app do Summit, permaneça no concierge para programação, acesso e experiência. " +
+          "Peça summit_b2c quando houver intenção explícita de compra ou upgrade; faça uma " +
+          "pergunta curta que permita ao próximo turno continuar sem a pessoa repetir tudo. " +
+          "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
     },
+    // TÍTULO DA CONVERSA, só no primeiro turno. `strict: true` exige que todo
+    // campo declarado esteja em `required`, então o campo entra e sai do
+    // contrato junto com a necessidade — não fica como opcional que o modelo
+    // preenche quando quer.
+    ...(pedirTitulo
+      ? {
+        titulo: {
+          type: ["string", "null"],
+          maxLength: 60,
+          description: "Um nome curto para esta conversa, como um título de aba: " +
+            "3 a 6 palavras sobre o ASSUNTO que a pessoa trouxe, em português, sem aspas, " +
+            "sem ponto final e sem começar com 'Conversa sobre'. Exemplos de forma: " +
+            "'Burnout e desenho do trabalho', 'Plano de 30 dias para engajamento'. " +
+            "Use null se a mensagem for só um cumprimento e ainda não houver assunto.",
+        },
+      }
+      : {}),
   },
   required: [
     "answer", "interests", "checkout_sent", "checkout_url", "next_route",
     "nome_informado", "email_informado", "whatsapp_informado",
     "empresa_informada", "cargo_informado",
+    ...(pedirTitulo ? ["titulo"] : []),
   ],
   };
 }
@@ -618,22 +689,37 @@ Deno.serve(async (req: Request) => {
     ? [sinalJornada]
     : null;
   const modoJornada = payload.journey_signal != null || payload.journey_signals != null;
-  // Quem diz o e-mail: a Yazo, no link do app do Summit, e o LearnWorlds, no bloco da MIA
-  // colado na escola (variáveis da pessoa logada). Nenhum dos dois é assinado; confiar no
-  // LearnWorlds foi decisão da Adriana (22/10/2026). A ligação passa pela porta única.
-  const identitySource = payload.identity?.source === "yazo_url" || payload.identity?.source === "learnworlds"
+  // DE ONDE A IDENTIDADE PODE VIR. Eram só as duas portas do app (`yazo_url`);
+  // `learnworlds` entrou em 29/10/2026 e é o que liga a conversa à CONTA do
+  // aluno em vez de ao navegador. Sem isto, `mind_identidade_resolver` só tinha
+  // o usuário anônimo do Supabase para trabalhar — pessoa nova a cada navegador,
+  // e nenhum histórico atravessando aparelho. O bloco do LearnWorlds já mandava
+  // `source: 'learnworlds'` desde que nasceu; quem não escutava era esta linha.
+  //
+  // O QUE ISTO É E O QUE NÃO É. O e-mail e o id chegam como texto escrito na
+  // página pelo LearnWorlds: identificam, não autenticam. Quem souber o par de
+  // outra pessoa recebe a sessão dela. Decisão do Vinícius em 29/10 para o
+  // piloto no curso; sair do piloto pede OTP ou SSO nesta mesma porta.
+  const FONTES_DE_IDENTIDADE = new Set(["yazo_url", "learnworlds"]);
+  const identitySource = typeof payload.identity?.source === "string"
+      && FONTES_DE_IDENTIDADE.has(payload.identity.source)
     ? payload.identity.source
     : null;
   const identityEmailReceived = identitySource !== null && validEmail(payload.identity?.email);
   const identityNameReceived = identitySource !== null &&
     typeof payload.identity?.name === "string" && payload.identity.name.trim().length > 0;
-  // O ID de quem está logado no LearnWorlds ({{USER.ID}}), só quando a fonte é ele.
-  // Vai junto do e-mail para a porta única, que o grava em `engagement.identidades`.
-  const learnworldsUserId = identitySource === "learnworlds" &&
-      typeof payload.identity?.learnworlds_user_id === "string" &&
-      /^[A-Za-z0-9_-]{6,64}$/.test(payload.identity.learnworlds_user_id.trim())
+  // O id do aluno é a evidência mais estável que o LearnWorlds entrega: o e-mail
+  // a pessoa troca, o id não. Formato conferido aqui porque `mind_identidade_resolver`
+  // trata identificador como chave, não como texto livre.
+  const learnworldsUserId = identitySource === "learnworlds"
+      && typeof payload.identity?.learnworlds_user_id === "string"
+      && /^[A-Za-z0-9_-]{6,64}$/.test(payload.identity.learnworlds_user_id.trim())
     ? payload.identity.learnworlds_user_id.trim()
     : null;
+  // MODO HISTÓRICO. "listar" ou o uuid de uma conversa; qualquer outra coisa é null
+  // e o turno segue normal.
+  const historicoPedido = typeof payload.historico === "string" ? payload.historico.trim() : "";
+  const modoHistorico = historicoPedido === "listar" || validUuid(historicoPedido);
   // Só na ABERTURA da conversa isto tem efeito: o banco grava com `where origem_codigo
   // is null`. Um turno posterior não reescreve a porta de entrada, e é isso que a torna
   // autoritativa em vez de um parâmetro que o cliente redefine quando quiser.
@@ -645,7 +731,7 @@ Deno.serve(async (req: Request) => {
     && ORIGEM_CODIGO_RE.test(payload.playground.rota.trim())
     ? payload.playground.rota.trim()
     : null;
-  if (!validSlug(eventSlug) || (!modoAcao && !modoJornada && (message.length < 1 || message.length > 1200))) {
+  if (!validSlug(eventSlug) || (!modoAcao && !modoJornada && !modoHistorico && (message.length < 1 || message.length > 1200))) {
     return json(req, 422, {
       ok: false,
       error: { code: "invalid_request", message: "Informe uma mensagem de até 1.200 caracteres e um evento válido." },
@@ -675,7 +761,7 @@ Deno.serve(async (req: Request) => {
   const publishableKey = readKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY");
   const secretKey = readKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  const modelComplex = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
+  const modelComplexPadrao = Deno.env.get("OPENAI_MODEL") ?? DEFAULT_MODEL_COMPLEX;
   const modelFast = Deno.env.get("OPENAI_FAST_MODEL") ?? DEFAULT_MODEL_FAST;
   const rolloutConfigurado = Number(
     Deno.env.get("OPENAI_FAST_ROLLOUT_PERCENT") ?? DEFAULT_FAST_ROLLOUT_PERCENT,
@@ -734,6 +820,17 @@ Deno.serve(async (req: Request) => {
         p_user_agent: req.headers.get("User-Agent") ?? "",
         p_token_hash: tokenHash,
         p_origem_codigo: origemInformada,
+        // A IDENTIDADE VAI NA ABERTURA, não só no `bind` depois. Medido em
+        // 29/10: o usuário do Supabase num bloco colado é anônimo, um por
+        // navegador, então sem isto `mind_identidade_resolver` não tinha por
+        // onde reconhecer ninguém e criava uma pessoa nova. A conversa nascia
+        // ancorada nela, e a âncora vence o `bind` — como deve vencer, porque
+        // trocar o dono de uma conversa com mensagem dentro é fusão, e fusão é
+        // decisão da Adriana (D5). Aqui ainda não há conversa, logo não há
+        // âncora: a pessoa certa é encontrada antes de a errada nascer.
+        p_email: identityEmailReceived ? String(payload.identity?.email ?? "").trim().toLowerCase() : null,
+        p_nome: identityNameReceived ? String(payload.identity?.name ?? "").trim().slice(0, 160) : null,
+        p_learnworlds_user_id: learnworldsUserId,
       });
     if (error || !data) throw new Error(rotaDeTeste ? "playground_start_failed" : "session_start_failed");
     return {
@@ -768,8 +865,9 @@ Deno.serve(async (req: Request) => {
         p_token_hash: tokenHash,
         p_email: email.trim().toLowerCase(),
         p_nome: name?.trim().slice(0, 160) || null,
-        // Só com o ID: sem ele, a assinatura de 6 parâmetros continua sendo a chamada.
-        ...(learnworldsUserId ? { p_learnworlds_user_id: learnworldsUserId } : {}),
+        // Nulo quando a porta não é o LearnWorlds; a versão de 7 argumentos
+        // existe no banco desde 22/10 e só ignora o que vier vazio.
+        p_learnworlds_user_id: learnworldsUserId,
       });
       if (error) {
         console.warn(JSON.stringify({ request_id: requestId, event: "identity_bind_failed" }));
@@ -793,6 +891,64 @@ Deno.serve(async (req: Request) => {
         );
       }
       profileLoaded = binding?.found === true;
+    }
+
+    // ------------------------------------------------------- MODO HISTÓRICO
+    // Sai aqui, depois da sessão e da identidade e ANTES do Gate, do Kit e do
+    // modelo: listar conversas e redesenhar a tela não é um turno, e cobrar o
+    // preço de um turno por isso seria pagar segundos de modelo para ler banco.
+    //
+    // Devolve a sessão junto porque ela pode ter nascido agora — o bloco guarda
+    // o que vier, igual ao turno normal, e não precisa saber qual caminho correu.
+    if (modoHistorico) {
+      if (historicoPedido === "listar") {
+        const { data, error } = await admin.rpc("mindagent_chat_conversas", {
+          p_auth_user_id: authUserId,
+          p_session_id: sessionId,
+          p_token_hash: tokenHash,
+          p_limite: 30,
+        });
+        if (error) throw new Error("historico_listar_failed");
+        return json(req, 200, {
+          ok: true,
+          conversas: (data as Record<string, unknown>)?.conversas ?? [],
+          session: { id: sessionId, conversation_id: conversationId, token: sessionToken, expires_at: expiresAt },
+          device_id: deviceId,
+          request_id: requestId,
+        }, requestId);
+      }
+
+      const { data, error } = await admin.rpc("mindagent_chat_abrir", {
+        p_auth_user_id: authUserId,
+        p_session_id: sessionId,
+        p_token_hash: tokenHash,
+        p_conversa_id: historicoPedido,
+        p_limite: 200,
+      });
+      // Conversa que não é desta pessoa cai aqui, com a mesma cara de conversa
+      // inexistente: a diferença entre as duas já diria algo sobre a alheia.
+      if (error) {
+        return json(req, 404, {
+          ok: false,
+          error: { code: "conversa_nao_encontrada", message: "Não encontrei essa conversa." },
+        }, requestId);
+      }
+      const aberta = data as Record<string, unknown>;
+      return json(req, 200, {
+        ok: true,
+        conversation_id: aberta?.conversation_id ?? historicoPedido,
+        titulo: aberta?.titulo ?? null,
+        mensagens: aberta?.mensagens ?? [],
+        // A conversa aberta passa a ser a da sessão: o próximo turno já vai para ela.
+        session: {
+          id: sessionId,
+          conversation_id: String(aberta?.conversation_id ?? historicoPedido),
+          token: sessionToken,
+          expires_at: expiresAt,
+        },
+        device_id: deviceId,
+        request_id: requestId,
+      }, requestId);
     }
 
     const { data: sessionContext, error: contextError } = await admin.rpc("mindagent_chat_get_context", {
@@ -1146,9 +1302,8 @@ Deno.serve(async (req: Request) => {
       ? (canalRotas.rotas as unknown[]).filter((r): r is string => typeof r === "string")
       : [];
 
-    // COMPETÊNCIA ATIVA DA CONVERSA. Persistida por um handoff anterior; vence a origem
-    // porque a origem é a PORTA DE ENTRADA, não uma prisão. Se ela deixou de ser permitida
-    // no canal, é ignorada — nunca se cai para uma rota proibida.
+    // COMPETÊNCIA ATIVA DA CONVERSA. Persistida por um handoff anterior. Se ela deixou de
+    // ser permitida no canal, é ignorada — nunca se cai para uma rota proibida.
     const rotaAtivaBruta = typeof sessionContext.rota_ativa === "string"
       ? sessionContext.rota_ativa.trim()
       : "";
@@ -1167,13 +1322,22 @@ Deno.serve(async (req: Request) => {
     let routerToken = "";
     const antesDoRouter = Date.now();
 
-    if (rotaAtiva) {
+    // A PORTA DE PRODUTO FECHADO NÃO PERDE A CONVERSA (ver `PORTAS_QUE_RETEM_A_CONVERSA`).
+    // Fora dessas portas, a precedência continua a de sempre: a origem é entrada, não
+    // prisão, e uma compra iniciada pelo concierge segue na lane de venda.
+    const portaRetemAConversa = rotaAutoritativa !== null &&
+      PORTAS_QUE_RETEM_A_CONVERSA.has(origemDaConversa);
+
+    if (portaRetemAConversa) {
+      // PRECEDÊNCIA AQUI: porta > rota ativa > Router. O Gate continua obrigatório
+      // logo abaixo: a origem diz QUAL competência foi acionada, nunca se ela executa.
+      rotaDecidida = rotaAutoritativa as string;
+      rotaOrigem = "origem_autoritativa";
+    } else if (rotaAtiva) {
       // PRECEDÊNCIA: rota ativa > origem autoritativa > Router.
       rotaDecidida = rotaAtiva;
       rotaOrigem = "rota_ativa";
     } else if (rotaAutoritativa) {
-      // O Gate continua obrigatório logo abaixo: a origem diz QUAL competência foi
-      // acionada, nunca se ela executa.
       rotaDecidida = rotaAutoritativa;
       rotaOrigem = "origem_autoritativa";
     } else {
@@ -1245,6 +1409,14 @@ Deno.serve(async (req: Request) => {
     // Em teste a rota pode não estar no canal; o contrato de saída precisa conhecê-la.
     if (modoTeste && !rotasDoCanal.includes(rotaDecidida)) rotasDoCanal.push(rotaDecidida);
 
+    // MODELO POR AGENTE (painel Agent Intelligence, 22/10/2026). O gate devolve o modelo que a
+    // rota pede; sem nada, vale o padrão do runtime. Se a OpenAI recusar o nome (400/404), o
+    // turno volta ao padrão e registra `modelo_da_rota_indisponivel` na telemetria.
+    const modeloDaRota = typeof gate?.modelo === "string" && /^[a-z0-9][a-z0-9._-]{1,63}$/.test(gate.modelo)
+      ? gate.modelo as string
+      : null;
+    const modelComplex = modeloDaRota ?? modelComplexPadrao;
+
     // -------------------------------------------------------------- KIT
     // NECESSIDADE ATUAL e MEMÓRIA entram por campos separados: `pergunta` é a
     // única coisa que seleciona, `interesses` só reordena o que já foi
@@ -1304,7 +1476,7 @@ Deno.serve(async (req: Request) => {
     // ------------------------------------------------------------ TOOLS
     // QUAIS ferramentas existem neste turno é decisão do Kit. COMO executam é Core
     // compartilhado com o WhatsApp, incluindo escopo de rota/produto/canal.
-    const { tools: toolsParaModelo, semExecutor } = toolsDeIntelligence(kit.tools);
+    const { tools: toolsParaModelo, semExecutor, obrigatorias: skillsObrigatorias } = toolsDeIntelligence(kit.tools);
     if (semExecutor > 0) {
       console.warn(JSON.stringify({
         request_id: requestId, event: "tool_sem_executor",
@@ -1312,6 +1484,10 @@ Deno.serve(async (req: Request) => {
       }));
     }
     const nomesDasFerramentas = toolsParaModelo.map((t) => t.name);
+    // Skill obrigatória no Kit: a primeira rodada já entra forçando a busca (ver `buscaObrigatoria`).
+    // Declarada AQUI, antes da telemetria do turno que a registra — na 1.18.0 ela nascia depois
+    // da leitura, e todo turno com ferramenta morria em `internal_error` (TDZ). Medido na suíte.
+    const buscaForcadaPeloKit = buscaObrigatoria(skillsObrigatorias, message, 0) !== null;
 
     const rotaDeVenda = ["summit_b2b", "summit_b2c"].includes(rotaDecidida ?? "");
     const { data: personFacts } = rotaDeVenda && pessoaId
@@ -1371,7 +1547,9 @@ Deno.serve(async (req: Request) => {
       ...historico,
       { role: "user", content: `Responda usando este JSON:\n${JSON.stringify(aiContext)}` },
     ];
-    const responseSchema = montarResponseSchema(rotasDoCanal);
+    // Conversa sem histórico é conversa que ainda não tem nome: é o único turno
+    // em que vale pedir o título.
+    const responseSchema = montarResponseSchema(rotasDoCanal, portaRetemAConversa, historico.length === 0);
     // As instruções do turno são as da COMPETÊNCIA, e só. O Kit já entrega o playbook
     // da rota com a camada transversal `base` na frente.
     const instrucoes = kit.playbook as string;
@@ -1408,6 +1586,8 @@ Deno.serve(async (req: Request) => {
     let tentativasModelo = 0;
     Object.assign(telemetry, {
       model_inicial: modelInicial,
+      modelo_da_rota: modeloDaRota,
+      busca_forcada_pelo_kit: buscaForcadaPeloKit,
       model_reason: modelDecision.reason,
       model_rollout_bucket: rolloutBucket,
       model_rollout_percent: modelFastRolloutPercent,
@@ -1423,37 +1603,74 @@ Deno.serve(async (req: Request) => {
     let outputText = "";
     let rodadasTool = 0;
     let recuperacaoForcada = false;
-    let forcarBuscaNaProximaVolta = false;
+    let forcarBuscaNaProximaVolta = buscaForcadaPeloKit;
     const chamadasFeitas: Array<{ nome: string; ok: boolean; pediu?: string; achou?: string[] }> = [];
+
+    // Ligado quando uma rodada estoura o próprio prazo: a volta seguinte é o fecho.
+    let fecharAgora = false;
 
     for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
       tentativasModelo++;
       const restante = fimDoOrcamento - Date.now();
       if (restante <= 0) throw new DOMException("orcamento_do_turno", "AbortError");
 
+      // SEM TEMPO PARA MAIS BUSCA, FECHA. Abaixo da reserva — ou depois de uma rodada
+      // que estourou o próprio prazo —, esta chamada é o fecho: ferramenta fora e
+      // raciocínio desligado, porque o modelo já leu o que tinha de ler e só falta
+      // escrever. A reserva é GATILHO, não parede: ela decide quando parar de abrir
+      // busca, nunca derruba o turno.
+      const fechandoPorTempo = fecharAgora || restante <= RESERVA_FECHO_MS;
+      // O fecho fica com tudo o que sobrou; as rodadas anteriores devolvem a reserva.
+      const prazoDestaChamada = fechandoPorTempo ? restante : restante - RESERVA_FECHO_MS;
+      if (fechandoPorTempo) telemetry.fechou_por_tempo = true;
+
+      // O FECHO VAI NO MODELO RÁPIDO. Medido em 29/10: com 20s inteiros de reserva, o
+      // fecho no modelo completo ainda não coube — `rodada_abortada_fecha_turno` com
+      // `restante_ms: 19998` e `ai_timeout` em 48.001ms, com ~75 mil caracteres de
+      // entrada. Dobrar o prazo não resolveu porque o problema não era prazo.
+      //
+      // O fecho não decide nada: a busca acabou, o material está no contexto e o que
+      // falta é redigir. Para isso o modelo rápido basta, e custa uma fração do tempo
+      // em prefill e geração. A rota continua escolhendo o modelo completo para
+      // raciocinar; só a última chamada, a que apenas escreve, muda.
+      const modeloDestaChamada = fechandoPorTempo && modelFast && modelFast !== model
+        ? modelFast
+        : model;
+      if (modeloDestaChamada !== model) telemetry.fecho_no_modelo_rapido = true;
+
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), restante);
+      const timeout = setTimeout(() => controller.abort(), prazoDestaChamada);
       const openAiStartedAt = Date.now();
-      modelsUsed.add(model);
+      modelsUsed.add(modeloDestaChamada);
       try {
         openAiResponse = await fetch("https://api.openai.com/v1/responses", {
           method: "POST",
           headers: { "Authorization": `Bearer ${openAiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model,
+            model: modeloDestaChamada,
             instructions: instrucoes,
             input: entradaDoModelo,
             // SEM FERRAMENTA, `none` — é o comportamento que já estava em produção e
             // que não deve mudar por causa desta entrega. COM ferramenta, `low`:
             // decidir se busca, o que buscar e se o resultado responde é raciocínio,
             // e com `none` o modelo tende a responder direto sem investigar.
-            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
+            //
+            // NO FECHO, `none` SEMPRE: não há mais o que decidir — a busca acabou, o
+            // material está na mão e o que falta é redigir. Pagar raciocínio aqui é o
+            // que fazia o fecho não caber no tempo que sobrou.
+            reasoning: {
+              effort: fechandoPorTempo
+                ? "none"
+                : esforcoDeRaciocinio(message, toolsParaModelo.length, buscaForcadaPeloKit),
+            },
             text: {
               format: {
                 type: "json_schema", name: "mindagent_response", strict: true, schema: responseSchema,
               },
             },
-            ...(toolsParaModelo.length > 0
+            // NO FECHO A FERRAMENTA NEM VIAJA. Mandar o catálogo com `tool_choice:none`
+            // custava entrada e tentação à toa na chamada que menos pode gastar.
+            ...(toolsParaModelo.length > 0 && !fechandoPorTempo
               ? {
                 tools: toolsParaModelo,
                 tool_choice: !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) ||
@@ -1466,18 +1683,42 @@ Deno.serve(async (req: Request) => {
               : {}),
             // Com ferramenta o teto sobe: `max_output_tokens` inclui os tokens de
             // raciocínio, e estourar o teto devolve resposta `incomplete` — texto
-            // vazio, turno perdido. A resposta em si continua limitada pelo schema
-            // (`maxLength`); a folga aqui é para o modelo pensar.
-            max_output_tokens: toolsParaModelo.length > 0 ? 3000 : 1500,
+            // vazio, turno perdido. A folga aqui é para o modelo pensar.
+            //
+            // SUBIU JUNTO COM O `maxLength` DA RESPOSTA (28/10). 3.500 caracteres são
+            // ~1.100 tokens só de texto; com o raciocínio de um turno de conteúdo, 3.000
+            // viraria o novo corte — trocaria uma parede pela outra, e esta devolve texto
+            // vazio em vez de texto partido. Teto, não alvo: turno que não precisa, não gasta.
+            max_output_tokens: toolsParaModelo.length > 0 ? 4000 : 2000,
             safety_identifier: authUserId,
             store: false,
           }),
           signal: controller.signal,
         });
+      } catch (erroDaChamada) {
+        // ABORT DE RODADA NÃO MATA O TURNO. O prazo que estourou aqui é o DESTA
+        // chamada, não o do turno: ainda há relógio, e o que o modelo já leu está na
+        // mão. Antes isto subia direto para o catch de fora e virava 504 — medido em
+        // 29/10, um turno morreu em 33.008ms (45s de orçamento menos a reserva) numa
+        // pergunta que turnos de 34s e 36s responderam normalmente no mesmo dia.
+        // Agora a volta seguinte é o fecho, com o que sobrou.
+        const abortou = erroDaChamada instanceof DOMException && erroDaChamada.name === "AbortError";
+        if (abortou && !fechandoPorTempo && fimDoOrcamento - Date.now() > 0) {
+          fecharAgora = true;
+          telemetry.fechou_por_tempo = true;
+          telemetry.rodada_abortada = (Number(telemetry.rodada_abortada) || 0) + 1;
+          console.warn(JSON.stringify({
+            request_id: requestId, event: "rodada_abortada_fecha_turno",
+            tentativa: tentativaModelo, rodadas_tool: rodadasTool,
+            restante_ms: fimDoOrcamento - Date.now(),
+          }));
+          continue;
+        }
+        throw erroDaChamada;
       } finally {
         openAiMs += Date.now() - openAiStartedAt;
         Object.assign(telemetry, {
-          model,
+          model: modeloDestaChamada,
           model_escalation: modelEscalation,
           models_used: [...modelsUsed],
           openai_ms: openAiMs,
@@ -1489,6 +1730,26 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!openAiResponse.ok) {
+        // O fecho tentou o modelo rápido e ele recusou: refaz o fecho no modelo da
+        // rota. `fecharAgora` continua ligado, então a volta seguinte ainda é o fecho —
+        // sem ferramenta e sem raciocínio, só com o modelo de novo.
+        if (
+          modeloDestaChamada !== model &&
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) &&
+          [400, 404].includes(openAiResponse.status)
+        ) {
+          fecharAgora = true;
+          modelEscalation = "fecho_rapido_indisponivel";
+          continue;
+        }
+        if (
+          modeloDaRota !== null && model === modeloDaRota && modeloDaRota !== modelComplexPadrao &&
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
+        ) {
+          model = modelComplexPadrao;
+          modelEscalation = "modelo_da_rota_indisponivel";
+          continue;
+        }
         if (
           model === modelFast && modelFast !== modelComplex &&
           podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)
@@ -1650,6 +1911,8 @@ Deno.serve(async (req: Request) => {
       checkout_sent?: boolean;
       checkout_url?: string | null;
       next_route?: string | null;
+      // Só existe no primeiro turno; nos demais o campo nem é pedido.
+      titulo?: string | null;
       nome_informado?: string | null;
       email_informado?: string | null;
       whatsapp_informado?: string | null;
@@ -1662,7 +1925,16 @@ Deno.serve(async (req: Request) => {
       throw new Error("invalid_ai_output");
     }
 
-    let answer = normalizeAnswerLayout(String(structured.answer ?? "")).slice(0, 2000).trim();
+    // SEM TESOURA NA LEITURA. Aqui havia `.slice(0, 2000)` — o TERCEIRO teto, e o que
+    // de fato cortava. Em 28/10 a resposta chegou com 2000 caracteres cravados, partida
+    // em "conversa com lid", DEPOIS de o schema já ter subido para 3500: subir o teto do
+    // contrato não adianta enquanto o runtime corta de novo na leitura.
+    //
+    // O mesmo empilhamento já tinha sido desfeito no `treble-inbound-agent`, que lê
+    // `String(turn.answer ?? "").trim()` e nada mais. Quem limita o tamanho é o
+    // `maxLength` do schema, uma vez só, com o modelo sabendo do limite enquanto
+    // escreve. Cortar depois é garantir que a frase termine no meio.
+    let answer = normalizeAnswerLayout(String(structured.answer ?? "")).trim();
     if (!answer) throw new Error("empty_ai_answer");
 
     const nomeDito = String(structured.nome_informado ?? "").trim() || null;
@@ -1789,6 +2061,14 @@ Deno.serve(async (req: Request) => {
       }))
       .filter((interest) => interest.key.length >= 2 && interest.label.length >= 2 && interest.confidence >= 0.65);
 
+    // NOME DA CONVERSA. Só vem preenchido no primeiro turno, e só serve para a
+    // pessoa se reconhecer na lista. Uma linha é tudo: nome com quebra de linha
+    // ou do tamanho de um parágrafo não é título, é resposta no lugar errado.
+    const tituloDaConversa = typeof structured.titulo === "string"
+        && structured.titulo.trim().length >= 3
+      ? structured.titulo.trim().replace(/\s+/g, " ").slice(0, 60)
+      : null;
+
     // ------------------------------------------------------ TROCA DE COMPETÊNCIA
     // O modelo PEDE; quem decide é o Gate, e quem efetiva é o writer, na mesma transação
     // da mensagem. Pedir a mesma rota que já responde não é troca — vira null antes de
@@ -1801,8 +2081,21 @@ Deno.serve(async (req: Request) => {
       ? nextRouteBruto
       : null;
 
+    // PORTA DE PRODUTO FECHADO NÃO ENTREGA A CONVERSA (mesma decisão da precedência,
+    // acima). Nessas portas a leitura do próximo turno ignora `rota_ativa`; gravar
+    // assim mesmo deixaria estado morto no banco — e voltaria a prender a pessoa no
+    // dia em que a porta saísse da lista. O turno já respondeu e já apontou para onde
+    // o assunto mora: é disso que a pessoa precisa, e acaba aqui.
+    const portaSeguraAConversa = portaRetemAConversa && nextRoute !== null &&
+      nextRoute !== rotaAutoritativa;
+
     let rotaAtivaPersistir: string | null = null;
-    if (nextRoute) {
+    if (portaSeguraAConversa) {
+      console.info(JSON.stringify({
+        request_id: requestId, event: "handoff_nao_persistido_porta_dedicada",
+        de: rotaDecidida, para: nextRoute, porta: origemDaConversa,
+      }));
+    } else if (nextRoute) {
       const { data: gateDestino } = await admin.rpc("mind_rota_capacidade", {
         p_rota: nextRoute,
         p_canal: CANAL,
@@ -1854,7 +2147,17 @@ Deno.serve(async (req: Request) => {
         // ESTADO CONTROLADO PELO RUNTIME. `mindagent_chat_save_message` lê daqui e
         // persiste em `engagement.conversas.variables.rota_ativa` na mesma transação —
         // é o que impede "a resposta disse que encaminhou, mas a rota não mudou".
-        ...(rotaAtivaPersistir ? { state: { rota_ativa: rotaAtivaPersistir } } : {}),
+        // O writer lê `state` e persiste em `engagement.conversas`: `rota_ativa` na
+        // mesma transação da mensagem, e agora o `titulo` pela mesma estrada. O
+        // banco grava o título UMA vez; mandar de novo não reescreve.
+        ...(rotaAtivaPersistir || tituloDaConversa
+          ? {
+            state: {
+              ...(rotaAtivaPersistir ? { rota_ativa: rotaAtivaPersistir } : {}),
+              ...(tituloDaConversa ? { titulo: tituloDaConversa } : {}),
+            },
+          }
+          : {}),
       },
     });
     if (assistantMessageError || !assistantMessage) throw new Error("assistant_message_save_failed");
@@ -1905,6 +2208,7 @@ Deno.serve(async (req: Request) => {
       checkout_event_id: checkoutEventoId,
       tools_expostas: nomesDasFerramentas.length, rodadas_tool: rodadasTool,
       recuperacao_forcada: recuperacaoForcada,
+      busca_forcada_pelo_kit: buscaForcadaPeloKit,
       historico: historico.length,
       chamadas_tool: chamadasFeitas.length,
       identity_email_received: identityEmailReceived,
@@ -1930,6 +2234,7 @@ Deno.serve(async (req: Request) => {
       teste: modoTeste,
       // O que o agente fez neste turno, para o Playground mostrar.
       ferramentas: chamadasFeitas.map((c) => ({ nome: c.nome, ok: c.ok })),
+      modelo: model,
       checkout_sent: checkoutEventoId !== null,
       interests,
       sources,
@@ -1944,11 +2249,20 @@ Deno.serve(async (req: Request) => {
       ...telemetry,
       duration_ms: Date.now() - startedAt,
     }));
+    // A FRASE DO ESTOURO É FALA DE AGENTE, NÃO TELA DE ERRO. "A resposta demorou
+    // demais. Tente novamente." lia como queda de rede, e a pessoa não tinha o que
+    // fazer com isso. Medido em 27/10 na MIA: uma pergunta pessoal e ampla gastou
+    // 38,6s só de modelo em três chamadas e estourou o orçamento de 45s — do outro
+    // lado, quem perguntou achou que o sistema caiu. Aqui o turno assume a demora e
+    // diz o que muda o resultado: estreitar o pedido. Serve a qualquer rota, por
+    // isso não cita acervo nem produto.
     return json(req, isTimeout ? 504 : 500, {
       ok: false,
       error: {
         code: isTimeout ? "ai_timeout" : "internal_error",
-        message: isTimeout ? "A resposta demorou demais. Tente novamente." : "Não consegui concluir a conversa agora.",
+        message: isTimeout
+          ? "Demorei demais para montar esta resposta e parei para não te deixar esperando. Pode me mandar de novo? Se disser em uma frase o ponto exato que você quer, eu chego mais rápido."
+          : "Não consegui concluir a conversa agora.",
       },
     }, requestId);
   }

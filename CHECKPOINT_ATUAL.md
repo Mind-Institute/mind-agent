@@ -5,6 +5,79 @@
 > Atualizado em **04/09/2026**. O estado operacional mais recente está consolidado
 > em `IMPLEMENTATION_STATUS.md`; a auditoria do incidente do App está em
 > `INCIDENTE_CONCIERGE_20260903.md`.
+>
+> **Leia antes a seção de 20/10/2026, logo abaixo: ela corrige fatos deste arquivo.**
+
+### Vendedor no WhatsApp — auditoria e virada para Institute/Dash — 20/10/2026
+
+Auditoria completa em `AUDITORIA_VENDEDOR_WHATSAPP_20261020.md`. Correção na branch
+`claude/vendedor-institute-dash-whatsapp`, a partir da `main` em `fc2b0f5`.
+**Nada foi publicado, aplicado ou ligado.**
+
+**Fatos conferidos no sistema real, que corrigem este arquivo:**
+
+| o que este arquivo dizia | o que é verdade em 20/10/2026 |
+|---|---|
+| `treble-inbound-agent` viva na v41, runtime `1.10.2` | viva na **v63**, runtime **`1.10.4`**, publicada em 06/09, `/health` 200 |
+| — | o código vivo é **idêntico** à `main` em `index.ts` e `guardrail-preco.ts` |
+| — | o agente **não recebe turno desde 09/09**: 21 conversas na história inteira, 58 falas de lead, **zero invocações em 24 h** |
+| — | o WhatsApp recebe muito, mas tudo por `agente='treble'` (fluxo da plataforma): 1.941 chamadas no `treble-webhook` em 24 h |
+
+**O bloqueio que a auditoria achou, em uma conta:** o Router no WhatsApp só pode
+emitir `cliente_suporte`, `dash` e `institute` (política de 24/09 em
+`agentes.canal_competencia`); o runtime só executava `summit_b2c` e `summit_b2b`; a
+interseção é vazia, logo **100% dos turnos terminavam em transferência**, por
+construção. O Summit encerrou em 17/09 e saiu de venda.
+
+**Dois bloqueios de código que impediam vender o Institute, provados rodando o
+código real contra o kit vivo:**
+
+1. o guardrail de preço extraía **zero** fatos monetários do `institute_catalogo` —
+   ele lia `valor` numérico e `condicoes_pagamento`, e o catálogo publica
+   `a_vista: "R$ 4.997"` e `parcelado: "12x de R$ 416"`. Barrava o preço **correto**
+   igual ao inventado. Mesma classe do defeito do cupom na v1.10.4;
+2. o módulo de checkout só aceita `eduzz.com`, e o Institute vende pela página
+   oficial em `joinmind.com.br`, na chave `pagina_oficial`.
+
+**E o defeito que tornava qualquer correção inerte:** `rotaComercialRapida` tinha um
+`return summit_b2c` incondicional no fim — toda mensagem sem palavra de suporte
+virava compra de ingresso **sem o Router ser chamado**. "Quais ferramentas vocês
+têm?" era classificada como Summit. Hoje isso morre no Gate; com `institute`/`dash`
+executáveis, sequestraria o turno.
+
+**Decisões de produto tomadas em 20/10 (Adriana/Vinicius):**
+
+- o agente passa a executar **`institute` (vende) e `dash` (consultivo, não vende)**;
+- **`cliente_suporte` continua transferindo** ao time — o Gate a libera, mas quem
+  atende esse tráfego é o fluxo da Treble, e assumi-lo é mudança operacional;
+- **Summit permanece desligado.** O Gate não foi afrouxado para o agente passar;
+- o link do Institute vai como **página oficial com a âncora** (`#inscricao`, e
+  `#avulsas` para as formações avulsas), sem rastreio e sem evento de checkout;
+- a escolha de escopo **não autoriza abrir o tráfego antes da homologação**.
+
+**O que a branch muda** — runtime `1.11.0`, duas migrations **escritas e não
+aplicadas**, e a suíte de contratos do vendedor ligada em `npm run test:contratos`.
+Detalhe por arquivo no corpo da PR.
+
+**Divergências materiais que ficam registradas:**
+
+- **o BACKLOG §17 está superado pelo sistema.** Ele diz que "a Adriana ainda vai
+  fornecer os dados comerciais do Institute" e exige `checkout_url` Eduzz. Os dados
+  existem desde 24/09 (`institute_catalogo`, 6 programas com preço e página), e o
+  Institute **não vende por Eduzz** — a premissa de carrinho não se aplica;
+- **`analise_vendas_institute` e `analise_vendas_dash` têm prompt vazio e estão
+  inativos.** Com as rotas ligadas, o pós-turno (`analise_conversas`, cron de 15 min)
+  classifica essas conversas para analisadores de casca vazia e **não gera análise
+  nenhuma**. É a Lane D (#42), item 18.3 do BACKLOG, e vira dívida ativa no momento
+  em que o tráfego abrir;
+- **os playbooks de `institute`, `dash` e `cliente_suporte` instruem `next_route=…`,
+  e este runtime não tem esse campo** — `mindagent-chat` tem, o Treble não. No
+  WhatsApp a instrução não tem receptor: o schema é `additionalProperties: false`;
+- **a suíte Edge não roda em CI.** `.github/workflows/admin-ci.yml` só faz build do
+  `admin/`. `test:edge`, `test:guardrail` e os contratos do vendedor só rodam à mão;
+- **11 testes falham neste checkout Windows** e passam com LF (479/479). É
+  `core.autocrlf=true` sem `.gitattributes`: os testes que leem o fonte usam `\n` em
+  regex e o CR sobra. Não é defeito de produto, mas esconde falha real.
 
 ### MIA no LearnWorlds — bloco de código (P2) — 22/10/2026
 
@@ -772,9 +845,12 @@ e não há nada vivo para consertar.
 
 - PR #98 mergeada em `main`: `2581f6632339b4606f887d340b6c00821de9a3c5`;
 - `treble-inbound-agent` viva na Supabase v41, runtime `1.10.2`,
-  `ACTIVE`, `verify_jwt=false`;
-- `router_universal` ativo na v4;
-- B2C é o padrão comercial;
+  `ACTIVE`, `verify_jwt=false`
+  — **desatualizado: conferido em 20/10/2026 como v63, runtime `1.10.4`**;
+- `router_universal` ativo na v4 — **hoje v5, atualizado em 24/09**;
+- B2C é o padrão comercial
+  — **não vale mais desde 24/09: o Summit saiu de venda e o padrão comercial do canal
+  deixou de existir. Ver a seção de 20/10 no topo deste arquivo**;
 - para ingressos, B2B exige **destino empresa/equipe + mais de uma pessoa**;
 - cargo, empresa, pagamento corporativo de um único ingresso e quantidade sem
   destino corporativo não bastam;

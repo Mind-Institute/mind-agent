@@ -789,7 +789,13 @@ test('identidade: o LearnWorlds liga a pessoa pelo e-mail e pelo ID dela', async
   assert.deepEqual(r.corpo.identity_received, { email: true, name: true, source: 'learnworlds' });
 });
 
-test('identidade: a Yazo continua na assinatura de 6 parâmetros, sem ID do LearnWorlds', async () => {
+/* A CONVENÇÃO MUDOU DE FORMA, NÃO DE INTENÇÃO (29/10/2026). A chamada
+   passou a mandar `p_learnworlds_user_id: null` em vez de omitir o
+   parâmetro — a função no banco tem os sete desde a migration de 22/10, e
+   duas lanes tinham escrito a mesma regra de jeitos diferentes. O Vinícius
+   escolheu esta. O que o teste guarda é o mesmo: id de LearnWorlds enfiado
+   num turno da Yazo NÃO chega ao banco. */
+test('identidade: ID do LearnWorlds não vai no caminho da Yazo', async () => {
   const r = await chamar({
     corpo: {
       message: 'oi',
@@ -800,7 +806,8 @@ test('identidade: a Yazo continua na assinatura de 6 parâmetros, sem ID do Lear
     },
   });
   const bind = r.chamada('mindagent_chat_bind_identity');
-  assert.ok(!('p_learnworlds_user_id' in bind.args));
+  assert.equal(bind.args.p_learnworlds_user_id ?? null, null,
+    'o id do LearnWorlds vazou para um turno da Yazo');
 });
 
 test('identidade: ID do LearnWorlds fora de forma não vai, e fonte desconhecida não liga ninguém', async () => {
@@ -810,7 +817,8 @@ test('identidade: ID do LearnWorlds fora de forma não vai, e fonte desconhecida
       identity: { email: 'aluna@exemplo.com', source: 'learnworlds', learnworlds_user_id: '{{USER.ID}}' },
     },
   });
-  assert.ok(!('p_learnworlds_user_id' in torto.chamada('mindagent_chat_bind_identity').args));
+  assert.equal(torto.chamada('mindagent_chat_bind_identity').args.p_learnworlds_user_id ?? null, null,
+    'um marcador não substituído ({{USER.ID}}) chegou ao banco como id');
 
   const estranha = await chamar({
     corpo: { message: 'oi', identity: { email: 'aluna@exemplo.com', source: 'qualquer_site' } },

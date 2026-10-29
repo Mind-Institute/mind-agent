@@ -336,14 +336,25 @@ Rotas canônicas, exatamente seis:
 
 `ja_comprou` e `desconhecido` não são rotas.
 
-### Atalho comercial do Treble — congelado em 04/09
+### Atalho comercial do Treble — congelado em 04/09, reduzido em 20/10/2026
 
 Para evitar a latência e as falhas observadas quando o Router era chamado em
 todo turno, o `treble-inbound-agent` usa
 `_shared/treble-commercial-route.ts` antes do Router somente no domínio
-comercial do Summit:
+comercial do Summit.
 
-- B2C é o padrão;
+**O que mudou em 20/10/2026, e por quê.** O congelamento de 04/09 assumia, por
+escrito, que "o canal é predominantemente comercial B2C". Essa premissa acabou em
+24/09, quando o Summit saiu de venda e `institute`/`dash` entraram na
+`agentes.canal_competencia` do WhatsApp. O atalho terminava num
+`return summit_b2c` incondicional, então qualquer mensagem sem palavra de suporte
+virava compra de ingresso **sem o Router ser consultado** — "quais ferramentas vocês
+têm?" incluída. **Agora o atalho só opina quando o turno menciona ingresso ou
+Summit; fora disso devolve `null` e o Router decide.** A discriminação B2B/B2C
+abaixo segue intacta palavra por palavra dentro do domínio de ingresso, que é o
+único em que ela faz sentido. O custo é latência: mais turnos passam pelo Router.
+
+- B2C é o padrão **dentro de um turno de ingresso**;
 - venda B2B de ingressos exige simultaneamente destino empresa/equipe e mais de
   uma pessoa;
 - cargo, empresa, pagamento corporativo de um único ingresso ou quantidade sem
@@ -474,7 +485,14 @@ Core universal necessário ao go-live já passou do antigo Passo 12B.
 
 ### Em go-live paralelo agora
 
-- **Lane B / #40 / PR #47** — Vendedor/Treble até E2E WhatsApp;
+- **Lane B / #40** — Vendedor/Treble até E2E WhatsApp. **Escopo redefinido em
+  20/10/2026:** o Summit encerrou e saiu de venda; a lane passa a entregar
+  `institute` (vende) e `dash` (consultivo) no WhatsApp, com `cliente_suporte`
+  transferindo e Summit desligado. Branch `claude/vendedor-institute-dash-whatsapp`,
+  runtime `1.11.0`, nada publicado. Dois bloqueios ainda fora do repo: a Treble não
+  encaminha mensagens ao agente desde 09/09, e a abertura de tráfego depende de
+  homologação. Ver `AUDITORIA_VENDEDOR_WHATSAPP_20261020.md` e a seção de 20/10 em
+  `CHECKPOINT_ATUAL.md`;
 - **Lane C / #41 / PR #50** — Concierge/runtime até E2E app;
 - **Lane D / #42 / PRs #46 + #51** — pós-turno/memória/write-back/Silence;
 - **Lane E / #43 / PR #48** — Play/UI até E2E person-bound.

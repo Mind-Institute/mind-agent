@@ -17,7 +17,33 @@ export const ORCAMENTO_TURNO_MS = 30_000;
 // "digitando"; `analisar-conversa` (mesma casa, tarefa em lote sem ninguém
 // olhando) já usa 55s para o mesmo tipo de trabalho, mas essa espera é de
 // quem está sem fazer nada na frente do celular.
-export const ORCAMENTO_TURNO_COMPLEXO_MS = 45_000;
+// 48s, não 45: medido em 29/10, o turno completo de conteúdo (busca obrigatória +
+// uma segunda rodada + fecho) encostava nos 45 com regularidade — 34,1s e 35,7s
+// passaram, 45,0s não. O embed só desiste aos 50s, então estes 3s existiam e estavam
+// sobrando na mesa. Não resolve sozinho; compra margem enquanto a entrada não encolhe.
+export const ORCAMENTO_TURNO_COMPLEXO_MS = 48_000;
+
+// RESERVA DO FECHO. O orçamento do turno era repartido por quem chegasse primeiro:
+// cada chamada ao modelo recebia TODO o tempo restante, então as rodadas de
+// ferramenta podiam comer o relógio inteiro e a resposta final começava com o que
+// sobrasse. Quando não sobrava, ela era abortada no meio e o turno terminava em 504 —
+// sem resposta, sem registro, nada na tela além do aviso de demora.
+//
+// Medido em 29/10 na MIA, numa pergunta de listagem: `openai_ms` 42.019 em três
+// chamadas, `tool_ms` 2.083, `duration_ms` 45.002. As ferramentas não eram o gargalo;
+// o reparto era.
+//
+// Esta reserva é intocável: enquanto houver menos que isto no relógio, não se abre
+// mais ferramenta — o turno fecha com o que já tem na mão. Responder com menos é
+// conduta prevista no playbook; não responder não é.
+// 20s, não 12. Com 12 a rede funcionou e mesmo assim o turno se perdeu: em 29/10 o
+// log registrou `rodada_abortada_fecha_turno` com `restante_ms: 11999` e, doze
+// segundos depois, `ai_timeout` em 45.001ms. O fecho não paga raciocínio nem carrega
+// ferramenta, mas ainda precisa LER antes de escrever — naquele turno, 35.738 de
+// instrução, 16.079 de contexto e 16.886 de resultado de busca. Encurtar o prazo das
+// rodadas agora é barato, porque rodada que estoura cai no fecho em vez de derrubar
+// o turno; fecho que estoura não tem para onde cair.
+export const RESERVA_FECHO_MS = 20_000;
 
 export type IntelligenceContext = {
   rota: string;
@@ -71,6 +97,9 @@ export function toolsDeIntelligence(kitTools: unknown) {
 
   return {
     semExecutor: declaradas.length - ativas.length,
+    // Skills que o Kit marcou como obrigatórias (`agentes.kit_blocos.obrigatorio`): o runtime
+    // força a chamada no primeiro turno de conteúdo em vez de deixar o modelo decidir.
+    obrigatorias: ativas.filter((tool) => tool.obrigatorio === true).map((tool) => String(tool.nome)),
     tools: ativas.map((tool) => ({
       type: "function",
       name: String(tool.nome),
@@ -79,6 +108,17 @@ export function toolsDeIntelligence(kitTools: unknown) {
       strict: true,
     })),
   };
+}
+
+// BUSCA OBRIGATÓRIA NO PRIMEIRO TURNO DE CONTEÚDO. Medido na MIA Summit (23/10/2026): com o
+// contexto pronto na mão, o modelo respondia "o que aconteceu no Summit" de memória, sem
+// nunca abrir o acervo, apesar do playbook mandar. Pedir não garante; forçar garante. Só a
+// skill de busca é forçável (a leitura depende de um id que vem da busca), só na primeira
+// rodada, e só quando a mensagem tem tamanho de pergunta: um "oi" não paga uma busca.
+export function buscaObrigatoria(obrigatorias: string[], mensagem: string, rodadasTool: number) {
+  if (rodadasTool > 0) return null;
+  if (!obrigatorias.includes("buscar_intelligence")) return null;
+  return mensagem.trim().length >= 20 ? "buscar_intelligence" : null;
 }
 
 export function extrairChamadas(payload: Record<string, unknown>) {
@@ -98,10 +138,13 @@ export function extrairChamadas(payload: Record<string, unknown>) {
   return calls;
 }
 
-export function esforcoDeRaciocinio(mensagem: string, ferramentas: number) {
+export function esforcoDeRaciocinio(mensagem: string, ferramentas: number, buscaForcada = false) {
   if (ferramentas === 0) return "none" as const;
+  // Quem é obrigado a buscar está ali para trabalhar o conteúdo: decidir o que buscar e
+  // como combinar o que leu é raciocínio, não pergunta factual.
+  if (buscaForcada) return "medium" as const;
 
-  const texto = mensagem.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const texto = mensagem.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const complexa = mensagem.length > 220 ||
     /\b(compar\w*|por que|porque|justific\w*|aprov\w*|proposta\w*|delegac\w*|equipe\w*|empresa\w*|objec\w*|estrateg\w*|recomend\w*|qual.*melhor|vale a pena|nr.?1|pgr)\b/.test(texto);
 
@@ -119,7 +162,7 @@ export function respostaExigeBuscaAntesDeDesistir(outputText: string) {
 
   const texto = resposta
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
   /* Uma resposta de abstinência sem nenhuma tentativa de lupa reproduz o

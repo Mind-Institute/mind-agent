@@ -1,5 +1,30 @@
 // Cérebro do agente inbound de vendas do Mind no WhatsApp.
 //
+// v1.11.0 — O RUNTIME ALCANÇA A VIRADA DE 24/09. Até aqui este agente executava só
+// `summit_b2c` e `summit_b2b`, e o Summit encerrou em 17/09/2026. Em 24/09 a
+// `agentes.canal_competencia` desligou as duas rotas do Summit no WhatsApp e ligou
+// `institute` e `dash`, anotando que "o runtime do Treble ainda não executa". O
+// resultado era aritmético: o Router no WhatsApp só podia emitir `cliente_suporte`,
+// `dash` e `institute`; este runtime só executava as duas do Summit; a interseção era
+// vazia e TODO turno virava transferência. Agora:
+//
+//   institute  EXECUTA e VENDE, com o catálogo oficial do Kit. O guardrail de preço
+//              passou a ler o formato do catálogo (`a_vista`, `parcelado`), que antes
+//              não produzia fato monetário nenhum — e barrava o preço certo junto com
+//              o inventado. A página oficial do programa é enviada como link oficial,
+//              com o #ancora do Kit, sem rastreio e sem evento de checkout.
+//   dash       EXECUTA e NÃO vende: consultivo, conforme `playbook_dash`.
+//   cliente_suporte  continua transferindo ao time — decisão de 20/10/2026. O Gate a
+//              libera no WhatsApp, mas quem atende esse tráfego hoje é o fluxo da
+//              Treble, e assumi-lo é mudança operacional, não de runtime.
+//   summit_*   seguem no conjunto executável porque a autoridade é o GATE, que hoje
+//              as fecha. Nada de Summit foi reativado aqui.
+//
+// E A AGENDA DO SUMMIT SAIU DOS TURNOS QUE NÃO SÃO DE SUMMIT. Ela era consultada com
+// slug fixo antes de o Router decidir e ia ao modelo em qualquer rota. Com o Summit
+// como único conteúdo concreto no payload, "quais ferramentas vocês têm?" voltava
+// como oferta de Summit. Agora ela só entra quando a rota aplicada é de Summit.
+//
 // v1.10.4 — CUPOM INDIVIDUAL NO GUARDRAIL DE PREÇO. As condições do lote 7 passam a ser
 // cupons de valor fixo digitados no checkout (200OFF no Mind, 300OFF no VIP). O guardrail
 // lê o objeto `desconto` de uma regra com `cupom` como economia sem faixa e reconhece
@@ -165,8 +190,10 @@ import {
   checkoutCurto,
   checkoutRastreado,
   escolherCheckoutOficial,
+  escolherLinkOficial,
   idEventoCheckout,
   inserirCheckoutNaResposta,
+  inserirLinkOficialNaResposta,
 } from "../_shared/checkout-attribution.ts";
 import { rotaComercialRapida } from "../_shared/treble-commercial-route.ts";
 import {
@@ -179,7 +206,7 @@ import {
   toolsDeIntelligence,
 } from "../_shared/agent-intelligence.ts";
 
-const VERSION = "1.10.4";
+const VERSION = "1.11.1";
 const DEFAULT_MODEL = "gpt-5.4";
 
 // O canal deste runtime no vocabulário do Capability Gate. `whatsapp` é o
@@ -188,7 +215,41 @@ const CANAL = "whatsapp";
 
 // As rotas canônicas que ESTE runtime executa. Fora delas o turno encerra com
 // transferência — a rota decidida ainda é registrada, para quem vier depois.
-const ROTAS_DO_VENDEDOR = new Set(["summit_b2c", "summit_b2b"]);
+//
+// v1.11.0 — `institute` e `dash` entram; `cliente_suporte` continua transferindo.
+//
+// A política de canal virou em 24/09/2026 (`agentes.canal_competencia`): o Summit
+// encerrou e saiu de venda, e `institute`/`dash` foram ligados no WhatsApp pela
+// Adriana, com a observação de que "o runtime do Treble ainda não executa, então
+// transfere ao time". Este commit é o runtime alcançando aquela decisão. Enquanto não
+// alcançava, a conta era: o Router no WhatsApp só podia emitir `cliente_suporte`,
+// `dash` e `institute`; este conjunto só tinha as duas do Summit; a interseção era
+// vazia e 100% dos turnos viravam transferência.
+//
+// EXECUTAR NÃO É VENDER, e as três rotas executáveis não fazem a mesma coisa:
+//   institute  VENDE. `playbook_institute` v2: "Você vende o Mind Institute", com o
+//              catálogo oficial lido do banco a cada mensagem.
+//   dash       NÃO vende. `playbook_dash` proíbe preço, proposta, condição comercial,
+//              contrato e checkout. É leitura do problema e orientação. O kit de
+//              `dash` não tem bloco de oferta, então o guardrail de preço já barra
+//              qualquer valor sozinho — a proibição não depende só do prompt.
+//   summit_*   continuam aqui porque QUEM AUTORIZA É O GATE, não esta lista. Hoje o
+//              Gate as fecha (`missing_kit` e `canal_incompativel`) e elas não
+//              executam. Tirá-las daqui seria mover a autoridade para o código e
+//              esconder, atrás de uma constante, uma decisão que é de política.
+const ROTAS_EXECUTAVEIS = new Set(["summit_b2c", "summit_b2b", "institute", "dash"]);
+
+// Rotas cujo Kit é comercial de Summit. É o que decide se a busca na agenda do Summit
+// faz sentido no turno — ver `bloco_agenda_busca`, mais abaixo.
+const ROTAS_DO_SUMMIT = new Set(["summit_b2c", "summit_b2b"]);
+
+// Deduplicação — duas janelas, porque são dois problemas diferentes (ver v1.11.1).
+// `JANELA_TEXTO_S` é a defesa degradada de quando o evento não traz id: 90 s, como
+// sempre foi. `JANELA_REENTREGA_S` serve ao evento que a Treble reentrega: aí não se
+// pergunta "faz pouco tempo?", e sim "qual foi a resposta deste turno?" — 24 h é a
+// própria janela de conversa do WhatsApp.
+const JANELA_TEXTO_S = 90;
+const JANELA_REENTREGA_S = 86_400;
 
 // `audience` é chave pública do payload do Treble e estado persistido em
 // engagement.conversas. No caminho canônico ela não é uma segunda decisão: é o nome
@@ -196,6 +257,8 @@ const ROTAS_DO_VENDEDOR = new Set(["summit_b2c", "summit_b2b"]);
 const AUDIENCE_DA_ROTA: Record<string, string> = {
   summit_b2c: "b2c",
   summit_b2b: "b2b",
+  institute: "institute",
+  dash: "dash",
 };
 
 // Orçamento do Router. Estourar não tem mais para onde cair: o turno encerra com
@@ -209,12 +272,25 @@ const ROUTER_TIMEOUT_MS = 6000;
 const RESPOSTA_HANDOFF =
   "Tive um probleminha técnico aqui 😅 Já vou te conectar com alguém do nosso time!";
 
-const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind Summit 2026.
-Use somente os dados oficiais recebidos no JSON; nunca invente preço, palestrante ou política.
+// Prompt de último recurso: vale apenas quando o Kit veio sem playbook, o que o
+// `kitServe` já trata como turno que não executa. Ele era datado — "Você atende o
+// WhatsApp oficial do Mind Summit 2026" — e o Summit encerrou em 17/09/2026. Um
+// fallback que nomeia produto empurra o turno para aquele produto, que é exatamente
+// a falha que esta versão existe para fechar: pergunta sobre outra coisa não pode
+// voltar como oferta de Summit. Agora ele não nomeia produto nenhum e não vende.
+const PROMPT_FALLBACK = `Você atende o WhatsApp oficial do Mind.
+Use somente os dados oficiais recebidos no JSON; nunca invente preço, produto, data, pessoa ou política.
+Não ofereça nem recomende produto algum por este caminho: responda apenas o que os dados oficiais sustentam.
 Se faltar informação, diga que vai confirmar com o time e acione needs_human=true.
 Responda em português do Brasil, curto e caloroso, uma pergunta por mensagem.`;
 
-const RESPONSE_SCHEMA = {
+// É FUNÇÃO, e não constante, por causa do `next_route`: o universo de competências
+// vem de `mind_canal_rotas(canal)`, no banco. Uma lista literal aqui seria a segunda
+// autoridade sobre a política do canal — exatamente o que a política existe para
+// evitar. Mesmo desenho do `mindagent-chat`, que já faz isso; não nasce mecanismo
+// novo no WhatsApp.
+function montarResponseSchema(rotasDoCanal: string[]) {
+  return {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -226,7 +302,7 @@ const RESPONSE_SCHEMA = {
       // proposta de valor: nao cabia, e a mensagem chegava partida.
       description: "A mensagem para o lead, em portugues do Brasil. WhatsApp: curta, direta, sem enrolacao — diga o necessario e pare. Escreva sempre frases inteiras e termine a mensagem; nunca interrompa no meio de uma palavra ou de um item de lista. Se o assunto nao couber de forma breve, corte o escopo do que voce diz, nao a frase.",
     },
-    audience: { type: "string", enum: ["b2c", "b2b", "cliente_suporte", "ja_comprou", "desconhecido"] },
+    audience: { type: "string", enum: ["b2c", "b2b", "institute", "dash", "cliente_suporte", "ja_comprou", "desconhecido"] },
     intent: { type: "string", minLength: 2, maxLength: 40 },
     ticket_interest: { type: ["string", "null"], enum: ["mind", "vip", "prime", null] },
     objection: { type: ["string", "null"] },
@@ -235,7 +311,7 @@ const RESPONSE_SCHEMA = {
     checkout_url: {
       type: ["string", "null"],
       maxLength: 1200,
-      description: "Quando enviar checkout, copie EXATAMENTE um checkout_url recebido nos dados oficiais. null quando não enviar. Nunca construa, corrija ou complete uma URL.",
+      description: "O link de compra que você está enviando. Copie EXATAMENTE um `checkout_url` OU uma `pagina_oficial` recebida nos dados oficiais. null quando não enviar nenhum. Nunca construa, corrija, encurte ou complete uma URL, e nunca acrescente ou troque o trecho depois do #.",
     },
     stage: { type: "string", minLength: 2, maxLength: 40 },
     desfecho: {
@@ -264,14 +340,37 @@ const RESPONSE_SCHEMA = {
       type: ["string", "null"], maxLength: 120,
       description: "O cargo do lead, se ele disse NESTE turno (\"sou head de RH\", \"trabalho como gerente\"). null se não disse.",
     },
+    // A COMPETÊNCIA QUE DEVE ATENDER O PRÓXIMO TURNO. `null` é o caso normal: quem
+    // respondeu continua. O enum vem do banco, não daqui — e o runtime ainda
+    // revalida pelo Gate antes de persistir, porque estar na política do canal não é
+    // o mesmo que poder executar agora.
+    //
+    // Os playbooks de `institute`, `dash` e `cliente_suporte` já pediam isso por
+    // escrito ("use `next_route=dash` quando a troca de competência for necessária").
+    // Até a v1.11.0 o campo não existia neste runtime e a instrução não tinha
+    // receptor: o schema é `additionalProperties: false`, então o modelo não
+    // conseguia nem emitir a chave. Os playbooks não foram reescritos — o runtime é
+    // que passou a atender o que eles mandam.
+    next_route: {
+      type: ["string", "null"],
+      enum: [...rotasDoCanal, null],
+      description:
+        "A competência que deve assumir o PRÓXIMO turno desta conversa. Use null para " +
+        "permanecer — é o caso normal. Só peça troca quando a necessidade da pessoa " +
+        "passou a ser de outra competência; nunca por simples falta de informação. " +
+        "Antes de pedir a troca, responda o que a pessoa perguntou e faça uma pergunta " +
+        "curta que permita ao próximo turno continuar sem ela repetir tudo. " +
+        "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
+    },
   },
   required: [
     "answer", "audience", "intent", "ticket_interest", "objection",
     "needs_human", "checkout_sent", "checkout_url", "stage", "desfecho",
     "nome_informado", "email_informado", "whatsapp_informado",
-    "empresa_informada", "cargo_informado",
+    "empresa_informada", "cargo_informado", "next_route",
   ],
-};
+  };
+}
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -642,12 +741,53 @@ Deno.serve(async (req: Request) => {
 
     // Baratas, independentes da rota e capazes de encerrar o turno: a deduplicação vem
     // antes de qualquer ida ao modelo — inclusive a do Router.
+    //
+    // ================================================================= v1.11.1
+    // REENTREGA DO MESMO EVENTO ≠ DUAS MENSAGENS COM O MESMO TEXTO.
+    //
+    // Até aqui havia uma só defesa, e ela confundia as duas coisas: qualquer fala
+    // IGUAL a outra nos últimos 90 s devolvia a resposta anterior, sem chamar o
+    // modelo. Isso protege contra reentrega, mas atropela conversa real — "sim",
+    // "ok", "pode ser", "e quanto custa?" são falas que a mesma pessoa repete com
+    // naturalidade em menos de um minuto e e-s-p-e-r-a resposta nova. O segundo
+    // "sim" recebia de volta a resposta do primeiro, e quem está do outro lado lê
+    // isso como o agente travado.
+    //
+    // A idempotência de verdade já existia e não estava sendo usada: a ingestão
+    // grava `client_msg_id` com unicidade por conversa e devolve
+    // `mensagem_duplicada` quando o MESMO evento da Treble chega de novo. Era
+    // apenas logado.
+    //
+    // Agora cada coisa tem sua defesa:
+    //
+    //   evento reentregue (`mensagem_duplicada`)  → devolve a resposta daquele
+    //       turno, sem modelo e sem registrar turno novo. É idempotência por
+    //       identidade do evento, não por semelhança de texto, e por isso vale
+    //       para sempre, não por 90 s.
+    //
+    //   evento novo COM id externo                → responde. Texto igual ao de
+    //       antes é coincidência legítima, não duplicata.
+    //
+    //   evento novo SEM id externo                → só aqui sobra a janela de
+    //       texto. Sem chave de evento não há como distinguir reentrega de fala
+    //       repetida, e perder uma resposta é menos grave que responder duas
+    //       vezes à mesma entrega. A janela permanece como estava.
+    //
+    // POR QUE A JANELA DA REENTREGA É LARGA: o turno duplicado não é "recente", é
+    // "o mesmo". A Treble pode reentregar minutos depois, e devolver a resposta
+    // certa continua sendo o comportamento correto.
+    const eventoReentregue = conv.mensagem_duplicada === true;
+    const temIdDeEvento = Boolean(idExterno);
+    const janelaDedupe = eventoReentregue ? JANELA_REENTREGA_S : JANELA_TEXTO_S;
+
     const [{ data: jaRespondida }, { data: agenda }] = await Promise.all([
-      supabase.rpc("treble_agent_resposta_repetida", {
-        p_conversation_id: conv.conversation_id,
-        p_mensagem: message,
-        p_janela_segundos: 90,
-      }),
+      eventoReentregue || !temIdDeEvento
+        ? supabase.rpc("treble_agent_resposta_repetida", {
+          p_conversation_id: conv.conversation_id,
+          p_mensagem: message,
+          p_janela_segundos: janelaDedupe,
+        })
+        : Promise.resolve({ data: null, error: null }),
       cfg.bloco_agenda_busca === "true"
         ? supabase.rpc("mindagent_chat_search", {
             p_event_slug: "mind-summit-2026",
@@ -657,7 +797,11 @@ Deno.serve(async (req: Request) => {
         : Promise.resolve({ data: null, error: null }),
     ]);
     if (typeof jaRespondida === "string" && jaRespondida.trim()) {
-      console.info(JSON.stringify({ request_id: requestId, event: "turno_duplicado_ignorado" }));
+      console.info(JSON.stringify({
+        request_id: requestId,
+        event: "turno_duplicado_ignorado",
+        motivo: eventoReentregue ? "evento_reentregue" : "texto_repetido_sem_id",
+      }));
       return json(200, {
         ok: true, duplicado: true,
         user_session_keys: [
@@ -666,6 +810,10 @@ Deno.serve(async (req: Request) => {
         ],
       });
     }
+    // Reentrega de um evento que NUNCA foi respondido (o turno anterior caiu antes
+    // de gravar a resposta) não pode virar silêncio: cai aqui e é processada
+    // normalmente. É o caso que mais importa, porque é exatamente quando a Treble
+    // reentrega.
 
     // ====================================================== ROUTER → GATE → KIT
     // A necessidade atual é a fala deste turno; ela já está persistida, e é dela que o
@@ -689,8 +837,32 @@ Deno.serve(async (req: Request) => {
     // suposição — por isso `router_ms` sai no log de todo turno.
     let routerMs: number | null = null;
     let rotaOrigem = "router";
-    const rotaRapida = rotaComercialRapida(message, conv.historico);
-    if (rotaRapida.rota) {
+
+    // O UNIVERSO DE COMPETÊNCIAS DESTE CANAL, vindo do banco. Serve para duas coisas:
+    // montar o enum de `next_route` e conferir uma `rota_ativa` persistida. Uma lista
+    // literal aqui seria a segunda autoridade sobre a política que já existe em
+    // `agentes.canal_competencia`.
+    const { data: canalRotas } = await supabase.rpc("mind_canal_rotas", { p_canal: CANAL });
+    const rotasDoCanal: string[] = Array.isArray(canalRotas?.rotas)
+      ? (canalRotas.rotas as unknown[]).filter((r): r is string => typeof r === "string")
+      : [];
+
+    // COMPETÊNCIA ATIVA DA CONVERSA, deixada por um handoff anterior. Tem precedência
+    // sobre o atalho comercial e sobre o Router: a pessoa já foi passada para outra
+    // competência, e refazer a classificação a cada turno desfaria a troca na primeira
+    // frase ambígua. Se a rota deixou de ser permitida no canal, é ignorada — nunca se
+    // cai numa rota proibida por causa de estado antigo.
+    const rotaAtivaBruta = typeof conv.rota_ativa === "string" ? conv.rota_ativa.trim() : "";
+    const rotaAtiva = rotaAtivaBruta && rotasDoCanal.includes(rotaAtivaBruta)
+      ? rotaAtivaBruta
+      : null;
+
+    const rotaRapida = rotaAtiva ? { rota: null, motivo: "" } : rotaComercialRapida(message, conv.historico);
+    if (rotaAtiva) {
+      rotaDecidida = rotaAtiva;
+      routerMs = 0;
+      rotaOrigem = "rota_ativa";
+    } else if (rotaRapida.rota) {
       rotaDecidida = rotaRapida.rota;
       routerMs = 0;
       rotaOrigem = rotaRapida.motivo;
@@ -715,11 +887,11 @@ Deno.serve(async (req: Request) => {
       // O que é exclusivo da lane é EXECUTAR: Kit e playbook comercial só são
       // carregados para `summit_b2c`/`summit_b2b`. Capacidade se pergunta sempre;
       // execução só onde este runtime é dono.
-      const ehDoVendedor = ROTAS_DO_VENDEDOR.has(rotaDecidida);
+      const ehExecutavel = ROTAS_EXECUTAVEIS.has(rotaDecidida);
       const vazio = Promise.resolve({ data: null, error: null });
       const [{ data: gate }, kitR] = await Promise.all([
         supabase.rpc("mind_rota_capacidade", { p_rota: rotaDecidida, p_canal: CANAL }),
-        ehDoVendedor
+        ehExecutavel
           ? supabase.rpc("mind_agent_kit", {
             p_rota: rotaDecidida,
             p_conversa_id: conv.conversation_id,
@@ -732,7 +904,7 @@ Deno.serve(async (req: Request) => {
       gateReason = typeof gate?.reason === "string" ? gate.reason : null;
       needsHumanDoGate = gate?.needs_human === true;
 
-      const kitServe = ehDoVendedor &&
+      const kitServe = ehExecutavel &&
         gate?.pode_executar === true &&
         kit && kit.ok !== false &&
         kit.meta?.kit_disponivel === true &&
@@ -761,7 +933,7 @@ Deno.serve(async (req: Request) => {
         //                       acender handoff; agora transfere, porque responder com
         //                       dado velho deixou de ser uma opção deste runtime.
         falhaDaRota = falhaDaRota ??
-          (!ehDoVendedor ? "rota_de_outra_lane" : gateReason ?? "kit_indisponivel");
+          (!ehExecutavel ? "rota_de_outra_lane" : gateReason ?? "kit_indisponivel");
       }
     }
 
@@ -818,8 +990,24 @@ Deno.serve(async (req: Request) => {
     }));
 
     const historico = Array.isArray(conv.historico) ? conv.historico : [];
-    const agendaSegura = agenda && typeof agenda === "object"
-      ? Object.fromEntries(Object.entries(agenda as Record<string, unknown>)
+
+    // A AGENDA DO SUMMIT SÓ ENTRA EM TURNO DE SUMMIT.
+    //
+    // `mindagent_chat_search` é consultada com `p_event_slug` fixo em
+    // `mind-summit-2026`, antes de o Router decidir — ela é uma das chamadas baratas
+    // do início do turno. Entregá-la em QUALQUER rota significa pôr sessões,
+    // palestrantes e expositores de um evento encerrado na frente do modelo enquanto
+    // ele responde sobre Institute ou Dash. Isso é a matéria-prima da falha que esta
+    // versão fecha: a pessoa pergunta de ferramenta de trabalho e recebe Summit, não
+    // porque o playbook mandou, mas porque o Summit era o único conteúdo concreto no
+    // payload.
+    //
+    // O filtro é pela rota APLICADA, não pela decidida: em CLARIFY não há rota, e
+    // turno de pergunta também não precisa da agenda. Sem rota de Summit, a chave vai
+    // vazia — não some, para o contrato do payload não mudar de forma entre turnos.
+    const agendaDoTurno = ROTAS_DO_SUMMIT.has(rotaAplicada ?? "") ? agenda : null;
+    const agendaSegura = agendaDoTurno && typeof agendaDoTurno === "object"
+      ? Object.fromEntries(Object.entries(agendaDoTurno as Record<string, unknown>)
           .filter(([k]) => ["sessions", "speakers", "locations", "exhibitors", "mind"].includes(k)))
       : {};
 
@@ -941,7 +1129,7 @@ Deno.serve(async (req: Request) => {
             instructions,
             input: entradaDoModelo,
             reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length) },
-            text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: RESPONSE_SCHEMA } },
+            text: { format: { type: "json_schema", name: "treble_agent_turn", strict: true, schema: montarResponseSchema(rotasDoCanal) } },
             ...(toolsParaModelo.length > 0
               ? { tools: toolsParaModelo, tool_choice: volta >= MAX_RODADAS_TOOL ? "none" : "auto" }
               : {}),
@@ -1008,6 +1196,7 @@ Deno.serve(async (req: Request) => {
       nome_informado: string | null; email_informado: string | null;
       whatsapp_informado: string | null;
       empresa_informada: string | null; cargo_informado: string | null;
+      next_route: string | null;
     };
     // NUNCA cortar por caractere. Ate a v1.5.0 esta linha terminava em
     // `.slice(0, 700)`, e um turno real chegou ao WhatsApp com exatamente 700
@@ -1056,7 +1245,10 @@ Deno.serve(async (req: Request) => {
     // `needs_human` é NECESSIDADE, e o Gate é quem sabe que a rota decidida não se
     // conclui sozinha neste runtime — qualquer rota, não só as de venda. Ele soma à
     // leitura do modelo; nunca a subtrai.
-    const needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
+    // Não é `const` porque um pedido de troca para rota de outra lane ainda pode
+    // acendê-lo, mais abaixo: passar ao time é decisão do turno, e ela se conhece
+    // depois de avaliar o `next_route`.
+    let needsHumanFinal = turn.needs_human === true || needsHumanDoGate;
 
     // CHECKOUT É AÇÃO DO RUNTIME, NÃO TEXTO LIVRE DO MODELO. O modelo pode escolher
     // somente uma URL que veio no Kit; o runtime confere, assina e registra. Como
@@ -1065,8 +1257,30 @@ Deno.serve(async (req: Request) => {
       ? turn.checkout_url.trim()
       : null;
     let checkoutOficial = escolherCheckoutOficial(dadosOficiais, checkoutCandidato, answer);
-    const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null || checkoutOficial !== null;
-    if (checkoutSolicitado && !checkoutOficial) {
+
+    // O INSTITUTE NÃO VENDE POR CARRINHO. Cada programa tem uma página oficial cujo
+    // botão de inscrição leva ao pagamento, e é ela que o Kit entrega em
+    // `programas[].pagina_oficial`. `escolherCheckoutOficial` não a reconhece — e não
+    // deve: ela só valida carrinho Eduzz, e alargar aquele domínio para aceitar
+    // joinmind.com.br transformaria página institucional em checkout rastreado,
+    // gravando linha no ledger de uma venda que não acontece ali.
+    //
+    // Então há dois tipos de link oficial, com garantias diferentes:
+    //   checkout Eduzz   assinado, rastreado com UTM e token opaco, e REGISTRADO em
+    //                    `mind_checkout_envio_registrar`;
+    //   página oficial   enviada como veio do Kit, sem rastreio e sem registro.
+    //
+    // A garantia que os dois compartilham, que é a que importa aqui: o modelo não
+    // escolhe URL, ele APONTA uma que o Kit mandou. Página oficial é conferida por
+    // igualdade exata — inclusive o #ancora, que é o que faz a pessoa cair no botão
+    // de inscrição em vez do topo da página.
+    const linkOficial = checkoutOficial
+      ? null
+      : escolherLinkOficial(dadosOficiais, checkoutCandidato, answer);
+
+    const checkoutSolicitado = turn.checkout_sent === true || checkoutCandidato !== null ||
+      checkoutOficial !== null || linkOficial !== null;
+    if (checkoutSolicitado && !checkoutOficial && !linkOficial) {
       console.error(JSON.stringify({ request_id: requestId, event: "checkout_nao_oficial" }));
       return json(200, {
         ok: true, guarded: true,
@@ -1085,7 +1299,7 @@ Deno.serve(async (req: Request) => {
     const decisaoPreco = decidirGuardrailPreco(
       answer,
       precosOficiais(dadosOficiais),
-      checkoutOficial !== null,
+      checkoutOficial !== null || linkOficial !== null,
     );
     if (decisaoPreco.valorRejeitado) {
       console.error(JSON.stringify({
@@ -1117,8 +1331,18 @@ Deno.serve(async (req: Request) => {
         `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/mindagent-checkout`;
       const urlEntregue = checkoutCurto(checkoutEventoId, redirectBase) ?? urlRastreada;
       respostaFinal = inserirCheckoutNaResposta(answer, checkoutOficial, urlEntregue, checkoutCandidato);
+    } else if (linkOficial) {
+      // Sem evento, sem UTM, sem ledger: a página oficial vai inteira, como o Kit a
+      // entregou. Quando o guardrail derrubou a copy por preço inválido,
+      // `decisaoPreco.resposta` já é a frase sem preço — e é sobre ELA que o link
+      // entra, não sobre a `answer` descartada.
+      respostaFinal = inserirLinkOficialNaResposta(decisaoPreco.resposta, linkOficial);
     }
-    const checkoutSentFinal = checkoutEventoId !== null;
+    // `checkout_sent` é "o link de compra saiu neste turno", e vale para os dois
+    // caminhos: é o que o fluxo da Treble lê. Só o caminho Eduzz gera evento de
+    // checkout, então nenhuma métrica de conversão passa a contar o Institute por
+    // acidente — `engagement.agente_eventos` continua recebendo apenas carrinho.
+    const checkoutSentFinal = checkoutEventoId !== null || linkOficial !== null;
 
     // PORTA ÚNICA DE IDENTIDADE. O e-mail que o lead disse ser dele passa pelo
     // resolvedor universal, ancorado na conversa: se for compatível, anexa à
@@ -1197,6 +1421,71 @@ Deno.serve(async (req: Request) => {
     // writer no lugar. Quando o Passo 15B construir o write-back de verdade, ele nasce
     // da casa canônica — não daqui.
 
+    // ------------------------------------------------------ TROCA DE COMPETÊNCIA
+    // O modelo PEDE; quem decide é o Gate; quem efetiva é o writer do turno. Mesmo
+    // desenho do `mindagent-chat`. Pedir a rota que já está respondendo não é troca:
+    // vira null antes de qualquer validação, para não gastar uma ida ao Gate à toa.
+    //
+    // Um pedido RECUSADO pelo Gate não vira silêncio nem erro: a resposta já escrita
+    // vai embora normalmente e a conversa simplesmente continua na competência
+    // atual. Quem não executa a rota de destino é este runtime, e isso já está
+    // coberto — se a rota ativa gravada for de outra lane, o turno seguinte encerra
+    // com transferência, que é a conduta certa.
+    const nextRouteBruto = typeof turn.next_route === "string" ? turn.next_route.trim() : "";
+    const nextRoute = nextRouteBruto && nextRouteBruto !== rotaAplicada &&
+        rotasDoCanal.includes(nextRouteBruto)
+      ? nextRouteBruto
+      : null;
+
+    // DUAS PERGUNTAS DIFERENTES, E AS DUAS PRECISAM DE SIM:
+    //
+    //   o Gate   — a rota de destino PODE executar neste canal agora?
+    //   a lane   — ESTE runtime é quem a executa?
+    //
+    // Só o Gate não basta, e confundir os dois trancava a conversa. `cliente_suporte`
+    // está na política do WhatsApp e o Gate responde `pode_executar: true` — mas quem
+    // atende isso é o time, por decisão de 20/10, e este runtime não executa a rota.
+    // Persistir `rota_ativa = cliente_suporte` fazia TODO turno seguinte cair em
+    // transferência, para sempre: nada limpa a rota ativa, então uma pergunta de
+    // suporte envenenava a conversa inteira — inclusive a volta da pessoa querendo
+    // falar de formação.
+    //
+    // A forma certa de "passar para o time" não é uma rota persistida: é
+    // `needs_human` neste turno. Transferência é um estado do TURNO; rota ativa é um
+    // estado da CONVERSA, e só faz sentido para competência que este runtime serve.
+    let rotaAtivaPersistir: string | null = null;
+    let handoffPedidoPeloModelo = false;
+    if (nextRoute) {
+      const { data: gateDestino } = await supabase.rpc("mind_rota_capacidade", {
+        p_rota: nextRoute,
+        p_canal: CANAL,
+      });
+      const gateAbre = gateDestino?.ok === true && gateDestino?.pode_executar === true;
+      const destinoEhDesteRuntime = ROTAS_EXECUTAVEIS.has(nextRoute);
+
+      if (gateAbre && destinoEhDesteRuntime) {
+        rotaAtivaPersistir = nextRoute;
+      } else if (gateAbre && !destinoEhDesteRuntime) {
+        // Rota legítima do canal, servida por outro. O turno vai ao time e a conversa
+        // NÃO fica presa: o próximo turno volta a ser classificado normalmente.
+        handoffPedidoPeloModelo = true;
+        console.info(JSON.stringify({
+          request_id: requestId, event: "handoff_para_outra_lane",
+          de: rotaAplicada, para: nextRoute,
+        }));
+      } else {
+        console.warn(JSON.stringify({
+          request_id: requestId, event: "handoff_recusado_pelo_gate",
+          de: rotaAplicada, para: nextRoute,
+          motivo: gateDestino?.reason ?? gateDestino?.motivo ?? null,
+        }));
+      }
+    }
+
+    // Pedido de passagem para competência que este runtime não serve acende a
+    // transferência DESTE turno — sem trancar a conversa numa rota ativa.
+    if (handoffPedidoPeloModelo) needsHumanFinal = true;
+
     const state = {
       audience: audienceFinal,
       intent: turn.intent,
@@ -1206,6 +1495,9 @@ Deno.serve(async (req: Request) => {
       checkout_sent: checkoutSentFinal,
       stage: turn.stage,
       desfecho: checkoutSentFinal ? "checkout_enviado" : turn.desfecho,
+      // Só entra no estado quando houve troca confirmada. Gravar `null` a cada turno
+      // apagaria uma rota ativa legítima na primeira resposta que não pedisse nada.
+      ...(rotaAtivaPersistir ? { rota_ativa: rotaAtivaPersistir } : {}),
     };
     // Só a resposta do agente: a fala do lead já foi persistida na ingestão.
     const { error: saveError } = await supabase.rpc("mind_turno_registrar", {
@@ -1218,6 +1510,7 @@ Deno.serve(async (req: Request) => {
       p_meta: {
         model, request_id: requestId, version: VERSION,
         rota: rotaDecidida, rota_aplicada: rotaAplicada,
+        next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
         precisa_esclarecer: precisaEsclarecer, candidatas,
         gate_reason: gateReason, rota_falha: falhaDaRota, router_ms: routerMs,
         rota_origem: rotaOrigem,
@@ -1253,7 +1546,9 @@ Deno.serve(async (req: Request) => {
 
     console.info(JSON.stringify({
       request_id: requestId, status: 200, session: sessionId.slice(0, 8),
-      rota: rotaAplicada, audience: audienceFinal, intent: turn.intent,
+      rota: rotaAplicada, rota_origem: rotaOrigem,
+      next_route: nextRoute, rota_ativa: rotaAtivaPersistir,
+      audience: audienceFinal, intent: turn.intent,
       needs_human: needsHumanFinal, gate_reason: gateReason,
       desfecho: turn.desfecho, identificada: idConhecida,
       email_proprio: emailDito != null,

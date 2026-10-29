@@ -56,6 +56,46 @@
       <strong>MIA Summit</strong>
       <small>Mind Intelligence Agent</small>
     </div>
+    <!-- As conversas da PESSOA, não do navegador. Os dois botões nascem
+         escondidos: sem e-mail trocado pelo LearnWorlds não há dono, e uma
+         lista que sempre volta vazia é pior que lista nenhuma. Quem os acende
+         é o `listarConversas()`, depois de o servidor dizer que há dono. -->
+    <div class="mia-acoes" hidden>
+      <button type="button" class="mia-botao-conversas" aria-expanded="false"
+        aria-controls="mia-lista-conversas" title="Suas conversas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Conversas</span>
+      </button>
+      <button type="button" class="mia-botao-nova" title="Começar uma conversa nova">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Nova</span>
+      </button>
+    </div>
+  </div>
+  <!-- Painel das conversas. Fica fora do `.mia-topo` porque ele cobre a área
+       das mensagens: dentro do cabeçalho, herdaria o roxo e o recorte dele. -->
+  <div class="mia-conversas" id="mia-lista-conversas" hidden></div>
+  <!-- A CAPA. Só existe quando o bloco é colado com `data-liberacao="pesquisa"`;
+       sem o atributo ela nunca aparece e o bloco é o de sempre. Ela conta o que
+       a MIA faz nos DOIS estados — bloqueado e liberado —, porque a apresentação
+       não é prêmio por ter respondido: é o que faz a pessoa querer responder. -->
+  <div class="mia-capa" hidden>
+    <div class="mia-capa-miolo">
+      <span class="mia-capa-selo">Mind Intelligence Agent</span>
+      <h2 class="mia-capa-titulo">A MIA assistiu ao Mind Summit inteiro</h2>
+      <p class="mia-capa-texto">
+        Você pergunta em português, ela responde a partir das sessões — e diz de
+        qual sessão e de qual palestrante aquilo saiu.
+      </p>
+      <ul class="mia-capa-lista">
+        <li>Encontrar palestras e especialistas sobre um tema</li>
+        <li>Entender um conceito apresentado no Summit</li>
+        <li>Conectar ideias de sessões diferentes</li>
+        <li>Aplicar o conteúdo a um desafio do seu trabalho</li>
+        <li>Criar um material a partir do que foi dito</li>
+      </ul>
+      <div class="mia-capa-estado" aria-live="polite"></div>
+    </div>
   </div>
   <div class="mia-mensagens" aria-live="polite"></div>
   <div class="mia-sugestoes"></div>
@@ -154,6 +194,42 @@
   .mia-lw .mia-avatar svg { width: 19px; height: 19px; display: block; }
   .mia-lw .mia-topo strong { display: block; font-size: 15px; font-weight: 900; color: #fff; }
   .mia-lw .mia-topo small { display: block; margin-top: 1px; font-size: 12px; color: rgba(255,255,255,.78); }
+
+  /* AS CONVERSAS. `margin-left: auto` empurra para a direita sem mexer no
+     cabeçalho: nenhum dos elementos que já estavam ali muda de lugar. */
+  .mia-lw .mia-acoes { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .mia-lw .mia-acoes button {
+    appearance: none; cursor: pointer; border: 0; border-radius: 100px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px; background: rgba(255,255,255,.17); color: #fff;
+    font-size: 12px; font-weight: 800; line-height: 1;
+  }
+  .mia-lw .mia-acoes button:hover { background: rgba(255,255,255,.27); }
+  .mia-lw .mia-acoes button svg { width: 14px; height: 14px; display: block; flex: none; }
+
+  .mia-lw .mia-conversas {
+    flex: none; max-height: 46%; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--mia-surface); border-bottom: 1px solid var(--mia-linha);
+    padding: 8px;
+  }
+  .mia-lw .mia-conversa {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    appearance: none; border: 0; background: transparent;
+    border-radius: 11px; padding: 10px 12px; color: var(--mia-texto);
+  }
+  .mia-lw .mia-conversa:hover { background: rgba(152,67,255,.1); }
+  .mia-lw .mia-conversa[aria-current="true"] { background: rgba(152,67,255,.15); }
+  .mia-lw .mia-conversa b {
+    display: block; font-size: 13px; font-weight: 800;
+    /* Título longo encolhe a linha, não quebra o cartão. */
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mia-lw .mia-conversa span {
+    display: block; margin-top: 2px; font-size: 11px; color: var(--mia-mudo);
+  }
+  .mia-lw .mia-conversas-vazio {
+    padding: 14px 12px; font-size: 12px; color: var(--mia-mudo);
+  }
   .mia-lw .mia-mensagens {
     flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
     display: flex; flex-direction: column; gap: 14px; padding: 18px 20px;
@@ -276,11 +352,76 @@
      `blur(0)`, mantém uma camada de composição por palavra enquanto estiver
      aplicado — numa resposta longa são centenas delas, num celular dentro do
      webview do app. O estado final vive em `forwards` enquanto a animação
-     existe, e em NADA depois que a classe sai. */
+     existe, e em NADA depois que a classe sai.
+
      OS NÚMEROS VIERAM DO `TextReveal` que o Vinícius mandou em 28/10 (React +
      `motion`, que não dá para usar aqui — bloco colado não tem build): desfoque
      de 8px, 10px de subida, 0,6s e a curva [.23, 1, .32, 1]. São de um
      componente já rodado, e valem mais do que os meus chutados. */
+  /* ============================================================
+     A CAPA DA LIBERAÇÃO
+     ============================================================
+     Enquanto a MIA não está liberada, a capa ocupa o lugar da conversa. O
+     cabeçalho roxo FICA: é ele que diz de quem é a tela, e tirá-lo faria a
+     dobra parecer uma página de erro em vez da apresentação dela.
+
+     Quem esconde a conversa é uma classe no contêiner, e não `hidden` em
+     cada pedaço: assim a volta é uma linha só, e não há como sobrar um
+     pedaço escondido quando a pessoa é liberada. */
+  .mia-lw.mia-com-capa .mia-mensagens,
+  .mia-lw.mia-com-capa .mia-sugestoes,
+  .mia-lw.mia-com-capa .mia-form,
+  .mia-lw.mia-com-capa .mia-aviso,
+  .mia-lw.mia-com-capa .mia-acoes { display: none; }
+  .mia-lw .mia-capa { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; }
+  .mia-lw .mia-capa[hidden] { display: none; }
+  .mia-capa-miolo {
+    margin: auto; width: 100%; max-width: 560px;
+    padding: clamp(24px, 5vw, 40px) 20px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .mia-capa-selo {
+    align-self: flex-start;
+    font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--mia-roxo);
+  }
+  .mia-capa-titulo {
+    margin: 0; font-size: clamp(21px, 3.4vw, 27px); line-height: 1.18;
+    font-weight: 900; letter-spacing: -.02em; color: var(--mia-texto);
+  }
+  .mia-capa-texto { margin: 0; font-size: 15px; line-height: 1.55; color: var(--mia-suave); }
+  .mia-capa-lista {
+    margin: 4px 0 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .mia-capa-lista li {
+    display: flex; align-items: baseline; gap: 9px;
+    font-size: 14px; line-height: 1.45; color: var(--mia-suave);
+  }
+  .mia-capa-lista li::before {
+    content: ''; flex: none; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--mia-roxo); transform: translateY(-2px);
+  }
+  .mia-capa-estado { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+  .mia-capa-espera {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; font-weight: 700; color: var(--mia-mudo);
+  }
+  /* A pétala gira aqui também. O giro mora numa regra presa a `.mia-pensou`,
+     e na capa ela não está lá dentro — sem esta linha ela aparece parada, que
+     é o contrário do que um "conferindo…" precisa dizer. */
+  .mia-capa-espera .mia-petala {
+    width: 15px; height: 15px; flex: none;
+    animation: mia-gira 2.6s linear infinite;
+  }
+  .mia-capa-cta {
+    align-self: flex-start; display: inline-block;
+    background: var(--mia-roxo); color: #fff;
+    border: 0; border-radius: 100px; padding: 13px 24px;
+    font-size: 14px; font-weight: 800; text-decoration: none; cursor: pointer;
+  }
+  .mia-capa-nota { font-size: 13px; line-height: 1.5; color: var(--mia-mudo); }
+
   .mia-lw .mia-palavra { display: inline-block; }
   .mia-lw .mia-escrevendo .mia-palavra {
     opacity: 0; filter: blur(8px); transform: translateY(10px);
@@ -1445,15 +1586,291 @@
       'elas aparecem, para você assistir.', 'ela');
   }
 
-  /* HOUVE UM BOTÃO "NOVA CONVERSA" AQUI, e ele saiu a pedido do Vinícius em
-     27/10. O que ele resolvia continua de pé, e fica escrito para quem vier:
-     quando a MIA passa a conversa adiante (ingresso, gravação, certificado), a
-     rota fica gravada na conversa e tem precedência sobre esta porta. Como a
-     conversa é guardada no navegador, recarregar devolve a pessoa ao outro
-     agente, e não há saída pela tela — só limpando o armazenamento.
-     O conserto certo não é daqui: ou a MIA não passa adiante o que não é do
-     suporte, ou a rota gravada deixa de vencer a porta de entrada. As duas
-     coisas são decisão de quem manda no runtime. */
-  saudar();
+  /* ============================================================
+     AS CONVERSAS DA PESSOA
+     ============================================================
+     O BOTÃO "NOVA CONVERSA" SAIU EM 27/10 e volta agora, porque o motivo da
+     saída foi consertado no runtime. Ele saiu porque, quando a MIA passava a
+     conversa adiante, a rota ficava gravada e vencia esta porta: recarregar
+     devolvia a pessoa ao outro agente, sem saída pela tela. Desde a 1.19.0 a
+     porta de produto fechado vence a rota gravada, e a MIA não pede mais
+     passagem — o enum de saída dela só aceita `null`.
+
+     O QUE ESTA PARTE RESOLVE. Até aqui o bloco guardava o id da conversa e
+     NUNCA desenhava o que já tinha sido dito: quem voltava via tela em branco
+     e achava que havia perdido tudo, mesmo com a conversa inteira do outro
+     lado. E só havia uma vaga, no navegador — outro aparelho, outra conversa.
+
+     A lista vem da PESSOA, não do armazenamento daqui. Quem resolve quem é a
+     pessoa é o servidor, a partir do e-mail e do id que o LearnWorlds escreve
+     na página. */
+  var acoes = raiz.querySelector('.mia-acoes');
+  var painel = raiz.querySelector('.mia-conversas');
+  var botaoConversas = raiz.querySelector('.mia-botao-conversas');
+  var botaoNova = raiz.querySelector('.mia-botao-nova');
+
+  /* Mesmo endereço e mesma sessão do turno; o que muda é que não há pergunta.
+     `historico` vale 'listar' ou o id de uma conversa. */
+  function pedirHistorico(valor) {
+    return autenticar(false).then(function (acesso) {
+      return fetch(SUPABASE + '/functions/v1/mindagent-chat', {
+        method: 'POST',
+        headers: {
+          apikey: CHAVE_PUBLICA,
+          Authorization: 'Bearer ' + acesso.access_token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          historico: valor,
+          event_slug: EVENTO,
+          device_id: dispositivo(),
+          session: ler('conversa') || undefined,
+          origem_codigo: PORTA,
+          identity: IDENTIDADE,
+        }),
+        cache: 'no-store',
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (p) {
+          if (p && p.session) salvar('conversa', p.session);
+          return r.ok && p && p.ok ? p : null;
+        });
+      });
+    }).catch(function () { return null; });
+    /* Falhar aqui não pode derrubar o bloco: sem histórico a MIA ainda
+       conversa, e é isso que a pessoa veio fazer. */
+  }
+
+  function limparTela() {
+    while (mensagens.firstChild) mensagens.removeChild(mensagens.firstChild);
+  }
+
+  /* O histórico é redesenhado com a MESMA `bolha` do turno vivo, e de
+     propósito: duas funções de desenhar mensagem é onde uma delas envelhece e
+     a conversa reaberta passa a parecer diferente da que acabou de acontecer. */
+  function desenharHistorico(lista) {
+    limparTela();
+    for (var i = 0; i < lista.length; i++) {
+      var m = lista[i];
+      if (!m || typeof m.conteudo !== 'string') continue;
+      bolha(m.conteudo, m.papel === 'user' ? 'eu' : 'ela');
+    }
+    mensagens.scrollTop = mensagens.scrollHeight;
+  }
+
+  function fecharPainel() {
+    painel.hidden = true;
+    botaoConversas.setAttribute('aria-expanded', 'false');
+  }
+
+  function abrirConversa(id) {
+    return pedirHistorico(id).then(function (p) {
+      fecharPainel();
+      if (!p) return false;
+      var lista = Array.isArray(p.mensagens) ? p.mensagens : [];
+      if (!lista.length) { limparTela(); saudar(); return true; }
+      desenharHistorico(lista);
+      return true;
+    });
+  }
+
+  function quando(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var hoje = new Date();
+    var mesmoDia = d.toDateString() === hoje.toDateString();
+    if (mesmoDia) return 'hoje, ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+
+  function desenharLista(conversas) {
+    while (painel.firstChild) painel.removeChild(painel.firstChild);
+    if (!conversas.length) {
+      var vazio = document.createElement('div');
+      vazio.className = 'mia-conversas-vazio';
+      vazio.textContent = 'Esta é a sua primeira conversa por aqui.';
+      painel.appendChild(vazio);
+      return;
+    }
+    var atual = (ler('conversa') || {}).conversation_id;
+    conversas.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mia-conversa';
+      if (c.id === atual) b.setAttribute('aria-current', 'true');
+
+      var nome = document.createElement('b');
+      /* Título gerado no primeiro turno. Conversa antiga não tem, e aí a
+         própria primeira pergunta serve de nome — melhor que "Sem título". */
+      nome.textContent = c.titulo || c.inicio || 'Conversa';
+      b.appendChild(nome);
+
+      var sub = document.createElement('span');
+      var partes = [];
+      if (c.ultima_atividade) partes.push(quando(c.ultima_atividade));
+      if (c.mensagens) partes.push(c.mensagens + (Number(c.mensagens) === 1 ? ' mensagem' : ' mensagens'));
+      sub.textContent = partes.join(' · ');
+      b.appendChild(sub);
+
+      b.addEventListener('click', function () { abrirConversa(c.id); });
+      painel.appendChild(b);
+    });
+  }
+
+  function listarConversas() {
+    return pedirHistorico('listar').then(function (p) {
+      var conversas = p && Array.isArray(p.conversas) ? p.conversas : [];
+      /* Sem dono resolvido o servidor devolve lista vazia, e os botões
+         continuam escondidos: não se oferece à pessoa uma gaveta que nunca
+         vai ter nada dentro. Com uma conversa que seja, eles acendem. */
+      if (conversas.length) acoes.hidden = false;
+      desenharLista(conversas);
+      return conversas;
+    });
+  }
+
+  botaoConversas.addEventListener('click', function () {
+    if (!painel.hidden) { fecharPainel(); return; }
+    painel.hidden = false;
+    botaoConversas.setAttribute('aria-expanded', 'true');
+    listarConversas();
+  });
+
+  botaoNova.addEventListener('click', function () {
+    /* Esquecer a conversa aqui basta: o próximo turno abre outra no servidor,
+       e a que ficou para trás continua na lista. Nada é apagado. */
+    remover('conversa');
+    fecharPainel();
+    limparTela();
+    saudar();
+    campo.focus();
+  });
+
+  /* ---------- Abertura ----------
+     Com conversa guardada, o bloco pede o que já foi dito e redesenha. Sem
+     ela, ou se a conversa guardada não existe mais, é a saudação de sempre.
+     A lista corre em seguida, só para acender os botões quando houver o que
+     mostrar — ela não bloqueia a tela. */
+  (function abrir() {
+    var guardada = ler('conversa');
+    var pronto = guardada && guardada.conversation_id
+      ? abrirConversa(guardada.conversation_id)
+      : Promise.resolve(false);
+
+    pronto.then(function (deuCerto) {
+      if (!deuCerto) {
+        /* A conversa guardada não abriu: ou não existe mais, ou é de outra
+           pessoa neste computador. Esquecer aqui evita que o primeiro turno
+           tente escrever nela e falhe com a pessoa já esperando. */
+        if (guardada) remover('conversa');
+        limparTela();
+        saudar();
+      }
+      listarConversas();
+    });
+  })();
+
+  /* ============================================================
+     A LIBERAÇÃO PELA PESQUISA
+     ============================================================
+     OPT-IN, e sem o atributo nada disto existe: colado como sempre, o bloco
+     é o de sempre. Com `data-liberacao="pesquisa"` na div, ele pergunta ao
+     servidor, a cada entrada na página, se esta pessoa já pode ver a MIA.
+
+     A pergunta vai com o e-mail que o LearnWorlds trocou. Confiar nele foi
+     decisão do Vinícius (29/10/2026). Vale lembrar o que isso é e o que não
+     é: uma CORTINA, não uma fechadura. O e-mail não é assinado e a chave
+     publishable é pública, então quem quiser chamar a `mindagent-chat`
+     direto continua conseguindo. Isto sequencia a experiência de quem é
+     honesto; não protege segredo. A fechadura exigiria a própria
+     `mindagent-chat` recusar o turno, o que depende de ela confiar na
+     identidade do LearnWorlds — hoje ela descarta, e mudar isso tem gate.
+
+     TRÊS ESTADOS, e o de partida é CARREGANDO com a capa na frente. Nunca o
+     contrário: se a tela abrisse no chat e o escondesse depois da resposta,
+     quem está liberado veria um pisca, e quem não está veria a MIA por um
+     instante — que é justamente o que não pode.
+
+     ATRIBUTOS
+       data-liberacao="pesquisa"      liga o portão
+       data-pesquisa-url="https://…"  para onde o botão manda quem falta
+       data-liberacao-previa="…"      só para ver as telas: "carregando",
+                                      "bloqueada" ou "liberada". Não chama o
+                                      servidor. Serve para conferir o
+                                      desenho antes de a pesquisa existir. */
+  (function () {
+    if (raiz.getAttribute('data-liberacao') !== 'pesquisa') return;
+
+    var capa = raiz.querySelector('.mia-capa');
+    var estado = raiz.querySelector('.mia-capa-estado');
+    var LINK = raiz.getAttribute('data-pesquisa-url') || '';
+    var PREVIA = raiz.getAttribute('data-liberacao-previa') || '';
+
+    function mostrarCapa() {
+      raiz.classList.add('mia-com-capa');
+      capa.hidden = false;
+    }
+    function abrir() {
+      raiz.classList.remove('mia-com-capa');
+      capa.hidden = true;
+    }
+
+    function carregando() {
+      mostrarCapa();
+      estado.innerHTML = '';
+      var linha = document.createElement('div');
+      linha.className = 'mia-capa-espera';
+      linha.appendChild(petala());
+      linha.appendChild(document.createTextNode('Conferindo seu acesso…'));
+      estado.appendChild(linha);
+    }
+
+    function bloquear() {
+      mostrarCapa();
+      estado.innerHTML = '';
+      /* O link só vira botão se foi informado. Um botão que não leva a lugar
+         nenhum é pior do que nenhum botão: a pessoa toca e nada acontece. */
+      if (LINK) {
+        var a = document.createElement('a');
+        a.className = 'mia-capa-cta';
+        a.href = LINK;
+        a.textContent = 'Responder a pesquisa para liberar';
+        estado.appendChild(a);
+      }
+      var nota = document.createElement('p');
+      nota.className = 'mia-capa-nota';
+      nota.textContent = LINK
+        ? 'Assim que você responder, é só voltar a esta página — a MIA abre sozinha.'
+        : 'A MIA abre para quem já respondeu a pesquisa. Assim que você responder, volte a esta página.';
+      estado.appendChild(nota);
+    }
+
+    if (PREVIA) {
+      if (PREVIA === 'liberada') abrir();
+      else if (PREVIA === 'bloqueada') bloquear();
+      else carregando();
+      return;
+    }
+
+    carregando();
+
+    /* FALHA FECHA, nos dois lados. O servidor já responde `liberada: false`
+       quando não consegue conferir; aqui o `catch` cobre o caso de a resposta
+       não chegar. Não saber nunca vira "pode entrar". */
+    var controle = new AbortController();
+    var limite = setTimeout(function () { controle.abort(); }, 12000);
+    fetch(SUPABASE + '/functions/v1/mia-liberacao', {
+      method: 'POST',
+      headers: { apikey: CHAVE_PUBLICA, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: (IDENTIDADE && IDENTIDADE.email) || '' }),
+      cache: 'no-store',
+      signal: controle.signal,
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; });
+    }).then(function (p) {
+      if (p && p.ok && p.liberada === true) abrir(); else bloquear();
+    }).catch(function () {
+      bloquear();
+    }).then(function () { clearTimeout(limite); });
+  })();
 })();
 </script>

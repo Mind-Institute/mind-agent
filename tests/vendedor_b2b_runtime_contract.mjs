@@ -11,8 +11,16 @@ const aqui = dirname(fileURLToPath(import.meta.url));
 const fonte = join(aqui, "..", "supabase", "functions", "treble-inbound-agent", "index.ts");
 const src = readFileSync(fonte, "utf8");
 
+// A versão é piso, não igualdade. Fixar a string exata fazia este contrato quebrar
+// em TODO bump — e a falha dizia "runtime 1.10.4", que não é defeito nenhum, só uma
+// versão nova. O que este arquivo precisa garantir é que as regras B2B da 1.10.2/
+// 1.10.4 continuam no fonte (as linhas abaixo fazem isso, uma a uma) e que ninguém
+// voltou o runtime para antes delas.
+const versao = src.match(/const VERSION = "(\d+)\.(\d+)\.(\d+)"/);
+const ordem = versao ? Number(versao[1]) * 1e6 + Number(versao[2]) * 1e3 + Number(versao[3]) : -1;
+
 const checks = [
-  ["runtime 1.10.4", src.includes('const VERSION = "1.10.4"')],
+  ["runtime >= 1.10.4", ordem >= 1 * 1e6 + 10 * 1e3 + 4, versao ? `achado ${versao[0]}` : "VERSION não encontrada"],
   ["fala do lead vem de actual_response antes dos aliases", /pick\(body, \[\s*"actual_response",\s*"mensagem"/.test(src)],
   ["credenciamento entra no contexto", src.includes("credenciamento: conv.credenciamento ?? null")],
   ["e-mail e WhatsApp usam rótulos", src.includes("[email_1]") && src.includes("[whatsapp_1]")],
