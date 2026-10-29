@@ -64,7 +64,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.22.0";
+const VERSION = "1.22.1";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -1477,16 +1477,20 @@ Deno.serve(async (req: Request) => {
     let forcarBuscaNaProximaVolta = buscaForcadaPeloKit;
     const chamadasFeitas: Array<{ nome: string; ok: boolean; pediu?: string; achou?: string[] }> = [];
 
+    // Ligado quando uma rodada estoura o próprio prazo: a volta seguinte é o fecho.
+    let fecharAgora = false;
+
     for (let tentativaModelo = 0; podeTentarModelo(tentativaModelo, MAX_TENTATIVAS_MODELO); tentativaModelo++) {
       tentativasModelo++;
       const restante = fimDoOrcamento - Date.now();
       if (restante <= 0) throw new DOMException("orcamento_do_turno", "AbortError");
 
-      // SEM TEMPO PARA MAIS BUSCA, FECHA. Abaixo da reserva, esta chamada é o fecho:
-      // as ferramentas saem de cena e o modelo responde com o que já leu. Antes, a
-      // rodada de ferramenta levava o relógio inteiro e a resposta final era abortada
-      // no meio — 504, e a pessoa não recebia nada.
-      const fechandoPorTempo = restante <= RESERVA_FECHO_MS;
+      // SEM TEMPO PARA MAIS BUSCA, FECHA. Abaixo da reserva — ou depois de uma rodada
+      // que estourou o próprio prazo —, esta chamada é o fecho: ferramenta fora e
+      // raciocínio desligado, porque o modelo já leu o que tinha de ler e só falta
+      // escrever. A reserva é GATILHO, não parede: ela decide quando parar de abrir
+      // busca, nunca derruba o turno.
+      const fechandoPorTempo = fecharAgora || restante <= RESERVA_FECHO_MS;
       // O fecho fica com tudo o que sobrou; as rodadas anteriores devolvem a reserva.
       const prazoDestaChamada = fechandoPorTempo ? restante : restante - RESERVA_FECHO_MS;
       if (fechandoPorTempo) telemetry.fechou_por_tempo = true;
@@ -1507,17 +1511,26 @@ Deno.serve(async (req: Request) => {
             // que não deve mudar por causa desta entrega. COM ferramenta, `low`:
             // decidir se busca, o que buscar e se o resultado responde é raciocínio,
             // e com `none` o modelo tende a responder direto sem investigar.
-            reasoning: { effort: esforcoDeRaciocinio(message, toolsParaModelo.length, buscaForcadaPeloKit) },
+            //
+            // NO FECHO, `none` SEMPRE: não há mais o que decidir — a busca acabou, o
+            // material está na mão e o que falta é redigir. Pagar raciocínio aqui é o
+            // que fazia o fecho não caber no tempo que sobrou.
+            reasoning: {
+              effort: fechandoPorTempo
+                ? "none"
+                : esforcoDeRaciocinio(message, toolsParaModelo.length, buscaForcadaPeloKit),
+            },
             text: {
               format: {
                 type: "json_schema", name: "mindagent_response", strict: true, schema: responseSchema,
               },
             },
-            ...(toolsParaModelo.length > 0
+            // NO FECHO A FERRAMENTA NEM VIAJA. Mandar o catálogo com `tool_choice:none`
+            // custava entrada e tentação à toa na chamada que menos pode gastar.
+            ...(toolsParaModelo.length > 0 && !fechandoPorTempo
               ? {
                 tools: toolsParaModelo,
-                tool_choice: fechandoPorTempo ||
-                    !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) ||
+                tool_choice: !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) ||
                     !podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO)
                   ? "none"
                   : forcarBuscaNaProximaVolta
@@ -1539,6 +1552,26 @@ Deno.serve(async (req: Request) => {
           }),
           signal: controller.signal,
         });
+      } catch (erroDaChamada) {
+        // ABORT DE RODADA NÃO MATA O TURNO. O prazo que estourou aqui é o DESTA
+        // chamada, não o do turno: ainda há relógio, e o que o modelo já leu está na
+        // mão. Antes isto subia direto para o catch de fora e virava 504 — medido em
+        // 29/10, um turno morreu em 33.008ms (45s de orçamento menos a reserva) numa
+        // pergunta que turnos de 34s e 36s responderam normalmente no mesmo dia.
+        // Agora a volta seguinte é o fecho, com o que sobrou.
+        const abortou = erroDaChamada instanceof DOMException && erroDaChamada.name === "AbortError";
+        if (abortou && !fechandoPorTempo && fimDoOrcamento - Date.now() > 0) {
+          fecharAgora = true;
+          telemetry.fechou_por_tempo = true;
+          telemetry.rodada_abortada = (Number(telemetry.rodada_abortada) || 0) + 1;
+          console.warn(JSON.stringify({
+            request_id: requestId, event: "rodada_abortada_fecha_turno",
+            tentativa: tentativaModelo, rodadas_tool: rodadasTool,
+            restante_ms: fimDoOrcamento - Date.now(),
+          }));
+          continue;
+        }
+        throw erroDaChamada;
       } finally {
         openAiMs += Date.now() - openAiStartedAt;
         Object.assign(telemetry, {

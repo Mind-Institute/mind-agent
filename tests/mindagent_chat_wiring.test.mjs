@@ -158,18 +158,28 @@ test('o fecho do turno tem tempo reservado, e a lupa não o consome', () => {
   // no meio — 504, nada na tela. Medido em 29/10: openai_ms 42.019 em três chamadas,
   // tool_ms 2.083, duration_ms 45.002.
   assert.match(src, /RESERVA_FECHO_MS/, 'a reserva do fecho precisa existir');
-  assert.match(src, /const fechandoPorTempo = restante <= RESERVA_FECHO_MS/);
+  assert.match(src, /const fechandoPorTempo = fecharAgora \|\| restante <= RESERVA_FECHO_MS/);
 
   // O prazo da chamada devolve a reserva enquanto ainda houver ferramenta na mesa.
   assert.match(src, /const prazoDestaChamada = fechandoPorTempo \? restante : restante - RESERVA_FECHO_MS/);
   assert.match(src, /setTimeout\(\(\) => controller\.abort\(\), prazoDestaChamada\)/,
     'o abort precisa usar o prazo repartido, não o restante inteiro');
 
-  // E, sem tempo, a ferramenta sai de cena: o modelo fecha com o que já leu.
-  assert.ok(
-    /tool_choice: fechandoPorTempo \|\|/.test(src),
-    'abaixo da reserva, tool_choice precisa ser "none"',
-  );
+  // RESERVA É GATILHO, NÃO PAREDE. Este é o contrato que faltava em 29/10 e por isso
+  // a reserva derrubou turnos que antes passavam: o abort de uma rodada tem de virar
+  // fecho, e só o fim do orçamento inteiro encerra o turno.
+  assert.match(src, /let fecharAgora = false/, 'precisa existir o estado que leva ao fecho');
+  const trechoCatch = src.slice(pos('} catch (erroDaChamada) {'), pos('      } finally {'));
+  assert.match(trechoCatch, /fecharAgora = true/, 'abort de rodada precisa ligar o fecho');
+  assert.match(trechoCatch, /continue;/, 'depois do abort, a volta seguinte é o fecho');
+  assert.match(trechoCatch, /throw erroDaChamada/, 'o que não for abort recuperável ainda sobe');
+  assert.match(trechoCatch, /!fechandoPorTempo/, 'abort DO fecho não pode virar outro fecho');
+
+  // No fecho, o modelo só escreve: sem ferramenta no payload e sem raciocínio.
+  assert.match(src, /toolsParaModelo\.length > 0 && !fechandoPorTempo/,
+    'a ferramenta não pode viajar na chamada de fecho');
+  assert.match(src, /effort: fechandoPorTempo\s*\?\s*"none"/,
+    'o fecho não paga raciocínio — já leu o que tinha de ler');
 });
 
 test('o playbook manda buscar antes de abster e proíbe expor o encanamento', () => {
