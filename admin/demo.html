@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  VITRINE DO `ThinkingPromptInput` — entrada de desenvolvimento.
+
+  POR QUE UMA ENTRADA PRÓPRIA, e não uma rota do painel. O painel inteiro
+  roda atrás da porta de login (`Provedores` envolve o `RouterProvider` em
+  `src/App.tsx`), então qualquer rota nova nasceria atrás dela — e ver um
+  componente não devia custar uma sessão de admin.
+
+  E ELA NÃO VAI PARA A PRODUÇÃO por construção, não por disciplina: o
+  `vite build` só constrói o `index.html`, então este arquivo existe apenas
+  enquanto o servidor de desenvolvimento está no ar.
+
+  Endereço: http://localhost:5174/admin/demo.html
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ThinkingPromptInput — vitrine</title>
+  </head>
+  <body>
+    <div id="raiz"></div>
+    <script type="module" src="/src/demo-main.tsx"></script>
+  </body>
+</html>
