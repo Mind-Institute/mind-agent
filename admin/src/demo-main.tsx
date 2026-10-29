@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import ThinkingDemo from '@/components/thinking-prompt-input-demo';
+import MiaVitrine from '@/components/mia-vitrine';
 import './index.css';
 
 /* Monta SÓ a demo. Nada de `Provedores`, de roteador ou de porta do Supabase:
@@ -15,7 +15,7 @@ const raiz = document.getElementById('raiz');
 if (raiz) {
   createRoot(raiz).render(
     <StrictMode>
-      <ThinkingDemo />
+      <MiaVitrine />
     </StrictMode>,
   );
 }

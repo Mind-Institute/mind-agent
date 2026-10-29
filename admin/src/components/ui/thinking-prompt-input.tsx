@@ -30,6 +30,36 @@ import { ArrowUp, Check, ChevronRight, Sparkles, Square } from "lucide-react";
 export type ThinkingStatus = "idle" | "thinking" | "answering" | "done";
 export type ThinkingStep = { id: string; text: string; status?: "active" | "complete" };
 export type ThinkingSubmitOptions = { think: boolean };
+
+/* OS TEXTOS SAEM DO COMPONENTE. Vinham escritos dentro do JSX, em inglês —
+   "Thinking it through", "Thought for 4s", "Think", "Stop". Num produto em
+   português isso aparece misturado com a conversa e denuncia a peça como
+   coisa de fora. Viraram props com os mesmos valores de antes como padrão:
+   quem não passar nada recebe o componente original, e quem passar escreve
+   na própria língua, inclusive nos rótulos que só o leitor de tela ouve. */
+export type ThinkingLabels = {
+  thinking?: string;
+  thoughtFor?: (seconds: number) => string;
+  think?: string;
+  stop?: string;
+  send?: string;
+  conversation?: string;
+  response?: string;
+  stepComplete?: string;
+  stepInProgress?: string;
+};
+
+const DEFAULT_LABELS: Required<ThinkingLabels> = {
+  thinking: "Thinking it through",
+  thoughtFor: (seconds) => `Thought for ${seconds}s`,
+  think: "Think",
+  stop: "Stop",
+  send: "Send prompt",
+  conversation: "Conversation",
+  response: "Response",
+  stepComplete: "Complete",
+  stepInProgress: "In progress",
+};
 export type ThinkingPromptInputProps = {
   status?: ThinkingStatus;
   prompt?: string;
@@ -47,6 +77,12 @@ export type ThinkingPromptInputProps = {
   placeholder?: string;
   followUpPlaceholder?: string;
   answerNote?: string;
+  /** Textos visíveis e rótulos de acessibilidade. Faltando, valem os originais. */
+  labels?: ThinkingLabels;
+  /** Marca no lugar do sparkles. Gira sozinha enquanto o status é "thinking". */
+  icon?: React.ReactNode;
+  /** O botão "Think" do compositor. Falso o esconde. Padrão: verdadeiro. */
+  showThink?: boolean;
   disabled?: boolean;
   className?: string;
 };
@@ -77,9 +113,13 @@ export function ThinkingPromptInput({
   placeholder = "Ask anything",
   followUpPlaceholder = "Ask a follow-up",
   answerNote,
+  labels,
+  icon,
+  showThink = true,
   disabled = false,
   className = "",
 }: ThinkingPromptInputProps) {
+  const texto = { ...DEFAULT_LABELS, ...labels };
   const [draft, setDraft] = React.useState(defaultValue);
   const [localThink, setLocalThink] = React.useState(defaultThink);
   const [expanded, setExpanded] = React.useState(false);
@@ -251,7 +291,7 @@ export function ThinkingPromptInput({
           ref={transcript}
           data-transcript
           role="region"
-          aria-label="Conversation"
+          aria-label={texto.conversation}
           tabIndex={0}
           className="mb-4 min-h-0 flex-1 overflow-y-auto rounded-lg outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -275,12 +315,17 @@ export function ThinkingPromptInput({
                     onClick={() => setExpanded(!expanded)}
                     className={`flex max-w-full items-center gap-2 rounded-full text-xs outline-none transition-colors motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring ${status === "thinking" ? "h-7 w-full text-muted-foreground" : "border border-border bg-muted/60 px-2.5 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                   >
-                    <Sparkles className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span
+                      aria-hidden="true"
+                      className={`flex size-3.5 shrink-0 items-center justify-center text-muted-foreground ${status === "thinking" ? "motion-safe:animate-[spin_2.6s_linear_infinite]" : ""}`}
+                    >
+                      {icon ?? <Sparkles className="size-3.5" />}
+                    </span>
                     {status === "thinking" ? (
                       <span ref={shimmer} data-shimmer className={reduced ? "text-muted-foreground" : BRILHO_PENSANDO}>
-                        Thinking it through
+                        {texto.thinking}
                       </span>
-                    ) : <span>Thought for {seconds}s</span>}
+                    ) : <span>{texto.thoughtFor(seconds)}</span>}
                     {status === "thinking"
                       ? <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">{seconds}s</span>
                       : <ChevronRight className={`size-3.5 transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`} aria-hidden="true" />}
@@ -291,8 +336,8 @@ export function ThinkingPromptInput({
                         <li key={step.id} data-step={step.id} className="relative flex min-h-9 items-center gap-3 py-2 text-xs leading-5">
                           <span className="absolute -left-[26px] flex size-[11px] items-center justify-center rounded-full bg-background ring-4 ring-background">
                             {step.status === "complete"
-                              ? <Check className="size-3 text-foreground" aria-label="Complete" />
-                              : <span className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse" aria-label="In progress" />}
+                              ? <Check className="size-3 text-foreground" aria-label={texto.stepComplete} />
+                              : <span className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse" aria-label={texto.stepInProgress} />}
                           </span>
                           <span className={step.status === "active" ? "text-foreground" : "text-muted-foreground"}>{step.text}</span>
                         </li>
@@ -305,7 +350,7 @@ export function ThinkingPromptInput({
                 <div
                   data-answer
                   role="region"
-                  aria-label="Response"
+                  aria-label={texto.response}
                   aria-live="off"
                   className="mt-4 space-y-2.5 break-words text-sm leading-6 text-foreground"
                 >
@@ -349,24 +394,26 @@ export function ThinkingPromptInput({
           className="block h-16 min-h-16 w-full resize-none rounded-lg bg-transparent p-1 text-[17px] leading-7 tracking-tight text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
         />
         <div className="mt-3 flex items-center justify-between">
-          <button
-            type="button"
-            aria-pressed={thinkingEnabled}
-            disabled={disabled || busy}
-            onClick={() => {
-              if (think === undefined) setLocalThink(!thinkingEnabled);
-              onThinkChange?.(!thinkingEnabled);
-            }}
-            className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium outline-none transition-colors motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${thinkingEnabled ? "border-primary/15 bg-primary/5 text-foreground" : "border-border bg-card text-muted-foreground"}`}
-          >
-            <Sparkles className="size-3.5" aria-hidden="true" />
-            Think
-            {thinkingEnabled && <Check className="size-3" aria-hidden="true" />}
-          </button>
+          {showThink ? (
+            <button
+              type="button"
+              aria-pressed={thinkingEnabled}
+              disabled={disabled || busy}
+              onClick={() => {
+                if (think === undefined) setLocalThink(!thinkingEnabled);
+                onThinkChange?.(!thinkingEnabled);
+              }}
+              className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium outline-none transition-colors motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${thinkingEnabled ? "border-primary/15 bg-primary/5 text-foreground" : "border-border bg-card text-muted-foreground"}`}
+            >
+              <Sparkles className="size-3.5" aria-hidden="true" />
+              {texto.think}
+              {thinkingEnabled && <Check className="size-3" aria-hidden="true" />}
+            </button>
+          ) : <span />}
           <button
             type={busy ? "button" : "submit"}
             data-stop={busy ? "" : undefined}
-            aria-label={busy ? "Stop" : "Send prompt"}
+            aria-label={busy ? texto.stop : texto.send}
             onClick={busy ? (event) => { event.preventDefault(); onStop?.(); } : undefined}
             disabled={disabled || (busy ? !onStop : !inputValue.trim() || !onSubmit)}
             className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:opacity-30"
@@ -389,7 +436,7 @@ export function ThinkingPromptInput({
         </div>
       </form>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-announcement>
-        {status === "thinking" ? `Thinking. ${steps.at(-1)?.text ?? ""}` : completeAnswer}
+        {status === "thinking" ? `${texto.thinking}. ${steps.at(-1)?.text ?? ""}` : completeAnswer}
       </div>
     </div>
   );
