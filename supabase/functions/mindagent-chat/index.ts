@@ -34,7 +34,12 @@ type ChatRequest = {
   device_id?: string;
   client_message_id?: string;
   session?: { id?: string; conversation_id?: string; token?: string };
-  identity?: { email?: string; name?: string; source?: string };
+  identity?: { email?: string; name?: string; source?: string; learnworlds_user_id?: string };
+  // HISTÓRICO DE CONVERSAS. Mesmo endpoint, mesma sessão, mesma identidade; sem
+  // pergunta e sem modelo, como o modo ação. "listar" devolve as conversas da
+  // PESSOA; um uuid abre aquela conversa, traz as mensagens e a adota para este
+  // aparelho — é a adoção que deixa o caminho do turno intocado.
+  historico?: string;
   // Porta de entrada da conversa. NÃO é identidade: diz de onde a pessoa veio, não
   // quem ela é. Persistido em `engagement.conversas.origem_codigo`, a mesma casa que
   // o WhatsApp já usa (`summit_info_evento`, `summit_garantir_ingresso`, …).
@@ -64,7 +69,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.23.0";
+const VERSION = "1.24.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -492,7 +497,12 @@ function sourceSummary(structured: Record<string, unknown>) {
 // o enum fica só com `null`, e pedir passagem deixa de ser uma saída que existe. Antes
 // isso era só pedido no playbook — e pedir não garante. O agente dessas portas resolve
 // dentro do próprio escopo ou diz quem cuida e onde procurar; não entrega a pessoa.
-function montarResponseSchema(rotasDoCanal: string[], portaRetem = false) {
+// `pedirTitulo` só é verdadeiro no PRIMEIRO turno da conversa, e o campo nem
+// existe no contrato depois disso. Nomear a conversa é trabalho de uma vez: o
+// modelo já está lendo a pergunta para responder, então o título sai de carona,
+// sem uma segunda chamada e sem um segundo de latência. Pedir sempre custaria
+// tokens em todo turno para reescrever um nome que não deve mudar.
+function montarResponseSchema(rotasDoCanal: string[], portaRetem = false, pedirTitulo = false) {
   const rotasQuePodeTrocar = portaRetem ? [] : rotasDoCanal;
   return {
     type: "object",
@@ -600,11 +610,29 @@ function montarResponseSchema(rotasDoCanal: string[], portaRetem = false) {
           "pergunta curta que permita ao próximo turno continuar sem a pessoa repetir tudo. " +
           "Pedir a troca não conclui nada por si: quem confirma é o sistema.",
     },
+    // TÍTULO DA CONVERSA, só no primeiro turno. `strict: true` exige que todo
+    // campo declarado esteja em `required`, então o campo entra e sai do
+    // contrato junto com a necessidade — não fica como opcional que o modelo
+    // preenche quando quer.
+    ...(pedirTitulo
+      ? {
+        titulo: {
+          type: ["string", "null"],
+          maxLength: 60,
+          description: "Um nome curto para esta conversa, como um título de aba: " +
+            "3 a 6 palavras sobre o ASSUNTO que a pessoa trouxe, em português, sem aspas, " +
+            "sem ponto final e sem começar com 'Conversa sobre'. Exemplos de forma: " +
+            "'Burnout e desenho do trabalho', 'Plano de 30 dias para engajamento'. " +
+            "Use null se a mensagem for só um cumprimento e ainda não houver assunto.",
+        },
+      }
+      : {}),
   },
   required: [
     "answer", "interests", "checkout_sent", "checkout_url", "next_route",
     "nome_informado", "email_informado", "whatsapp_informado",
     "empresa_informada", "cargo_informado",
+    ...(pedirTitulo ? ["titulo"] : []),
   ],
   };
 }
@@ -661,10 +689,37 @@ Deno.serve(async (req: Request) => {
     ? [sinalJornada]
     : null;
   const modoJornada = payload.journey_signal != null || payload.journey_signals != null;
-  const identitySource = payload.identity?.source === "yazo_url" ? "yazo_url" : null;
-  const identityEmailReceived = identitySource === "yazo_url" && validEmail(payload.identity?.email);
-  const identityNameReceived = identitySource === "yazo_url" &&
+  // DE ONDE A IDENTIDADE PODE VIR. Eram só as duas portas do app (`yazo_url`);
+  // `learnworlds` entrou em 29/10/2026 e é o que liga a conversa à CONTA do
+  // aluno em vez de ao navegador. Sem isto, `mind_identidade_resolver` só tinha
+  // o usuário anônimo do Supabase para trabalhar — pessoa nova a cada navegador,
+  // e nenhum histórico atravessando aparelho. O bloco do LearnWorlds já mandava
+  // `source: 'learnworlds'` desde que nasceu; quem não escutava era esta linha.
+  //
+  // O QUE ISTO É E O QUE NÃO É. O e-mail e o id chegam como texto escrito na
+  // página pelo LearnWorlds: identificam, não autenticam. Quem souber o par de
+  // outra pessoa recebe a sessão dela. Decisão do Vinícius em 29/10 para o
+  // piloto no curso; sair do piloto pede OTP ou SSO nesta mesma porta.
+  const FONTES_DE_IDENTIDADE = new Set(["yazo_url", "learnworlds"]);
+  const identitySource = typeof payload.identity?.source === "string"
+      && FONTES_DE_IDENTIDADE.has(payload.identity.source)
+    ? payload.identity.source
+    : null;
+  const identityEmailReceived = identitySource !== null && validEmail(payload.identity?.email);
+  const identityNameReceived = identitySource !== null &&
     typeof payload.identity?.name === "string" && payload.identity.name.trim().length > 0;
+  // O id do aluno é a evidência mais estável que o LearnWorlds entrega: o e-mail
+  // a pessoa troca, o id não. Formato conferido aqui porque `mind_identidade_resolver`
+  // trata identificador como chave, não como texto livre.
+  const learnworldsUserId = identitySource === "learnworlds"
+      && typeof payload.identity?.learnworlds_user_id === "string"
+      && /^[A-Za-z0-9_-]{6,64}$/.test(payload.identity.learnworlds_user_id.trim())
+    ? payload.identity.learnworlds_user_id.trim()
+    : null;
+  // MODO HISTÓRICO. "listar" ou o uuid de uma conversa; qualquer outra coisa é null
+  // e o turno segue normal.
+  const historicoPedido = typeof payload.historico === "string" ? payload.historico.trim() : "";
+  const modoHistorico = historicoPedido === "listar" || validUuid(historicoPedido);
   // Só na ABERTURA da conversa isto tem efeito: o banco grava com `where origem_codigo
   // is null`. Um turno posterior não reescreve a porta de entrada, e é isso que a torna
   // autoritativa em vez de um parâmetro que o cliente redefine quando quiser.
@@ -676,7 +731,7 @@ Deno.serve(async (req: Request) => {
     && ORIGEM_CODIGO_RE.test(payload.playground.rota.trim())
     ? payload.playground.rota.trim()
     : null;
-  if (!validSlug(eventSlug) || (!modoAcao && !modoJornada && (message.length < 1 || message.length > 1200))) {
+  if (!validSlug(eventSlug) || (!modoAcao && !modoJornada && !modoHistorico && (message.length < 1 || message.length > 1200))) {
     return json(req, 422, {
       ok: false,
       error: { code: "invalid_request", message: "Informe uma mensagem de até 1.200 caracteres e um evento válido." },
@@ -799,6 +854,9 @@ Deno.serve(async (req: Request) => {
         p_token_hash: tokenHash,
         p_email: email.trim().toLowerCase(),
         p_nome: name?.trim().slice(0, 160) || null,
+        // Nulo quando a porta não é o LearnWorlds; a versão de 7 argumentos
+        // existe no banco desde 22/10 e só ignora o que vier vazio.
+        p_learnworlds_user_id: learnworldsUserId,
       });
       if (error) {
         console.warn(JSON.stringify({ request_id: requestId, event: "identity_bind_failed" }));
@@ -822,6 +880,64 @@ Deno.serve(async (req: Request) => {
         );
       }
       profileLoaded = binding?.found === true;
+    }
+
+    // ------------------------------------------------------- MODO HISTÓRICO
+    // Sai aqui, depois da sessão e da identidade e ANTES do Gate, do Kit e do
+    // modelo: listar conversas e redesenhar a tela não é um turno, e cobrar o
+    // preço de um turno por isso seria pagar segundos de modelo para ler banco.
+    //
+    // Devolve a sessão junto porque ela pode ter nascido agora — o bloco guarda
+    // o que vier, igual ao turno normal, e não precisa saber qual caminho correu.
+    if (modoHistorico) {
+      if (historicoPedido === "listar") {
+        const { data, error } = await admin.rpc("mindagent_chat_conversas", {
+          p_auth_user_id: authUserId,
+          p_session_id: sessionId,
+          p_token_hash: tokenHash,
+          p_limite: 30,
+        });
+        if (error) throw new Error("historico_listar_failed");
+        return json(req, 200, {
+          ok: true,
+          conversas: (data as Record<string, unknown>)?.conversas ?? [],
+          session: { id: sessionId, conversation_id: conversationId, token: sessionToken, expires_at: expiresAt },
+          device_id: deviceId,
+          request_id: requestId,
+        }, requestId);
+      }
+
+      const { data, error } = await admin.rpc("mindagent_chat_abrir", {
+        p_auth_user_id: authUserId,
+        p_session_id: sessionId,
+        p_token_hash: tokenHash,
+        p_conversa_id: historicoPedido,
+        p_limite: 200,
+      });
+      // Conversa que não é desta pessoa cai aqui, com a mesma cara de conversa
+      // inexistente: a diferença entre as duas já diria algo sobre a alheia.
+      if (error) {
+        return json(req, 404, {
+          ok: false,
+          error: { code: "conversa_nao_encontrada", message: "Não encontrei essa conversa." },
+        }, requestId);
+      }
+      const aberta = data as Record<string, unknown>;
+      return json(req, 200, {
+        ok: true,
+        conversation_id: aberta?.conversation_id ?? historicoPedido,
+        titulo: aberta?.titulo ?? null,
+        mensagens: aberta?.mensagens ?? [],
+        // A conversa aberta passa a ser a da sessão: o próximo turno já vai para ela.
+        session: {
+          id: sessionId,
+          conversation_id: String(aberta?.conversation_id ?? historicoPedido),
+          token: sessionToken,
+          expires_at: expiresAt,
+        },
+        device_id: deviceId,
+        request_id: requestId,
+      }, requestId);
     }
 
     const { data: sessionContext, error: contextError } = await admin.rpc("mindagent_chat_get_context", {
@@ -1420,7 +1536,9 @@ Deno.serve(async (req: Request) => {
       ...historico,
       { role: "user", content: `Responda usando este JSON:\n${JSON.stringify(aiContext)}` },
     ];
-    const responseSchema = montarResponseSchema(rotasDoCanal, portaRetemAConversa);
+    // Conversa sem histórico é conversa que ainda não tem nome: é o único turno
+    // em que vale pedir o título.
+    const responseSchema = montarResponseSchema(rotasDoCanal, portaRetemAConversa, historico.length === 0);
     // As instruções do turno são as da COMPETÊNCIA, e só. O Kit já entrega o playbook
     // da rota com a camada transversal `base` na frente.
     const instrucoes = kit.playbook as string;
@@ -1756,6 +1874,8 @@ Deno.serve(async (req: Request) => {
       checkout_sent?: boolean;
       checkout_url?: string | null;
       next_route?: string | null;
+      // Só existe no primeiro turno; nos demais o campo nem é pedido.
+      titulo?: string | null;
       nome_informado?: string | null;
       email_informado?: string | null;
       whatsapp_informado?: string | null;
@@ -1904,6 +2024,14 @@ Deno.serve(async (req: Request) => {
       }))
       .filter((interest) => interest.key.length >= 2 && interest.label.length >= 2 && interest.confidence >= 0.65);
 
+    // NOME DA CONVERSA. Só vem preenchido no primeiro turno, e só serve para a
+    // pessoa se reconhecer na lista. Uma linha é tudo: nome com quebra de linha
+    // ou do tamanho de um parágrafo não é título, é resposta no lugar errado.
+    const tituloDaConversa = typeof structured.titulo === "string"
+        && structured.titulo.trim().length >= 3
+      ? structured.titulo.trim().replace(/\s+/g, " ").slice(0, 60)
+      : null;
+
     // ------------------------------------------------------ TROCA DE COMPETÊNCIA
     // O modelo PEDE; quem decide é o Gate, e quem efetiva é o writer, na mesma transação
     // da mensagem. Pedir a mesma rota que já responde não é troca — vira null antes de
@@ -1982,7 +2110,17 @@ Deno.serve(async (req: Request) => {
         // ESTADO CONTROLADO PELO RUNTIME. `mindagent_chat_save_message` lê daqui e
         // persiste em `engagement.conversas.variables.rota_ativa` na mesma transação —
         // é o que impede "a resposta disse que encaminhou, mas a rota não mudou".
-        ...(rotaAtivaPersistir ? { state: { rota_ativa: rotaAtivaPersistir } } : {}),
+        // O writer lê `state` e persiste em `engagement.conversas`: `rota_ativa` na
+        // mesma transação da mensagem, e agora o `titulo` pela mesma estrada. O
+        // banco grava o título UMA vez; mandar de novo não reescreve.
+        ...(rotaAtivaPersistir || tituloDaConversa
+          ? {
+            state: {
+              ...(rotaAtivaPersistir ? { rota_ativa: rotaAtivaPersistir } : {}),
+              ...(tituloDaConversa ? { titulo: tituloDaConversa } : {}),
+            },
+          }
+          : {}),
       },
     });
     if (assistantMessageError || !assistantMessage) throw new Error("assistant_message_save_failed");
