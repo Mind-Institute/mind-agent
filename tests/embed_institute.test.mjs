@@ -104,11 +104,11 @@ test('o embed não mostra a abertura da marca', () => {
 test('o embed não oferece o "‹", que levaria a uma central que não é a dele', () => {
   assert.match(appSemComentarios, /if \(SO_CHAT\) document\.getElementById\('chat-voltar'\)\.hidden = true/,
     'o voltar reapareceu no embed: ele abre a central do Summit, que não é o curso '
-    + 'da pessoa — é a mesma decisão que o convite da pesquisa já tinha tomado');
+    + 'da pessoa');
 });
 
 test('o embed não sobe a central do participante por trás', () => {
-  const partida = appSemComentarios.slice(appSemComentarios.indexOf('} else if (SO_CHAT) {'));
+  const partida = appSemComentarios.slice(appSemComentarios.indexOf('\nif (SO_CHAT) {\n'));
   const bloco = partida.slice(0, partida.indexOf('} else {'));
   assert.match(bloco, /vestirDaPorta\(\);/);
   assert.match(bloco, /abrirVista\('chat'\);/);
@@ -124,9 +124,9 @@ test('o embed não vai buscar o que só a home usaria', () => {
   const corte = corpo.indexOf('if (SO_CHAT) return;');
   assert.ok(corte > grade,
     'o corte do embed sumiu de carregarDados(), ou ficou antes da grade. '
-    + 'Avisos, momento e as duas pesquisas só alimentam cards da central do '
-    + 'participante: no embed eram três idas ao servidor por carga, sem tela');
-  for (const daHome of ['carregarHomeDoEvento', 'carregarAvaliacaoDoDia', 'carregarAvaliacaoDoEvento']) {
+    + 'Avisos e momento só alimentam cards da central do participante: no '
+    + 'embed seria uma ida ao servidor por carga, sem tela');
+  for (const daHome of ['carregarHomeDoEvento']) {
     assert.ok(corpo.indexOf(daHome) > corte,
       `\`${daHome}\` voltou a rodar antes do corte, e o embed volta a chamá-lo`);
   }

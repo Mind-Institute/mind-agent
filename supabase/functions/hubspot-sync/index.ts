@@ -13,13 +13,16 @@ type Fonte =
   | "hubspot_negocios"
   | "hubspot_negocios_historicos"
   | "hubspot_leads_inbound"
-  | "hubspot_negocios_empenho_2026";
+  | "hubspot_negocios_empenho_2026"
+  | "hubspot_empresas";
+
+type Objeto = "contacts" | "deals" | "leads" | "companies";
 
 // `chavePipeline` e a chave dentro de platform.integracoes.config('hubspot').
 // Pipeline novo = uma linha aqui + uma linha na config + uma linha em crm.sync_estado
 // (que ja carrega tabela_destino e chave_destino). Nada mais.
 const FONTES: Record<Fonte, {
-  objeto: "contacts" | "deals" | "leads";
+  objeto: Objeto;
   modificado: string;
   chavePipeline?: string;
   varreArquivados?: boolean;
@@ -29,6 +32,16 @@ const FONTES: Record<Fonte, {
   hubspot_negocios_historicos:   { objeto: "deals", modificado: "hs_lastmodifieddate", chavePipeline: "pipeline_historico" },
   hubspot_leads_inbound:         { objeto: "leads", modificado: "hs_lastmodifieddate", chavePipeline: "pipeline_leads_inbound", varreArquivados: true },
   hubspot_negocios_empenho_2026: { objeto: "deals", modificado: "hs_lastmodifieddate", chavePipeline: "pipeline_empenho_2026" },
+  // Espelho das Companies (crm.empresa_espelho), 24/09/2026.
+  hubspot_empresas:              { objeto: "companies", modificado: "hs_lastmodifieddate", varreArquivados: true },
+};
+
+// Coluna-chave do espelho por objeto (a mesma de crm.sync_estado.chave_destino).
+const CHAVE_DO_OBJETO: Record<Objeto, string> = {
+  contacts: "hubspot_id",
+  deals: "hubspot_deal_id",
+  leads: "hubspot_lead_id",
+  companies: "hubspot_company_id",
 };
 
 function json(status: number, body: unknown) {
@@ -418,7 +431,7 @@ Deno.serve(async (req: Request) => {
 
           return {
             ...limpo,
-            [objeto === "contacts" ? "hubspot_id" : objeto === "deals" ? "hubspot_deal_id" : "hubspot_lead_id"]: String(l.id),
+            [CHAVE_DO_OBJETO[objeto]]: String(l.id),
             propriedades: inteiro,
           };
         });

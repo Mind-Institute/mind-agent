@@ -458,18 +458,6 @@ export const CONTEUDO = {
     titulo: 'Feche o dia. Prepare o próximo.',
     resumo: 'Registre o que ficou com você e use isso para tornar o segundo dia mais relevante.',
     blocos: [
-      /* AVALIAÇÃO DO DIA, no alto: é o fechamento que o evento pede, e
-         este é o momento em que o dia já aconteceu — a resposta é única e
-         definitiva, então perguntar antes do fim seria colher metade.
-
-         `daAvaliacao` funciona como `daGrade` e `daSessao`: o bloco só
-         existe quando o `app.js` confirma, pelo servidor, que a pesquisa
-         está no ar e que a pessoa foi reconhecida. `estado: 'oculto'` é o
-         padrão, então pesquisa desligada não deixa rastro na home. */
-      { tipo: 'destaque', ico: ICO.estrela, daAvaliacao: true, estado: 'oculto',
-        selo: 'Avaliação do dia',
-        pergunta: 'Como foi seu dia no Mind?',
-        cta: 'Avaliar meu dia', acao: 'avaliacao' },
       { tipo: 'destaque', ico: ICO.ciclo, selo: 'Fechamento rápido',
         pergunta: 'O que ficou com você hoje?',
         cta: 'Anote o que ficou do dia, em 2 min', acao: 'insight' },
@@ -488,29 +476,6 @@ export const CONTEUDO = {
     titulo: 'Transforme ideias em decisões.',
     resumo: 'Em 8 minutos, o Concierge ajuda você a escolher prioridades e construir um plano possível.',
     blocos: [
-      /* AQUI TAMBÉM, e não é repetição: depois do dia 2 o momento vai de
-         `no-evento` direto para `depois` — não existe um segundo
-         "entre dias". Sem este bloco, o dia 17 nunca seria avaliado.
-
-         Ele se apaga sozinho quando deixa de fazer sentido: a partir do
-         dia 18 a data corrente não é mais dia de evento, o servidor
-         responde `fora_do_evento` e o card não é desenhado. Na prática,
-         vale a noite do dia 2 e mais nada. */
-      { tipo: 'destaque', ico: ICO.estrela, daAvaliacao: true, estado: 'oculto',
-        selo: 'Avaliação do dia',
-        pergunta: 'Como foi seu dia no Mind?',
-        cta: 'Avaliar meu dia', acao: 'avaliacao' },
-      /* A PESQUISA DO EVENTO INTEIRO, e por isso só aqui: ela pergunta
-         sobre o Summit fechado, e no `entre-dias` ainda falta um dia.
-         Fica acima do plano pós-Summit porque é o que tem prazo — a
-         janela dela fecha, o plano não.
-
-         Some sozinha do mesmo jeito que a outra: fora da janela o
-         servidor responde `ativo: false` e o card não é desenhado. */
-      { tipo: 'destaque', ico: ICO.estrela, daAvaliacaoDoEvento: true, estado: 'oculto',
-        selo: 'Avaliação do evento',
-        pergunta: 'Como foi o Mind Summit para você?',
-        cta: 'Avaliar o evento', acao: 'avaliacao-evento' },
       { tipo: 'destaque', ico: ICO.bussola, selo: 'Plano pós-Summit',
         pergunta: 'O que você quer mudar primeiro?',
         cta: 'Começar entrevista guiada', acao: 'entrevista' },
