@@ -1,0 +1,1869 @@
+<!--
+  ============================================================
+  MIA SUMMIT 2026 — bloco para colar no LearnWorlds
+  ============================================================
+  Cole este arquivo inteiro num bloco de código do LearnWorlds (código
+  embutido numa página da escola ou atividade de embed no curso). Não depende
+  de site nenhum da Mind: fala direto com o Supabase.
+
+  - A conversa abre pela porta `institute_learnworlds`, que o banco liga à MIA
+    (`agentes.canal_competencia.entradas_diretas`, canal `mindagent-web`).
+    Com o canal da MIA desligado, a porta não vale e o roteador decide.
+  - A chave abaixo é a publishable key do Supabase, pública por construção.
+    Nenhum segredo aqui.
+  - Quem está logado: o LearnWorlds troca as variáveis pelos dados da pessoa ao abrir.
+    Na atividade de embed do curso o formato é USER_EMAIL, USER_NAME, USER_ID, mais
+    COURSE_ID e UNIT_ID, entre chaves duplas (conferido no curso MIA Summit 2026 em
+    24/10/2026); numa página da escola é USER.EMAIL, USER.NAME, USER.ID. O bloco traz os
+    dois e usa o que vier trocado. Aqui no comentário vão sem chaves, para o LearnWorlds
+    não trocar o texto do comentário. O chat liga a conversa à pessoa pela porta única de identidade.
+    Não é assinado; confiar no LearnWorlds foi decisão da Adriana (22/10/2026). Fora do
+    LearnWorlds as variáveis não são trocadas e a conversa fica anônima.
+  - Curso e aula seguem junto (`contexto`). A mindagent-chat ainda não usa; vão no envio
+    para a MIA poder saber onde a pessoa está sem precisar colar o bloco de novo.
+  - Tudo tem prefixo `mia-`, para não mexer no visual da página do LearnWorlds.
+  - DOIS MODOS, um arquivo só. Sem atributo, o bloco é a CAIXA: 680px de altura,
+    cantos arredondados, cabeçalho em faixa roxa — é o que está na atividade do
+    curso. Com `data-modo="pagina"` na div lá embaixo, ele vira a PÁGINA: ocupa
+    a tela entre o cabeçalho e o rodapé do LearnWorlds, coluna centrada, sem
+    cantos, só fios. Duas cópias do arquivo seriam duas cópias do mesmo
+    JavaScript, e uma delas envelheceria sozinha.
+  - A identidade é a da MIA, não a do app do Summit: roxo `#9843ff` (o `--roxo` da
+    marca), fundo claro, e "MIA — Mind Intelligence Agent", como o Institute já a
+    apresenta no playbook de vendas. O bloco nasceu herdando a casca escura e verde
+    do app do evento, que é outro produto. Nenhuma cor sai de `.mia-lw`: são todas
+    variáveis escopadas aqui dentro.
+-->
+<div id="mia-lw" class="mia-lw">
+  <!-- Quem está logado: o LearnWorlds troca as variáveis ao abrir a página. Ficam em
+       elementos escondidos, e não no script, para um nome com apóstrofo não quebrar o código. -->
+  <span hidden data-mia="email">{{USER_EMAIL}}</span>
+  <span hidden data-mia="nome">{{USER_NAME}}</span>
+  <span hidden data-mia="id">{{USER_ID}}</span>
+  <span hidden data-mia="curso">{{COURSE_ID}}</span>
+  <span hidden data-mia="aula">{{UNIT_ID}}</span>
+  <!-- Numa página da escola (fora do curso) o formato é com ponto. -->
+  <span hidden data-mia="email">{{USER.EMAIL}}</span>
+  <span hidden data-mia="nome">{{USER.NAME}}</span>
+  <span hidden data-mia="id">{{USER.ID}}</span>
+  <div class="mia-topo">
+    <!-- O símbolo da Mind, desenhado aqui dentro. Imagem viria de um servidor, e a
+         promessa deste bloco é não depender de site nenhum da Mind. -->
+    <span class="mia-avatar" aria-hidden="true">
+      <svg viewBox="698.13 264.35 522.24 522.24"><path fill="currentColor" d="M1143.23,448.33c-21.02,0-40.08,8.41-53.99,22.05-32.36,27.8-75.06,45.12-121.83,46.93,1.81-46.77,19.14-89.47,46.93-121.83,13.64-13.91,22.05-32.97,22.05-53.99,0-42.6-34.54-77.14-77.14-77.14s-77.14,34.54-77.14,77.14c0,21.02,8.41,40.08,22.05,53.99,27.79,32.36,45.12,75.06,46.93,121.83-46.77-1.81-89.47-19.14-121.83-46.93-13.91-13.64-32.97-22.05-53.99-22.05-42.6,0-77.14,34.54-77.14,77.14s34.54,77.14,77.14,77.14c21.02,0,40.08-8.41,53.99-22.05,32.36-27.79,75.06-45.12,121.83-46.93-1.81,46.77-19.14,89.47-46.93,121.83-13.64,13.91-22.05,32.97-22.05,53.99,0,42.6,34.54,77.14,77.14,77.14s77.14-34.54,77.14-77.14c0-21.02-8.41-40.08-22.05-53.99-27.8-32.36-45.12-75.06-46.93-121.83,46.77,1.81,89.47,19.14,121.83,46.93,13.91,13.64,32.97,22.05,53.99,22.05,42.6,0,77.14-34.54,77.14-77.14s-34.54-77.14-77.14-77.14Z"/></svg>
+    </span>
+    <div>
+      <strong>MIA Summit</strong>
+      <small>Mind Intelligence Agent</small>
+    </div>
+    <!-- As conversas da PESSOA, não do navegador. Os dois botões nascem
+         escondidos: sem e-mail trocado pelo LearnWorlds não há dono, e uma
+         lista que sempre volta vazia é pior que lista nenhuma. Quem os acende
+         é o `listarConversas()`, depois de o servidor dizer que há dono. -->
+    <div class="mia-acoes" hidden>
+      <button type="button" class="mia-botao-conversas" aria-expanded="false"
+        aria-controls="mia-lista-conversas" title="Suas conversas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Conversas</span>
+      </button>
+      <button type="button" class="mia-botao-nova" title="Começar uma conversa nova">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Nova</span>
+      </button>
+    </div>
+  </div>
+  <!-- Painel das conversas. Fica fora do `.mia-topo` porque ele cobre a área
+       das mensagens: dentro do cabeçalho, herdaria o roxo e o recorte dele. -->
+  <div class="mia-conversas" id="mia-lista-conversas" hidden></div>
+  <!-- A CAPA. Só existe quando o bloco é colado com `data-liberacao="pesquisa"`;
+       sem o atributo ela nunca aparece e o bloco é o de sempre. Ela conta o que
+       a MIA faz nos DOIS estados — bloqueado e liberado —, porque a apresentação
+       não é prêmio por ter respondido: é o que faz a pessoa querer responder. -->
+  <div class="mia-capa" hidden>
+    <div class="mia-capa-miolo">
+      <span class="mia-capa-selo">Mind Intelligence Agent</span>
+      <h2 class="mia-capa-titulo">A MIA assistiu ao Mind Summit inteiro</h2>
+      <p class="mia-capa-texto">
+        Você pergunta em português, ela responde a partir das sessões — e diz de
+        qual sessão e de qual palestrante aquilo saiu.
+      </p>
+      <ul class="mia-capa-lista">
+        <li>Encontrar palestras e especialistas sobre um tema</li>
+        <li>Entender um conceito apresentado no Summit</li>
+        <li>Conectar ideias de sessões diferentes</li>
+        <li>Aplicar o conteúdo a um desafio do seu trabalho</li>
+        <li>Criar um material a partir do que foi dito</li>
+      </ul>
+      <div class="mia-capa-estado" aria-live="polite"></div>
+    </div>
+  </div>
+  <div class="mia-mensagens" aria-live="polite"></div>
+  <div class="mia-sugestoes"></div>
+  <div class="mia-form">
+    <!-- O botão é posicionado pela CAIXA do campo, não pelo formulário. Preso
+         ao formulário, ele dependia do padding dele — e no modo página esse
+         padding é variável, porque é ele que centra a coluna. -->
+    <div class="mia-campo">
+      <textarea rows="1" maxlength="1200" placeholder="Pergunte à MIA…"
+        enterkeyhint="send" aria-label="Sua mensagem para a MIA"></textarea>
+      <button type="button" aria-label="Enviar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+      </button>
+    </div>
+  </div>
+  <p class="mia-aviso">A MIA responde a partir das sessões do Mind Summit 2026 e pode errar.
+    Não substitui acompanhamento profissional. Precisa de ajuda agora? CVV&nbsp;188.</p>
+</div>
+
+<style>
+  .mia-lw {
+    /* A PALETA DELA. `--mia-roxo` é o `--roxo` da marca, o mesmo token que o app
+       usa na pílula de ingresso. O resto é o claro que o roxo pede. Valores
+       literais e não `color-mix`: este bloco roda dentro do LearnWorlds, inclusive
+       no webview do app do Institute no celular, e aqui não dá para conferir
+       navegador por navegador. */
+    --mia-roxo: #9843ff;
+    --mia-bg: #ffffff; --mia-surface: #f3f2f8; --mia-dela: #f5eeff;
+    --mia-texto: #1b1b24; --mia-suave: #35353f; --mia-mudo: #70708a;
+    --mia-linha: rgba(27,27,36,.11);
+    /* 5,85:1 sobre `--mia-surface`, medido: o convite do campo precisa ser lido. */
+    --mia-placeholder: #5c5c72;
+    box-sizing: border-box;
+    display: flex; flex-direction: column;
+    /* 680px é só o valor de partida, para o bloco não nascer achatado antes de
+       o script medir. Quem manda na altura é `medirAltura`, que ocupa o espaço
+       que existe de verdade — por isso não há `max-height` aqui: ele cortava a
+       medida já tomada e devolvia a tira branca que ele deveria evitar. */
+    height: 680px; width: 100%; max-width: 860px; margin: 0 auto;
+    background: var(--mia-bg); color: var(--mia-texto);
+    border-radius: 16px; overflow: hidden;
+    text-align: left;
+  }
+  .mia-lw *, .mia-lw *::before, .mia-lw *::after { box-sizing: border-box; }
+
+  /* ============================================================
+     A FONTE — e por que esta regra é tão insistente
+     ============================================================
+     O bloco pedia `font-family: inherit`, para pegar a fonte da escola e não
+     parecer colado de outro site. Saiu SERIFADO na página real: o contêiner
+     onde o LearnWorlds põe o código não declara fonte, e o `inherit` sobe até
+     o padrão do navegador, que é Times.
+
+     Declarar a pilha no `.mia-lw` e contar com a herança foi a segunda
+     tentativa, e também não pegou — por um motivo que não é de
+     especificidade: o LearnWorlds declara fonte nos PRÓPRIOS elementos
+     (parágrafo, botão, campo), e regra que casa no filho sempre vence a
+     herança do pai, por mais específico que o pai seja. Por isso os chips e o
+     campo continuaram em Times mesmo com a pilha no contêiner.
+
+     Daí a regra nomear todos os descendentes, pelo `id` — que vence qualquer
+     seletor de classe da escola — e levar `!important`, para o caso de a
+     folha deles também usar. `!important` aqui não é atalho: é a única forma
+     de um bloco colado garantir a própria aparência dentro de uma página cujo
+     CSS ele não controla e não pode ler. E não vaza: tudo está preso a
+     `#mia-lw`.
+
+     A PILHA COMEÇA NA SATOSHI, que é a tipografia da marca (está no
+     `admin/README.md` e é a que o app e o painel carregam). Ela entra aqui
+     SEM `@font-face`: se a escola já a carrega — e carrega, era ela que o
+     `inherit` pegava onde funcionava —, o navegador a usa sem uma
+     requisição a mais. Se um dia não carregar, a linha não quebra nada:
+     cai na pilha do sistema logo abaixo, que é San Francisco no Mac, Segoe
+     UI no Windows e Roboto no Android.
+
+     Nomear a fonte em vez de herdá-la tem uma vantagem que a herança não
+     dava: o bloco fica com a MESMA cara na atividade do curso e na página,
+     independente do que o LearnWorlds puser em volta dele.
+
+     Se a escola trocar a tipografia um dia, é esta primeira palavra que
+     muda — e só ela. */
+  #mia-lw, #mia-lw * {
+    font-family: Satoshi, "Satoshi Variable", -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
+  }
+  /* O cabeçalho é a faixa da marca, e não uma linha fina sobre o fundo. */
+  .mia-lw .mia-topo {
+    flex: none; display: flex; align-items: center; gap: 11px;
+    padding: 15px 20px; background: var(--mia-roxo);
+  }
+  .mia-lw .mia-avatar {
+    width: 36px; height: 36px; border-radius: 11px; flex: none;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,.19); color: #fff;
+  }
+  .mia-lw .mia-avatar svg { width: 19px; height: 19px; display: block; }
+  .mia-lw .mia-topo strong { display: block; font-size: 15px; font-weight: 900; color: #fff; }
+  .mia-lw .mia-topo small { display: block; margin-top: 1px; font-size: 12px; color: rgba(255,255,255,.78); }
+
+  /* AS CONVERSAS. `margin-left: auto` empurra para a direita sem mexer no
+     cabeçalho: nenhum dos elementos que já estavam ali muda de lugar. */
+  .mia-lw .mia-acoes { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .mia-lw .mia-acoes button {
+    appearance: none; cursor: pointer; border: 0; border-radius: 100px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px; background: rgba(255,255,255,.17); color: #fff;
+    font-size: 12px; font-weight: 800; line-height: 1;
+  }
+  .mia-lw .mia-acoes button:hover { background: rgba(255,255,255,.27); }
+  .mia-lw .mia-acoes button svg { width: 14px; height: 14px; display: block; flex: none; }
+
+  .mia-lw .mia-conversas {
+    flex: none; max-height: 46%; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--mia-surface); border-bottom: 1px solid var(--mia-linha);
+    padding: 8px;
+  }
+  .mia-lw .mia-conversa {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    appearance: none; border: 0; background: transparent;
+    border-radius: 11px; padding: 10px 12px; color: var(--mia-texto);
+  }
+  .mia-lw .mia-conversa:hover { background: rgba(152,67,255,.1); }
+  .mia-lw .mia-conversa[aria-current="true"] { background: rgba(152,67,255,.15); }
+  .mia-lw .mia-conversa b {
+    display: block; font-size: 13px; font-weight: 800;
+    /* Título longo encolhe a linha, não quebra o cartão. */
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mia-lw .mia-conversa span {
+    display: block; margin-top: 2px; font-size: 11px; color: var(--mia-mudo);
+  }
+  .mia-lw .mia-conversas-vazio {
+    padding: 14px 12px; font-size: 12px; color: var(--mia-mudo);
+  }
+  .mia-lw .mia-mensagens {
+    flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    display: flex; flex-direction: column; gap: 14px; padding: 18px 20px;
+  }
+  .mia-lw .mia-bolha {
+    max-width: 84%; padding: 12px 16px; margin: 0;
+    font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap;
+    border-radius: 18px;
+  }
+  .mia-lw .mia-bolha.mia-ela {
+    align-self: flex-start; background: var(--mia-dela); color: var(--mia-texto);
+  }
+  .mia-lw .mia-bolha.mia-eu {
+    align-self: flex-end; background: var(--mia-roxo); color: #fff; font-weight: 500;
+  }
+  /* O nome em cima da fala dela. O cabeçalho sai de vista quando a resposta é
+     longa, e a partir daí o balão diz de que lado veio, não de quem é. */
+  .mia-lw .mia-quem {
+    display: block; margin-bottom: 7px; white-space: normal;
+    font-size: 11px; font-weight: 800; letter-spacing: .07em; color: var(--mia-mudo);
+  }
+  .mia-lw .mia-bolha strong { color: var(--mia-texto); font-weight: 700; }
+  .mia-lw .mia-bolha a { color: var(--mia-roxo); text-decoration: underline; }
+  @keyframes mia-pulsa { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
+
+  /* ============================================================
+     O RACIOCÍNIO — o que ela fez para chegar ali
+     ============================================================
+     Enquanto espera: a lista dos passos, com o brilho no que está
+     acontecendo agora. Quando a resposta chega, os passos provisórios SÃO
+     TROCADOS pelos que o servidor relata (`ferramentas` e `sources`) — o que
+     fica na tela, e o que a pessoa pode reabrir depois, é sempre o que
+     aconteceu. O tempo só aparece no fim, no resumo. */
+  .mia-lw .mia-pensou {
+    appearance: none; cursor: default; margin: 0 0 2px; padding: 0;
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    background: none; border: 0; border-radius: 100px;
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--mia-mudo);
+    text-align: left;
+  }
+  .mia-lw .mia-pensou[aria-expanded] { cursor: pointer; }
+  .mia-lw .mia-pensou svg { width: 14px; height: 14px; flex: none; }
+  /* A PÉTALA GIRA ENQUANTO ELA PENSA. É o símbolo da marca, o mesmo do
+     cabeçalho — não uma estrela genérica de ferramenta de IA. Gira devagar:
+     num bloco dentro de uma aula, giro rápido vira cata-vento e puxa o olho
+     para longe do que a pessoa está lendo. Quando a resposta chega, o
+     cabeçalho ganha `mia-pronto` e a pétala para: parada, ela é assinatura;
+     girando, é estado. */
+  .mia-lw .mia-pensou .mia-petala { animation: mia-gira 2.6s linear infinite; }
+  .mia-lw .mia-pensou.mia-pronto .mia-petala { animation: none; }
+  @keyframes mia-gira { to { transform: rotate(360deg); } }
+  .mia-lw .mia-chevron { margin-left: auto; transition: transform .15s ease; }
+  .mia-lw .mia-pensou[aria-expanded="true"] .mia-chevron { transform: rotate(90deg); }
+  /* O brilho que atravessa a palavra enquanto ela pensa. Degradê sobre o
+     texto; sem `prefers-reduced-motion` fica a cor sólida. */
+  .mia-lw .mia-brilho {
+    background: linear-gradient(90deg, var(--mia-mudo) 0%, var(--mia-mudo) 42%,
+      var(--mia-roxo) 50%, var(--mia-mudo) 58%, var(--mia-mudo) 100%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: mia-brilha 1.8s linear infinite;
+  }
+  @keyframes mia-brilha { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .mia-lw .mia-brilho { animation: none; background: none; color: var(--mia-mudo); }
+    .mia-lw .mia-pensou .mia-petala { animation: none; }
+    /* O JavaScript já nem põe a classe quando a pessoa pediu menos movimento.
+       Esta regra é o segundo cinto: se um dia a classe entrar por outro
+       caminho, o texto continua legível em vez de ficar borrado na tela de
+       quem justamente pediu para nada se mexer. */
+    .mia-lw .mia-escrevendo .mia-palavra {
+      animation: none; opacity: 1; filter: none; transform: none;
+    }
+  }
+  .mia-lw .mia-passos {
+    list-style: none; margin: 8px 0 0; padding: 0 0 0 18px;
+    border-left: 1px solid rgba(152,67,255,.22);
+  }
+  .mia-lw .mia-passos[hidden] { display: none; }
+  .mia-lw .mia-passo {
+    position: relative; display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; font-size: 12.5px; line-height: 1.45; color: var(--mia-mudo);
+    animation: mia-entra .35s ease backwards;
+  }
+  @keyframes mia-entra { from { opacity: 0; transform: translateY(7px); } }
+  .mia-lw .mia-passo::before {
+    content: ''; position: absolute; left: -22px;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--mia-roxo);
+  }
+  .mia-lw .mia-passo.mia-andando::before { animation: mia-pulsa 1.1s infinite ease-in-out; }
+  .mia-lw .mia-passo.mia-feito { color: var(--mia-suave); }
+  /* O BRILHO MARCA O QUE ESTÁ ACONTECENDO AGORA, e não o cabeçalho. Com ele
+     em "Pensando" a tela tinha dois pontos de movimento disputando o olho e
+     nenhum dizia em que pé a coisa está. No passo, ele é a resposta: sai
+     quando aquele passo termina e acende no seguinte. Vai num `span` por
+     dentro porque `background-clip: text` recorta o fundo pelo texto do
+     elemento — no `li`, que é flex e tem o ponto no `::before`, o recorte
+     pegaria a linha inteira. */
+  .mia-lw .mia-passo-texto { display: inline-block; }
+  /* O tema herda a cor do passo de propósito: no passo em andamento o texto é
+     transparente para o gradiente do brilho aparecer, e uma cor própria aqui
+     furaria o recorte justo no meio da frase. */
+  .mia-lw .mia-passo-texto b { font-weight: 700; color: inherit; }
+  .mia-lw .mia-resposta { margin-top: 10px; }
+  .mia-lw .mia-resposta:empty { margin-top: 0; }
+  /* ============================================================
+     A RESPOSTA SURGINDO — palavra a palavra, saindo do desfoque
+     ============================================================
+     Saiu daqui o cursor piscando: ele era o resto de um efeito de máquina de
+     escrever, e ao lado de uma palavra que se revela do desfoque ele vira
+     outro ponto a disputar o olho. O que diz "ainda estou escrevendo" agora é
+     a própria palavra chegando.
+
+     `inline-block` para a palavra poder ser transformada: `transform` e
+     `filter` não valem em caixa `inline`. A quebra de linha continua
+     acontecendo nos espaços, que ficaram intactos como texto entre os spans.
+
+     A regra do desfoque está PRESA à classe `mia-escrevendo` no balão, e a
+     classe sai quando o efeito acaba. Não é arrumação: `filter`, mesmo em
+     `blur(0)`, mantém uma camada de composição por palavra enquanto estiver
+     aplicado — numa resposta longa são centenas delas, num celular dentro do
+     webview do app. O estado final vive em `forwards` enquanto a animação
+     existe, e em NADA depois que a classe sai. */
+     OS NÚMEROS VIERAM DO `TextReveal` que o Vinícius mandou em 28/10 (React +
+     `motion`, que não dá para usar aqui — bloco colado não tem build): desfoque
+     de 8px, 10px de subida, 0,6s e a curva [.23, 1, .32, 1]. São de um
+     componente já rodado, e valem mais do que os meus chutados. */
+  /* ============================================================
+     A CAPA DA LIBERAÇÃO
+     ============================================================
+     Enquanto a MIA não está liberada, a capa ocupa o lugar da conversa. O
+     cabeçalho roxo FICA: é ele que diz de quem é a tela, e tirá-lo faria a
+     dobra parecer uma página de erro em vez da apresentação dela.
+
+     Quem esconde a conversa é uma classe no contêiner, e não `hidden` em
+     cada pedaço: assim a volta é uma linha só, e não há como sobrar um
+     pedaço escondido quando a pessoa é liberada. */
+  .mia-lw.mia-com-capa .mia-mensagens,
+  .mia-lw.mia-com-capa .mia-sugestoes,
+  .mia-lw.mia-com-capa .mia-form,
+  .mia-lw.mia-com-capa .mia-aviso,
+  .mia-lw.mia-com-capa .mia-acoes { display: none; }
+  .mia-lw .mia-capa { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; }
+  .mia-lw .mia-capa[hidden] { display: none; }
+  .mia-capa-miolo {
+    margin: auto; width: 100%; max-width: 560px;
+    padding: clamp(24px, 5vw, 40px) 20px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .mia-capa-selo {
+    align-self: flex-start;
+    font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--mia-roxo);
+  }
+  .mia-capa-titulo {
+    margin: 0; font-size: clamp(21px, 3.4vw, 27px); line-height: 1.18;
+    font-weight: 900; letter-spacing: -.02em; color: var(--mia-texto);
+  }
+  .mia-capa-texto { margin: 0; font-size: 15px; line-height: 1.55; color: var(--mia-suave); }
+  .mia-capa-lista {
+    margin: 4px 0 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .mia-capa-lista li {
+    display: flex; align-items: baseline; gap: 9px;
+    font-size: 14px; line-height: 1.45; color: var(--mia-suave);
+  }
+  .mia-capa-lista li::before {
+    content: ''; flex: none; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--mia-roxo); transform: translateY(-2px);
+  }
+  .mia-capa-estado { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+  .mia-capa-espera {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; font-weight: 700; color: var(--mia-mudo);
+  }
+  .mia-capa-espera .mia-petala { width: 15px; height: 15px; flex: none; }
+  .mia-capa-cta {
+    align-self: flex-start; display: inline-block;
+    background: var(--mia-roxo); color: #fff;
+    border: 0; border-radius: 100px; padding: 13px 24px;
+    font-size: 14px; font-weight: 800; text-decoration: none; cursor: pointer;
+  }
+  .mia-capa-nota { font-size: 13px; line-height: 1.5; color: var(--mia-mudo); }
+
+  .mia-lw .mia-palavra { display: inline-block; }
+  .mia-lw .mia-escrevendo .mia-palavra {
+    opacity: 0; filter: blur(8px); transform: translateY(10px);
+    animation: mia-surge .6s cubic-bezier(.23,1,.32,1) both;
+  }
+  @keyframes mia-surge {
+    to { opacity: 1; filter: blur(0); transform: none; }
+  }
+  .mia-lw .mia-sugestoes { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 8px; }
+  .mia-lw .mia-sugestoes[hidden] { display: none; }
+  .mia-lw .mia-sugestoes button {
+    appearance: none; cursor: pointer; margin: 0;
+    font: inherit; font-size: 14px; font-weight: 700; color: var(--mia-roxo);
+    background: var(--mia-bg); border: 1px solid rgba(152,67,255,.38);
+    border-radius: 100px; padding: 8px 14px;
+  }
+  .mia-lw .mia-sugestoes button:hover { border-color: var(--mia-roxo); }
+  .mia-lw .mia-form {
+    flex: none; display: flex; margin: 0;
+    padding: 10px 20px 0; border-top: 1px solid var(--mia-linha);
+  }
+  .mia-lw .mia-campo { position: relative; display: flex; flex: 1; min-width: 0; }
+  /* O creme existia para o campo ser o ponto mais claro de uma tela escura. Em
+     tela clara ele vira mancha: aqui quem chama é o botão, no roxo da marca. */
+  .mia-lw .mia-form textarea {
+    flex: 1; min-width: 0; display: block; resize: none; margin: 0;
+    min-height: 54px; max-height: 160px; padding: 14px 62px 14px 20px;
+    background: var(--mia-surface); color: var(--mia-texto);
+    border: 1px solid transparent; border-radius: 27px; outline: none;
+    font: inherit; font-size: 16px; line-height: 1.5;
+  }
+  /* ============================================================
+     A BARRA DE ROLAGEM DO CAMPO NÃO PODE BATER NO BOTÃO
+     ============================================================
+     O campo rola quando a pergunta passa de três linhas. A barra nativa do
+     Windows tem 17px e nasce colada na borda direita; o botão de enviar mora a
+     6px dessa borda. Resultado medido: a barra entrava 11px por baixo do
+     botão, com as setas do sistema aparecendo ao lado dele.
+
+     Barra de 6px, sem as setas: cabe inteira nessa folga.
+
+     NÃO PONHA `scrollbar-width: thin` AQUI. Foi a primeira tentativa e ela
+     piorou a própria correção: quando essa propriedade está declarada, o
+     Chromium passa a obedecer a ELA e ignora a largura do
+     `::-webkit-scrollbar`. A barra saiu de 17px para 12px em vez de 6px, e
+     continuou batendo no botão — medido. `thin` não é um tamanho, é "o fino
+     que o sistema quiser".
+
+     O Firefox, que só entende a propriedade descartada, fica com a barra
+     larga dele. Por isso o `z-index: 1` no botão continua lá: ele não
+     resolve a colisão, resolve quem fica por cima quando ela acontece. */
+  .mia-lw .mia-form textarea::-webkit-scrollbar { width: 6px; }
+  .mia-lw .mia-form textarea::-webkit-scrollbar-track { background: transparent; }
+  .mia-lw .mia-form textarea::-webkit-scrollbar-thumb {
+    background: rgba(27,27,36,.26); border-radius: 3px;
+  }
+  .mia-lw .mia-form textarea::placeholder { color: var(--mia-placeholder); }
+  .mia-lw .mia-form textarea:focus { border-color: var(--mia-roxo); }
+  .mia-lw .mia-form button {
+    appearance: none; cursor: pointer; position: absolute; right: 7px; bottom: 7px; z-index: 1;
+    width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0;
+    display: grid; place-items: center; background: var(--mia-roxo); color: #fff;
+  }
+  .mia-lw .mia-form button:disabled { opacity: .55; cursor: wait; }
+  .mia-lw .mia-form svg { width: 19px; height: 19px; }
+  .mia-lw .mia-aviso {
+    flex: none; margin: 0; padding: 8px 20px 14px; text-align: center;
+    font-size: 11px; line-height: 1.4; color: var(--mia-mudo);
+  }
+
+  /* ============================================================
+     MODO PÁGINA — a MIA ocupando a tela, e não uma caixa nela
+     ============================================================
+     Para a página do LearnWorlds que tem só cabeçalho e rodapé. A mesma
+     conversa, o mesmo script: o que muda é a moldura.
+
+     Sem cantos arredondados e sem sombra. Numa caixa dentro de uma aula, o
+     arredondado diz "isto aqui é um objeto na página"; ocupando a tela
+     inteira, ele vira uma borda flutuando sem nada atrás. Ficam os FIOS:
+     um em cima, um embaixo e os que separam cabeçalho, campo e aviso — é o
+     que dá limite sem fingir cartão.
+
+     A coluna é centrada pelo PADDING dos filhos, e não por uma largura no
+     scroller. Limitar a largura da área que rola jogaria a barra de rolagem
+     para o meio da tela; assim ela fica na borda, como numa página. */
+  .mia-lw[data-modo="pagina"] {
+    --mia-coluna: 760px;
+    --mia-respiro: max(20px, calc((100% - var(--mia-coluna)) / 2));
+    max-width: none; max-height: none;
+    border-radius: 0;
+    border-top: 1px solid var(--mia-linha);
+    border-bottom: 1px solid var(--mia-linha);
+  }
+  /* A FAIXA ROXA FICA, igual à da caixa. Houve uma versão em que ela virava
+     branca aqui, com o argumento de que a página já tem a faixa do
+     LearnWorlds em cima e duas empilhadas brigariam. Vista no ar, a tirada
+     some: sem a faixa, a MIA deixa de se apresentar e vira um pedaço da
+     página da escola. O Vinícius pediu o mesmo desenho da caixa em 27/10, e
+     é o que está aqui. Só o recuo muda, para acompanhar a coluna. */
+  .mia-lw[data-modo="pagina"] .mia-topo { padding: 15px var(--mia-respiro); }
+  .mia-lw[data-modo="pagina"] .mia-mensagens { padding: 26px var(--mia-respiro); gap: 18px; }
+  .mia-lw[data-modo="pagina"] .mia-sugestoes { padding: 0 var(--mia-respiro) 10px; }
+  .mia-lw[data-modo="pagina"] .mia-form { padding: 12px var(--mia-respiro) 0; }
+  .mia-lw[data-modo="pagina"] .mia-aviso { padding: 9px var(--mia-respiro) 14px; }
+
+  /* ============================================================
+     TELA ESTREITA — o mesmo bloco, com menos moldura
+     ============================================================
+     Até aqui o bloco tinha UMA medida: 20px de recuo dos dois lados, balão com
+     84% da largura, chips de sugestão com folga de desktop. Num celular isso
+     é um terço da linha gasto em margem, e a frase dela quebra em quatro
+     palavras por linha.
+
+     O que encolhe é a MOLDURA — recuo, raio, folga —, não o texto da conversa:
+     quem está lendo a resposta não tem que ler menor por estar no celular. O
+     balão vai a 94% porque, com pouca largura, a tira vazia ao lado deixa de
+     indicar "de quem é a fala" e vira só desperdício.
+
+     O CAMPO DE DIGITAR FICA EM 16px, e isso não é estética: abaixo de 16px o
+     Safari do iPhone dá zoom na página sozinha quando a pessoa toca no campo,
+     e a tela inteira salta de lugar no meio da conversa.
+
+     A medida é a da JANELA, não a do bloco: `@container` resolveria melhor o
+     caso do bloco estreito dentro de tela larga, mas isto roda no webview do
+     app do Institute, onde não dá para conferir. Na prática o bloco ocupa a
+     largura do conteúdo da aula, e as duas medidas coincidem. */
+  @media (max-width: 600px) {
+    .mia-lw { border-radius: 12px; }
+    .mia-lw .mia-topo { padding: 12px 14px; gap: 9px; }
+    .mia-lw .mia-avatar { width: 32px; height: 32px; border-radius: 10px; }
+    .mia-lw .mia-mensagens { padding: 14px; gap: 12px; }
+    .mia-lw .mia-bolha { max-width: 94%; padding: 11px 14px; border-radius: 16px; }
+    .mia-lw .mia-sugestoes { padding: 0 14px 8px; gap: 6px; }
+    .mia-lw .mia-sugestoes button { padding: 8px 13px; font-size: 13px; }
+    .mia-lw .mia-form { padding: 10px 14px 0; }
+    .mia-lw .mia-form textarea { padding: 13px 58px 13px 17px; min-height: 50px; }
+    .mia-lw .mia-form button { width: 37px; height: 37px; right: 6px; bottom: 6px; }
+    .mia-lw .mia-aviso { padding: 8px 14px 12px; }
+    .mia-lw[data-modo="pagina"] { --mia-respiro: 14px; }
+  }
+
+  /* Tela muito estreita (iPhone SE e os webviews apertados do app). Aqui a
+     linha tem menos de 40 caracteres: o balão passa a ocupar quase tudo, e os
+     chips viram uma coluna, porque dois por linha já não cabem sem cortar a
+     palavra no meio. */
+  @media (max-width: 380px) {
+    .mia-lw .mia-topo { padding: 11px 12px; }
+    .mia-lw .mia-topo small { font-size: 11px; }
+    .mia-lw .mia-mensagens { padding: 12px; }
+    .mia-lw .mia-bolha { max-width: 97%; padding: 10px 13px; }
+    .mia-lw .mia-sugestoes { padding: 0 12px 8px; }
+    .mia-lw .mia-sugestoes button { width: 100%; text-align: left; }
+    .mia-lw .mia-form { padding: 9px 12px 0; }
+    .mia-lw .mia-aviso { padding: 7px 12px 11px; }
+    .mia-lw[data-modo="pagina"] { --mia-respiro: 12px; }
+  }
+</style>
+
+<script>
+(function () {
+  var SUPABASE = 'https://ymnmotgglsrxmjmonwjz.supabase.co';
+  var CHAVE_PUBLICA = 'sb_publishable__wYRbYyBgK_MBfqmLpiZNg_Z8iJNxvc';
+  var PORTA = 'institute_learnworlds';
+  var EVENTO = 'mind-summit-2026';
+  var PREFIXO = 'mia-lw:';
+
+  /* Quem está logado no LearnWorlds. Vale o primeiro formato que veio trocado;
+     sem troca (fora da escola), as variáveis chegam como estão e não passam na
+     conferência: a conversa fica anônima. */
+  function variavel(nome) {
+    var els = document.querySelectorAll('#mia-lw [data-mia="' + nome + '"]');
+    for (var i = 0; i < els.length; i++) {
+      var v = String(els[i].textContent || '').trim();
+      if (v && v.indexOf('{{') < 0) return v;
+    }
+    return '';
+  }
+  var LW = { email: variavel('email'), nome: variavel('nome'), id: variavel('id') };
+  var emailOk = /^[^\s@{}]+@[^\s@{}]+\.[^\s@{}]{2,}$/.test(LW.email.trim());
+  var nomeOk = LW.nome.trim() !== '' && LW.nome.indexOf('{{') < 0;
+  var idOk = /^[A-Za-z0-9_-]{6,64}$/.test(LW.id.trim());
+  var IDENTIDADE = emailOk ? {
+    email: LW.email.trim().toLowerCase(),
+    name: nomeOk ? LW.nome.trim().slice(0, 80) : undefined,
+    source: 'learnworlds',
+    learnworlds_user_id: idOk ? LW.id.trim() : undefined,
+  } : undefined;
+  var PRIMEIRO_NOME = nomeOk ? LW.nome.trim().split(/\s+/)[0] : '';
+  var codigoOk = function (v) { return /^[A-Za-z0-9_-]{1,80}$/.test(v); };
+  var CURSO = variavel('curso'), AULA = variavel('aula');
+  var CONTEXTO = codigoOk(CURSO) ? {
+    plataforma: 'learnworlds',
+    curso: CURSO,
+    aula: codigoOk(AULA) ? AULA : undefined,
+  } : undefined;
+
+  var raiz = document.getElementById('mia-lw');
+  if (!raiz || raiz.dataset.ligada) return;
+  raiz.dataset.ligada = '1';
+
+  /* ---------- A ALTURA, NO MODO PÁGINA ----------
+     Na caixa a altura é fixa (680px) e o CSS resolve. Na página ela depende
+     de coisas que só o navegador sabe: onde o cabeçalho do LearnWorlds
+     termina, quanto mede a tela, e se o teclado do celular está aberto.
+
+     Daí a medida ser feita aqui. `getBoundingClientRect().top` já é a
+     distância até o topo da tela, então ela cobre qualquer cabeçalho, de
+     qualquer altura, inclusive um que mude de tamanho ao rolar.
+
+     `visualViewport` e não `innerHeight`: no celular, `innerHeight` ignora o
+     teclado, e com ele aberto o campo ficaria embaixo dele. É a mesma razão
+     pela qual o app do Summit tem um `teclado.js`.
+
+     Os dois limites existem por motivos opostos. O piso de 420px é para a
+     conversa não virar uma fresta num cabeçalho alto. O teto é para o caso de
+     a medida ser tirada com a página rolada: `rect.top` fica negativo, a
+     conta estoura, e sem ele o bloco ficaria mais alto que a tela. */
+  var MODO = raiz.getAttribute('data-modo') === 'pagina' ? 'pagina' : 'caixa';
+
+  /* ============================================================
+     A ALTURA É MEDIDA, NOS DOIS MODOS
+     ============================================================
+     A caixa tinha 680px fixos. Numa tela mais alta do que isso sobrava branco
+     embaixo dela até o fim do viewport — a conversa parava no meio da tela sem
+     motivo, e era o que aparecia no print do Vinícius. Numa tela mais baixa, o
+     `max-height: 90vh` cortava e deixava uma tira branca de 10%.
+
+     Agora os dois modos medem o espaço REAL que existe abaixo do topo do
+     bloco e ocupam ele. `visualViewport` em vez de `innerHeight` porque é a
+     única medida que desconta o teclado do celular: com o teclado aberto,
+     `innerHeight` continua contando a tela inteira e o campo de digitar sai
+     por baixo dele.
+
+     O piso de 420px é para o caso de o bloco estar perto do fim de uma página
+     rolada — ali o espaço "abaixo do topo" é quase zero, e obedecer a medida
+     deixaria uma fita de conversa. */
+  function medirAltura() {
+    var tela = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    var sobra = tela - raiz.getBoundingClientRect().top - (MODO === 'pagina' ? 16 : 24);
+    raiz.style.height = Math.round(Math.max(420, Math.min(tela, sobra))) + 'px';
+  }
+
+  medirAltura();
+  window.addEventListener('resize', medirAltura);
+  window.addEventListener('orientationchange', medirAltura);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', medirAltura);
+  /* A primeira medida sai antes de a fonte da escola carregar, e fonte nova
+     mexe na altura do cabeçalho acima de nós. Uma segunda passada depois do
+     `load` acerta sem precisar ficar observando a página inteira. */
+  window.addEventListener('load', medirAltura);
+  var mensagens = raiz.querySelector('.mia-mensagens');
+  var sugestoes = raiz.querySelector('.mia-sugestoes');
+  var form = raiz.querySelector('.mia-form');
+  var campo = form.querySelector('textarea');
+  var enviar = form.querySelector('button');
+
+  /* Sem localStorage (bloqueado pelo navegador ou pelo LearnWorlds), a
+     conversa segue na memória da página até recarregar. */
+  var armazem = (function () {
+    try {
+      localStorage.setItem(PREFIXO + 'teste', '1');
+      localStorage.removeItem(PREFIXO + 'teste');
+      return localStorage;
+    } catch (e) {
+      var memoria = {};
+      return {
+        getItem: function (k) { return Object.prototype.hasOwnProperty.call(memoria, k) ? memoria[k] : null; },
+        setItem: function (k, v) { memoria[k] = String(v); },
+        removeItem: function (k) { delete memoria[k]; },
+      };
+    }
+  })();
+  function ler(k) { try { return JSON.parse(armazem.getItem(PREFIXO + k)); } catch (e) { return null; } }
+  function salvar(k, v) { armazem.setItem(PREFIXO + k, JSON.stringify(v)); }
+  function remover(k) { armazem.removeItem(PREFIXO + k); }
+
+  /* Computador compartilhado: outra pessoa logada não continua a conversa da
+     anterior. */
+  var quem = IDENTIDADE ? IDENTIDADE.email : '';
+  if (ler('quem') !== quem) { remover('conversa'); remover('acesso'); salvar('quem', quem); }
+
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+    });
+  }
+  function dispositivo() {
+    var atual = ler('aparelho');
+    if (!atual) { atual = uuid(); salvar('aparelho', atual); }
+    return atual;
+  }
+
+  /* ---------- Sessão anônima (Supabase Auth), como no app ---------- */
+  function pedirAcesso(caminho, corpo) {
+    return fetch(SUPABASE + caminho, {
+      method: 'POST',
+      headers: { apikey: CHAVE_PUBLICA, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+      cache: 'no-store',
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (p) {
+        if (!r.ok || !p.access_token) throw new Error('Não foi possível iniciar a sessão segura.');
+        var acesso = {
+          access_token: p.access_token,
+          refresh_token: p.refresh_token,
+          expires_at: p.expires_at || Math.floor(Date.now() / 1000) + (p.expires_in || 3600),
+        };
+        salvar('acesso', acesso);
+        return acesso;
+      });
+    });
+  }
+  function autenticar(forcarNova) {
+    if (forcarNova) remover('acesso');
+    var atual = ler('acesso');
+    var agora = Math.floor(Date.now() / 1000);
+    if (atual && atual.access_token && Number(atual.expires_at) > agora + 60) return Promise.resolve(atual);
+    if (atual && atual.refresh_token) {
+      return pedirAcesso('/auth/v1/token?grant_type=refresh_token', { refresh_token: atual.refresh_token })
+        .catch(function () { remover('acesso'); remover('conversa'); return pedirAcesso('/auth/v1/signup', {}); });
+    }
+    return pedirAcesso('/auth/v1/signup', {});
+  }
+
+  function chamar(texto, idMensagem) {
+    return autenticar(false).then(function (acesso) {
+      var controle = new AbortController();
+      var limite = setTimeout(function () { controle.abort(); }, 50000);
+      return fetch(SUPABASE + '/functions/v1/mindagent-chat', {
+        method: 'POST',
+        headers: {
+          apikey: CHAVE_PUBLICA,
+          Authorization: 'Bearer ' + acesso.access_token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: texto,
+          event_slug: EVENTO,
+          device_id: dispositivo(),
+          client_message_id: idMensagem,
+          session: ler('conversa') || undefined,
+          origem_codigo: PORTA,
+          identity: IDENTIDADE,
+          contexto: CONTEXTO,
+        }),
+        cache: 'no-store',
+        signal: controle.signal,
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (p) { return { r: r, p: p }; });
+      }).finally(function () { clearTimeout(limite); });
+    });
+  }
+
+  /* Uma segunda chance, nunca uma terceira: token vencido renova o acesso;
+     conversa expirada abre outra. */
+  function perguntarAoAgente(texto) {
+    var idMensagem = uuid();
+    return chamar(texto, idMensagem).then(function (res) {
+      var codigo = res.p && res.p.error && res.p.error.code;
+      if (codigo === 'session_expired') { remover('conversa'); return chamar(texto, idMensagem); }
+      if (res.r.status === 401) {
+        remover('conversa');
+        return autenticar(true).then(function () { return chamar(texto, idMensagem); });
+      }
+      return res;
+    }).then(function (res) {
+      if (!res.r.ok || !res.p || !res.p.ok) {
+        throw new Error((res.p && res.p.error && res.p.error.message) || 'Não consegui responder agora. Tente novamente.');
+      }
+      if (res.p.session) salvar('conversa', res.p.session);
+      /* Devolve o corpo inteiro, e não só `answer`: `ferramentas`, `sources` e
+         `rota` são o que o painel de raciocínio mostra, e vinham sendo jogados
+         fora aqui. */
+      return res.p;
+    });
+  }
+
+  /* ---------- Texto da resposta ----------
+     Tudo é escapado; só voltam negrito e link https. */
+  function escapar(t) {
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function formatar(texto) {
+    return escapar(String(texto == null ? '' : texto))
+      .split('\n')
+      .map(function (linha) {
+        var titulo = linha.match(/^\s{0,3}#{1,4}\s+(.+)$/);
+        if (titulo) return '<strong>' + titulo[1].replace(/\*\*/g, '') + '</strong>';
+        return linha.replace(/^(\s*)[-*]\s+/, '$1• ');
+      })
+      .join('\n')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/https:\/\/[^\s<]+[^\s<.,;:!?)\]]/g, function (url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+      });
+  }
+
+  /* O nome dela em cima da fala. `formatar()` já escapa tudo o que vem do
+     servidor; este rótulo é texto fixo daqui, e por isso pode ser concatenado. */
+  var ROTULO = '<span class="mia-quem">MIA</span>';
+
+  /* Fala longa abre pelo começo, e sem rolar a página do LearnWorlds junto. */
+
+  /* ============================================================
+     O BALÃO SOBE PARA O TOPO ANTES DE A RESPOSTA SURGIR
+     ============================================================
+     A tentativa anterior era só `scrollTop +=`, e na maior parte das vezes não
+     fazia nada: a resposta é o ÚLTIMO elemento da conversa, então não há
+     conteúdo abaixo dela para onde rolar. Pedir para subir não basta; é
+     preciso haver para onde.
+
+     Daí o espaço embaixo — é o que todo app de chat faz, e é a razão de a
+     última resposta poder encostar no topo da tela. Ele é calculado, não
+     chutado: exatamente o que falta para o topo do balão alcançar o topo da
+     área, e zero quando a resposta já é mais alta do que a tela. */
+  function subirBalao(el) {
+    mensagens.style.paddingBottom = '';
+    var topoDaArea = mensagens.getBoundingClientRect().top;
+    var caixa = el.getBoundingClientRect();
+    var topo = caixa.top - topoDaArea + mensagens.scrollTop;
+    var fundo = caixa.bottom - topoDaArea + mensagens.scrollTop;
+    var alvo = Math.max(0, topo - 10);
+    var base = parseFloat(getComputedStyle(mensagens).paddingBottom) || 0;
+    /* A conta é contra o FUNDO DO BALÃO, não contra `scrollHeight`. Esta foi a
+       primeira versão e estava errada: `scrollHeight` nunca devolve menos que
+       `clientHeight`, então numa conversa mais curta que a tela ele mente — diz
+       o tamanho da janela, não o do conteúdo — e o espaço calculado saía pela
+       metade. O balão pedia para subir e ficava onde estava. Visto rodando, com
+       `scrollTop` parado em 0 e 286px faltando. O balão é o último elemento da
+       conversa, então o fundo dele É o fim do conteúdo, e isso não mente. */
+    var falta = alvo + mensagens.clientHeight - (fundo + base);
+    if (falta > 0) {
+      mensagens.style.paddingBottom = Math.round(base + falta) + 'px';
+      /* Esta leitura não é sobra: ela OBRIGA o navegador a refazer a conta do
+         layout agora. Sem ela, o pedido de rolagem logo abaixo acontece com a
+         medida velha — a de antes do espaço existir — e é limitado ao que
+         cabia antes, que numa conversa curta é zero. Foi o que aconteceu aqui
+         rodando: o espaço de 434px aberto, certo, e o `scrollTop` parado em 0.
+         Ler `scrollHeight` é o jeito barato de forçar isso sem depender de
+         `requestAnimationFrame`, que aba escondida não chama. */
+      if (mensagens.scrollHeight < 0) return;
+    }
+    /* A SUBIDA É ANIMADA NA MÃO, e não por `scrollTo({behavior:'smooth'})`.
+       A primeira versão usava a API: ela não deu erro, não caiu em `catch`, e
+       simplesmente NÃO ROLOU — `scrollTop` parado em 0 com 276px de espaço
+       disponível ao lado, medido. A atribuição direta movia na mesma hora.
+       Num bloco colado, que roda no webview do app do Institute e em navegador
+       de escola que eu não tenho como abrir, depender de uma API que falha
+       calada é apostar; doze linhas de conta própria funcionam em todo lugar.
+
+       Para quem pediu menos movimento, o salto direto. */
+    var partida = mensagens.scrollTop;
+    var curso = alvo - partida;
+    var parado = !(window.matchMedia
+      && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (!parado || !curso) { mensagens.scrollTop = alvo; return; }
+
+    var comeco = Date.now();
+    var subida = setInterval(function () {
+      var f = Math.min(1, (Date.now() - comeco) / 320);
+      /* A mesma curva da palavra surgindo, para a tela e o texto não andarem
+         em ritmos diferentes. */
+      mensagens.scrollTop = partida + curso * (1 - Math.pow(1 - f, 3));
+      if (f >= 1) { clearInterval(subida); mensagens.scrollTop = alvo; }
+    }, 16);
+  }
+
+  function bolha(texto, quem) {
+    var el = document.createElement('div');
+    el.className = 'mia-bolha ' + (quem === 'eu' ? 'mia-eu' : 'mia-ela');
+    if (quem === 'eu') el.textContent = texto; else el.innerHTML = ROTULO + formatar(texto);
+    mensagens.appendChild(el);
+    if (quem === 'eu') mensagens.scrollTop = mensagens.scrollHeight;
+    else mensagens.scrollTop += el.getBoundingClientRect().top - mensagens.getBoundingClientRect().top - 12;
+    return el;
+  }
+  /* ============================================================
+     O TURNO DELA — pensando, depois o que ela fez, depois a resposta
+     ============================================================
+     Uma bolha só, que muda de estado, em vez de uma bolha de "digitando" que
+     é apagada e trocada por outra.
+
+     DUAS CLASSES DE PASSO, e a diferença importa:
+
+     - Os da ESPERA são provisórios. A `mindagent-chat` devolve tudo de uma vez:
+       enquanto ela não responde, ninguém aqui sabe o que está acontecendo. São
+       uma expectativa do caminho normal dela (procurar no acervo, ler o que
+       achou), e não um relato.
+     - Os do FIM são relato. Vêm de `ferramentas` e `sources`, que o servidor
+       manda no corpo da resposta. Eles SUBSTITUEM os provisórios, inclusive
+       quando contradizem — se ela respondeu sem consultar o acervo, é isso que
+       fica escrito. O que a pessoa reabre depois é sempre o que aconteceu. */
+  var SETA = '<span class="mia-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>';
+
+  /* A pétala do cabeçalho de raciocínio é O MESMO desenho do avatar, clonado.
+     Colar o caminho do símbolo de novo aqui seria a terceira cópia dele no
+     repositório, e três cópias de um desenho é onde uma delas envelhece
+     sozinha. O `fill="currentColor"` do original faz a cor vir de quem o
+     hospeda — no avatar, branco sobre o roxo; aqui, o cinza do cabeçalho. */
+  function petala() {
+    var modelo = raiz.querySelector('.mia-avatar svg');
+    if (!modelo) return document.createComment('sem símbolo');
+    var copia = modelo.cloneNode(true);
+    copia.setAttribute('class', 'mia-petala');
+    copia.setAttribute('aria-hidden', 'true');
+    return copia;
+  }
+
+  /* ---------- O QUE A TELA MOSTRA ENQUANTO ELA PENSA ----------
+     Antes eram três passos em 0s, 2,2s e 6s, e o turno dura de 20 a 45
+     segundos: a lista congelava aos seis e a pessoa passava mais de vinte
+     olhando para algo parado. A demora não vinha do tempo, vinha do silêncio
+     depois do sexto segundo. Agora o roteiro cobre a espera inteira, e o
+     último passo chega antes do teto de 45s do servidor, assumindo a espera
+     em vez de deixar a tela muda.
+
+     Continua valendo o que vale desde o começo: isto é EXPECTATIVA do caminho
+     normal dela, não relato. Quando a resposta chega, tudo aqui é substituído
+     pelo que o servidor diz ter feito. */
+  /* ---------- O QUE ELA FAZ DE VERDADE, MEDIDO ----------
+     A primeira versão tinha UM roteiro só, com sete passos iguais em todo
+     turno: "Abrindo as fichas das sessões", "Vendo o que cada palestrante
+     disse", "Conferindo em que minuto aparece". Três problemas, e o Vinícius
+     viu os três rodando:
+
+     1. O servidor não relata nada disso. As ferramentas são duas —
+        `buscar_intelligence` e `ler_intelligence` — e o relato real do turno
+        diz PROCUROU e LEU. Ficha, palestrante e minuto eram detalhe que eu
+        inventei para a lista ficar comprida.
+     2. Na segunda pergunta sobre o mesmo assunto, a tela repetia as mesmas
+        cinco frases, como se ela estivesse começando do zero.
+     3. "Conferindo em que minuto aparece" nunca correspondeu a um ato. As
+        transcrições têm marca de tempo (55 de 55, conferido no banco), mas
+        ela lê o documento — não vai conferir minuto nenhum.
+
+     TRÊS TURNOS MEDIDOS contra o servidor real, em 29/10/2026:
+
+         turno              procurou  leu   contexto                  tempo
+         abre o assunto        1×     1×    acervo (4)                 29s
+         aprofunda o mesmo     1×     3×    palestrantes (2), acervo   36s
+         muda de assunto       1×     3×    palestrantes (1)           34s
+
+     A medição derruba a suposição mais natural, que era a minha e a do
+     Vinícius: ela NÃO responde do contexto quando a pessoa se aprofunda. Ela
+     volta ao acervo toda vez. O que muda é quanto ela lê — uma vez na
+     primeira pergunta, três nas seguintes — e que o turno chega com a
+     conversa inteira junto.
+
+     Então o roteiro não pode pular a busca; ele tem é de parar de fingir
+     cinco atos quando são três (procura, lê, escreve) e de falar como se
+     cada pergunta fosse a primeira. Daí três roteiros, escolhidos pela
+     situação do turno, e nenhum passo que o servidor não faça. */
+  function passosDaEspera(s) {
+    var tema = s && s.tema;
+    var fim = [
+      [26000, 'Ainda escrevendo — a resposta está ficando longa'],
+      [37000, 'Ainda escrevendo — respostas que cruzam sessões levam mais'],
+    ];
+
+    /* APROFUNDANDO o mesmo assunto. A pessoa não trouxe assunto novo: ela
+       está olhando o mesmo de outro ângulo. A tela não repete a abertura;
+       diz que ela está VOLTANDO — que é o que a medição mostra. */
+    if (s && s.modo === 'aprofunda') {
+      return [
+        [0, 'Relendo sua pergunta'],
+        [1500, 'Voltando ao acervo com a sua nova pergunta'],
+        /* Quando o turno anterior trouxe palestrante no contexto, dizer isso
+           não é chute: veio do relato do servidor daquele turno. */
+        [6000, s.palestrantes
+          ? 'Abrindo de novo as sessões e os palestrantes que citei'
+          : (tema
+            ? { antes: 'Abrindo mais material sobre ', destaque: tema, depois: '' }
+            : 'Abrindo mais material sobre o mesmo assunto')],
+        [14000, 'Juntando com o que já te respondi'],
+        [23000, 'Escrevendo a resposta'],
+        [33000, 'Ainda escrevendo — ligar as duas coisas leva mais'],
+      ];
+    }
+
+    /* MUDOU DE ASSUNTO. A conversa continua, o assunto não: a tela precisa
+       dizer que ela saiu de onde estava, senão parece que ignorou. */
+    if (s && s.modo === 'muda') {
+      return [
+        [0, 'Lendo sua pergunta'],
+        [1500, tema
+          ? { antes: 'Assunto novo: procurando sobre ', destaque: tema, depois: ' no acervo' }
+          : 'Assunto novo: procurando no acervo do Summit'],
+        [6000, 'Lendo o que encontrou'],
+        [15000, 'Escrevendo a resposta'],
+      ].concat(fim);
+    }
+
+    /* PRIMEIRA PERGUNTA da conversa. */
+    return [
+      [0, 'Lendo sua pergunta'],
+      [1500, tema
+        ? { antes: 'Procurando sobre ', destaque: tema, depois: ' no acervo do Summit' }
+        : 'Procurando no acervo do Summit'],
+      [6000, 'Lendo o que encontrou'],
+      [15000, 'Escrevendo a resposta'],
+    ].concat(fim);
+  }
+
+  /* ---------- A SITUAÇÃO DO TURNO ----------
+     Três coisas o cliente sabe antes de a resposta chegar, e as três são
+     reais: se já houve turno nesta conversa, se o assunto reconhecido mudou,
+     e o que o turno ANTERIOR relatou ter feito. É só disso que os roteiros
+     precisam — nada aqui adivinha o que o servidor vai fazer.
+
+     Pergunta sem assunto reconhecido depois de um turno ("me aprofunda
+     nisso", "e daí?", "me dá um exemplo") é aprofundamento, não assunto
+     novo: é exatamente o caso que fazia a tela repetir a abertura. */
+  var ultimoTurno = null;
+
+  function situacaoDoTurno(pergunta) {
+    var tema = temaDaPergunta(pergunta);
+    if (!ultimoTurno) return { modo: 'abre', tema: tema };
+    if (!tema || tema === ultimoTurno.tema) {
+      return {
+        modo: 'aprofunda',
+        tema: ultimoTurno.tema,
+        palestrantes: ultimoTurno.palestrantes,
+      };
+    }
+    return { modo: 'muda', tema: tema };
+  }
+
+  /* Guardado no fim do turno, do relato REAL: o assunto que valeu e se o
+     servidor trouxe palestrante no contexto. */
+  function lembrarDoTurno(s, p) {
+    var fontes = Array.isArray(p && p.sources) ? p.sources : [];
+    ultimoTurno = {
+      tema: (s && s.tema) || (ultimoTurno && ultimoTurno.tema) || null,
+      palestrantes: fontes.some(function (f) { return f && f.type === 'speakers'; }),
+    };
+  }
+
+  /* ---------- O TEMA SAI DA PERGUNTA, E EXISTE NO ACERVO ----------
+     Duas fontes honestas sustentam o destaque: a palavra é de quem perguntou,
+     e o tema é um dos 31 mapas temáticos que o acervo realmente tem. Nada é
+     inventado; quando nada casa, o passo fica genérico e o resto segue igual.
+
+     A lista é de PALAVRA → TEMA, e não dos nomes dos mapas, porque ninguém
+     escreve "dados, mensuração e roi" numa pergunta. É a palavra que a pessoa
+     digita que precisa casar.
+
+     A ORDEM IMPORTA: a primeira que casar vence, então o específico vem antes
+     do geral — "liderança feminina" antes de "liderança", "segurança
+     psicológica" antes de "psicológico". */
+  var TEMA_POR_PALAVRA = [
+    ['lideranca feminina', 'liderança feminina'], ['mulheres na lideranca', 'liderança feminina'],
+    ['seguranca psicologica', 'segurança psicológica'], ['psicologicamente seguro', 'segurança psicológica'],
+    ['conversas dificeis', 'conversas difíceis'], ['conversa dificil', 'conversas difíceis'],
+    ['futuro do trabalho', 'futuro do trabalho e IA'], ['inteligencia artificial', 'futuro do trabalho e IA'],
+    ['riscos psicossociais', 'NR-1 e riscos psicossociais'], ['psicossocial', 'NR-1 e riscos psicossociais'],
+    ['psicossociais', 'NR-1 e riscos psicossociais'], ['nr-1', 'NR-1 e riscos psicossociais'],
+    ['nr1', 'NR-1 e riscos psicossociais'], ['nr 1', 'NR-1 e riscos psicossociais'],
+    /* "Como medir o ROI de um programa de bem-estar" tem os dois assuntos
+       dentro. Medida é o que a pessoa pediu; bem-estar é onde ela mede. */
+    ['roi', 'dados, mensuração e ROI'], ['mensuracao', 'dados, mensuração e ROI'],
+    ['metricas', 'dados, mensuração e ROI'], ['metrica', 'dados, mensuração e ROI'],
+    ['burnout', 'burnout'], ['esgotamento', 'burnout'], ['esgotado', 'burnout'],
+    ['esgotada', 'burnout'], ['exausto', 'burnout'], ['exausta', 'burnout'],
+    ['exaustao', 'burnout'], ['nao aguento', 'burnout'],
+    ['saude mental', 'saúde mental'], ['adoecimento', 'saúde mental'],
+    ['bem-estar', 'programas de bem-estar'], ['bem estar', 'programas de bem-estar'],
+    ['wellness', 'programas de bem-estar'],
+    ['alegria', 'emoções positivas e felicidade'], ['felicidade', 'emoções positivas e felicidade'],
+    ['feliz', 'emoções positivas e felicidade'],
+    ['sobrecarga', 'desenho do trabalho'], ['carga de trabalho', 'desenho do trabalho'],
+    ['desenho do trabalho', 'desenho do trabalho'],
+    ['produtividade', 'produtividade sustentável'], ['performance', 'produtividade sustentável'],
+    ['distracao', 'tecnologia e distração'], ['notificacoes', 'tecnologia e distração'],
+    ['celular', 'tecnologia e distração'],
+    ['foco', 'foco e atenção'], ['atencao', 'foco e atenção'], ['concentracao', 'foco e atenção'],
+    ['feedback', 'feedback e reconhecimento'], ['reconhecimento', 'feedback e reconhecimento'],
+    ['elogio', 'feedback e reconhecimento'],
+    ['hibrido', 'trabalho híbrido'], ['home office', 'trabalho híbrido'],
+    ['remoto', 'trabalho híbrido'], ['presencial', 'trabalho híbrido'],
+    ['lideranca', 'liderança'], ['lider', 'liderança'], ['lideres', 'liderança'],
+    ['chefe', 'liderança'], ['gestor', 'liderança'], ['gestora', 'liderança'], ['gerente', 'liderança'],
+    ['cultura', 'cultura organizacional'],
+    ['fracasso', 'aprendizagem e erro'], ['errar', 'aprendizagem e erro'],
+    ['erros', 'aprendizagem e erro'], ['erro', 'aprendizagem e erro'],
+    ['aprendizagem', 'aprendizagem e erro'],
+    ['engajamento', 'engajamento e propósito'], ['proposito', 'engajamento e propósito'],
+    ['diversidade', 'diversidade e inclusão'], ['inclusao', 'diversidade e inclusão'],
+    ['carreira', 'carreira'], ['promocao', 'carreira'],
+    ['parentalidade', 'parentalidade'], ['maternidade', 'parentalidade'],
+    ['paternidade', 'parentalidade'], ['filhos', 'parentalidade'],
+    ['longevidade', 'longevidade e corpo'], ['sono', 'longevidade e corpo'],
+    ['exercicio', 'longevidade e corpo'],
+    ['finitude', 'finitude e sentido'], ['sentido da vida', 'finitude e sentido'],
+    ['gratidao', 'gratidão'], ['autocompaixao', 'autocompaixão'],
+    ['resiliencia', 'resiliência'], ['resiliente', 'resiliência'],
+    ['solidao', 'relações e vínculos'], ['vinculos', 'relações e vínculos'],
+    ['relacoes', 'relações e vínculos'],
+    ['governanca', 'governança e compliance'], ['compliance', 'governança e compliance'],
+    ['investidor', 'investidores e negócio'], ['investidores', 'investidores e negócio'],
+  ];
+
+  function semAcento(s) {
+    return String(s == null ? '' : s).normalize('NFD')
+      .replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+
+  /* Casa por palavra inteira, e não por pedaço: sem isto, "ia" acharia
+     "financeira" e "erro" acharia "guerra". */
+  function temaDaPergunta(texto) {
+    var t = semAcento(texto);
+    for (var i = 0; i < TEMA_POR_PALAVRA.length; i++) {
+      var chave = TEMA_POR_PALAVRA[i][0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp('(^|[^a-z0-9])' + chave + '([^a-z0-9]|$)').test(t)) {
+        return TEMA_POR_PALAVRA[i][1];
+      }
+    }
+    return null;
+  }
+
+  /* Os nomes das ferramentas dela, em português de gente. Ferramenta que não
+     estiver aqui aparece com o nome cru: melhor um nome técnico na tela do que
+     uma frase bonita que não corresponde ao que rodou. */
+  var NOME_DA_FERRAMENTA = {
+    buscar_intelligence: 'Procurou no acervo do Summit',
+    ler_intelligence: 'Leu o conteúdo encontrado',
+  };
+  /* Os cinco tipos que o servidor devolve em `sources` (`sourceSummary`, em
+     `supabase/functions/mindagent-chat/index.ts`). Faltavam dois aqui, e o
+     que não está traduzido aparece cru: a tela escreveu "Contexto: knowledge
+     (4)" para uma pergunta sobre burnout. Nome de variável nossa não é texto
+     de interface. */
+  var NOME_DA_FONTE = {
+    event: 'evento', sessions: 'sessões', speakers: 'palestrantes',
+    locations: 'locais', knowledge: 'acervo do Summit',
+  };
+
+  function relatoDoTurno(p) {
+    var lista = [];
+    var usadas = Array.isArray(p && p.ferramentas) ? p.ferramentas : [];
+    var contagem = {}, ordem = [];
+    usadas.forEach(function (f) {
+      var nome = f && f.nome ? String(f.nome) : 'ferramenta';
+      if (!contagem[nome]) { contagem[nome] = 0; ordem.push(nome); }
+      contagem[nome]++;
+    });
+    ordem.forEach(function (nome) {
+      var rotulo = NOME_DA_FERRAMENTA[nome] || nome;
+      lista.push(contagem[nome] > 1 ? rotulo + ' (' + contagem[nome] + '×)' : rotulo);
+    });
+    if (!lista.length) lista.push('Respondeu sem consultar o acervo');
+    var fontes = Array.isArray(p && p.sources) ? p.sources : [];
+    if (fontes.length) {
+      lista.push('Contexto: ' + fontes.map(function (f) {
+        return (NOME_DA_FONTE[f.type] || f.type) + ' (' + f.count + ')';
+      }).join(', '));
+    }
+    return lista;
+  }
+
+  function abrirTurno(situacao) {
+    var el = document.createElement('div');
+    el.className = 'mia-bolha mia-ela';
+    el.innerHTML = ROTULO +
+      '<button type="button" class="mia-pensou">' +
+        '<span class="mia-pensou-rotulo">Pensando</span>' +
+      '</button>' +
+      '<ol class="mia-passos"></ol>' +
+      '<div class="mia-resposta"></div>';
+    mensagens.appendChild(el);
+    mensagens.scrollTop = mensagens.scrollHeight;
+
+    var cabecalho = el.querySelector('.mia-pensou');
+    cabecalho.insertBefore(petala(), cabecalho.firstChild);
+    var rotulo = el.querySelector('.mia-pensou-rotulo');
+    var passos = el.querySelector('.mia-passos');
+    var resposta = el.querySelector('.mia-resposta');
+    var inicio = Date.now();
+    var tempos = [];
+
+    /* O último passo da lista é o que está acontecendo: ponto pulsando e o
+       brilho no texto. Os de cima já passaram — texto firme, ponto parado. */
+    function montarPasso(t, andando) {
+      var li = document.createElement('li');
+      li.className = 'mia-passo' + (andando ? ' mia-andando' : ' mia-feito');
+      var texto = document.createElement('span');
+      texto.className = 'mia-passo-texto' + (andando ? ' mia-brilho' : '');
+      /* O tema vem destacado: é um pedaço separado, montado com
+         `textContent`, e não marcação dentro de um texto. Nada que venha da
+         pergunta de alguém ou da resposta do servidor vira HTML aqui. */
+      if (t && typeof t === 'object') {
+        texto.appendChild(document.createTextNode(t.antes));
+        var forte = document.createElement('b');
+        forte.textContent = t.destaque;
+        texto.appendChild(forte);
+        if (t.depois) texto.appendChild(document.createTextNode(t.depois));
+      } else {
+        texto.textContent = t;
+      }
+      li.appendChild(texto);
+      return li;
+    }
+
+    /* ---------- O PASSO NOVO ENTRA EMBAIXO, E SÓ ELE ----------
+       Antes cada passo redesenhava a lista inteira: os de cima eram
+       destruídos e recriados, então a animação de entrada recomeçava em
+       todos e a lista piscava e pulava a cada linha nova. O que já está na
+       tela não muda — só perde o brilho, porque aquele passo acabou de
+       passar. O que é novo entra. */
+    function acrescentar(t) {
+      var atual = passos.lastElementChild;
+      if (atual) {
+        atual.classList.remove('mia-andando');
+        atual.classList.add('mia-feito');
+        var brilhando = atual.querySelector('.mia-brilho');
+        if (brilhando) brilhando.classList.remove('mia-brilho');
+      }
+      passos.appendChild(montarPasso(t, true));
+      mensagens.scrollTop = mensagens.scrollHeight;
+    }
+
+    /* Troca a lista inteira. Só o fim do turno faz isso, e por um motivo: ali
+       a lista deixa de ser expectativa e vira o relato do que ela fez — é
+       outro conteúdo, não mais um passo. */
+    function escrever(textos) {
+      passos.innerHTML = '';
+      textos.forEach(function (t, i) {
+        var li = montarPasso(t, false);
+        li.style.animationDelay = (i * 45) + 'ms';
+        passos.appendChild(li);
+      });
+      mensagens.scrollTop = mensagens.scrollHeight;
+    }
+
+    passosDaEspera(situacao).forEach(function (p) {
+      tempos.push(setTimeout(function () { acrescentar(p[1]); }, p[0]));
+    });
+
+    /* O tempo não é mais mostrado enquanto ela pensa — era um número correndo
+       ao lado de uma lista que já diz onde a coisa está. Continua sendo medido
+       aqui, porque o resumo do fim ("Pensou por Ns") é informação real e é o
+       único lugar onde o número ajuda. */
+    function pararEspera() {
+      tempos.forEach(clearTimeout);
+      return Math.max(1, Math.round((Date.now() - inicio) / 1000));
+    }
+
+    return {
+      /* A resposta chegou: o cabeçalho vira resumo clicável, os passos viram
+         relato e a fala dela aparece. */
+      concluir: function (p) {
+        var segundos = pararEspera();
+        cabecalho.classList.add('mia-pronto');
+        rotulo.textContent = 'Pensou por ' + segundos + 's';
+        cabecalho.insertAdjacentHTML('beforeend', SETA);
+        cabecalho.setAttribute('aria-expanded', 'false');
+        escrever(relatoDoTurno(p));
+        passos.hidden = true;
+        cabecalho.addEventListener('click', function () {
+          passos.hidden = !passos.hidden;
+          cabecalho.setAttribute('aria-expanded', passos.hidden ? 'false' : 'true');
+        });
+        /* O servidor diz qual agente respondeu (`p.rota`), e houve uma versão
+           que avisava a pessoa quando não era a MIA. Saiu a pedido do Vinícius
+           em 27/10: quem está no curso não precisa saber de rota de agente. O
+           que fazer quando não é ela está dito lá embaixo, onde ficava o botão
+           “Nova conversa”. */
+        /* A resposta abre pelo COMEÇO: o balão sobe para o topo e a primeira
+           palavra surge ali, não no pé da tela. A medida tem de ser tirada com
+           o texto inteiro montado — por isso vai no gancho, que a máquina
+           chama depois de montar e antes de começar a revelar. */
+        return maquinaDeEscrever(resposta, formatar(p && p.answer), function () {
+          subirBalao(el);
+        });
+      },
+      falhar: function (texto) {
+        pararEspera();
+        cabecalho.remove();
+        passos.remove();
+        resposta.textContent = texto;
+        mensagens.scrollTop = mensagens.scrollHeight;
+      },
+    };
+  }
+
+  /* A RESPOSTA SURGE PALAVRA A PALAVRA, SAINDO DO DESFOQUE.
+     A resposta já chegou inteira; isto é ritmo de leitura, não streaming —
+     nada aqui espera o servidor.
+
+     COMO ERA: os nós de texto eram esvaziados e repostos letra a letra por um
+     `setInterval`. Funcionava, mas letra não aceita desfoque: para borrar uma
+     letra é preciso um elemento para ela, e um elemento por letra numa
+     resposta de mil e quatrocentos caracteres é mil e quatrocentas camadas de
+     composição na tela de um celular.
+
+     COMO É: a palavra é a unidade. Cada palavra vira um `span`, montado com
+     `textContent` — nada vindo do servidor vira marcação aqui —, e a entrada é
+     uma animação de CSS com `animation-delay` escalonado. Quem conta o tempo é
+     o navegador, não um relógio nosso.
+
+     ISSO RESOLVEU UM PROBLEMA ANTIGO DE GRAÇA. O efeito antigo morava num
+     `setInterval`, que o navegador estrangula em aba que não está na frente —
+     antes dele era `requestAnimationFrame`, que a aba escondida simplesmente
+     não chama, e quem trocava de aba enquanto a MIA respondia voltava para uma
+     resposta VAZIA. Agora o estado final é do CSS (`forwards`): mesmo que a
+     animação nunca rode, a palavra está lá, no DOM, desde o primeiro quadro —
+     é a OPACIDADE que entra, não o texto. Nenhuma aba esconde resposta.
+
+     O RITMO. Eram 5ms por letra com teto de 1,8s: mil caracteres passavam em
+     menos de dois segundos. Não se lia aquilo — borrava e estava escrito.
+     Agora são 24ms por letra.
+
+     QUEM MANDA NA RESPOSTA LONGA É O TETO, não a taxa: com teto de 6,5s, uma
+     resposta de 1.433 letras saía a 220 letras por segundo por aritmética,
+     fosse qual fosse o ms por letra. Por isso o teto é que subiu de verdade,
+     1,8s → 6,5s → 12s. É ele que a pessoa sente.
+
+     O teto existe pelo motivo de sempre: prender a leitura de um texto que já
+     está na mão é cobrar da pessoa o preço de um efeito. Ele só pode ser deste
+     tamanho porque existe saída — um toque na resposta completa tudo na hora.
+     Sem essa porta, 12s seria prisão, e o número certo seria outro. */
+  var SURGIR_MS = 600;
+  /* Teto do intervalo entre uma palavra e a seguinte. Sem ele, a resposta de
+     três palavras que cai no piso de 900ms espalha 450ms entre uma e outra e
+     parece travada. A ideia é do `TextReveal` que o Vinícius mandou, onde o
+     escalonamento é `min(stagger, span / (total - 1))`. O valor é alto de
+     propósito: ele só precisa pegar o caso curto. Na resposta típica dela o
+     intervalo dá uns 76ms e o teto nem encosta — e tem de ser assim, porque
+     um teto baixo aqui ACELERARIA a resposta longa, que é justo o contrário
+     do que foi pedido. */
+  var PASSO_MAX_MS = 140;
+
+  /* ============================================================
+     A FRENTE DE ONDA — texto grande não surge em fila indiana
+     ============================================================
+     Em fila, o atraso de uma palavra vem da ORDEM dela. Isso é certo numa
+     frase: uma palavra, a seguinte, a seguinte. Num bloco de dez linhas vira
+     um ponto correndo sozinho pela página enquanto o resto espera, e o olho
+     persegue o ponto em vez de ler.
+
+     Aqui o atraso vem da POSIÇÃO da palavra na página, não da ordem:
+
+         onda = linha + (quanto ela está à direita) × ABERTURA
+
+     Palavras com onda parecida entram juntas. Como a posição horizontal vale
+     ABERTURA linhas, a frente num instante qualquer toca ABERTURA + 1 linhas
+     ao mesmo tempo, descendo da direita de uma linha para a esquerda da linha
+     de baixo — a diagonal do olho de quem lê, e não uma régua horizontal
+     descendo. Com ABERTURA = 2, são três linhas em movimento de cada vez.
+
+     A ordem ESTRITA de leitura cede um pouco, e tem de ceder: o começo da
+     linha de baixo entra antes do fim da linha de cima. É exatamente isso que
+     desenha a diagonal — sem essa troca a frente seria uma régua horizontal.
+     O que não cede é o sentido geral: o bloco se revela do alto à esquerda
+     para o fim, e ninguém vê o último parágrafo antes do primeiro.
+
+     SÓ VALE PARA TEXTO GRANDE. Com menos de quatro linhas não há diagonal que
+     se perceba — há uma frase —, e a fila é o certo. É o `null` lá embaixo. */
+  var ABERTURA_DIAGONAL = 2;
+  var LINHAS_PARA_DIAGONAL = 4;
+
+  function atrasosEmDiagonal(palavras, destino, corrida) {
+    var caixa = destino.getBoundingClientRect();
+    var largura = Math.max(1, caixa.width);
+    /* As medidas saem todas de uma vez, antes de qualquer escrita, para o
+       navegador refazer o layout uma vez só e não uma por palavra. */
+    var medidas = palavras.map(function (sp) {
+      var r = sp.getBoundingClientRect();
+      return {
+        /* Arredondado em degraus de 4px: palavras da mesma linha não têm o
+           topo exatamente igual quando há negrito ou link no meio, e sem o
+           degrau cada uma dessas viraria uma "linha" só dela. */
+        topo: Math.round((r.top - caixa.top) / 4) * 4,
+        fx: Math.min(1, Math.max(0, (r.left - caixa.left) / largura)),
+      };
+    });
+
+    var linhas = [];
+    medidas.forEach(function (m) {
+      if (linhas.indexOf(m.topo) < 0) linhas.push(m.topo);
+    });
+    linhas.sort(function (a, b) { return a - b; });
+    if (linhas.length < LINHAS_PARA_DIAGONAL) return null;
+
+    var ondas = medidas.map(function (m) {
+      return linhas.indexOf(m.topo) + m.fx * ABERTURA_DIAGONAL;
+    });
+    var menor = Math.min.apply(null, ondas);
+    var maior = Math.max.apply(null, ondas);
+    var vao = Math.max(0.001, maior - menor);
+    /* Esticado para a última palavra da onda cair exatamente no fim da
+       corrida: o texto grande leva o mesmo tempo que levava em fila. */
+    return ondas.map(function (o) {
+      return Math.round(corrida * (o - menor) / vao);
+    });
+  }
+
+  function maquinaDeEscrever(destino, html, aoMontar) {
+    destino.innerHTML = html;
+
+    /* Cada palavra num `span`, o espaço entre elas intacto como texto — é o
+       espaço que faz a linha quebrar no lugar certo e o `pre-wrap` preservar
+       os parágrafos dela. Os filhos são copiados para uma lista antes de
+       mexer: trocar nó enquanto se percorre `childNodes` pula metade deles. */
+    var palavras = [];
+    var letras = 0;
+    (function varrer(no) {
+      var filhos = [];
+      for (var i = 0; i < no.childNodes.length; i++) filhos.push(no.childNodes[i]);
+      filhos.forEach(function (filho) {
+        if (filho.nodeType === 3) {
+          var partes = filho.nodeValue.split(/(\s+)/);
+          var pedaco = document.createDocumentFragment();
+          partes.forEach(function (parte) {
+            if (!parte) return;
+            if (/^\s+$/.test(parte)) {
+              pedaco.appendChild(document.createTextNode(parte));
+              return;
+            }
+            var sp = document.createElement('span');
+            sp.className = 'mia-palavra';
+            sp.textContent = parte;
+            pedaco.appendChild(sp);
+            palavras.push(sp);
+            letras += parte.length;
+          });
+          no.replaceChild(pedaco, filho);
+        } else if (filho.nodeType === 1) varrer(filho);
+      });
+    })(destino);
+
+    /* O balão só sobe depois que o texto está montado: a altura dele é a do
+       texto inteiro, e medir antes daria a altura errada. */
+    if (aoMontar) aoMontar();
+    if (!palavras.length) return { pular: function () {} };
+
+    var vivo = true;
+
+    /* Tira a máquina do caminho: sem a classe, a regra do desfoque não casa
+       mais com nada e as palavras ficam palavras. Tirar a classe também apaga
+       o `filter` de todas elas — e `filter`, mesmo em `blur(0)`, mantém uma
+       camada de composição por palavra enquanto estiver lá. */
+    function tudo() {
+      if (!vivo) return;
+      vivo = false;
+      clearTimeout(garantia);
+      destino.removeEventListener('click', aoTocar);
+      destino.classList.remove('mia-escrevendo');
+      palavras.forEach(function (sp) { sp.style.animationDelay = ''; });
+    }
+
+    /* Quem já leu, ou só quer o texto, não fica esperando. O toque não cancela
+       nada do que o link faz: sem `preventDefault`, clicar num link dentro da
+       resposta continua abrindo o link. */
+    function aoTocar() { tudo(); }
+    destino.addEventListener('click', aoTocar);
+
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      destino.removeEventListener('click', aoTocar);
+      return { pular: function () {} };
+    }
+
+    var duracao = Math.max(900, Math.min(12000, letras * 24));
+    /* A última palavra precisa CABER dentro da duração, não começar nela. */
+    var corrida = Math.max(0, duracao - SURGIR_MS);
+    /* A medida da diagonal tem de sair ANTES da classe entrar: a classe põe
+       `translateY` nas palavras, e `getBoundingClientRect` devolve a posição
+       já transformada — mediria o lugar de onde elas vêm, não onde estão. */
+    var diagonal = atrasosEmDiagonal(palavras, destino, corrida);
+    var passo = palavras.length > 1
+      ? Math.min(PASSO_MAX_MS, corrida / (palavras.length - 1)) : 0;
+    palavras.forEach(function (sp, i) {
+      sp.style.animationDelay = (diagonal ? diagonal[i] : Math.round(i * passo)) + 'ms';
+    });
+    destino.classList.add('mia-escrevendo');
+
+    /* A rede de segurança. O estado final já é do CSS, então isto não existe
+       para a resposta aparecer — existe para a classe e as camadas de
+       composição saírem da tela quando o efeito acaba. */
+    var garantia = setTimeout(tudo, duracao + SURGIR_MS + 400);
+
+    return { pular: tudo };
+  }
+
+  var emAndamento = false;
+  function perguntar(texto) {
+    var limpo = String(texto || '').trim();
+    if (!limpo || emAndamento) return;
+    emAndamento = true;
+    sugestoes.hidden = true;
+    /* O espaço que `subirBalao` abriu embaixo da resposta anterior sai agora:
+       se ficasse, a pergunta nova apareceria com um vão embaixo dela. */
+    mensagens.style.paddingBottom = '';
+    bolha(limpo, 'eu');
+    var situacao = situacaoDoTurno(limpo);
+    var turno = abrirTurno(situacao);
+    enviar.disabled = true;
+    perguntarAoAgente(limpo).then(function (corpo) {
+      /* A memória da conversa é atualizada com o relato REAL, e só depois de
+         ele chegar: o próximo turno escolhe o roteiro a partir do que de fato
+         aconteceu neste, não do que a tela chutou enquanto esperava. */
+      lembrarDoTurno(situacao, corpo);
+      turno.concluir(corpo);
+    }).catch(function (erro) {
+      turno.falhar(erro && erro.name === 'AbortError' ? 'A resposta demorou demais. Tente novamente.'
+        : erro instanceof TypeError ? 'Não consegui responder agora. Tente novamente.'
+        : (erro && erro.message) || 'Não consegui responder agora. Tente novamente.');
+    }).then(function () {
+      emAndamento = false;
+      enviar.disabled = false;
+    });
+  }
+
+  function ajustarAltura() {
+    campo.style.height = 'auto';
+    campo.style.height = Math.min(campo.scrollHeight, 160) + 'px';
+  }
+  /* Sem <form>: se o LearnWorlds rodar o bloco numa caixa isolada sem
+     permissão de formulário, o envio por submit é bloqueado. */
+  function enviarCampo() {
+    var texto = campo.value;
+    if (!texto.trim() || emAndamento) return;
+    campo.value = '';
+    ajustarAltura();
+    perguntar(texto);
+  }
+  enviar.addEventListener('click', enviarCampo);
+  campo.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    enviarCampo();
+  });
+  campo.addEventListener('input', ajustarAltura);
+
+  [
+    ['Resumir uma sessão', 'Me resuma a sessão sobre '],
+    ['O que disseram sobre um tema', 'O que os palestrantes disseram sobre '],
+    ['Uma situação do meu trabalho', 'Tenho uma situação no meu trabalho: '],
+  ].forEach(function (s) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = s[0];
+    b.addEventListener('click', function () {
+      campo.value = s[1];
+      ajustarAltura();
+      campo.focus({ preventScroll: true });
+      campo.setSelectionRange(campo.value.length, campo.value.length);
+    });
+    sugestoes.appendChild(b);
+  });
+
+  /* O coração verde saiu com a casca escura: na tela roxa ele era a única coisa
+     verde, e verde é a cor do app do Summit — o produto de onde ela se distingue.
+     A frase é a mesma. */
+  function saudar() {
+    bolha((PRIMEIRO_NOME ? 'Oi, ' + PRIMEIRO_NOME + '!' : 'Oi!') + ' Eu sou a MIA. Conheço por dentro as palestras, painéis, workshops e ' +
+      'masterclasses do Mind Summit 2026.\n\n' +
+      'Me pergunte o que um palestrante disse sobre um tema, peça o resumo de uma sessão ' +
+      'ou me conte uma situação do seu trabalho — eu trago as ideias que ajudam e onde ' +
+      'elas aparecem, para você assistir.', 'ela');
+  }
+
+  /* ============================================================
+     AS CONVERSAS DA PESSOA
+     ============================================================
+     O BOTÃO "NOVA CONVERSA" SAIU EM 27/10 e volta agora, porque o motivo da
+     saída foi consertado no runtime. Ele saiu porque, quando a MIA passava a
+     conversa adiante, a rota ficava gravada e vencia esta porta: recarregar
+     devolvia a pessoa ao outro agente, sem saída pela tela. Desde a 1.19.0 a
+     porta de produto fechado vence a rota gravada, e a MIA não pede mais
+     passagem — o enum de saída dela só aceita `null`.
+
+     O QUE ESTA PARTE RESOLVE. Até aqui o bloco guardava o id da conversa e
+     NUNCA desenhava o que já tinha sido dito: quem voltava via tela em branco
+     e achava que havia perdido tudo, mesmo com a conversa inteira do outro
+     lado. E só havia uma vaga, no navegador — outro aparelho, outra conversa.
+
+     A lista vem da PESSOA, não do armazenamento daqui. Quem resolve quem é a
+     pessoa é o servidor, a partir do e-mail e do id que o LearnWorlds escreve
+     na página. */
+  var acoes = raiz.querySelector('.mia-acoes');
+  var painel = raiz.querySelector('.mia-conversas');
+  var botaoConversas = raiz.querySelector('.mia-botao-conversas');
+  var botaoNova = raiz.querySelector('.mia-botao-nova');
+
+  /* Mesmo endereço e mesma sessão do turno; o que muda é que não há pergunta.
+     `historico` vale 'listar' ou o id de uma conversa. */
+  function pedirHistorico(valor) {
+    return autenticar(false).then(function (acesso) {
+      return fetch(SUPABASE + '/functions/v1/mindagent-chat', {
+        method: 'POST',
+        headers: {
+          apikey: CHAVE_PUBLICA,
+          Authorization: 'Bearer ' + acesso.access_token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          historico: valor,
+          event_slug: EVENTO,
+          device_id: dispositivo(),
+          session: ler('conversa') || undefined,
+          origem_codigo: PORTA,
+          identity: IDENTIDADE,
+        }),
+        cache: 'no-store',
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (p) {
+          if (p && p.session) salvar('conversa', p.session);
+          return r.ok && p && p.ok ? p : null;
+        });
+      });
+    }).catch(function () { return null; });
+    /* Falhar aqui não pode derrubar o bloco: sem histórico a MIA ainda
+       conversa, e é isso que a pessoa veio fazer. */
+  }
+
+  function limparTela() {
+    while (mensagens.firstChild) mensagens.removeChild(mensagens.firstChild);
+  }
+
+  /* O histórico é redesenhado com a MESMA `bolha` do turno vivo, e de
+     propósito: duas funções de desenhar mensagem é onde uma delas envelhece e
+     a conversa reaberta passa a parecer diferente da que acabou de acontecer. */
+  function desenharHistorico(lista) {
+    limparTela();
+    for (var i = 0; i < lista.length; i++) {
+      var m = lista[i];
+      if (!m || typeof m.conteudo !== 'string') continue;
+      bolha(m.conteudo, m.papel === 'user' ? 'eu' : 'ela');
+    }
+    mensagens.scrollTop = mensagens.scrollHeight;
+  }
+
+  function fecharPainel() {
+    painel.hidden = true;
+    botaoConversas.setAttribute('aria-expanded', 'false');
+  }
+
+  function abrirConversa(id) {
+    return pedirHistorico(id).then(function (p) {
+      fecharPainel();
+      if (!p) return false;
+      var lista = Array.isArray(p.mensagens) ? p.mensagens : [];
+      if (!lista.length) { limparTela(); saudar(); return true; }
+      desenharHistorico(lista);
+      return true;
+    });
+  }
+
+  function quando(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var hoje = new Date();
+    var mesmoDia = d.toDateString() === hoje.toDateString();
+    if (mesmoDia) return 'hoje, ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+
+  function desenharLista(conversas) {
+    while (painel.firstChild) painel.removeChild(painel.firstChild);
+    if (!conversas.length) {
+      var vazio = document.createElement('div');
+      vazio.className = 'mia-conversas-vazio';
+      vazio.textContent = 'Esta é a sua primeira conversa por aqui.';
+      painel.appendChild(vazio);
+      return;
+    }
+    var atual = (ler('conversa') || {}).conversation_id;
+    conversas.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mia-conversa';
+      if (c.id === atual) b.setAttribute('aria-current', 'true');
+
+      var nome = document.createElement('b');
+      /* Título gerado no primeiro turno. Conversa antiga não tem, e aí a
+         própria primeira pergunta serve de nome — melhor que "Sem título". */
+      nome.textContent = c.titulo || c.inicio || 'Conversa';
+      b.appendChild(nome);
+
+      var sub = document.createElement('span');
+      var partes = [];
+      if (c.ultima_atividade) partes.push(quando(c.ultima_atividade));
+      if (c.mensagens) partes.push(c.mensagens + (Number(c.mensagens) === 1 ? ' mensagem' : ' mensagens'));
+      sub.textContent = partes.join(' · ');
+      b.appendChild(sub);
+
+      b.addEventListener('click', function () { abrirConversa(c.id); });
+      painel.appendChild(b);
+    });
+  }
+
+  function listarConversas() {
+    return pedirHistorico('listar').then(function (p) {
+      var conversas = p && Array.isArray(p.conversas) ? p.conversas : [];
+      /* Sem dono resolvido o servidor devolve lista vazia, e os botões
+         continuam escondidos: não se oferece à pessoa uma gaveta que nunca
+         vai ter nada dentro. Com uma conversa que seja, eles acendem. */
+      if (conversas.length) acoes.hidden = false;
+      desenharLista(conversas);
+      return conversas;
+    });
+  }
+
+  botaoConversas.addEventListener('click', function () {
+    if (!painel.hidden) { fecharPainel(); return; }
+    painel.hidden = false;
+    botaoConversas.setAttribute('aria-expanded', 'true');
+    listarConversas();
+  });
+
+  botaoNova.addEventListener('click', function () {
+    /* Esquecer a conversa aqui basta: o próximo turno abre outra no servidor,
+       e a que ficou para trás continua na lista. Nada é apagado. */
+    remover('conversa');
+    fecharPainel();
+    limparTela();
+    saudar();
+    campo.focus();
+  });
+
+  /* ---------- Abertura ----------
+     Com conversa guardada, o bloco pede o que já foi dito e redesenha. Sem
+     ela, ou se a conversa guardada não existe mais, é a saudação de sempre.
+     A lista corre em seguida, só para acender os botões quando houver o que
+     mostrar — ela não bloqueia a tela. */
+  (function abrir() {
+    var guardada = ler('conversa');
+    var pronto = guardada && guardada.conversation_id
+      ? abrirConversa(guardada.conversation_id)
+      : Promise.resolve(false);
+
+    pronto.then(function (deuCerto) {
+      if (!deuCerto) {
+        /* A conversa guardada não abriu: ou não existe mais, ou é de outra
+           pessoa neste computador. Esquecer aqui evita que o primeiro turno
+           tente escrever nela e falhe com a pessoa já esperando. */
+        if (guardada) remover('conversa');
+        limparTela();
+        saudar();
+      }
+      listarConversas();
+    });
+  })();
+
+  /* ============================================================
+     A LIBERAÇÃO PELA PESQUISA
+     ============================================================
+     OPT-IN, e sem o atributo nada disto existe: colado como sempre, o bloco
+     é o de sempre. Com `data-liberacao="pesquisa"` na div, ele pergunta ao
+     servidor, a cada entrada na página, se esta pessoa já pode ver a MIA.
+
+     A pergunta vai com o e-mail que o LearnWorlds trocou. Confiar nele foi
+     decisão do Vinícius (29/10/2026). Vale lembrar o que isso é e o que não
+     é: uma CORTINA, não uma fechadura. O e-mail não é assinado e a chave
+     publishable é pública, então quem quiser chamar a `mindagent-chat`
+     direto continua conseguindo. Isto sequencia a experiência de quem é
+     honesto; não protege segredo. A fechadura exigiria a própria
+     `mindagent-chat` recusar o turno, o que depende de ela confiar na
+     identidade do LearnWorlds — hoje ela descarta, e mudar isso tem gate.
+
+     TRÊS ESTADOS, e o de partida é CARREGANDO com a capa na frente. Nunca o
+     contrário: se a tela abrisse no chat e o escondesse depois da resposta,
+     quem está liberado veria um pisca, e quem não está veria a MIA por um
+     instante — que é justamente o que não pode.
+
+     ATRIBUTOS
+       data-liberacao="pesquisa"      liga o portão
+       data-pesquisa-url="https://…"  para onde o botão manda quem falta
+       data-liberacao-previa="…"      só para ver as telas: "carregando",
+                                      "bloqueada" ou "liberada". Não chama o
+                                      servidor. Serve para conferir o
+                                      desenho antes de a pesquisa existir. */
+  (function () {
+    if (raiz.getAttribute('data-liberacao') !== 'pesquisa') return;
+
+    var capa = raiz.querySelector('.mia-capa');
+    var estado = raiz.querySelector('.mia-capa-estado');
+    var LINK = raiz.getAttribute('data-pesquisa-url') || '';
+    var PREVIA = raiz.getAttribute('data-liberacao-previa') || '';
+
+    function mostrarCapa() {
+      raiz.classList.add('mia-com-capa');
+      capa.hidden = false;
+    }
+    function abrir() {
+      raiz.classList.remove('mia-com-capa');
+      capa.hidden = true;
+    }
+
+    function carregando() {
+      mostrarCapa();
+      estado.innerHTML = '';
+      var linha = document.createElement('div');
+      linha.className = 'mia-capa-espera';
+      linha.appendChild(petala());
+      linha.appendChild(document.createTextNode('Conferindo seu acesso…'));
+      estado.appendChild(linha);
+    }
+
+    function bloquear() {
+      mostrarCapa();
+      estado.innerHTML = '';
+      /* O link só vira botão se foi informado. Um botão que não leva a lugar
+         nenhum é pior do que nenhum botão: a pessoa toca e nada acontece. */
+      if (LINK) {
+        var a = document.createElement('a');
+        a.className = 'mia-capa-cta';
+        a.href = LINK;
+        a.textContent = 'Responder a pesquisa para liberar';
+        estado.appendChild(a);
+      }
+      var nota = document.createElement('p');
+      nota.className = 'mia-capa-nota';
+      nota.textContent = LINK
+        ? 'Assim que você responder, é só voltar a esta página — a MIA abre sozinha.'
+        : 'A MIA abre para quem já respondeu a pesquisa. Assim que você responder, volte a esta página.';
+      estado.appendChild(nota);
+    }
+
+    if (PREVIA) {
+      if (PREVIA === 'liberada') abrir();
+      else if (PREVIA === 'bloqueada') bloquear();
+      else carregando();
+      return;
+    }
+
+    carregando();
+
+    /* FALHA FECHA, nos dois lados. O servidor já responde `liberada: false`
+       quando não consegue conferir; aqui o `catch` cobre o caso de a resposta
+       não chegar. Não saber nunca vira "pode entrar". */
+    var controle = new AbortController();
+    var limite = setTimeout(function () { controle.abort(); }, 12000);
+    fetch(SUPABASE + '/functions/v1/mia-liberacao', {
+      method: 'POST',
+      headers: { apikey: CHAVE_PUBLICA, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: (IDENTIDADE && IDENTIDADE.email) || '' }),
+      cache: 'no-store',
+      signal: controle.signal,
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; });
+    }).then(function (p) {
+      if (p && p.ok && p.liberada === true) abrir(); else bloquear();
+    }).catch(function () {
+      bloquear();
+    }).then(function () { clearTimeout(limite); });
+  })();
+})();
+</script>

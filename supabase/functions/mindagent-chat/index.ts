@@ -69,7 +69,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.24.0";
+const VERSION = "1.25.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -820,6 +820,17 @@ Deno.serve(async (req: Request) => {
         p_user_agent: req.headers.get("User-Agent") ?? "",
         p_token_hash: tokenHash,
         p_origem_codigo: origemInformada,
+        // A IDENTIDADE VAI NA ABERTURA, não só no `bind` depois. Medido em
+        // 29/10: o usuário do Supabase num bloco colado é anônimo, um por
+        // navegador, então sem isto `mind_identidade_resolver` não tinha por
+        // onde reconhecer ninguém e criava uma pessoa nova. A conversa nascia
+        // ancorada nela, e a âncora vence o `bind` — como deve vencer, porque
+        // trocar o dono de uma conversa com mensagem dentro é fusão, e fusão é
+        // decisão da Adriana (D5). Aqui ainda não há conversa, logo não há
+        // âncora: a pessoa certa é encontrada antes de a errada nascer.
+        p_email: identityEmailReceived ? String(payload.identity?.email ?? "").trim().toLowerCase() : null,
+        p_nome: identityNameReceived ? String(payload.identity?.name ?? "").trim().slice(0, 160) : null,
+        p_learnworlds_user_id: learnworldsUserId,
       });
     if (error || !data) throw new Error(rotaDeTeste ? "playground_start_failed" : "session_start_failed");
     return {
