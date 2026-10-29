@@ -352,7 +352,8 @@
      `blur(0)`, mantém uma camada de composição por palavra enquanto estiver
      aplicado — numa resposta longa são centenas delas, num celular dentro do
      webview do app. O estado final vive em `forwards` enquanto a animação
-     existe, e em NADA depois que a classe sai. */
+     existe, e em NADA depois que a classe sai.
+
      OS NÚMEROS VIERAM DO `TextReveal` que o Vinícius mandou em 28/10 (React +
      `motion`, que não dá para usar aqui — bloco colado não tem build): desfoque
      de 8px, 10px de subida, 0,6s e a curva [.23, 1, .32, 1]. São de um
@@ -406,7 +407,13 @@
     display: flex; align-items: center; gap: 9px;
     font-size: 13px; font-weight: 700; color: var(--mia-mudo);
   }
-  .mia-capa-espera .mia-petala { width: 15px; height: 15px; flex: none; }
+  /* A pétala gira aqui também. O giro mora numa regra presa a `.mia-pensou`,
+     e na capa ela não está lá dentro — sem esta linha ela aparece parada, que
+     é o contrário do que um "conferindo…" precisa dizer. */
+  .mia-capa-espera .mia-petala {
+    width: 15px; height: 15px; flex: none;
+    animation: mia-gira 2.6s linear infinite;
+  }
   .mia-capa-cta {
     align-self: flex-start; display: inline-block;
     background: var(--mia-roxo); color: #fff;
