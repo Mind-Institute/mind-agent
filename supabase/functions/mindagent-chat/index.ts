@@ -1613,16 +1613,30 @@ Deno.serve(async (req: Request) => {
       const prazoDestaChamada = fechandoPorTempo ? restante : restante - RESERVA_FECHO_MS;
       if (fechandoPorTempo) telemetry.fechou_por_tempo = true;
 
+      // O FECHO VAI NO MODELO RÁPIDO. Medido em 29/10: com 20s inteiros de reserva, o
+      // fecho no modelo completo ainda não coube — `rodada_abortada_fecha_turno` com
+      // `restante_ms: 19998` e `ai_timeout` em 48.001ms, com ~75 mil caracteres de
+      // entrada. Dobrar o prazo não resolveu porque o problema não era prazo.
+      //
+      // O fecho não decide nada: a busca acabou, o material está no contexto e o que
+      // falta é redigir. Para isso o modelo rápido basta, e custa uma fração do tempo
+      // em prefill e geração. A rota continua escolhendo o modelo completo para
+      // raciocinar; só a última chamada, a que apenas escreve, muda.
+      const modeloDestaChamada = fechandoPorTempo && modelFast && modelFast !== model
+        ? modelFast
+        : model;
+      if (modeloDestaChamada !== model) telemetry.fecho_no_modelo_rapido = true;
+
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), prazoDestaChamada);
       const openAiStartedAt = Date.now();
-      modelsUsed.add(model);
+      modelsUsed.add(modeloDestaChamada);
       try {
         openAiResponse = await fetch("https://api.openai.com/v1/responses", {
           method: "POST",
           headers: { "Authorization": `Bearer ${openAiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model,
+            model: modeloDestaChamada,
             instructions: instrucoes,
             input: entradaDoModelo,
             // SEM FERRAMENTA, `none` — é o comportamento que já estava em produção e
@@ -1693,7 +1707,7 @@ Deno.serve(async (req: Request) => {
       } finally {
         openAiMs += Date.now() - openAiStartedAt;
         Object.assign(telemetry, {
-          model,
+          model: modeloDestaChamada,
           model_escalation: modelEscalation,
           models_used: [...modelsUsed],
           openai_ms: openAiMs,
@@ -1705,6 +1719,18 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!openAiResponse.ok) {
+        // O fecho tentou o modelo rápido e ele recusou: refaz o fecho no modelo da
+        // rota. `fecharAgora` continua ligado, então a volta seguinte ainda é o fecho —
+        // sem ferramenta e sem raciocínio, só com o modelo de novo.
+        if (
+          modeloDestaChamada !== model &&
+          podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) &&
+          [400, 404].includes(openAiResponse.status)
+        ) {
+          fecharAgora = true;
+          modelEscalation = "fecho_rapido_indisponivel";
+          continue;
+        }
         if (
           modeloDaRota !== null && model === modeloDaRota && modeloDaRota !== modelComplexPadrao &&
           podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO) && [400, 404].includes(openAiResponse.status)

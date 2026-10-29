@@ -180,6 +180,15 @@ test('o fecho do turno tem tempo reservado, e a lupa não o consome', () => {
     'a ferramenta não pode viajar na chamada de fecho');
   assert.match(src, /effort: fechandoPorTempo\s*\?\s*"none"/,
     'o fecho não paga raciocínio — já leu o que tinha de ler');
+
+  // E vai no modelo rápido: medido em 29/10, o fecho no modelo completo não coube nem
+  // com 20s inteiros de reserva. Escrever a partir do que já está no contexto é
+  // trabalho do modelo rápido; raciocinar continua sendo do modelo da rota.
+  assert.match(src, /const modeloDestaChamada = fechandoPorTempo && modelFast && modelFast !== model/);
+  assert.match(src, /model: modeloDestaChamada,/,
+    'o corpo da requisição precisa usar o modelo da chamada, não o do turno');
+  assert.match(src, /fecho_rapido_indisponivel/,
+    'recusa do modelo rápido no fecho precisa refazer o fecho, não perder o turno');
 });
 
 test('o playbook manda buscar antes de abster e proíbe expor o encanamento', () => {
