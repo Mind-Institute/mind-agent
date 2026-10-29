@@ -57,6 +57,9 @@
         <span>Novo chat</span>
       </button>
     </div>
+    <!-- O rótulo miúdo separa o botão da lista sem precisar de um traço: é
+         hierarquia por tipografia, não por linha desenhada. -->
+    <span class="mia-lateral-rotulo">Conversas</span>
     <div class="mia-lista" id="mia-lista-conversas"></div>
   </div>
   <!-- A COLUNA DA CONVERSA. Tudo o que já existia ficou aqui dentro, sem mudar
@@ -213,25 +216,45 @@
   .mia-lw .mia-principal {
     flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
   }
+  /* O DESENHO É O DO COMPOSITOR que o Vinícius escolheu em 29/10: fundo
+     claro, pílula de borda fina, rótulo miúdo em caixa alta e peso no
+     espaço em vez de no traço. O que muda em relação à referência é a cor —
+     ali é o verde do painel, aqui o roxo da MIA, que é a identidade dela.
+
+     FUNDO BRANCO, não o cinza. O cinza fechava a lateral como um painel
+     separado; branco com um fio de borda deixa as duas colunas lerem como
+     uma superfície só, que é o que dá o ar do desenho. */
   .mia-lw .mia-lateral {
-    flex: none; width: 248px; display: flex; flex-direction: column;
-    background: var(--mia-surface); border-right: 1px solid var(--mia-linha);
+    flex: none; width: 252px; display: flex; flex-direction: column;
+    background: var(--mia-bg); border-right: 1px solid var(--mia-linha);
   }
   .mia-lw .mia-lateral[hidden] { display: none; }
-  .mia-lw .mia-lateral-topo { flex: none; padding: 12px 12px 8px; }
+  .mia-lw .mia-lateral-topo { flex: none; padding: 14px 14px 10px; }
+
+  /* Pílula, como a do "Think" da referência: borda fina, fundo claro, e a
+     cor só aparecendo no encosto do mouse. */
   .mia-lw .mia-botao-nova {
     appearance: none; cursor: pointer; width: 100%;
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 10px 12px; border-radius: 11px;
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 11px 14px; border-radius: 100px;
     border: 1px solid var(--mia-linha); background: var(--mia-bg);
-    color: var(--mia-texto); font-size: 13px; font-weight: 800; line-height: 1;
+    color: var(--mia-texto); font-size: 13px; font-weight: 700; line-height: 1;
+    transition: background-color .15s ease, border-color .15s ease;
   }
-  .mia-lw .mia-botao-nova:hover { background: rgba(152,67,255,.08); border-color: rgba(152,67,255,.35); }
-  .mia-lw .mia-botao-nova svg { width: 15px; height: 15px; display: block; flex: none; }
+  .mia-lw .mia-botao-nova:hover {
+    background: rgba(152,67,255,.07); border-color: rgba(152,67,255,.32);
+  }
+  .mia-lw .mia-botao-nova svg { width: 15px; height: 15px; display: block; flex: none; color: var(--mia-roxo); }
+
+  .mia-lw .mia-lateral-rotulo {
+    flex: none; padding: 6px 18px 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--mia-mudo);
+  }
 
   .mia-lw .mia-lista {
     flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-    padding: 4px 8px 10px;
+    padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px;
   }
 
   /* O botão da lateral só existe na tela estreita; o script o acende. */
@@ -244,23 +267,31 @@
   .mia-lw .mia-botao-lateral[hidden] { display: none; }
   .mia-lw .mia-botao-lateral svg { width: 17px; height: 17px; display: block; }
 
+  /* O item não tem fundo em repouso: a lista inteira respira, e a cor fica
+     reservada para dizer onde a pessoa está. Lista com todo mundo pintado é
+     lista em que nada se destaca. */
   .mia-lw .mia-conversa {
     display: block; width: 100%; text-align: left; cursor: pointer;
     appearance: none; border: 0; background: transparent;
-    border-radius: 11px; padding: 10px 12px; color: var(--mia-texto);
+    border-radius: 13px; padding: 10px 12px; color: var(--mia-texto);
+    transition: background-color .15s ease;
   }
-  .mia-lw .mia-conversa:hover { background: rgba(152,67,255,.1); }
-  .mia-lw .mia-conversa[aria-current="true"] { background: rgba(152,67,255,.15); }
+  .mia-lw .mia-conversa:hover { background: rgba(152,67,255,.07); }
+  .mia-lw .mia-conversa[aria-current="true"] { background: var(--mia-dela); }
+  /* A conversa aberta também muda de cor no título, não só de fundo: num
+     fundo claro de verdade, só o fundo não se vê de relance. */
+  .mia-lw .mia-conversa[aria-current="true"] b { color: var(--mia-roxo); }
   .mia-lw .mia-conversa b {
-    display: block; font-size: 13px; font-weight: 800;
+    display: block; font-size: 13px; font-weight: 700; line-height: 1.35;
     /* Título longo encolhe a linha, não quebra o cartão. */
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .mia-lw .mia-conversa span {
-    display: block; margin-top: 2px; font-size: 11px; color: var(--mia-mudo);
+    display: block; margin-top: 3px; font-size: 11px; line-height: 1.3;
+    color: var(--mia-mudo);
   }
   .mia-lw .mia-conversas-vazio {
-    padding: 14px 12px; font-size: 12px; color: var(--mia-mudo);
+    padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--mia-mudo);
   }
 
   /* APERTADO a lateral não cabe ao lado: vira gaveta por cima da conversa.
