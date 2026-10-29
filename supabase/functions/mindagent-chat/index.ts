@@ -14,6 +14,7 @@ import {
   MAX_RODADAS_TOOL,
   ORCAMENTO_TURNO_MS,
   ORCAMENTO_TURNO_COMPLEXO_MS,
+  RESERVA_FECHO_MS,
   produtoDoContexto,
   respostaExigeBuscaAntesDeDesistir,
   toolsDeIntelligence,
@@ -63,7 +64,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.21.1";
+const VERSION = "1.22.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
@@ -1481,8 +1482,17 @@ Deno.serve(async (req: Request) => {
       const restante = fimDoOrcamento - Date.now();
       if (restante <= 0) throw new DOMException("orcamento_do_turno", "AbortError");
 
+      // SEM TEMPO PARA MAIS BUSCA, FECHA. Abaixo da reserva, esta chamada é o fecho:
+      // as ferramentas saem de cena e o modelo responde com o que já leu. Antes, a
+      // rodada de ferramenta levava o relógio inteiro e a resposta final era abortada
+      // no meio — 504, e a pessoa não recebia nada.
+      const fechandoPorTempo = restante <= RESERVA_FECHO_MS;
+      // O fecho fica com tudo o que sobrou; as rodadas anteriores devolvem a reserva.
+      const prazoDestaChamada = fechandoPorTempo ? restante : restante - RESERVA_FECHO_MS;
+      if (fechandoPorTempo) telemetry.fechou_por_tempo = true;
+
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), restante);
+      const timeout = setTimeout(() => controller.abort(), prazoDestaChamada);
       const openAiStartedAt = Date.now();
       modelsUsed.add(model);
       try {
@@ -1506,7 +1516,8 @@ Deno.serve(async (req: Request) => {
             ...(toolsParaModelo.length > 0
               ? {
                 tools: toolsParaModelo,
-                tool_choice: !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) ||
+                tool_choice: fechandoPorTempo ||
+                    !podeExecutarTool(rodadasTool, MAX_RODADAS_TOOL) ||
                     !podeTentarModelo(tentativaModelo + 1, MAX_TENTATIVAS_MODELO)
                   ? "none"
                   : forcarBuscaNaProximaVolta

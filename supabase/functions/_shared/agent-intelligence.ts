@@ -19,6 +19,21 @@ export const ORCAMENTO_TURNO_MS = 30_000;
 // quem está sem fazer nada na frente do celular.
 export const ORCAMENTO_TURNO_COMPLEXO_MS = 45_000;
 
+// RESERVA DO FECHO. O orçamento do turno era repartido por quem chegasse primeiro:
+// cada chamada ao modelo recebia TODO o tempo restante, então as rodadas de
+// ferramenta podiam comer o relógio inteiro e a resposta final começava com o que
+// sobrasse. Quando não sobrava, ela era abortada no meio e o turno terminava em 504 —
+// sem resposta, sem registro, nada na tela além do aviso de demora.
+//
+// Medido em 29/10 na MIA, numa pergunta de listagem: `openai_ms` 42.019 em três
+// chamadas, `tool_ms` 2.083, `duration_ms` 45.002. As ferramentas não eram o gargalo;
+// o reparto era.
+//
+// Esta reserva é intocável: enquanto houver menos que isto no relógio, não se abre
+// mais ferramenta — o turno fecha com o que já tem na mão. Responder com menos é
+// conduta prevista no playbook; não responder não é.
+export const RESERVA_FECHO_MS = 12_000;
+
 export type IntelligenceContext = {
   rota: string;
   canal: string;

@@ -152,6 +152,26 @@ test('o runtime limita a lupa por orçamento e número de rodadas', () => {
     'uma abstinência inicial precisa poder forçar a lupa antes da resposta final');
 });
 
+test('o fecho do turno tem tempo reservado, e a lupa não o consome', () => {
+  // O orçamento era de quem chegasse primeiro: cada chamada recebia TODO o tempo
+  // restante, a rodada de ferramenta levava o relógio e a resposta final era abortada
+  // no meio — 504, nada na tela. Medido em 29/10: openai_ms 42.019 em três chamadas,
+  // tool_ms 2.083, duration_ms 45.002.
+  assert.match(src, /RESERVA_FECHO_MS/, 'a reserva do fecho precisa existir');
+  assert.match(src, /const fechandoPorTempo = restante <= RESERVA_FECHO_MS/);
+
+  // O prazo da chamada devolve a reserva enquanto ainda houver ferramenta na mesa.
+  assert.match(src, /const prazoDestaChamada = fechandoPorTempo \? restante : restante - RESERVA_FECHO_MS/);
+  assert.match(src, /setTimeout\(\(\) => controller\.abort\(\), prazoDestaChamada\)/,
+    'o abort precisa usar o prazo repartido, não o restante inteiro');
+
+  // E, sem tempo, a ferramenta sai de cena: o modelo fecha com o que já leu.
+  assert.ok(
+    /tool_choice: fechandoPorTempo \|\|/.test(src),
+    'abaixo da reserva, tool_choice precisa ser "none"',
+  );
+});
+
 test('o playbook manda buscar antes de abster e proíbe expor o encanamento', () => {
   assert.match(migracaoRecuperacao, /use buscar_intelligence antes de concluir/);
   assert.match(migracaoRecuperacao, /use ler_intelligence/);
