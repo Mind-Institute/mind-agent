@@ -72,18 +72,83 @@ const PASSO_MAX_MS = 140;
 const ABERTURA_DIAGONAL = 2;
 const LINHAS_PARA_DIAGONAL = 4;
 
-function passosDaEspera(tema) {
+/* TRÊS ROTEIROS, UM POR SITUAÇÃO DE TURNO. A primeira versão tinha um só,
+   com passos que o servidor não faz ("Abrindo as fichas das sessões", "Vendo
+   o que cada palestrante disse", "Conferindo em que minuto aparece") e que se
+   repetiam a cada pergunta como se cada uma fosse a primeira.
+
+   Três turnos medidos contra o servidor real em 29/10/2026 mostram o que
+   acontece: ela SEMPRE volta ao acervo (procura 1×), e lê 1× na primeira
+   pergunta e 3× nas seguintes. As ferramentas são duas, `buscar_intelligence`
+   e `ler_intelligence`, então os atos reais são três: procura, lê, escreve.
+
+   O porquê de cada tempo e a tabela da medição estão em
+   `learnworlds/mia-embed.html`. */
+function passosDaEspera(s) {
+  const tema = s && s.tema;
+  const fim = [
+    [26000, 'Ainda escrevendo — a resposta está ficando longa'],
+    [37000, 'Ainda escrevendo — respostas que cruzam sessões levam mais'],
+  ];
+
+  if (s && s.modo === 'aprofunda') {
+    return [
+      [0, 'Relendo sua pergunta'],
+      [1500, 'Voltando ao acervo com a sua nova pergunta'],
+      [6000, s.palestrantes
+        ? 'Abrindo de novo as sessões e os palestrantes que citei'
+        : (tema
+          ? { antes: 'Abrindo mais material sobre ', destaque: tema, depois: '' }
+          : 'Abrindo mais material sobre o mesmo assunto')],
+      [14000, 'Juntando com o que já te respondi'],
+      [23000, 'Escrevendo a resposta'],
+      [33000, 'Ainda escrevendo — ligar as duas coisas leva mais'],
+    ];
+  }
+
+  if (s && s.modo === 'muda') {
+    return [
+      [0, 'Lendo sua pergunta'],
+      [1500, tema
+        ? { antes: 'Assunto novo: procurando sobre ', destaque: tema, depois: ' no acervo' }
+        : 'Assunto novo: procurando no acervo do Summit'],
+      [6000, 'Lendo o que encontrou'],
+      [15000, 'Escrevendo a resposta'],
+    ].concat(fim);
+  }
+
   return [
     [0, 'Lendo sua pergunta'],
     [1500, tema
       ? { antes: 'Procurando sobre ', destaque: tema, depois: ' no acervo do Summit' }
       : 'Procurando no acervo do Summit'],
-    [5000, 'Abrindo as fichas das sessões'],
-    [11000, 'Vendo o que cada palestrante disse'],
-    [18000, 'Conferindo em que minuto aparece'],
-    [27000, 'Escrevendo a resposta'],
-    [38000, 'Ainda escrevendo — perguntas que cruzam várias sessões levam mais'],
-  ];
+    [6000, 'Lendo o que encontrou'],
+    [15000, 'Escrevendo a resposta'],
+  ].concat(fim);
+}
+
+/* A SITUAÇÃO DO TURNO. Três coisas que o cliente sabe antes de a resposta
+   chegar, e as três são reais: se já houve turno, se o assunto mudou, e o que
+   o turno anterior relatou. Pergunta sem assunto reconhecido depois de um
+   turno ("me aprofunda nisso") é aprofundamento, não assunto novo. */
+let ultimoTurno = null;
+
+function situacaoDoTurno(pergunta) {
+  const tema = temaDaPergunta(pergunta);
+  if (!ultimoTurno) return { modo: 'abre', tema };
+  if (!tema || tema === ultimoTurno.tema) {
+    return { modo: 'aprofunda', tema: ultimoTurno.tema, palestrantes: ultimoTurno.palestrantes };
+  }
+  return { modo: 'muda', tema };
+}
+
+/* Guardado do relato REAL, no fim do turno. */
+function lembrarDoTurno(s, p) {
+  const fontes = Array.isArray(p?.sources) ? p.sources : [];
+  ultimoTurno = {
+    tema: (s && s.tema) || ultimoTurno?.tema || null,
+    palestrantes: fontes.some((f) => f?.type === 'speakers'),
+  };
 }
 
 /* PALAVRA → TEMA, e não os nomes dos mapas: ninguém escreve "dados,
@@ -411,7 +476,8 @@ export function abrirTurnoDaMia(mensagens, pergunta, rotulo) {
     mensagens.scrollTop = mensagens.scrollHeight;
   }
 
-  for (const [quando, texto] of passosDaEspera(temaDaPergunta(pergunta))) {
+  const situacao = situacaoDoTurno(pergunta);
+  for (const [quando, texto] of passosDaEspera(situacao)) {
     tempos.push(setTimeout(() => acrescentar(texto), quando));
   }
 
@@ -422,6 +488,10 @@ export function abrirTurnoDaMia(mensagens, pergunta, rotulo) {
 
   return {
     concluir(p) {
+      /* A memória da conversa é atualizada com o relato REAL, e só depois de
+         ele chegar: o próximo turno escolhe o roteiro a partir do que de fato
+         aconteceu neste, não do que a tela chutou enquanto esperava. */
+      lembrarDoTurno(situacao, p);
       const segundos = pararEspera();
       cabecalho.classList.add('mia-pronto');
       rotuloEl.textContent = 'Pensou por ' + segundos + 's';

@@ -29,7 +29,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lerFonte } from './helpers/ler-fonte.mjs';
+import { lerFonte, semComentarios } from './helpers/ler-fonte.mjs';
 
 const bloco = lerFonte(new URL('../learnworlds/mia-embed.html', import.meta.url));
 const modulo = lerFonte(new URL('../mia-turno.js', import.meta.url));
@@ -38,10 +38,21 @@ const modulo = lerFonte(new URL('../mia-turno.js', import.meta.url));
    OS TEMPOS DA ESPERA
    ============================================================ */
 
+function roteiros(fonte) {
+  const inicio = fonte.indexOf('function passosDaEspera(');
+  const fim = fonte.indexOf('ultimoTurno = null');
+  assert.ok(inicio > 0 && fim > inicio,
+    'não achei os roteiros: `passosDaEspera` ou `ultimoTurno` mudaram de nome '
+    + 'e este teste ficou cego');
+  /* Sem os comentários: os dois arquivos explicam a mesma decisão com
+     palavras diferentes, e CITAM as frases antigas para dizer por que elas
+     saíram. Comparar comentário faria este teste acusar divergência onde há
+     só prosa — e é o código que precisa concordar. */
+  return semComentarios(fonte.slice(inicio, fim));
+}
+
 function cadencia(fonte) {
-  const trecho = fonte.slice(fonte.indexOf('passosDaEspera(tema)'),
-                             fonte.indexOf('TEMA_POR_PALAVRA'));
-  return [...trecho.matchAll(/\[(\d+),/g)].map((m) => Number(m[1]));
+  return [...roteiros(fonte).matchAll(/\[(\d+),/g)].map((m) => Number(m[1]));
 }
 
 test('os passos entram nos mesmos tempos nas duas casas', () => {
@@ -54,11 +65,14 @@ test('os passos entram nos mesmos tempos nas duas casas', () => {
 });
 
 test('os passos dizem as mesmas frases nas duas casas', () => {
-  const frases = (fonte) => {
-    const trecho = fonte.slice(fonte.indexOf('passosDaEspera(tema)'),
-                               fonte.indexOf('TEMA_POR_PALAVRA'));
-    return [...trecho.matchAll(/'([^']{8,})'/g)].map((m) => m[1]);
-  };
+  /* `[^'\n]` e não `[^']`: sem proibir a quebra de linha, o regex emparelha a
+     aspa de FECHO de uma frase com a de ABERTURA da seguinte e captura a
+     indentação entre as duas. A primeira versão deste teste fazia isso e
+     passava por sorte, porque os dois arquivos tinham o mesmo recuo — quando
+     o bloco ganhou um nível a mais, ele acusou divergência em 15 "frases" que
+     eram espaço em branco. O que precisa bater é o que a pessoa lê. */
+  const frases = (fonte) =>
+    [...roteiros(fonte).matchAll(/'([^'\n]{4,})'/g)].map((m) => m[1]);
   assert.deepEqual(frases(modulo), frases(bloco),
     'a tela diz coisas diferentes nos dois lugares enquanto ela pensa');
 });
