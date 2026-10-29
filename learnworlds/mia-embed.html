@@ -46,7 +46,30 @@
   <span hidden data-mia="email">{{USER.EMAIL}}</span>
   <span hidden data-mia="nome">{{USER.NAME}}</span>
   <span hidden data-mia="id">{{USER.ID}}</span>
+  <!-- A LATERAL, como num chat de verdade: as conversas da PESSOA à esquerda,
+       a conversa aberta à direita. Nasce escondida — sem e-mail trocado pelo
+       LearnWorlds não há dono, e uma coluna que nunca terá nada dentro só
+       roubaria largura da conversa. Quem a acende é `listarConversas()`. -->
+  <div class="mia-lateral" hidden>
+    <div class="mia-lateral-topo">
+      <button type="button" class="mia-botao-nova" title="Começar uma conversa nova">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        <span>Novo chat</span>
+      </button>
+    </div>
+    <div class="mia-lista" id="mia-lista-conversas"></div>
+  </div>
+  <!-- A COLUNA DA CONVERSA. Tudo o que já existia ficou aqui dentro, sem mudar
+       de ordem: os seletores do resto da folha são descendentes de `.mia-lw` e
+       continuam valendo. O que mudou é só quem é a coluna — era a raiz, agora
+       é esta, e a raiz virou a linha que põe lateral e conversa lado a lado. -->
+  <div class="mia-principal">
   <div class="mia-topo">
+    <!-- Abre e fecha a lateral quando ela não cabe ao lado. Na tela larga ela
+         está sempre aberta e este botão não aparece. -->
+    <button type="button" class="mia-botao-lateral" aria-label="Suas conversas" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
     <!-- O símbolo da Mind, desenhado aqui dentro. Imagem viria de um servidor, e a
          promessa deste bloco é não depender de site nenhum da Mind. -->
     <span class="mia-avatar" aria-hidden="true">
@@ -56,25 +79,7 @@
       <strong>MIA Summit</strong>
       <small>Mind Intelligence Agent</small>
     </div>
-    <!-- As conversas da PESSOA, não do navegador. Os dois botões nascem
-         escondidos: sem e-mail trocado pelo LearnWorlds não há dono, e uma
-         lista que sempre volta vazia é pior que lista nenhuma. Quem os acende
-         é o `listarConversas()`, depois de o servidor dizer que há dono. -->
-    <div class="mia-acoes" hidden>
-      <button type="button" class="mia-botao-conversas" aria-expanded="false"
-        aria-controls="mia-lista-conversas" title="Suas conversas">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Conversas</span>
-      </button>
-      <button type="button" class="mia-botao-nova" title="Começar uma conversa nova">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        <span>Nova</span>
-      </button>
-    </div>
   </div>
-  <!-- Painel das conversas. Fica fora do `.mia-topo` porque ele cobre a área
-       das mensagens: dentro do cabeçalho, herdaria o roxo e o recorte dele. -->
-  <div class="mia-conversas" id="mia-lista-conversas" hidden></div>
   <!-- A CAPA. Só existe quando o bloco é colado com `data-liberacao="pesquisa"`;
        sem o atributo ela nunca aparece e o bloco é o de sempre. Ela conta o que
        a MIA faz nos DOIS estados — bloqueado e liberado —, porque a apresentação
@@ -113,6 +118,7 @@
   </div>
   <p class="mia-aviso">A MIA responde a partir das sessões do Mind Summit 2026 e pode errar.
     Não substitui acompanhamento profissional. Precisa de ajuda agora? CVV&nbsp;188.</p>
+  </div>
 </div>
 
 <style>
@@ -129,7 +135,10 @@
     /* 5,85:1 sobre `--mia-surface`, medido: o convite do campo precisa ser lido. */
     --mia-placeholder: #5c5c72;
     box-sizing: border-box;
-    display: flex; flex-direction: column;
+    /* A RAIZ VIROU LINHA: lateral à esquerda, conversa à direita. A coluna que
+       ela era passou para `.mia-principal` — e por isso nenhuma outra regra
+       desta folha precisou mudar: todas são descendentes de `.mia-lw`. */
+    display: flex; flex-direction: row;
     /* 680px é só o valor de partida, para o bloco não nascer achatado antes de
        o script medir. Quem manda na altura é `medirAltura`, que ocupa o espaço
        que existe de verdade — por isso não há `max-height` aqui: ele cortava a
@@ -195,23 +204,46 @@
   .mia-lw .mia-topo strong { display: block; font-size: 15px; font-weight: 900; color: #fff; }
   .mia-lw .mia-topo small { display: block; margin-top: 1px; font-size: 12px; color: rgba(255,255,255,.78); }
 
-  /* AS CONVERSAS. `margin-left: auto` empurra para a direita sem mexer no
-     cabeçalho: nenhum dos elementos que já estavam ali muda de lugar. */
-  .mia-lw .mia-acoes { margin-left: auto; display: flex; align-items: center; gap: 7px; }
-  .mia-lw .mia-acoes button {
-    appearance: none; cursor: pointer; border: 0; border-radius: 100px;
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 13px; background: rgba(255,255,255,.17); color: #fff;
-    font-size: 12px; font-weight: 800; line-height: 1;
+  /* ============================================================
+     A LATERAL
+     ============================================================
+     Largura fixa e `flex: none`: a conversa é que estica. Com a lateral
+     elástica, abrir uma conversa com título longo mudaria a largura da coluna
+     de leitura, e o texto se remontaria embaixo da pessoa. */
+  .mia-lw .mia-principal {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
   }
-  .mia-lw .mia-acoes button:hover { background: rgba(255,255,255,.27); }
-  .mia-lw .mia-acoes button svg { width: 14px; height: 14px; display: block; flex: none; }
+  .mia-lw .mia-lateral {
+    flex: none; width: 248px; display: flex; flex-direction: column;
+    background: var(--mia-surface); border-right: 1px solid var(--mia-linha);
+  }
+  .mia-lw .mia-lateral[hidden] { display: none; }
+  .mia-lw .mia-lateral-topo { flex: none; padding: 12px 12px 8px; }
+  .mia-lw .mia-botao-nova {
+    appearance: none; cursor: pointer; width: 100%;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: 11px;
+    border: 1px solid var(--mia-linha); background: var(--mia-bg);
+    color: var(--mia-texto); font-size: 13px; font-weight: 800; line-height: 1;
+  }
+  .mia-lw .mia-botao-nova:hover { background: rgba(152,67,255,.08); border-color: rgba(152,67,255,.35); }
+  .mia-lw .mia-botao-nova svg { width: 15px; height: 15px; display: block; flex: none; }
 
-  .mia-lw .mia-conversas {
-    flex: none; max-height: 46%; overflow-y: auto; overscroll-behavior: contain;
-    background: var(--mia-surface); border-bottom: 1px solid var(--mia-linha);
-    padding: 8px;
+  .mia-lw .mia-lista {
+    flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 4px 8px 10px;
   }
+
+  /* O botão da lateral só existe na tela estreita; o script o acende. */
+  .mia-lw .mia-botao-lateral {
+    appearance: none; cursor: pointer; border: 0; flex: none;
+    width: 32px; height: 32px; border-radius: 9px; margin-right: 2px;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,.17); color: #fff;
+  }
+  .mia-lw .mia-botao-lateral[hidden] { display: none; }
+  .mia-lw .mia-botao-lateral svg { width: 17px; height: 17px; display: block; }
+
   .mia-lw .mia-conversa {
     display: block; width: 100%; text-align: left; cursor: pointer;
     appearance: none; border: 0; background: transparent;
@@ -229,6 +261,24 @@
   }
   .mia-lw .mia-conversas-vazio {
     padding: 14px 12px; font-size: 12px; color: var(--mia-mudo);
+  }
+
+  /* APERTADO a lateral não cabe ao lado: vira gaveta por cima da conversa.
+     `position: absolute` dentro da raiz, que já tem `overflow: hidden` — a
+     gaveta não vaza para a página da escola.
+
+     QUEM DECIDE É UMA CLASSE, NÃO UM `@media`. Houve um `@media (max-width:
+     720px)` aqui e ele estava errado pelo mesmo motivo que o resto do arquivo
+     já explica: media query mede a JANELA, e este bloco é colado dentro de uma
+     coluna cuja largura não tem relação com ela. Numa tela de 1.600px com o
+     bloco espremido em 400, o CSS dizia "largo" enquanto o script dizia
+     "estreito", e a lateral ficava fixa empurrando a conversa para fora. Agora
+     os dois leem a mesma medida: a largura do bloco, tomada pelo script. */
+  .mia-lw.mia-estreito { position: relative; }
+  .mia-lw.mia-estreito .mia-lateral {
+    position: absolute; top: 0; bottom: 0; left: 0; z-index: 4;
+    width: min(280px, 82%);
+    box-shadow: 0 0 0 100vmax rgba(27,27,36,.34);
   }
   .mia-lw .mia-mensagens {
     flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
@@ -352,7 +402,8 @@
      `blur(0)`, mantém uma camada de composição por palavra enquanto estiver
      aplicado — numa resposta longa são centenas delas, num celular dentro do
      webview do app. O estado final vive em `forwards` enquanto a animação
-     existe, e em NADA depois que a classe sai. */
+     existe, e em NADA depois que a classe sai.
+
      OS NÚMEROS VIERAM DO `TextReveal` que o Vinícius mandou em 28/10 (React +
      `motion`, que não dá para usar aqui — bloco colado não tem build): desfoque
      de 8px, 10px de subida, 0,6s e a curva [.23, 1, .32, 1]. São de um
@@ -371,7 +422,10 @@
   .mia-lw.mia-com-capa .mia-sugestoes,
   .mia-lw.mia-com-capa .mia-form,
   .mia-lw.mia-com-capa .mia-aviso,
-  .mia-lw.mia-com-capa .mia-acoes { display: none; }
+  /* Com a capa no ar não há conversa nenhuma para listar, e a lateral só
+     roubaria largura da apresentação. Some pela mesma classe, com o resto. */
+  .mia-lw.mia-com-capa .mia-lateral,
+  .mia-lw.mia-com-capa .mia-botao-lateral { display: none; }
   .mia-lw .mia-capa { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; }
   .mia-lw .mia-capa[hidden] { display: none; }
   .mia-capa-miolo {
@@ -406,7 +460,13 @@
     display: flex; align-items: center; gap: 9px;
     font-size: 13px; font-weight: 700; color: var(--mia-mudo);
   }
-  .mia-capa-espera .mia-petala { width: 15px; height: 15px; flex: none; }
+  /* A pétala gira aqui também. O giro mora numa regra presa a `.mia-pensou`,
+     e na capa ela não está lá dentro — sem esta linha ela aparece parada, que
+     é o contrário do que um "conferindo…" precisa dizer. */
+  .mia-capa-espera .mia-petala {
+    width: 15px; height: 15px; flex: none;
+    animation: mia-gira 2.6s linear infinite;
+  }
   .mia-capa-cta {
     align-self: flex-start; display: inline-block;
     background: var(--mia-roxo); color: #fff;
@@ -1597,10 +1657,29 @@
      A lista vem da PESSOA, não do armazenamento daqui. Quem resolve quem é a
      pessoa é o servidor, a partir do e-mail e do id que o LearnWorlds escreve
      na página. */
-  var acoes = raiz.querySelector('.mia-acoes');
-  var painel = raiz.querySelector('.mia-conversas');
-  var botaoConversas = raiz.querySelector('.mia-botao-conversas');
+  var lateral = raiz.querySelector('.mia-lateral');
+  var painel = raiz.querySelector('.mia-lista');
+  var botaoLateral = raiz.querySelector('.mia-botao-lateral');
   var botaoNova = raiz.querySelector('.mia-botao-nova');
+
+  /* ESTREITO é decidido pela largura do BLOCO, não da janela: o mesmo bloco
+     cabe inteiro numa página larga e fica espremido dentro de uma coluna de
+     curso na mesma tela. `matchMedia` responderia pela janela e erraria nos
+     dois casos. */
+  function estreito() { return raiz.getBoundingClientRect().width < 720; }
+  var temConversas = false;
+
+  /* Na tela larga a lateral fica aberta e o botão some; na estreita ela nasce
+     fechada e o botão manda nela. Só vale depois que houver o que listar. */
+  function arrumarLateral(temConversas) {
+    var apertado = estreito();
+    /* A classe é o que o CSS lê para decidir entre coluna fixa e gaveta: uma
+       medida só, tomada aqui, em vez de duas que podem discordar. */
+    raiz.classList.toggle('mia-estreito', apertado);
+    if (!temConversas) { lateral.hidden = true; botaoLateral.hidden = true; return; }
+    botaoLateral.hidden = !apertado;
+    lateral.hidden = apertado;
+  }
 
   /* Mesmo endereço e mesma sessão do turno; o que muda é que não há pergunta.
      `historico` vale 'listar' ou o id de uma conversa. */
@@ -1650,9 +1729,11 @@
     mensagens.scrollTop = mensagens.scrollHeight;
   }
 
+  /* Fechar só faz sentido quando a lateral é gaveta. Na tela larga ela é parte
+     do desenho, e sumir com ela ao abrir uma conversa seria tirar do caminho
+     justamente o que a pessoa está usando para navegar. */
   function fecharPainel() {
-    painel.hidden = true;
-    botaoConversas.setAttribute('aria-expanded', 'false');
+    if (estreito()) lateral.hidden = true;
   }
 
   function abrirConversa(id) {
@@ -1712,21 +1793,29 @@
   function listarConversas() {
     return pedirHistorico('listar').then(function (p) {
       var conversas = p && Array.isArray(p.conversas) ? p.conversas : [];
-      /* Sem dono resolvido o servidor devolve lista vazia, e os botões
-         continuam escondidos: não se oferece à pessoa uma gaveta que nunca
-         vai ter nada dentro. Com uma conversa que seja, eles acendem. */
-      if (conversas.length) acoes.hidden = false;
+      /* Sem dono resolvido o servidor devolve lista vazia, e a lateral
+         continua escondida: não se tira largura da conversa por uma coluna
+         que nunca vai ter nada dentro. Com uma conversa que seja, ela acende. */
+      temConversas = conversas.length > 0;
       desenharLista(conversas);
+      arrumarLateral(temConversas);
       return conversas;
     });
   }
 
-  botaoConversas.addEventListener('click', function () {
-    if (!painel.hidden) { fecharPainel(); return; }
-    painel.hidden = false;
-    botaoConversas.setAttribute('aria-expanded', 'true');
-    listarConversas();
+  botaoLateral.addEventListener('click', function () {
+    lateral.hidden = !lateral.hidden;
   });
+
+  /* O bloco muda de largura sem a janela mudar: a escola redesenha a coluna do
+     curso, o celular gira. A lateral tem de acompanhar — aberta quando cabe,
+     gaveta quando não. */
+  if (window.ResizeObserver) {
+    var observador = new ResizeObserver(function () {
+      if (temConversas) arrumarLateral(true);
+    });
+    observador.observe(raiz);
+  }
 
   botaoNova.addEventListener('click', function () {
     /* Esquecer a conversa aqui basta: o próximo turno abre outra no servidor,
