@@ -17,7 +17,11 @@ export const ORCAMENTO_TURNO_MS = 30_000;
 // "digitando"; `analisar-conversa` (mesma casa, tarefa em lote sem ninguém
 // olhando) já usa 55s para o mesmo tipo de trabalho, mas essa espera é de
 // quem está sem fazer nada na frente do celular.
-export const ORCAMENTO_TURNO_COMPLEXO_MS = 45_000;
+// 48s, não 45: medido em 29/10, o turno completo de conteúdo (busca obrigatória +
+// uma segunda rodada + fecho) encostava nos 45 com regularidade — 34,1s e 35,7s
+// passaram, 45,0s não. O embed só desiste aos 50s, então estes 3s existiam e estavam
+// sobrando na mesa. Não resolve sozinho; compra margem enquanto a entrada não encolhe.
+export const ORCAMENTO_TURNO_COMPLEXO_MS = 48_000;
 
 // RESERVA DO FECHO. O orçamento do turno era repartido por quem chegasse primeiro:
 // cada chamada ao modelo recebia TODO o tempo restante, então as rodadas de
@@ -32,7 +36,14 @@ export const ORCAMENTO_TURNO_COMPLEXO_MS = 45_000;
 // Esta reserva é intocável: enquanto houver menos que isto no relógio, não se abre
 // mais ferramenta — o turno fecha com o que já tem na mão. Responder com menos é
 // conduta prevista no playbook; não responder não é.
-export const RESERVA_FECHO_MS = 12_000;
+// 20s, não 12. Com 12 a rede funcionou e mesmo assim o turno se perdeu: em 29/10 o
+// log registrou `rodada_abortada_fecha_turno` com `restante_ms: 11999` e, doze
+// segundos depois, `ai_timeout` em 45.001ms. O fecho não paga raciocínio nem carrega
+// ferramenta, mas ainda precisa LER antes de escrever — naquele turno, 35.738 de
+// instrução, 16.079 de contexto e 16.886 de resultado de busca. Encurtar o prazo das
+// rodadas agora é barato, porque rodada que estoura cai no fecho em vez de derrubar
+// o turno; fecho que estoura não tem para onde cair.
+export const RESERVA_FECHO_MS = 20_000;
 
 export type IntelligenceContext = {
   rota: string;

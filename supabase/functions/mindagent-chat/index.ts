@@ -64,7 +64,7 @@ type Interest = {
   sensitivity: string;
 };
 
-const VERSION = "1.22.1";
+const VERSION = "1.23.0";
 const DEFAULT_EVENT_SLUG = "mind-summit-2026";
 const DEFAULT_MODEL_COMPLEX = "gpt-5.4";
 const DEFAULT_MODEL_FAST = "gpt-5.4-mini";
