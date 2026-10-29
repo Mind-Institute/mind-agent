@@ -768,3 +768,61 @@ test('B. writer sem o contrato `ok` é falha, não sucesso silencioso', async ()
     assert.equal(r.corpo.error.code, 'acao_falhou');
   }
 });
+
+/* ========================================================== 9. IDENTIDADE PELO LEARNWORLDS */
+
+test('identidade: o LearnWorlds liga a pessoa pelo e-mail e pelo ID dela', async () => {
+  const r = await chamar({
+    corpo: {
+      message: 'o que a Maslach disse sobre burnout?',
+      identity: {
+        email: 'Aluna@Exemplo.com', name: 'Ana Aluna', source: 'learnworlds',
+        learnworlds_user_id: '64f0c1a2b3c4d5e6f7a8b9c0',
+      },
+    },
+  });
+  assert.equal(r.status, 200);
+  const bind = r.chamada('mindagent_chat_bind_identity');
+  assert.equal(bind.args.p_email, 'aluna@exemplo.com');
+  assert.equal(bind.args.p_nome, 'Ana Aluna');
+  assert.equal(bind.args.p_learnworlds_user_id, '64f0c1a2b3c4d5e6f7a8b9c0');
+  assert.deepEqual(r.corpo.identity_received, { email: true, name: true, source: 'learnworlds' });
+});
+
+/* A CONVENÇÃO MUDOU DE FORMA, NÃO DE INTENÇÃO (29/10/2026). A chamada
+   passou a mandar `p_learnworlds_user_id: null` em vez de omitir o
+   parâmetro — a função no banco tem os sete desde a migration de 22/10, e
+   duas lanes tinham escrito a mesma regra de jeitos diferentes. O Vinícius
+   escolheu esta. O que o teste guarda é o mesmo: id de LearnWorlds enfiado
+   num turno da Yazo NÃO chega ao banco. */
+test('identidade: ID do LearnWorlds não vai no caminho da Yazo', async () => {
+  const r = await chamar({
+    corpo: {
+      message: 'oi',
+      identity: {
+        email: 'participante@exemplo.com', name: 'Participante', source: 'yazo_url',
+        learnworlds_user_id: '64f0c1a2b3c4d5e6f7a8b9c0',
+      },
+    },
+  });
+  const bind = r.chamada('mindagent_chat_bind_identity');
+  assert.equal(bind.args.p_learnworlds_user_id ?? null, null,
+    'o id do LearnWorlds vazou para um turno da Yazo');
+});
+
+test('identidade: ID do LearnWorlds fora de forma não vai, e fonte desconhecida não liga ninguém', async () => {
+  const torto = await chamar({
+    corpo: {
+      message: 'oi',
+      identity: { email: 'aluna@exemplo.com', source: 'learnworlds', learnworlds_user_id: '{{USER.ID}}' },
+    },
+  });
+  assert.equal(torto.chamada('mindagent_chat_bind_identity').args.p_learnworlds_user_id ?? null, null,
+    'um marcador não substituído ({{USER.ID}}) chegou ao banco como id');
+
+  const estranha = await chamar({
+    corpo: { message: 'oi', identity: { email: 'aluna@exemplo.com', source: 'qualquer_site' } },
+  });
+  assert.ok(!estranha.rpcs.includes('mindagent_chat_bind_identity'));
+  assert.equal(estranha.corpo.identity_received.source, null);
+});

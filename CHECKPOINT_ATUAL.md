@@ -79,6 +79,58 @@ Detalhe por arquivo no corpo da PR.
   `core.autocrlf=true` sem `.gitattributes`: os testes que leem o fonte usam `\n` em
   regex e o CR sobra. Não é defeito de produto, mas esconde falha real.
 
+### MIA no LearnWorlds — bloco de código (P2) — 22/10/2026
+
+- Branch `claude/keen-bell-rxu0zp`. Pedido da Adriana: a MIA mora **direto no LearnWorlds**, não no site do
+  app do Summit (o agente em si é outra janela).
+- `learnworlds/mia-embed.html`: bloco único (HTML + CSS + JS) para colar no LearnWorlds. Não é publicado
+  por nenhum site nosso (fora do build). Fala direto com o Supabase: sessão anônima do Auth e
+  `mindagent-chat` com `origem_codigo = institute_learnworlds`. Sem `localStorage` disponível, a
+  conversa segue na memória da página.
+- **Identidade (P7, decisão da Adriana em 22/10: confiar no LearnWorlds):** o bloco manda
+  `{{USER.EMAIL}}`, `{{USER.NAME}}` e `{{USER.ID}}` com `source = learnworlds`. `mindagent-chat` 1.18.0
+  aceita essa fonte e passa o ID para `mindagent_chat_bind_identity` (assinatura nova de 7 parâmetros,
+  migration `20261022175330`, **aplicada**; a de 6 só repassa). A porta única grava
+  `learnworlds_user_id` em `engagement.identidades`. **Não publicada.** Em 22/10 à noite a outra janela publicou a v50
+  (também numerada 1.17.0, PR #167, sem a identidade do LearnWorlds); por isso esta virou 1.18.0. Publicar a
+  1.18.0 só depois de juntar as duas (merge do #167 na main e da main neste PR); até lá a MIA fica anônima.
+- Banco (casa existente): `canal_competencia` `mindagent-web × mia_summit_2026` com
+  `entradas_diretas = {institute_learnworlds}`. Inerte enquanto o canal da MIA estiver desligado
+  (`mind_origem_rota` devolve nulo; conferido). **Com o canal desligado, o bloco cai no roteador**: só
+  colar no LearnWorlds depois de ligar a MIA no canal `mindagent-web` (painel → Canais e Roteador).
+- Conferido no Chromium com o Supabase simulado: colado na página (computador e celular) e dentro de iframe
+  isolado (sem armazenamento, origem nula). Porta enviada, conversa contínua, nenhum HTML vindo da resposta.
+- **A MIA vira curso (Adriana, 23–24/10):** curso `mia-summit-2026` no LearnWorlds, com o bloco numa
+  atividade de embed.
+  - O acesso vem pela matrícula (pacotes). Decisão ainda aberta: pacotes do Summit On Demand ou um
+    pacote de IAs.
+  - Teste no player do curso (24/10): o código roda, dentro de iframe, com armazenamento e conexão com
+    o Supabase.
+  - O curso troca `{{USER_EMAIL}}`, `{{USER_NAME}}`, `{{USER_ID}}`, `{{COURSE_ID}}` e `{{UNIT_ID}}`; o
+    formato com ponto não é trocado. O ID do LearnWorlds da Adriana já resolve o Mind ID dela.
+  - O bloco agora lê os dois formatos e manda curso e aula em `contexto`. A chat ainda ignora o
+    `contexto`: ele já vai no envio para não precisar colar o bloco de novo quando a MIA passar a usar.
+
+- **Integração com o LearnWorlds:** proposta em `LEARNWORLDS_INTEGRACAO_PROPOSTA.md`. **Fase 1 no ar (23/10):**
+  `learnworlds-sync` 1.0.0 (v3) + cron `learnworlds_sync` a cada 6 h; tabelas `learnworlds.cursos/programas/
+  usuarios/matriculas`; cruzamento em `learnworlds.v_cursos_no_catalogo` e `catalogo.v_produtos_learnworlds`.
+  Primeira carga: 20 cursos, 3 bundles, 2.558 pessoas (2.498 achadas pelo e-mail, 60 criadas), 2.334 matrículas.
+  Falta: a Adriana confirmar a correção do mapa `learnworlds.produtos` (§7 da proposta). Webhook: não agora.
+  Matrícula automática pela Eduzz: depois.
+- **As 60 pessoas criadas pela carga (decisão da Adriana, 23/10, tudo por `mind_fusao_decidir`):**
+  - 19 já existiam com outro Mind ID, achadas por nome ou ingresso: a proposta errada (com a dona do e-mail)
+    foi rejeitada, e uma nova, com a pessoa certa, foi aprovada.
+  - 13 eram a dona do e-mail com apelido ou nome de empresa: aprovadas.
+  - 17 compraram para outra pessoa e ficam separadas; a proposta foi rejeitada. Causa: a Eduzz grava o
+    participante com o e-mail de quem comprou.
+  - 8 testes ou contas internas: ficam como estão, sem apagar.
+  - 2 são novas de verdade.
+  - Amanda Lêdo (Ad Singular) fica separada da Leticia Tambani: celulares diferentes.
+  - Sobram 28 Mind IDs novos e nenhuma pendência de fusão com eles.
+  - Ainda sem decisão: devolver o e-mail de quem comprou (hoje colado no participante) e ligar a venda dela
+    na Eduzz, hoje sem Mind ID; a "busca ao nascer" (procurar todo Mind ID novo nos outros sistemas,
+    inclusive por nome; precisa de D7).
+
 ### MIA Summit 2026 e Agent Intelligence — 22/10/2026
 
 - PR: `Mind-Institute/mind-agent#165`, branch `claude/mind-summit-agent-nc7ztx`. Desenho e estado em
