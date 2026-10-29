@@ -1,0 +1,332 @@
+<!--
+  ============================================================
+  SONDA DAS VARIÁVEIS DO LEARNWORLDS — bloco de diagnóstico
+  ============================================================
+  Cole este arquivo inteiro num bloco de código do LearnWorlds, no lugar onde
+  você quer descobrir se as variáveis chegam. Ele não fala com servidor
+  nenhum: só mostra na tela o que o LearnWorlds trocou.
+
+  PARA QUE ELE EXISTE. O bloco da MIA (`learnworlds/mia-embed.html`) não pede
+  login: ele confia no que o LearnWorlds escreve na página. Se os marcadores
+  não forem trocados naquele lugar, a MIA abre assim mesmo — só que sem saber
+  quem é a pessoa, e em silêncio. Antes de colar a MIA num lugar novo, esta
+  sonda responde se aquele lugar entrega o que ela precisa.
+
+  OS MESMOS OITO MARCADORES, COM OS MESMOS NOMES do bloco real. Isto não é
+  detalhe: uma sonda que testasse outros nomes responderia outra pergunta.
+  Na atividade de embed do curso o formato é USER_EMAIL, USER_NAME, USER_ID,
+  COURSE_ID e UNIT_ID; numa página da escola é USER.EMAIL, USER.NAME e
+  USER.ID. O bloco traz os dois e usa o que vier trocado, e a sonda faz igual.
+
+  E AS MESMAS REGRAS DE VALIDAÇÃO. Mostrar o valor cru não basta: a MIA só
+  usa o e-mail se ele passar no teste dela, e ignora id ou código fora do
+  formato. Uma sonda que dissesse "chegou" para um valor que a MIA recusaria
+  seria pior do que não ter sonda. Por isso cada linha aqui dá dois
+  vereditos: CHEGOU e SERVE.
+
+  NÃO SAI DAQUI. Nenhum `fetch`, nenhum pixel, nenhum armazenamento. O e-mail
+  da pessoa aparece na tela de quem abriu a página e em nenhum outro lugar —
+  e é por isso que este bloco é para teste, e sai da página depois.
+-->
+
+<div id="mia-sonda" class="mia-sonda">
+  <!-- Formato da ATIVIDADE DE EMBED do curso. -->
+  <span hidden data-sonda="email" data-formato="USER_EMAIL">{{USER_EMAIL}}</span>
+  <span hidden data-sonda="nome" data-formato="USER_NAME">{{USER_NAME}}</span>
+  <span hidden data-sonda="id" data-formato="USER_ID">{{USER_ID}}</span>
+  <span hidden data-sonda="curso" data-formato="COURSE_ID">{{COURSE_ID}}</span>
+  <span hidden data-sonda="aula" data-formato="UNIT_ID">{{UNIT_ID}}</span>
+  <!-- Formato da PÁGINA DA ESCOLA. -->
+  <span hidden data-sonda="email" data-formato="USER.EMAIL">{{USER.EMAIL}}</span>
+  <span hidden data-sonda="nome" data-formato="USER.NAME">{{USER.NAME}}</span>
+  <span hidden data-sonda="id" data-formato="USER.ID">{{USER.ID}}</span>
+
+  <div class="mia-sonda-topo">
+    <strong>Sonda de variáveis</strong>
+    <small>O que o LearnWorlds entrega neste lugar da página</small>
+  </div>
+
+  <div class="mia-sonda-corpo">
+    <div class="mia-sonda-veredito" id="mia-sonda-veredito"></div>
+    <table class="mia-sonda-tabela">
+      <thead>
+        <tr><th>O que a MIA precisa</th><th>Veio como</th><th>Valor</th></tr>
+      </thead>
+      <tbody id="mia-sonda-linhas"></tbody>
+    </table>
+    <div class="mia-sonda-onde" id="mia-sonda-onde"></div>
+    <div class="mia-sonda-acoes">
+      <button type="button" id="mia-sonda-copiar">Copiar o resultado</button>
+      <span class="mia-sonda-nota">Nada daqui sai desta tela: a sonda não fala com servidor nenhum.</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* A MESMA REGRA DE FONTE DO BLOCO DA MIA, e pelo mesmo motivo: o contêiner
+     onde o LearnWorlds põe o código não declara fonte, e a escola declara
+     estilo nos próprios elementos. Herança perde para declaração no filho,
+     então a regra nomeia os descendentes pelo `id` e leva `!important`. Num
+     bloco colado isso não é atalho: é a única forma de garantir a própria
+     aparência numa página cujo CSS não se controla nem se lê. */
+  #mia-sonda, #mia-sonda * {
+    font-family: Satoshi, "Satoshi Variable", -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
+  }
+  .mia-sonda {
+    --s-roxo: #9843ff;
+    --s-bg: #ffffff; --s-surface: #f3f2f8;
+    --s-texto: #1b1b24; --s-mudo: #70708a;
+    --s-linha: rgba(27,27,36,.11);
+    --s-ok: #1b7a46; --s-ok-fundo: #e8f6ee;
+    --s-nao: #a3341f; --s-nao-fundo: #fdeeea;
+    box-sizing: border-box;
+    width: 100%; max-width: 860px; margin: 0 auto;
+    background: var(--s-bg); color: var(--s-texto);
+    border: 1px solid var(--s-linha); border-radius: 14px; overflow: hidden;
+    text-align: left;
+  }
+  .mia-sonda *, .mia-sonda *::before, .mia-sonda *::after { box-sizing: border-box; }
+  .mia-sonda-topo { padding: 14px 18px; background: var(--s-roxo); }
+  .mia-sonda-topo strong { display: block; font-size: 15px; font-weight: 900; color: #fff; }
+  .mia-sonda-topo small { display: block; margin-top: 2px; font-size: 12px; color: rgba(255,255,255,.8); }
+  .mia-sonda-corpo { padding: 16px 18px 18px; }
+
+  .mia-sonda-veredito {
+    border-radius: 11px; padding: 13px 15px; margin-bottom: 16px;
+    font-size: 14px; line-height: 1.5;
+  }
+  .mia-sonda-veredito b { font-weight: 900; }
+  .mia-sonda-veredito.ok { background: var(--s-ok-fundo); color: var(--s-ok); }
+  .mia-sonda-veredito.nao { background: var(--s-nao-fundo); color: var(--s-nao); }
+  .mia-sonda-veredito p { margin: 6px 0 0; }
+
+  .mia-sonda-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .mia-sonda-tabela th {
+    text-align: left; padding: 7px 10px 7px 0;
+    font-size: 11px; font-weight: 800; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--s-mudo);
+    border-bottom: 1px solid var(--s-linha);
+  }
+  .mia-sonda-tabela td {
+    padding: 10px 10px 10px 0; vertical-align: top;
+    border-bottom: 1px solid var(--s-linha);
+    overflow-wrap: anywhere;
+  }
+  .mia-sonda-tabela tr:last-child td { border-bottom: 0; }
+  .mia-sonda-tabela td:first-child { font-weight: 700; white-space: nowrap; }
+  .mia-sonda-tabela code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    font-size: 12px; background: var(--s-surface);
+    border-radius: 5px; padding: 2px 6px;
+  }
+  .mia-sonda-selo {
+    display: inline-block; font-size: 11px; font-weight: 800;
+    border-radius: 100px; padding: 3px 9px; white-space: nowrap;
+  }
+  .mia-sonda-selo.ok { background: var(--s-ok-fundo); color: var(--s-ok); }
+  .mia-sonda-selo.nao { background: var(--s-nao-fundo); color: var(--s-nao); }
+  .mia-sonda-selo.meio { background: var(--s-surface); color: var(--s-mudo); }
+  .mia-sonda-por { display: block; margin-top: 4px; font-size: 12px; color: var(--s-mudo); }
+
+  .mia-sonda-onde {
+    margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--s-linha);
+    font-size: 12px; line-height: 1.6; color: var(--s-mudo);
+    overflow-wrap: anywhere;
+  }
+  .mia-sonda-acoes {
+    margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  }
+  .mia-sonda-acoes button {
+    appearance: none; cursor: pointer; border: 0; border-radius: 100px;
+    padding: 10px 18px; background: var(--s-roxo); color: #fff;
+    font-size: 13px; font-weight: 800;
+  }
+  .mia-sonda-nota { font-size: 12px; color: var(--s-mudo); }
+
+  @media (max-width: 520px) {
+    .mia-sonda-topo { padding: 12px 14px; }
+    .mia-sonda-corpo { padding: 14px; }
+    /* Na tela estreita a tabela vira lista: três colunas em 360px cortam o
+       valor justo na parte que a gente veio conferir. */
+    .mia-sonda-tabela thead { display: none; }
+    .mia-sonda-tabela tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--s-linha); }
+    .mia-sonda-tabela tr:last-child { border-bottom: 0; }
+    .mia-sonda-tabela td { display: block; border: 0; padding: 2px 0; }
+    .mia-sonda-tabela td:first-child { white-space: normal; }
+  }
+</style>
+
+<script>
+(function () {
+  var raiz = document.getElementById('mia-sonda');
+  if (!raiz) return;
+
+  /* Um marcador que o LearnWorlds NÃO trocou chega literalmente com as
+     chaves. É assim que o bloco da MIA decide, e é assim aqui. */
+  function trocado(v) { return !!v && v.indexOf('{{') < 0 && v.indexOf('}}') < 0; }
+
+  /* AS MESMAS REGRAS DO BLOCO REAL. Copiadas de propósito: a pergunta que
+     esta sonda responde não é "veio alguma coisa?", é "a MIA usaria isto?". */
+  function emailServe(v) { return /^[^\s@{}]+@[^\s@{}]+\.[^\s@{}]{2,}$/.test(v); }
+  function nomeServe(v) { return v !== '' && v.indexOf('{{') < 0; }
+  function idServe(v) { return /^[A-Za-z0-9_-]{6,64}$/.test(v); }
+  function codigoServe(v) { return /^[A-Za-z0-9_-]{1,80}$/.test(v); }
+
+  var CAMPOS = [
+    { chave: 'email', titulo: 'E-mail', serve: emailServe,
+      peso: 'obrigatório', porque: 'sem e-mail válido a MIA não sabe quem é a pessoa' },
+    { chave: 'nome', titulo: 'Nome', serve: nomeServe,
+      peso: 'opcional', porque: 'serve para ela chamar a pessoa pelo primeiro nome' },
+    { chave: 'id', titulo: 'ID do aluno', serve: idServe,
+      peso: 'opcional', porque: 'liga a conversa à conta do LearnWorlds' },
+    { chave: 'curso', titulo: 'Código do curso', serve: codigoServe,
+      peso: 'opcional', porque: 'diz à MIA de que curso a pergunta veio' },
+    { chave: 'aula', titulo: 'Código da aula', serve: codigoServe,
+      peso: 'opcional', porque: 'só vale junto com o código do curso' },
+  ];
+
+  /* Lê todos os marcadores daquele campo — os dois formatos — e devolve qual
+     deles venceu. O bloco real pega o primeiro trocado; a sonda mostra
+     também os que falharam, que é a informação que falta quando não
+     funciona. */
+  function ler(chave) {
+    var els = raiz.querySelectorAll('[data-sonda="' + chave + '"]');
+    var tentativas = [];
+    var vencedor = null;
+    for (var i = 0; i < els.length; i++) {
+      var formato = els[i].getAttribute('data-formato');
+      var bruto = String(els[i].textContent || '').trim();
+      var ok = trocado(bruto);
+      tentativas.push({ formato: formato, bruto: bruto, trocado: ok });
+      if (ok && !vencedor) vencedor = { formato: formato, valor: bruto };
+    }
+    return { tentativas: tentativas, vencedor: vencedor };
+  }
+
+  function selo(classe, texto) {
+    var s = document.createElement('span');
+    s.className = 'mia-sonda-selo ' + classe;
+    s.textContent = texto;
+    return s;
+  }
+
+  var linhas = document.getElementById('mia-sonda-linhas');
+  var resumo = [];
+  var identidadePassa = false;
+
+  CAMPOS.forEach(function (campo) {
+    var lido = ler(campo.chave);
+    var tr = document.createElement('tr');
+
+    var tdNome = document.createElement('td');
+    tdNome.appendChild(document.createTextNode(campo.titulo));
+    var por = document.createElement('span');
+    por.className = 'mia-sonda-por';
+    por.textContent = campo.peso + ' — ' + campo.porque;
+    tdNome.appendChild(por);
+    tr.appendChild(tdNome);
+
+    var tdComo = document.createElement('td');
+    var tdValor = document.createElement('td');
+
+    if (lido.vencedor) {
+      var serve = campo.serve(lido.vencedor.valor);
+      if (campo.chave === 'email' && serve) identidadePassa = true;
+
+      var cod = document.createElement('code');
+      cod.textContent = '{{' + lido.vencedor.formato + '}}';
+      tdComo.appendChild(cod);
+
+      var val = document.createElement('div');
+      val.textContent = lido.vencedor.valor;
+      tdValor.appendChild(val);
+      tdValor.appendChild(document.createElement('br'));
+      tdValor.appendChild(selo(serve ? 'ok' : 'nao',
+        serve ? 'chegou e serve' : 'chegou, mas a MIA recusaria'));
+      if (!serve) {
+        var aviso = document.createElement('span');
+        aviso.className = 'mia-sonda-por';
+        aviso.textContent = 'o valor não bate com o formato que o bloco aceita';
+        tdValor.appendChild(aviso);
+      }
+      resumo.push(campo.titulo + ': ' + (serve ? 'OK' : 'RECUSADO') +
+        ' (' + lido.vencedor.formato + ' = ' + lido.vencedor.valor + ')');
+    } else {
+      var nomes = lido.tentativas.map(function (t) { return t.formato; }).join(' e ');
+      tdComo.appendChild(document.createTextNode('—'));
+      tdValor.appendChild(selo('nao', 'não chegou'));
+      var expl = document.createElement('span');
+      expl.className = 'mia-sonda-por';
+      /* Mostrar o texto cru é o que diz se o LearnWorlds ignorou o marcador
+         ou se trocou por vazio — são dois problemas diferentes. */
+      var crus = lido.tentativas.map(function (t) {
+        return t.formato + ' → ' + (t.bruto === '' ? '(vazio)' : t.bruto);
+      }).join(' · ');
+      expl.textContent = 'tentei ' + nomes + '. Veio: ' + crus;
+      tdValor.appendChild(expl);
+      resumo.push(campo.titulo + ': NAO CHEGOU (' + crus + ')');
+    }
+
+    tr.appendChild(tdComo);
+    tr.appendChild(tdValor);
+    linhas.appendChild(tr);
+  });
+
+  /* O veredito é sobre a única coisa que decide: o e-mail. Sem ele a MIA
+     abre do mesmo jeito, respondendo sobre o Summit, mas sem saber de quem é
+     a conversa — e é justamente esse silêncio que esta sonda existe para
+     quebrar. */
+  var vered = document.getElementById('mia-sonda-veredito');
+  vered.className = 'mia-sonda-veredito ' + (identidadePassa ? 'ok' : 'nao');
+  var titulo = document.createElement('b');
+  titulo.textContent = identidadePassa
+    ? 'Este lugar serve: a MIA saberia quem é a pessoa.'
+    : 'Este lugar NÃO serve: a MIA abriria sem saber quem é a pessoa.';
+  vered.appendChild(titulo);
+  var detalhe = document.createElement('p');
+  detalhe.textContent = identidadePassa
+    ? 'O e-mail chegou e passou na mesma validação que o bloco da MIA usa. Os campos opcionais abaixo melhoram a conversa, mas não impedem nada.'
+    : 'O e-mail é o único campo obrigatório. Sem ele a conversa funciona e responde sobre o Summit, só não fica ligada a ninguém — e isso acontece em silêncio, sem erro na tela.';
+  vered.appendChild(detalhe);
+
+  /* Onde ela está. Quando o marcador não é trocado, a causa quase sempre é o
+     LUGAR: bloco de código dentro de um iframe que a escola monta à parte,
+     ou página que não é do curso. Estes três dados costumam explicar. */
+  var dentroDeIframe = (function () {
+    try { return window.self !== window.top; } catch (e) { return true; }
+  })();
+  var onde = document.getElementById('mia-sonda-onde');
+  var ondeTexto = [
+    'Endereço: ' + location.href,
+    'Dentro de um iframe: ' + (dentroDeIframe ? 'sim' : 'não'),
+    'Largura da tela: ' + window.innerWidth + 'px',
+  ];
+  ondeTexto.forEach(function (l) {
+    var d = document.createElement('div');
+    d.textContent = l;
+    onde.appendChild(d);
+  });
+
+  var botao = document.getElementById('mia-sonda-copiar');
+  botao.addEventListener('click', function () {
+    var texto = ['SONDA DE VARIÁVEIS DO LEARNWORLDS']
+      .concat(ondeTexto)
+      .concat(['', 'Identidade: ' + (identidadePassa ? 'OK' : 'NAO CHEGOU'), ''])
+      .concat(resumo)
+      .join('\n');
+    function avisar(ok) {
+      botao.textContent = ok ? 'Copiado' : 'Não consegui copiar — selecione e copie';
+      setTimeout(function () { botao.textContent = 'Copiar o resultado'; }, 2600);
+    }
+    /* `navigator.clipboard` falha em página sem HTTPS e em webview antigo.
+       O aviso diz o que fazer em vez de não fazer nada. */
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(function () { avisar(true); },
+        function () { avisar(false); });
+    } else {
+      avisar(false);
+    }
+  });
+})();
+</script>
